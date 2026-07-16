@@ -26,7 +26,7 @@ def run_script(name: str, *args: str) -> subprocess.CompletedProcess[str]:
 
 def test_public_package_contract() -> None:
     package = json.loads((PACKAGE / "specifications" / "package.json").read_text(encoding="utf-8"))
-    assert package["version"] == "2.1.7"
+    assert package["version"] == "2.1.8"
     assert package["architecture_inspiration"]["dependency"] is False
     assert package["architecture_inspiration"]["vendored_code"] is False
     run_script("validate_structure.py", "--package", str(PACKAGE))
@@ -56,6 +56,12 @@ def test_public_yaml_has_unique_keys() -> None:
 
 def test_friendly_cli_entrypoint(tmp_path: Path) -> None:
     run_script("sms_kit.py", "validate")
+    run_script(
+        "sms_kit.py", "install",
+        "--runtime", "generic",
+        "--destination", str(tmp_path / "sms-kit"),
+        "--dry-run",
+    )
     run_script(
         "sms_kit.py", "init",
         "--root", str(tmp_path),

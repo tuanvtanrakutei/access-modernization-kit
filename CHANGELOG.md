@@ -36,6 +36,12 @@ All notable changes to this project are documented in this file. The format foll
 
 - Added a documented shorthand command guide for the agent skill: `help`, `init`, `assess`, `phase`, `run`, `status`, and `render`.
 
+## [2.1.8] - 2026-07-16
+
+### Added
+
+- Added `sms_kit.py install` and the matching `$sms-kit install` agent commands for Codex and Claude skill discovery.
+
 ## [2.1.4] - 2026-07-16
 
 ### Changed

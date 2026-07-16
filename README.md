@@ -1,7 +1,7 @@
 # SMS Legacy Investigation Kit
 
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-2.1.7-green.svg)](specifications/package.json)
+[![Version](https://img.shields.io/badge/version-2.1.8-green.svg)](specifications/package.json)
 
 ## What is this?
 
@@ -67,6 +67,12 @@ Use the CLI only to validate the shared package, create an app workspace, or run
 # Check that the shared kit is healthy; no app is analyzed.
 py -3.11 scripts/sms_kit.py validate
 
+# Install the skill for Codex on this developer machine.
+py -3.11 scripts/sms_kit.py install --runtime codex
+
+# Install the same skill for Claude in one project.
+py -3.11 scripts/sms_kit.py install --runtime claude --project D:\investigations\A03
+
 # Create a separate workspace for one app.
 py -3.11 scripts/sms_kit.py init `
   --root D:\investigations `
@@ -87,6 +93,8 @@ These are short messages to an agent after selecting the skill. They are not Pow
 | What you want | Type this |
 |---|---|
 | See the guide | `$sms-kit help` |
+| Install for Codex | `$sms-kit install codex` |
+| Install for Claude in a project | `$sms-kit install claude D:\investigations\A03` |
 | Create an app workspace only | `$sms-kit init A03` |
 | Check source coverage and missing inputs | `$sms-kit assess A03` |
 | Run one phase | `$sms-kit phase 1 A03` |
@@ -142,7 +150,7 @@ This makes the kit compatible with Codex, Claude, and generic agents without all
 
 ## Current status and safety boundary
 
-Version 2.1.7 is packaged and synthetic-smoke-tested. Live Access/ADP extraction, live SQL Server access, and the A01 regression corpus are intentionally outside the public test baseline.
+Version 2.1.8 is packaged and synthetic-smoke-tested. Live Access/ADP extraction, live SQL Server access, and the A01 regression corpus are intentionally outside the public test baseline.
 
 - Never open the original Access database; executable extraction uses a hash-verified snapshot.
 - Never execute `command` or `arguments` values from `compile_commands.json`.

@@ -14,6 +14,8 @@ Treat these short forms as explicit user requests. They are agent commands, not 
 | User input | Required action |
 |---|---|
 | `$sms-kit help` | Return the command guide below and do not modify an app workspace. |
+| `$sms-kit install codex` | Run `scripts/sms_kit.py install --runtime codex`; report the discovery path and restart requirement. |
+| `$sms-kit install claude <PROJECT_PATH>` | Run `scripts/sms_kit.py install --runtime claude --project <PROJECT_PATH>`; report the discovery path and restart requirement. |
 | `$sms-kit init <APP_ID>` | Use app initialization mode; ask for or infer only the safe workspace/name details, run `scripts/sms_kit.py init`, then stop. |
 | `$sms-kit assess <APP_ID>` | Inspect the manifest and authorized source inventory; report coverage, gaps, and required approvals without analyzing a phase. |
 | `$sms-kit phase <1-6> <APP_ID>` | Run only the named phase after reading its required contract/template and available evidence. |
