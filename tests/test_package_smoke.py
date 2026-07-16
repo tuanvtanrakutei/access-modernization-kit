@@ -26,7 +26,7 @@ def run_script(name: str, *args: str) -> subprocess.CompletedProcess[str]:
 
 def test_public_package_contract() -> None:
     package = json.loads((PACKAGE / "specifications" / "package.json").read_text(encoding="utf-8"))
-    assert package["version"] == "2.1.4"
+    assert package["version"] == "2.1.5"
     assert package["architecture_inspiration"]["dependency"] is False
     assert package["architecture_inspiration"]["vendored_code"] is False
     run_script("validate_structure.py", "--package", str(PACKAGE))
@@ -52,6 +52,19 @@ def test_public_yaml_has_unique_keys() -> None:
     yaml_files += [PACKAGE / "CITATION.cff", PACKAGE / "examples" / "minimal-app" / "manifest.yaml"]
     for path in yaml_files:
         yaml.load(path.read_text(encoding="utf-8"), Loader=UniqueKeyLoader)
+
+
+def test_friendly_cli_entrypoint(tmp_path: Path) -> None:
+    run_script("sms_kit.py", "validate")
+    run_script(
+        "sms_kit.py", "init",
+        "--root", str(tmp_path),
+        "--app-id", "T22",
+        "--name-en", "Friendly CLI Test",
+    )
+    app = tmp_path / "T22"
+    assert (app / "manifest.yaml").is_file()
+    run_script("sms_kit.py", "preflight", "--app-root", str(app))
 
 
 def test_synthetic_module_aware_pipeline(tmp_path: Path) -> None:

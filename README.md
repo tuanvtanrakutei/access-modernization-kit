@@ -1,7 +1,7 @@
 # SMS Legacy Investigation Kit
 
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-2.1.4-green.svg)](specifications/package.json)
+[![Version](https://img.shields.io/badge/version-2.1.5-green.svg)](specifications/package.json)
 
 ## What is this?
 
@@ -35,6 +35,50 @@ Without a shared method, each agent may investigate a legacy app differently, mi
 - Trace business behavior from screen/form to VBA, SQL, table/file, and output.
 - Let specialists work in parallel while one coordinator controls canonical results.
 - Produce handover-ready Phase documents, E2E Trace, Boundary Map, QA, and presentation inputs.
+
+## Start here: choose one entry point
+
+### Recommended: ask an agent skill
+
+This is the normal path for an investigation. Do **not** memorize the internal Python scripts or six-phase mechanics.
+
+In Codex, open `/skills`, select **SMS Legacy Investigation Kit**, then state the result you need. You can also mention the skill explicitly with `$sms-legacy-investigation-kit`.
+
+```text
+Use $sms-legacy-investigation-kit to initialize an isolated workspace for A03.
+The legacy source is Access/VBA with SQL Server. Do not analyze it yet.
+```
+
+For a real investigation, say what app and outcome you need:
+
+```text
+Use $sms-legacy-investigation-kit to investigate app A03 from the authorized sources.
+Run the six phases, preserve evidence, and produce English Phase documents,
+an E2E Trace, a Boundary Map, and presentation inputs.
+```
+
+Claude uses the same root `SKILL.md` through the project skill link. Ask the same plain-language request; do not create a separate Claude-only workflow.
+
+### Alternative: use the small CLI
+
+Use the CLI only to validate the shared package, create an app workspace, or run a safe preflight without an agent.
+
+```powershell
+# Check that the shared kit is healthy; no app is analyzed.
+py -3.11 scripts/sms_kit.py validate
+
+# Create a separate workspace for one app.
+py -3.11 scripts/sms_kit.py init `
+  --root D:\investigations `
+  --app-id A03 `
+  --name-en "A03 Legacy Application"
+
+# Inspect capabilities and the manifest; no live Access or SQL connection is made.
+py -3.11 scripts/sms_kit.py preflight `
+  --app-root D:\investigations\A03
+```
+
+Run `py -3.11 scripts/sms_kit.py --help` for the supported commands. The CLI is intentionally small; use the agent skill for extraction, phases, multi-agent orchestration, and rendering.
 
 ## What it is not
 
@@ -82,42 +126,12 @@ This makes the kit compatible with Codex, Claude, and generic agents without all
 
 ## Current status and safety boundary
 
-Version 2.1.4 is packaged and synthetic-smoke-tested. Live Access/ADP extraction, live SQL Server access, and the A01 regression corpus are intentionally outside the public test baseline.
+Version 2.1.5 is packaged and synthetic-smoke-tested. Live Access/ADP extraction, live SQL Server access, and the A01 regression corpus are intentionally outside the public test baseline.
 
 - Never open the original Access database; executable extraction uses a hash-verified snapshot.
 - Never execute `command` or `arguments` values from `compile_commands.json`.
 - Never commit production databases, credentials, DSNs, connection secrets, customer documents, or investigation runs.
 - Exclude the current replacement implementation unless the manifest and user explicitly include comparison.
-
-## Quick start
-
-Validate the shared package:
-
-```powershell
-cd sms-legacy-investigation-kit
-py -3.11 -m pip install -r requirements-dev.txt
-py -3.11 scripts/validate_structure.py --package .
-py -3.11 -m pytest -q
-```
-
-Initialize an isolated app workspace:
-
-```powershell
-py -3.11 scripts/init_app.py `
-  --root D:\investigations `
-  --app-id A03 `
-  --name-en "A03 Legacy Application" `
-  --runtime generic
-```
-
-Edit the generated `manifest.yaml`, put authorized sources in the declared folders, and run preflight:
-
-```powershell
-py -3.11 scripts/preflight.py `
-  --package . `
-  --runtime generic `
-  --manifest D:\investigations\A03\manifest.yaml
-```
 
 ## Optional preprocessing
 

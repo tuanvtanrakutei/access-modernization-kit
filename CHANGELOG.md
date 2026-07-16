@@ -14,6 +14,16 @@ All notable changes to this project are documented in this file. The format foll
 
 - Reframed the README around the kit's purpose, boundaries, per-app operating model, and input-to-output flow.
 
+## [2.1.5] - 2026-07-16
+
+### Added
+
+- Added the user-facing `sms_kit.py` CLI for package validation, app-workspace initialization, and capability preflight.
+
+### Changed
+
+- Documented the recommended agent-skill entry point and a minimal CLI alternative before the detailed investigation workflow.
+
 ## [2.1.4] - 2026-07-16
 
 ### Changed
