@@ -1,0 +1,30 @@
+name: Feature request
+description: Propose a portable investigation capability or contract improvement.
+title: "[Feature]: "
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: Which investigation problem is not handled today?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed behavior
+      description: Describe inputs, outputs, safety boundaries, and affected contracts.
+    validations:
+      required: true
+  - type: checkboxes
+    id: constraints
+    attributes:
+      label: Constraints
+      options:
+        - label: The proposal can be demonstrated using synthetic data.
+          required: true
+        - label: The proposal preserves coordinator-only merge and six-phase publication order.
+          required: true
+        - label: The proposal does not require CodeWiki as a dependency.
+          required: true

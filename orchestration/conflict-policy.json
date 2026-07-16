@@ -1,0 +1,12 @@
+{
+  "version": "2.1",
+  "allowed_statuses": ["OPEN", "RESOLVED", "ACCEPTED_RISK", "OUT_OF_SCOPE"],
+  "severity": ["LOW", "MEDIUM", "HIGH", "CRITICAL"],
+  "rules": [
+    "Never resolve a conflict by confidence score alone.",
+    "Keep document statements and observed behavior as separate evidence records.",
+    "Require a source artifact or stakeholder decision to resolve a conflict.",
+    "Block Phase 6 only for unresolved HIGH or CRITICAL conflicts that affect the system thesis, core workflow, data integrity, or boundary contract.",
+    "Carry unresolved lower-severity conflicts into assumptions, unknowns, and the question list."
+  ]
+}

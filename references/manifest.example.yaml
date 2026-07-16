@@ -1,0 +1,69 @@
+version: "2.1"
+app:
+  id: "AXX"
+  name_en: "Replace with the app's English business name"
+  name_ja: ""
+  name_vi: ""
+scope:
+  legacy_only: true
+  current_implementation: "excluded"
+  notes: "Analyze legacy Access VBA and SQL Server behavior only."
+sources:
+  access_databases: []
+  # Example item: {database_id: "AXX_FRONTEND", path: "sources/access/AXX.accdb", format: "accdb", extraction_mode: "dao_and_automation"}
+  vba_exports: ["sources/vba"]
+  sql_server:
+    exported_paths: ["sources/sql"]
+    live:
+      enabled: false
+      connection_ref: ""
+  screenshots: ["sources/screenshots"]
+  reports: ["sources/reports"]
+  sample_files: ["sources/samples"]
+  app_documents: ["sources/documents"]
+  japanese_documents:
+    operational_functions_xlsx: "shared-docs/Operational functions and report data list.xlsx"
+    training_manual_xlsx: "shared-docs/SMS Basic Training Manual (From the Perspective of the Order Processing Department).xlsx"
+    business_flow_pdf: "shared-docs/diagram sms_system_business_diagram.pdf"
+    architecture_pdf: "shared-docs/SMS System Replacement Project Overview Attached Diagram.pdf"
+analysis:
+  source_policy:
+    ignore_file: ".investigationignore"
+    include_patterns: []
+    ignore_patterns: []
+  build_context:
+    compilation_databases: []
+    compile_flags: []
+    projects: []
+    execute_commands: false
+  module_planning:
+    enabled: true
+    strategy: "hierarchical_leaf_first"
+    incremental_refresh: true
+shared_context:
+  global_sms_graph: "shared/graphify-out/graph.json"
+  shared_decisions: []
+outputs:
+  root: "outputs"
+  languages: ["EN"]
+  presentation_template: ""
+  derived:
+    e2e_html: true
+    boundary_html: true
+    presentation_pptx: true
+graphify:
+  enabled: true
+  mode: "standard"
+  output_dir: "graphify-out"
+  link_shared_nodes: true
+  input_policy: "extracted_text_and_supported_sources"
+multi_agent:
+  enabled: true
+  preferred_runtime: "generic"
+  max_parallel: 4
+  coordinator_only_merge: true
+  independent_qa: true
+  evidence_collection_parallel: true
+  phase_publication_sequential: true
+  conflict_policy: "record_and_escalate"
+  human_checkpoints: ["inventory", "context_extraction", "module_plan", "phase1_phase2", "phase3", "phase4_phase5", "phase6", "qa"]

@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Access Extraction Result",
+  "type": "object",
+  "required": ["schema_version", "database_id", "session_id", "source", "snapshot", "status", "runtime", "project_context", "components", "warnings"],
+  "properties": {
+    "schema_version": {"const": "2.1"}, "database_id": {"type": "string"}, "session_id": {"type": "string"},
+    "source": {"type": "object", "required": ["path", "format", "sha256"], "properties": {"path": {"type": "string"}, "format": {"enum": ["mdb", "accdb", "adp"]}, "sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"}}, "additionalProperties": false},
+    "snapshot": {"type": "object", "required": ["path", "sha256"], "properties": {"path": {"type": "string"}, "sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"}}, "additionalProperties": false},
+    "status": {"enum": ["PREFLIGHT_ONLY", "EXTRACTED", "PARTIAL", "BLOCKED", "FAILED"]},
+    "runtime": {"type": "object"}, "project_context": {"type": "object"},
+    "components": {"type": "array", "items": {"type": "object"}},
+    "warnings": {"type": "array", "items": {"type": "string"}}
+  },
+  "additionalProperties": false
+}

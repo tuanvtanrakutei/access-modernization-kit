@@ -1,0 +1,35 @@
+version: "2.1"
+statuses:
+  EXTRACTED:
+    meaning: "Explicitly supported by a source artifact."
+    confidence: 1.0
+  INFERRED:
+    meaning: "Reasonable conclusion derived from multiple observations."
+    confidence_range: [0.4, 0.9]
+  AMBIGUOUS:
+    meaning: "Conflicting, incomplete, or uncertain evidence requiring review."
+    confidence_range: [0.1, 0.3]
+required_fields:
+  - id
+  - run_id
+  - app_id
+  - phase
+  - role
+  - task_id
+  - statement
+  - status
+  - source_type
+  - source_path
+  - confidence
+  - created_at
+rules:
+  - "Never promote INFERRED or AMBIGUOUS evidence to fact without a new source or stakeholder decision."
+  - "Record document-versus-code mismatches as two observations plus one conflict record."
+  - "Use source locations such as file line, SQL object, form event, worksheet/cell, PDF page, or screenshot name."
+  - "Keep stakeholder decisions separate from technical observations."
+  - "Do not reuse app-local evidence in another app."
+  - "Treat graph edges as navigation aids; cite their underlying source artifacts."
+  - "Use app-scoped, phase-scoped IDs and never recycle an evidence ID across runs for a different statement."
+  - "Workers write only role-scoped fragments; the coordinator owns deterministic merge and publication."
+  - "A conflicting duplicate evidence ID is a merge error and must create or reference a conflict record."
+  - "Record source SHA-256 when the run inventory contains it."

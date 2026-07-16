@@ -1,0 +1,12 @@
+.git/
+runs/
+graphify-out/
+outputs/
+secrets/
+credentials/
+*.tmp
+*.bak
+*.log
+.env
+.env.*
+*.dsn

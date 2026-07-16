@@ -1,0 +1,20 @@
+{
+  "version": "2.1",
+  "canonical_entrypoint": "SKILL.md",
+  "runtime_operations": "orchestration/runtime-adapters.json",
+  "resource_paths_are_relative": true,
+  "runtimes": {
+    "codex": {
+      "suggested_destination": "%USERPROFILE%\\.codex\\skills\\sms-legacy-investigation-kit",
+      "metadata": "agents/openai.yaml"
+    },
+    "claude": {
+      "suggested_destination": ".claude/skills/sms-legacy-investigation-kit",
+      "metadata": null
+    },
+    "generic": {
+      "suggested_destination": "agent-skills/sms-legacy-investigation-kit",
+      "metadata": null
+    }
+  }
+}

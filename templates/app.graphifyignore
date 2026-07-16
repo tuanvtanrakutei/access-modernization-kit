@@ -1,0 +1,21 @@
+.git/
+runs/
+graphify-out/
+outputs/
+evidence/
+decisions/
+secrets/
+credentials/
+*.mdb
+*.accdb
+*.adp
+*.laccdb
+*.ldb
+*.dsn
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.pptx
+
+# VBA/SQL text exported under extracted/ remains intentionally visible.

@@ -1,0 +1,140 @@
+{
+  "version": "2.1",
+  "roles": [
+    {
+      "id": "coordinator",
+      "purpose": "Own run state, dependency gates, evidence merge, conflict escalation, and publication of canonical phase outputs.",
+      "may_merge": true,
+      "independent": false,
+      "allowed_writes": ["run-state.json", "tasks", "evidence/merged-evidence.json", "conflicts", "outputs", "handoffs"],
+      "prohibitions": ["Do not invent evidence", "Do not overwrite unresolved conflicts", "Do not perform specialist analysis to bypass a failed task"]
+    },
+    {
+      "id": "source_inventory",
+      "purpose": "Inventory sources, hashes, languages, formats, sensitivity flags, and coverage gaps.",
+      "phases": [],
+      "may_merge": false,
+      "allowed_writes": ["work/source_inventory", "handoffs"]
+    },
+    {
+      "id": "access_extractor",
+      "purpose": "Validate or perform manifest-authorized snapshot-based extraction of MDB, ACCDB, and ADP sources; record runtime blockers without opening originals.",
+      "phases": [],
+      "may_merge": false,
+      "allowed_writes": ["work/access_extractor", "handoffs"]
+    },
+    {
+      "id": "build_context_analyzer",
+      "purpose": "Normalize declared compilation databases and Access project context as read-only evidence; never execute build commands.",
+      "phases": [],
+      "may_merge": false,
+      "allowed_writes": ["work/build_context_analyzer", "handoffs"]
+    },
+    {
+      "id": "module_decomposer",
+      "purpose": "Validate the deterministic component index, build a hierarchical module tree, and publish leaf-first and affected-module processing order.",
+      "phases": [],
+      "may_merge": false,
+      "allowed_writes": ["work/module_decomposer", "handoffs"]
+    },
+    {
+      "id": "sql_data",
+      "purpose": "Extract tables, columns, relationships, SQL objects, and business-level data meaning for Phase 1.",
+      "phases": [1],
+      "may_merge": false,
+      "allowed_writes": ["work/sql_data", "evidence/fragments", "handoffs"]
+    },
+    {
+      "id": "vba_ui",
+      "purpose": "Analyze forms, reports, controls, events, validations, and navigation for Phase 2.",
+      "phases": [2],
+      "may_merge": false,
+      "allowed_writes": ["work/vba_ui", "evidence/fragments", "handoffs"]
+    },
+    {
+      "id": "japanese_documents",
+      "purpose": "Extract and translate business rules from Japanese XLSX and PDF sources without deciding actual behavior.",
+      "phases": [5],
+      "may_merge": false,
+      "allowed_writes": ["work/japanese_documents", "evidence/fragments", "handoffs"]
+    },
+    {
+      "id": "file_interfaces",
+      "purpose": "Analyze sample files, reports, screenshots, encodings, paths, delete/overwrite behavior, and interface contracts.",
+      "phases": [1, 2, 3, 4],
+      "may_merge": false,
+      "allowed_writes": ["work/file_interfaces", "evidence/fragments", "handoffs"]
+    },
+    {
+      "id": "logic_processing",
+      "purpose": "Trace VBA actions to SQL, calculations, file operations, transactions, failures, and core rules for Phase 3.",
+      "phases": [3],
+      "may_merge": false,
+      "allowed_writes": ["work/logic_processing", "evidence/fragments", "handoffs"]
+    },
+    {
+      "id": "document_alignment",
+      "purpose": "Compare extracted document rules with observed code and data behavior while preserving mismatches.",
+      "phases": [5],
+      "may_merge": false,
+      "allowed_writes": ["work/document_alignment", "evidence/fragments", "conflicts", "handoffs"]
+    },
+    {
+      "id": "graph_builder",
+      "purpose": "Build or update the app graph from source-backed evidence and link approved shared nodes.",
+      "phases": [],
+      "may_merge": false,
+      "allowed_writes": ["work/graph_builder", "graphify-out", "handoffs"]
+    },
+    {
+      "id": "workflow_reconstruction",
+      "purpose": "Reconstruct user-to-output workflows and use-case coverage for Phase 4.",
+      "phases": [4],
+      "may_merge": false,
+      "allowed_writes": ["work/workflow_reconstruction", "evidence/fragments", "handoffs"]
+    },
+    {
+      "id": "document_integration",
+      "purpose": "Finalize Phase 5 after Phase 3 and Phase 4 behavior is available.",
+      "phases": [5],
+      "may_merge": false,
+      "allowed_writes": ["work/document_integration", "evidence/fragments", "conflicts", "handoffs"]
+    },
+    {
+      "id": "synthesis",
+      "purpose": "Produce Phase 6 only from accepted Phase 1-5 outputs, evidence, conflicts, and open questions.",
+      "phases": [6],
+      "may_merge": false,
+      "allowed_writes": ["work/synthesis", "handoffs"]
+    },
+    {
+      "id": "independent_qa",
+      "purpose": "Audit scope, evidence, traceability, phase gates, conflicts, and derived-artifact prerequisites independently.",
+      "phases": [],
+      "may_merge": false,
+      "independent": true,
+      "allowed_writes": ["work/independent_qa", "handoffs", "qa"]
+    },
+    {
+      "id": "e2e_renderer",
+      "purpose": "Render E2E HTML from accepted Phase 4 and traceability data.",
+      "phases": [],
+      "may_merge": false,
+      "allowed_writes": ["work/e2e_renderer", "derived/e2e", "handoffs"]
+    },
+    {
+      "id": "boundary_renderer",
+      "purpose": "Render Boundary HTML from accepted data, workflows, interfaces, and evidence.",
+      "phases": [],
+      "may_merge": false,
+      "allowed_writes": ["work/boundary_renderer", "derived/boundary", "handoffs"]
+    },
+    {
+      "id": "presentation_renderer",
+      "purpose": "Render and visually validate PPTX from accepted Phase 6, E2E, Boundary, screenshots, and decisions.",
+      "phases": [],
+      "may_merge": false,
+      "allowed_writes": ["work/presentation_renderer", "derived/presentation", "handoffs"]
+    }
+  ]
+}

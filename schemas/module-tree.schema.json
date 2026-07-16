@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Hierarchical Module Tree",
+  "type": "object",
+  "required": ["schema_version", "app_id", "root_modules"],
+  "properties": {
+    "schema_version": {"const": "2.1"}, "app_id": {"type": "string"}, "generated_at": {"type": "string", "format": "date-time"},
+    "root_modules": {"type": "array", "items": {"$ref": "#/$defs/module"}}
+  },
+  "$defs": {"module": {"type": "object", "required": ["id", "name", "component_ids", "children"], "properties": {
+    "id": {"type": "string"}, "name": {"type": "string"}, "component_ids": {"type": "array", "items": {"type": "string"}},
+    "children": {"type": "array", "items": {"$ref": "#/$defs/module"}}
+  }, "additionalProperties": false}},
+  "additionalProperties": false
+}

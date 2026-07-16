@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Leaf-First Module Processing Order",
+  "type": "object",
+  "required": ["schema_version", "app_id", "strategy", "ordered_modules", "affected_modules"],
+  "properties": {
+    "schema_version": {"const": "2.1"}, "app_id": {"type": "string"}, "strategy": {"const": "hierarchical_leaf_first"},
+    "ordered_modules": {"type": "array", "items": {"type": "object", "required": ["order", "module_id", "depth", "leaf", "component_ids"], "properties": {
+      "order": {"type": "integer", "minimum": 1}, "module_id": {"type": "string"}, "depth": {"type": "integer", "minimum": 0},
+      "leaf": {"type": "boolean"}, "component_ids": {"type": "array", "items": {"type": "string"}}
+    }, "additionalProperties": false}},
+    "affected_modules": {"type": "array", "items": {"type": "string"}}
+  },
+  "additionalProperties": false
+}

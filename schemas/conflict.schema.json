@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Evidence Conflict Record",
+  "type": "object",
+  "required": ["conflict_id", "run_id", "app_id", "reported_by_task", "topic", "severity", "status", "observations", "created_at"],
+  "properties": {
+    "conflict_id": {"type": "string"},
+    "run_id": {"type": "string"},
+    "app_id": {"type": "string"},
+    "reported_by_task": {"type": "string"},
+    "topic": {"type": "string"},
+    "severity": {"enum": ["LOW", "MEDIUM", "HIGH", "CRITICAL"]},
+    "status": {"enum": ["OPEN", "RESOLVED", "ACCEPTED_RISK", "OUT_OF_SCOPE"]},
+    "observations": {
+      "type": "array",
+      "minItems": 2,
+      "items": {
+        "type": "object",
+        "required": ["evidence_id", "statement"],
+        "properties": {
+          "evidence_id": {"type": "string"},
+          "statement": {"type": "string"}
+        },
+        "additionalProperties": false
+      }
+    },
+    "resolution": {"type": ["string", "null"]},
+    "decision_source": {"type": ["string", "null"]},
+    "resolved_by_task": {"type": ["string", "null"]},
+    "owner": {"type": ["string", "null"]},
+    "created_at": {"type": "string", "format": "date-time"},
+    "resolved_at": {"type": ["string", "null"], "format": "date-time"}
+  },
+  "additionalProperties": false
+}

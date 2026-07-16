@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="{{LANG}}">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>{{APP_ID}} E2E Trace</title>
+  <style>
+    body{font-family:Arial,sans-serif;margin:0;background:#071f18;color:#f5f7f6}main{max-width:1200px;margin:auto;padding:32px}.flow{display:grid;gap:16px}.step{background:#173b30;border-left:5px solid #b7f34b;border-radius:10px;padding:18px}.meta{color:#b8c8c1;font-size:.9rem}.evidence{color:#b7f34b}
+  </style>
+</head>
+<body><main>
+  <h1>{{APP_ID}} — End-to-End Trace</h1>
+  <p class="meta">Generated from Phase 4 and the verified traceability matrix.</p>
+  <section class="flow">
+    <!-- Repeat one .step per verified workflow step. Do not render unsupported inferred edges as facts. -->
+    <article class="step">
+      <h2>{{STEP_NUMBER}}. {{STEP_NAME}}</h2>
+      <p>{{USER_ACTION}} → {{SCREEN}} → {{PROCESSING}} → {{DATABASE_OR_FILE}} → {{OUTPUT}}</p>
+      <p class="evidence">{{EVIDENCE_STATUS}} · {{SOURCE_LOCATION}}</p>
+    </article>
+  </section>
+</main></body>
+</html>

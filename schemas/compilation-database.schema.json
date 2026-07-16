@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Normalized Read-Only Compilation Database",
+  "type": "object",
+  "required": ["schema_version", "source_path", "source_sha256", "execution_policy", "entries", "warnings"],
+  "properties": {
+    "schema_version": {"const": "2.1"}, "source_path": {"type": "string"}, "source_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "execution_policy": {"const": "NEVER_EXECUTE"},
+    "entries": {"type": "array", "items": {"type": "object", "required": ["directory", "file", "arguments", "command_present"], "properties": {
+      "directory": {"type": "string"}, "file": {"type": "string"}, "arguments": {"type": "array", "items": {"type": "string"}},
+      "command_present": {"type": "boolean"}, "output": {"type": "string"}
+    }, "additionalProperties": false}},
+    "warnings": {"type": "array", "items": {"type": "string"}}
+  },
+  "additionalProperties": false
+}

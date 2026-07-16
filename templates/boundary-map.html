@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="{{LANG}}">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>{{APP_ID}} Boundary Map</title>
+  <style>
+    body{font-family:Arial,sans-serif;margin:0;background:#08131d;color:#eef3f6}main{max-width:1300px;margin:auto;padding:32px}.grid{display:grid;grid-template-columns:1fr 1.3fr 1fr;gap:18px}.zone{background:#172536;border-radius:12px;padding:18px}.app{border:2px solid #f3a400}.edge{border-left:4px solid #4fd1c5;padding-left:12px;margin:12px 0}.risk{color:#ff7a7a}
+  </style>
+</head>
+<body><main>
+  <h1>{{APP_ID}} — Boundary Map</h1>
+  <div class="grid">
+    <section class="zone"><h2>Inputs</h2>{{INPUT_INTERFACES}}</section>
+    <section class="zone app"><h2>{{APP_ID}} Core</h2>{{CORE_PROCESSING}}</section>
+    <section class="zone"><h2>Outputs</h2>{{OUTPUT_INTERFACES}}</section>
+  </div>
+  <section><h2>Shared masters and infrastructure</h2>{{SHARED_DEPENDENCIES}}</section>
+  <section><h2>Boundary risks</h2><div class="risk">{{BOUNDARY_RISKS}}</div></section>
+</main></body>
+</html>

@@ -1,0 +1,160 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://sms.local/schemas/legacy-investigation-manifest.schema.json",
+  "title": "SMS Legacy Investigation App Manifest V2.1",
+  "type": "object",
+  "required": ["version", "app", "scope", "sources", "analysis", "shared_context", "outputs", "graphify", "multi_agent"],
+  "properties": {
+    "version": {"const": "2.1"},
+    "app": {
+      "type": "object",
+      "required": ["id", "name_en"],
+      "properties": {
+        "id": {"type": "string", "pattern": "^[A-Z][A-Z0-9_-]{1,15}$"},
+        "name_en": {"type": "string", "minLength": 1},
+        "name_ja": {"type": "string"},
+        "name_vi": {"type": "string"}
+      },
+      "additionalProperties": false
+    },
+    "scope": {
+      "type": "object",
+      "required": ["legacy_only", "current_implementation"],
+      "properties": {
+        "legacy_only": {"type": "boolean"},
+        "current_implementation": {"enum": ["excluded", "comparison_only", "included"]},
+        "notes": {"type": "string"}
+      },
+      "additionalProperties": false
+    },
+    "sources": {
+      "type": "object",
+      "required": ["access_databases", "vba_exports", "sql_server", "screenshots", "reports", "japanese_documents"],
+      "properties": {
+        "access_databases": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["database_id", "path", "format", "extraction_mode"],
+            "properties": {
+              "database_id": {"type": "string", "pattern": "^[A-Za-z0-9_-]+$"},
+              "path": {"type": "string"},
+              "format": {"enum": ["mdb", "accdb", "adp"]},
+              "extraction_mode": {"enum": ["offline", "dao_and_automation", "legacy_access_automation"]},
+              "password_ref": {"type": "string", "pattern": "^(env|vault|secret|runtime)://.+$", "description": "Reference only; never store a literal password."}
+            },
+            "additionalProperties": false
+          }
+        },
+        "vba_exports": {"$ref": "#/$defs/pathList"},
+        "sql_server": {
+          "type": "object",
+          "required": ["exported_paths", "live"],
+          "properties": {
+            "exported_paths": {"$ref": "#/$defs/pathList"},
+            "live": {
+              "type": "object",
+              "required": ["enabled", "connection_ref"],
+              "properties": {
+                "enabled": {"type": "boolean"},
+                "connection_ref": {"type": "string"}
+              },
+              "allOf": [{"if": {"properties": {"enabled": {"const": true}}}, "then": {"properties": {"connection_ref": {"pattern": "^(env|vault|secret|runtime)://.+$"}}}}],
+              "additionalProperties": false
+            }
+          },
+          "additionalProperties": false
+        },
+        "screenshots": {"$ref": "#/$defs/pathList"},
+        "reports": {"$ref": "#/$defs/pathList"},
+        "sample_files": {"$ref": "#/$defs/pathList"},
+        "app_documents": {"$ref": "#/$defs/pathList"},
+        "japanese_documents": {"type": "object", "additionalProperties": {"type": "string"}}
+      },
+      "additionalProperties": false
+    },
+    "analysis": {
+      "type": "object",
+      "required": ["source_policy", "build_context", "module_planning"],
+      "properties": {
+        "source_policy": {
+          "type": "object",
+          "required": ["ignore_file", "include_patterns", "ignore_patterns"],
+          "properties": {
+            "ignore_file": {"type": "string"},
+            "include_patterns": {"$ref": "#/$defs/pathList"},
+            "ignore_patterns": {"$ref": "#/$defs/pathList"}
+          },
+          "additionalProperties": false
+        },
+        "build_context": {
+          "type": "object",
+          "required": ["compilation_databases", "compile_flags", "execute_commands"],
+          "properties": {
+            "compilation_databases": {"$ref": "#/$defs/pathList"},
+            "compile_flags": {"$ref": "#/$defs/pathList"},
+            "projects": {"$ref": "#/$defs/pathList"},
+            "execute_commands": {"const": false}
+          },
+          "additionalProperties": false
+        },
+        "module_planning": {
+          "type": "object",
+          "required": ["enabled", "strategy", "incremental_refresh"],
+          "properties": {
+            "enabled": {"type": "boolean"},
+            "strategy": {"const": "hierarchical_leaf_first"},
+            "incremental_refresh": {"type": "boolean"}
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "shared_context": {
+      "type": "object",
+      "required": ["global_sms_graph", "shared_decisions"],
+      "properties": {"global_sms_graph": {"type": "string"}, "shared_decisions": {"$ref": "#/$defs/pathList"}},
+      "additionalProperties": false
+    },
+    "outputs": {
+      "type": "object",
+      "required": ["root", "languages", "derived"],
+      "properties": {
+        "root": {"type": "string"},
+        "languages": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"enum": ["EN", "JA", "VI"]}},
+        "presentation_template": {"type": "string"},
+        "derived": {
+          "type": "object",
+          "required": ["e2e_html", "boundary_html", "presentation_pptx"],
+          "properties": {"e2e_html": {"type": "boolean"}, "boundary_html": {"type": "boolean"}, "presentation_pptx": {"type": "boolean"}},
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "graphify": {
+      "type": "object",
+      "required": ["enabled", "mode", "output_dir", "link_shared_nodes", "input_policy"],
+      "properties": {
+        "enabled": {"type": "boolean"}, "mode": {"enum": ["standard", "deep"]}, "output_dir": {"type": "string"},
+        "link_shared_nodes": {"type": "boolean"}, "input_policy": {"const": "extracted_text_and_supported_sources"}
+      },
+      "additionalProperties": false
+    },
+    "multi_agent": {
+      "type": "object",
+      "required": ["enabled", "preferred_runtime", "max_parallel", "coordinator_only_merge", "independent_qa", "evidence_collection_parallel", "phase_publication_sequential", "conflict_policy", "human_checkpoints"],
+      "properties": {
+        "enabled": {"type": "boolean"}, "preferred_runtime": {"enum": ["codex", "claude", "generic"]},
+        "max_parallel": {"type": "integer", "minimum": 1}, "coordinator_only_merge": {"const": true},
+        "independent_qa": {"const": true}, "evidence_collection_parallel": {"type": "boolean"},
+        "phase_publication_sequential": {"const": true}, "conflict_policy": {"const": "record_and_escalate"},
+        "human_checkpoints": {"type": "array", "uniqueItems": true, "items": {"enum": ["inventory", "context_extraction", "module_plan", "phase1_phase2", "phase3", "phase4_phase5", "phase6", "qa"]}}
+      },
+      "additionalProperties": false
+    }
+  },
+  "$defs": {"pathList": {"type": "array", "items": {"type": "string"}}},
+  "additionalProperties": false
+}

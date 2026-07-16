@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Deterministic Component Index",
+  "type": "object",
+  "required": ["schema_version", "app_id", "generated_at", "components"],
+  "properties": {
+    "schema_version": {"const": "2.1"}, "app_id": {"type": "string"}, "generated_at": {"type": "string", "format": "date-time"},
+    "components": {"type": "array", "items": {"type": "object", "required": ["id", "kind", "name", "source_paths"], "properties": {
+      "id": {"type": "string"}, "kind": {"type": "string"}, "name": {"type": "string"}, "container": {"type": "string"},
+      "module_hint": {"type": "string"}, "source_paths": {"type": "array", "items": {"type": "string"}},
+      "depends_on": {"type": "array", "items": {"type": "string"}}, "metadata": {"type": "object"}
+    }, "additionalProperties": false}}
+  },
+  "additionalProperties": false
+}

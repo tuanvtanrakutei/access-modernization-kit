@@ -1,0 +1,19 @@
+{
+  "conflict_id": "AXX-CONFLICT-001",
+  "run_id": "AXX-YYYYMMDD-HHMMSS",
+  "app_id": "AXX",
+  "reported_by_task": "AXX-WAVE2_LOGIC_ALIGNMENT_GRAPH-DOCUMENT_ALIGNMENT",
+  "topic": "Document rule differs from observed VBA behavior",
+  "severity": "MEDIUM",
+  "status": "OPEN",
+  "observations": [
+    {"evidence_id": "AXX-P5-JAPANESE_DOCUMENTS-001", "statement": "Document observation"},
+    {"evidence_id": "AXX-P3-LOGIC_PROCESSING-001", "statement": "Code observation"}
+  ],
+  "resolution": null,
+  "decision_source": null,
+  "resolved_by_task": null,
+  "owner": null,
+  "created_at": "2000-01-01T00:00:00+00:00",
+  "resolved_at": null
+}

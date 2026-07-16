@@ -1,0 +1,31 @@
+# Generated and transient investigation state
+runs/
+graphify-out/
+outputs/drafts/
+outputs/render-cache/
+**/__pycache__/
+*.tmp
+*.bak
+*.log
+*.laccdb
+*.ldb
+
+# Credentials and local connection material
+.env
+.env.*
+*.dsn
+secrets/
+credentials/
+
+# Raw Access databases can contain production data. Keep them local by default.
+sources/access/*.mdb
+sources/access/*.accdb
+sources/access/*.adp
+
+# Keep canonical extracted evidence and accepted outputs trackable.
+!extracted/**
+!outputs/*.md
+!outputs/*.html
+!outputs/*.pptx
+!outputs/*.json
+!outputs/*.csv

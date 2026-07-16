@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Multi-Agent Investigation Handoff",
+  "type": "object",
+  "required": ["task_id", "run_id", "app_id", "role", "status", "summary", "artifacts", "evidence_ids", "gaps", "conflict_ids", "source_files_read", "completed_at"],
+  "properties": {
+    "task_id": {"type": "string"},
+    "run_id": {"type": "string"},
+    "app_id": {"type": "string"},
+    "role": {"type": "string"},
+    "agent_runtime": {"type": "string"},
+    "agent_id": {"type": ["string", "null"]},
+    "status": {"enum": ["COMPLETED", "FAILED", "BLOCKED"]},
+    "summary": {"type": "string"},
+    "artifacts": {"type": "array", "items": {"type": "string"}},
+    "evidence_ids": {"type": "array", "items": {"type": "string"}},
+    "gaps": {"type": "array", "items": {"type": "string"}},
+    "conflict_ids": {"type": "array", "items": {"type": "string"}},
+    "source_files_read": {"type": "array", "items": {"type": "string"}},
+    "input_tokens": {"type": ["integer", "null"], "minimum": 0},
+    "output_tokens": {"type": ["integer", "null"], "minimum": 0},
+    "completed_at": {"type": "string", "format": "date-time"}
+  },
+  "additionalProperties": false
+}

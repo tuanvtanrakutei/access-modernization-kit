@@ -1,0 +1,11 @@
+cff-version: 1.2.0
+message: "If you use this investigation kit, please cite it using this metadata."
+title: "SMS Legacy Investigation Kit"
+type: software
+authors:
+  - family-names: "Vo"
+    given-names: "Ta Tuan"
+    email: "vo-ta-tuan@anrakutei.vn"
+version: 2.1.0
+date-released: 2026-07-15
+license: Apache-2.0

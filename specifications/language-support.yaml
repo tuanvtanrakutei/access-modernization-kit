@@ -1,0 +1,35 @@
+version: "2.1"
+human_languages:
+  supported: ["EN", "JA", "VI", "OTHER", "UNKNOWN"]
+  output_languages: ["EN", "JA", "VI"]
+source_languages:
+  full_evidence_trace:
+    - "ACCESS_VBA"
+    - "EXCEL_VBA"
+    - "ACCESS_SQL"
+    - "TSQL"
+    - "ODBC_PASS_THROUGH_SQL"
+  structural_and_semantic:
+    - "VBSCRIPT"
+    - "POWERSHELL"
+    - "BATCH"
+  optional_structural:
+    - "C"
+    - "CPP"
+    - "CSHARP"
+    - "JAVA"
+    - "JAVASCRIPT"
+    - "TYPESCRIPT"
+    - "PYTHON"
+  extract_first:
+    - "ACCESS_MDB"
+    - "ACCESS_ACCDB"
+    - "ACCESS_ADP"
+dialects:
+  sql: ["ACCESS_SQL", "TSQL", "ODBC_PASS_THROUGH_SQL", "ANSI_SQL", "UNKNOWN"]
+  vba: ["ACCESS_VBA", "EXCEL_VBA", "VB6_COMPATIBLE", "UNKNOWN"]
+encodings:
+  supported: ["UTF-8", "UTF-8-BOM", "UTF-16LE", "UTF-16BE", "CP932", "SHIFT_JIS", "WINDOWS-1252", "BINARY", "UNKNOWN"]
+graphify:
+  rule: "Run on extracted text and supported source files, never directly on Access database binaries."
+  vba_caveat: "Graphify may inventory VBA exports as files but does not provide a guaranteed VBA AST parser; keep line-backed evidence from the extraction layer."

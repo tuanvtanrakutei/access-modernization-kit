@@ -1,0 +1,47 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Immutable Source Inventory V2.1",
+  "type": "object",
+  "required": ["app_id", "generated_at", "policy", "files", "ignored"],
+  "properties": {
+    "app_id": {"type": "string"},
+    "generated_at": {"type": "string", "format": "date-time"},
+    "policy": {
+      "type": "object",
+      "required": ["ignore_file", "source_roots"],
+      "properties": {
+        "ignore_file": {"type": "string"},
+        "source_roots": {"type": "array", "items": {"type": "string"}},
+        "include_patterns": {"type": "array", "items": {"type": "string"}},
+        "ignore_patterns": {"type": "array", "items": {"type": "string"}}
+      },
+      "additionalProperties": false
+    },
+    "files": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["relative_path", "size", "sha256", "source_category", "human_language", "programming_language", "dialect", "encoding", "parse_status", "sensitive"],
+        "properties": {
+          "relative_path": {"type": "string"}, "size": {"type": "integer", "minimum": 0},
+          "sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+          "source_category": {"enum": ["ACCESS_DATABASE", "VBA", "SQL", "SCREENSHOT", "REPORT", "XLSX", "PDF", "CSV", "TXT", "BUILD_CONTEXT", "PROJECT", "OTHER"]},
+          "human_language": {"enum": ["EN", "JA", "VI", "OTHER", "UNKNOWN"]},
+          "programming_language": {"type": "string"}, "dialect": {"type": "string"}, "encoding": {"type": "string"},
+          "parser": {"type": "string"}, "parser_version": {"type": "string"},
+          "parse_status": {"enum": ["NOT_ATTEMPTED", "EXTRACT_FIRST", "PARSED", "PARTIAL", "UNSUPPORTED", "FAILED"]},
+          "sensitive": {"type": "boolean"}
+        },
+        "additionalProperties": false
+      }
+    },
+    "ignored": {
+      "type": "array",
+      "items": {
+        "type": "object", "required": ["relative_path", "reason"],
+        "properties": {"relative_path": {"type": "string"}, "reason": {"type": "string"}}, "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false
+}

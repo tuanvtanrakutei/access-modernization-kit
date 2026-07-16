@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Multi-Agent Investigation Task",
+  "type": "object",
+  "required": ["task_id", "run_id", "app_id", "wave_id", "role", "dependencies", "input_paths", "write_paths", "evidence_namespace", "status", "attempt", "max_attempts", "created_at"],
+  "properties": {
+    "task_id": {"type": "string", "pattern": "^[A-Z0-9_-]+$"},
+    "run_id": {"type": "string"},
+    "app_id": {"type": "string"},
+    "wave_id": {"type": "string"},
+    "role": {"type": "string"},
+    "phase_targets": {"type": "array", "items": {"type": "integer", "minimum": 1, "maximum": 6}},
+    "module_targets": {"type": "array", "items": {"type": "string"}},
+    "module_order": {"type": "array", "items": {"type": "string"}},
+    "dependencies": {"type": "array", "items": {"type": "string"}},
+    "input_paths": {"type": "array", "items": {"type": "string"}},
+    "write_paths": {"type": "array", "items": {"type": "string"}},
+    "evidence_namespace": {"type": "string"},
+    "instructions": {"type": "array", "items": {"type": "string"}},
+    "status": {"enum": ["PENDING", "RUNNING", "COMPLETED", "FAILED", "BLOCKED", "CANCELLED"]},
+    "attempt": {"type": "integer", "minimum": 0},
+    "max_attempts": {"type": "integer", "minimum": 1},
+    "token_budget": {"type": ["integer", "null"], "minimum": 1},
+    "created_at": {"type": "string", "format": "date-time"}
+  },
+  "additionalProperties": false
+}

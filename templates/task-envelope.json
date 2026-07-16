@@ -1,0 +1,25 @@
+{
+  "task_id": "AXX-RUN-W1-SQL_DATA",
+  "run_id": "AXX-YYYYMMDD-HHMMSS",
+  "app_id": "AXX",
+  "wave_id": "wave1_source_extraction",
+  "role": "sql_data",
+  "phase_targets": [1],
+  "module_targets": ["module-orders"],
+  "module_order": ["module-orders", "module-app"],
+  "dependencies": ["AXX-RUN-W0-SOURCE_INVENTORY"],
+  "input_paths": ["manifest.lock.yaml", "source-inventory.json", "../../sources/sql"],
+  "write_paths": ["work/sql_data/module-orders", "evidence/fragments", "handoffs"],
+  "evidence_namespace": "AXX-P1-SQL_DATA",
+  "instructions": [
+    "Resolve ../../ paths from the run directory and use source-inventory.json as the authoritative source list.",
+    "Read only assigned sources and manifest-declared shared documents.",
+    "Write only inside the run directory and declared write paths.",
+    "Return evidence ids, gaps, conflicts, and artifacts in the handoff."
+  ],
+  "status": "PENDING",
+  "attempt": 0,
+  "max_attempts": 2,
+  "token_budget": null,
+  "created_at": "2000-01-01T00:00:00+00:00"
+}

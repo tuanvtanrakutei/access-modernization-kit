@@ -1,0 +1,23 @@
+{
+  "version": "2.1",
+  "coordinator_only_merge": true,
+  "source_files_immutable": true,
+  "rules": [
+    "Specialists write only to role-scoped work directories and handoffs.",
+    "Only the coordinator writes canonical Phase 1-6 outputs.",
+    "Sort merged evidence by app_id, phase, and evidence id.",
+    "Reject duplicate evidence ids when payloads differ.",
+    "Preserve both observations and create a conflict record when conclusions disagree.",
+    "Do not publish a phase while required handoffs are failed, missing, or invalid.",
+    "Do not link app graph nodes to global nodes until the evidence and shared-node identity are accepted.",
+    "Do not render derived artifacts before independent QA passes."
+    ,"Merge leaf-module handoffs in processing-order.json order before parent or cross-module synthesis."
+    ,"Incremental refresh may supersede prior evidence but must not delete the prior immutable record."
+  ],
+  "evidence_id_pattern": "{APP_ID}-P{PHASE}-{ROLE}-{SEQUENCE}",
+  "path_policy": "All writes must resolve inside the current run directory.",
+  "retry_policy": {
+    "max_attempts_per_task": 2,
+    "on_second_failure": "block_dependent_tasks_and_escalate"
+  }
+}

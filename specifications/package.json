@@ -1,0 +1,31 @@
+{
+  "name": "sms-legacy-investigation-kit",
+  "version": "2.1.0",
+  "contract_version": "2.1",
+  "features": [
+    "six_phase_legacy_analysis",
+    "evidence_provenance",
+    "multi_agent_orchestration",
+    "checkpointed_phase_gates",
+    "conflict_preservation",
+    "runtime_capability_preflight",
+    "derived_artifact_rendering",
+    "access_database_extraction",
+    "deterministic_component_index",
+    "hierarchical_module_decomposition",
+    "leaf_first_processing_order",
+    "incremental_affected_module_refresh",
+    "language_dialect_encoding_inventory",
+    "read_only_compilation_database_ingestion",
+    "independent_investigation_ignore_policy"
+  ],
+  "architecture_inspiration": {
+    "project": "FSoft-AI4Code/CodeWiki",
+    "adopted_patterns": ["component_index", "hierarchical_modules", "leaf_first_order", "session_isolation", "affected_module_refresh"],
+    "dependency": false,
+    "vendored_code": false
+  },
+  "execution_status": "packaged_smoke_tested_not_a01_regression_tested",
+  "regression_baseline": "A01",
+  "regression_run_authorized": false
+}

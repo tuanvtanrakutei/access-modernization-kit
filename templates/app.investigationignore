@@ -1,0 +1,18 @@
+# This policy controls the immutable source inventory. It is independent of Git and Graphify.
+.git/
+runs/
+graphify-out/
+outputs/
+secrets/
+credentials/
+**/__pycache__/
+*.laccdb
+*.ldb
+*.tmp
+*.bak
+*.log
+.env
+.env.*
+*.dsn
+
+# Do not exclude MDB/ACCDB/ADP here: raw Access artifacts are investigation sources.

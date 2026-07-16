@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Multi-Agent Investigation Run State",
+  "type": "object",
+  "required": ["run_id", "package_version", "app_id", "manifest_path", "manifest_sha256", "runtime", "max_parallel", "status", "current_wave", "wave_status", "phase_gates", "created_at", "updated_at"],
+  "properties": {
+    "run_id": {"type": "string"},
+    "package_version": {"type": "string"},
+    "app_id": {"type": "string"},
+    "manifest_path": {"type": "string"},
+    "manifest_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "runtime": {"enum": ["codex", "claude", "generic"]},
+    "max_parallel": {"type": "integer", "minimum": 1},
+    "status": {"enum": ["CREATED", "RUNNING", "PAUSED", "BLOCKED", "COMPLETED", "FAILED", "CANCELLED"]},
+    "current_wave": {"type": ["string", "null"]},
+    "wave_status": {
+      "type": "object",
+      "additionalProperties": {"enum": ["PENDING", "RUNNING", "COMPLETED", "BLOCKED", "REJECTED"]}
+    },
+    "phase_gates": {
+      "type": "object",
+      "patternProperties": {"^phase[1-6]$": {"enum": ["PENDING", "READY", "PUBLISHED", "REJECTED"]}},
+      "additionalProperties": false
+    },
+    "created_at": {"type": "string", "format": "date-time"},
+    "updated_at": {"type": "string", "format": "date-time"}
+  },
+  "additionalProperties": false
+}

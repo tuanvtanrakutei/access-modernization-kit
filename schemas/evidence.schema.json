@@ -1,0 +1,50 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://sms.local/schemas/evidence.schema.json",
+  "title": "SMS Legacy Investigation Evidence Register",
+  "type": "object",
+  "required": ["app_id", "generated_at", "items"],
+  "properties": {
+    "app_id": {"type": "string"},
+    "generated_at": {"type": "string", "format": "date-time"},
+    "items": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/evidenceItem"}
+    }
+  },
+  "$defs": {
+    "evidenceItem": {
+      "type": "object",
+      "required": ["id", "run_id", "app_id", "phase", "role", "task_id", "statement", "status", "source_type", "source_path", "confidence", "created_at"],
+      "properties": {
+        "id": {"type": "string", "pattern": "^[A-Z][A-Z0-9_-]{1,15}-P[1-6]-[A-Z0-9_]+-[0-9]{3,}$"},
+        "run_id": {"type": "string"},
+        "app_id": {"type": "string"},
+        "phase": {"type": "integer", "minimum": 1, "maximum": 6},
+        "role": {"type": "string"},
+        "task_id": {"type": "string"},
+        "statement": {"type": "string", "minLength": 1},
+        "status": {"enum": ["EXTRACTED", "INFERRED", "AMBIGUOUS"]},
+        "source_type": {"enum": ["VBA", "SQL", "SCREENSHOT", "REPORT", "XLSX", "PDF", "CSV", "TXT", "RUNTIME", "STAKEHOLDER_DECISION", "OTHER"]},
+        "source_path": {"type": "string"},
+        "source_location": {"type": ["string", "null"]},
+        "source_sha256": {"type": ["string", "null"], "pattern": "^[a-f0-9]{64}$"},
+        "source_language": {"enum": ["EN", "JA", "VI", "OTHER"]},
+        "confidence": {"type": "number", "minimum": 0, "maximum": 1},
+        "agent_runtime": {"type": ["string", "null"]},
+        "agent_id": {"type": ["string", "null"]},
+        "related_nodes": {"type": "array", "items": {"type": "string"}},
+        "notes": {"type": "string"},
+        "created_at": {"type": "string", "format": "date-time"}
+      },
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {"properties": {"status": {"const": "EXTRACTED"}}},
+          "then": {"properties": {"confidence": {"const": 1.0}}}
+        }
+      ]
+    }
+  },
+  "additionalProperties": false
+}

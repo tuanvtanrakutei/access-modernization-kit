@@ -1,0 +1,29 @@
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.venv/
+venv/
+*.tmp
+*.bak
+*.log
+smoke-workspace/
+graphify-out/
+
+# Sensitive and proprietary investigation inputs
+*.mdb
+*.accdb
+*.adp
+*.laccdb
+*.ldb
+*.dsn
+.env
+.env.*
+secrets/
+credentials/
+
+# Local investigation state
+runs/
+outputs/drafts/
+outputs/render-cache/

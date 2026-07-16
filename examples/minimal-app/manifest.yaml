@@ -1,0 +1,64 @@
+version: "2.1"
+app:
+  id: "DEMO"
+  name_en: "Synthetic Order Demo"
+  name_ja: ""
+  name_vi: ""
+scope:
+  legacy_only: true
+  current_implementation: "excluded"
+  notes: "Synthetic public example only."
+sources:
+  access_databases: []
+  vba_exports: ["sources/vba"]
+  sql_server:
+    exported_paths: ["sources/sql"]
+    live:
+      enabled: false
+      connection_ref: ""
+  screenshots: []
+  reports: []
+  sample_files: []
+  app_documents: []
+  japanese_documents: {}
+analysis:
+  source_policy:
+    ignore_file: ".investigationignore"
+    include_patterns: []
+    ignore_patterns: []
+  build_context:
+    compilation_databases: []
+    compile_flags: []
+    projects: []
+    execute_commands: false
+  module_planning:
+    enabled: true
+    strategy: "hierarchical_leaf_first"
+    incremental_refresh: true
+shared_context:
+  global_sms_graph: ""
+  shared_decisions: []
+outputs:
+  root: "outputs"
+  languages: ["EN"]
+  presentation_template: ""
+  derived:
+    e2e_html: false
+    boundary_html: false
+    presentation_pptx: false
+graphify:
+  enabled: false
+  mode: "standard"
+  output_dir: "graphify-out"
+  link_shared_nodes: false
+  input_policy: "extracted_text_and_supported_sources"
+multi_agent:
+  enabled: true
+  preferred_runtime: "generic"
+  max_parallel: 2
+  coordinator_only_merge: true
+  independent_qa: true
+  evidence_collection_parallel: true
+  phase_publication_sequential: true
+  conflict_policy: "record_and_escalate"
+  human_checkpoints: ["inventory", "context_extraction", "module_plan", "phase1_phase2", "phase3", "phase4_phase5", "phase6", "qa"]

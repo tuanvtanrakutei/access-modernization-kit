@@ -1,0 +1,18 @@
+{
+  "task_id": "AXX-RUN-W1-SQL_DATA",
+  "run_id": "AXX-YYYYMMDD-HHMMSS",
+  "app_id": "AXX",
+  "role": "sql_data",
+  "agent_runtime": "generic",
+  "agent_id": null,
+  "status": "COMPLETED",
+  "summary": "Short evidence-backed summary.",
+  "artifacts": ["work/sql_data/result.json"],
+  "evidence_ids": ["AXX-P1-SQL_DATA-001"],
+  "gaps": [],
+  "conflict_ids": [],
+  "source_files_read": ["sources/sql/schema.sql"],
+  "input_tokens": null,
+  "output_tokens": null,
+  "completed_at": "2000-01-01T00:00:00+00:00"
+}
