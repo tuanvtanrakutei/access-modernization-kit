@@ -10,6 +10,12 @@ All notable changes to this project are documented in this file. The format foll
 - ADP extraction validation on a compatible legacy Access environment.
 - A01 regression trial only after explicit authorization.
 
+## [2.1.2] - 2026-07-16
+
+### Fixed
+
+- Accepted supported major versions of GitHub Actions checkout and setup-python actions so dependency-update pull requests validate their proposed workflow change.
+
 ## [2.1.1] - 2026-07-16
 
 ### Fixed

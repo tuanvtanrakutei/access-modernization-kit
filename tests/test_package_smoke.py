@@ -26,7 +26,7 @@ def run_script(name: str, *args: str) -> subprocess.CompletedProcess[str]:
 
 def test_public_package_contract() -> None:
     package = json.loads((PACKAGE / "specifications" / "package.json").read_text(encoding="utf-8"))
-    assert package["version"] == "2.1.1"
+    assert package["version"] == "2.1.2"
     assert package["architecture_inspiration"]["dependency"] is False
     assert package["architecture_inspiration"]["vendored_code"] is False
     run_script("validate_structure.py", "--package", str(PACKAGE))
