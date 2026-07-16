@@ -170,18 +170,18 @@ def main() -> int:
 
     package_data = load_json(root / "specifications/package.json", errors)
     if isinstance(package_data, dict):
-        if package_data.get("version") != "2.1.1" or package_data.get("contract_version") != "2.1":
-            errors.append("Package and contract versions must be 2.1.1 and 2.1")
+        if package_data.get("version") != "2.1.2" or package_data.get("contract_version") != "2.1":
+            errors.append("Package and contract versions must be 2.1.2 and 2.1")
         inspiration = package_data.get("architecture_inspiration", {})
         if not isinstance(inspiration, dict) or inspiration.get("dependency") is not False or inspiration.get("vendored_code") is not False:
             errors.append("CodeWiki reference must remain non-dependency and non-vendored")
 
     publication_checks = {
-        "README.md": ("SMS Legacy Investigation Kit", "2.1.1", "Apache License 2.0", "CodeWiki is not installed"),
+        "README.md": ("SMS Legacy Investigation Kit", "2.1.2", "Apache License 2.0", "CodeWiki is not installed"),
         "LICENSE": ("Apache License", "Version 2.0, January 2004"),
         "NOTICE": ("Copyright 2026 Vo Ta Tuan", "vo-ta-tuan@anrakutei.vn"),
         "SECURITY.md": ("vo-ta-tuan@anrakutei.vn", "Do not open a public GitHub issue"),
-        ".github/workflows/validate.yml": ("actions/checkout@v6", "actions/setup-python@v6", "pytest"),
+        ".github/workflows/validate.yml": ("pytest",),
     }
     for relative, tokens in publication_checks.items():
         path = root / relative
@@ -191,6 +191,12 @@ def main() -> int:
         for token in tokens:
             if token not in content:
                 errors.append(f"Publication file {relative} missing required token: {token}")
+    workflow_path = root / ".github/workflows/validate.yml"
+    if workflow_path.is_file():
+        workflow = workflow_path.read_text(encoding="utf-8")
+        for action in ("actions/checkout", "actions/setup-python"):
+            if not re.search(rf"(?m)^\s*uses:\s*{re.escape(action)}@v\d+\s*$", workflow):
+                errors.append(f"Validate workflow must use a supported major version of {action}")
     ignore_path = root / ".gitignore"
     if ignore_path.is_file():
         ignore_text = ignore_path.read_text(encoding="utf-8")

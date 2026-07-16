@@ -1,11 +1,11 @@
 # SMS Legacy Investigation Kit
 
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-2.1.1-green.svg)](specifications/package.json)
+[![Version](https://img.shields.io/badge/version-2.1.2-green.svg)](specifications/package.json)
 
 An evidence-backed investigation kit for legacy Microsoft Access applications (`.mdb`, `.accdb`, and `.adp`) connected to SQL Server. It combines a mandatory six-phase senior-system-analyst workflow with safe Access extraction, deterministic module planning, provider-neutral multi-agent orchestration, Graphify integration, independent QA, and presentation-ready outputs.
 
-Version 2.1.1 is packaged and synthetic-smoke-tested. Live Access/ADP extraction, live SQL Server access, and the A01 regression corpus are intentionally not part of the public test baseline.
+Version 2.1.2 is packaged and synthetic-smoke-tested. Live Access/ADP extraction, live SQL Server access, and the A01 regression corpus are intentionally not part of the public test baseline.
 
 ## What it produces
 
