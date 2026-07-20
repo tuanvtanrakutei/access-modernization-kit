@@ -35,6 +35,7 @@ JSON_FILES = tuple(path for path in REQUIRED_FILES if path.endswith(".json"))
 REPOSITORY_FILES = (
     ".gitignore", ".graphifyignore", ".gitattributes", "README.md", "LICENSE", "NOTICE", "CHANGELOG.md", "CONTRIBUTING.md", "SECURITY.md",
     "CODE_OF_CONDUCT.md", "THIRD_PARTY_NOTICES.md", "CITATION.cff", ".agents/plugins/marketplace.json",
+    "docs/first-access-mdb-investigation.md",
     ".github/workflows/validate.yml", ".github/dependabot.yml", ".github/pull_request_template.md",
     ".github/ISSUE_TEMPLATE/bug_report.yml", ".github/ISSUE_TEMPLATE/feature_request.yml",
 )
@@ -187,6 +188,7 @@ def main() -> int:
 
     publication_checks = {
         "README.md": ("SMS Legacy Investigation Kit", "2.2.2", "codex plugin add", "$sms-kit init <APP_ID>"),
+        "docs/first-access-mdb-investigation.md": ("local Access MDB workspace", "--adopt-existing", "Graphify", "Phase 1"),
         "LICENSE": ("Apache License", "Version 2.0, January 2004"),
         "NOTICE": ("Copyright 2026 Vo Ta Tuan", "vo-ta-tuan@anrakutei.vn"),
         "SECURITY.md": ("vo-ta-tuan@anrakutei.vn", "Do not open a public GitHub issue"),

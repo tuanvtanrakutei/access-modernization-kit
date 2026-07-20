@@ -59,6 +59,8 @@ py -3.11 plugins\sms-kit\scripts\sms_kit.py init `
 
 For an existing non-empty app project, use --app-root <APP_ROOT> and --adopt-existing instead of --root. The initializer preserves existing files and creates only missing kit-owned folders/files.
 
+For a guided, safe first run against an existing local Access MDB workspace, see [First investigation of an existing Access MDB workspace](docs/first-access-mdb-investigation.md).
+
 Put the application's authorized exports and documents in that workspace. Each application has its own sources, evidence, graph, decisions, runs, and outputs; the installed plugin remains shared.
 
 ```mermaid
