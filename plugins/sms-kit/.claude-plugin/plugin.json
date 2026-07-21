@@ -1,0 +1,14 @@
+{
+  "name": "sms-kit",
+  "version": "2.2.2",
+  "description": "Evidence-backed six-phase investigation for Access/VBA and SQL Server legacy applications.",
+  "author": {
+    "name": "Vo Ta Tuan",
+    "email": "vo-ta-tuan@anrakutei.vn",
+    "url": "https://github.com/tuanvtanrakutei"
+  },
+  "homepage": "https://github.com/tuanvtanrakutei/sms-legacy-investigation-kit",
+  "repository": "https://github.com/tuanvtanrakutei/sms-legacy-investigation-kit",
+  "license": "Apache-2.0",
+  "keywords": ["microsoft-access", "vba", "sql-server", "legacy-modernization", "multi-agent"]
+}

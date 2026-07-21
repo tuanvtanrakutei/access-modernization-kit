@@ -23,6 +23,17 @@ codex plugin marketplace upgrade sms-legacy-kit
 codex plugin add sms-kit@sms-legacy-kit
 ```
 
+## Install in Claude Code
+
+You do **not** need to clone this repository. Add the marketplace once, then install the plugin:
+
+```text
+/plugin marketplace add tuanvtanrakutei/sms-legacy-investigation-kit
+/plugin install sms-kit@sms-legacy-kit
+```
+
+Restart the session after installation. Claude Code discovers the `sms-kit` skill automatically. To update later, run `/plugin marketplace update sms-legacy-kit` and reinstall.
+
 ## Use it with an agent
 
 In Codex, select **SMS Legacy Investigation Kit** from `/skills`, or include `$sms-kit` in your request. These are agent messages, not PowerShell commands.
@@ -87,9 +98,9 @@ flowchart LR
 
 Plus traceable evidence, a question list, QA report, E2E Trace, Boundary Map, and presentation-ready material.
 
-## Use with Claude or another agent
+## Use with another agent runtime
 
-The plugin is a Codex installation. For Claude or another compatible runtime, first obtain the package (clone/download or use its local Codex plugin cache), then ask an agent to run:
+For Claude Code, prefer the marketplace install above. For another compatible runtime (or a project-scoped manual link without a marketplace), first obtain the package (clone/download or use its local plugin cache), then ask an agent to run:
 
 ```text
 $sms-kit install claude <PROJECT_PATH>
