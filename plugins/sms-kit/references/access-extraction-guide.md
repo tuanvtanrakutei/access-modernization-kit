@@ -28,3 +28,13 @@ python scripts/extract_access.py --database <PATH> --database-id <ID> --output-d
 ```
 
 The PowerShell adapter is packaged but cannot be considered runtime-tested until executed on a compatible Access host. Preserve `BLOCKED` or `PARTIAL` status and warnings as evidence gaps.
+
+## Runtime discovery
+
+Before extraction, `scripts/access_runtime.py` inspects the host without opening any database. It reads the 32-bit and 64-bit registry views for `Access.Application`, ACE OLEDB, and DAO, resolves the registered Access executable and version, detects `RunAsAdmin` AppCompat flags, and selects a PowerShell host whose bitness matches the registered runtime — the most common cause of COM activation failures is a 64-bit host driving a 32-bit Access install.
+
+```powershell
+python scripts/access_runtime.py [--smoke-test] [--powershell <PATH>] [--allow-run-as-invoker] [--require-ready]
+```
+
+`extract_access.py` runs this discovery automatically, records it in the extraction `runtime` block, and drives the adapter with the matched host. An authorized `--execute` run is refused with `BLOCKED` status when no host is `READY`. If the registered executable carries a `RunAsAdmin` flag, pass `--allow-run-as-invoker` to activate it without an elevation prompt. Use `--skip-runtime-check` only to restore the pre-2.3 behavior of calling the default `powershell` host directly.

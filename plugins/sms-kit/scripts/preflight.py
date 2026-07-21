@@ -100,7 +100,34 @@ def manifest_needs(path: Path | None) -> dict[str, bool]:
     return needs
 
 
-def windows_access_capabilities() -> dict[str, bool | str]:
+def windows_access_capabilities() -> dict[str, object]:
+    """Report Access automation capability, delegating to the shared runtime probe.
+
+    The richer discovery in access_runtime.py adds bitness-matched PowerShell
+    host selection on top of the registry checks. Backward-compatible keys are
+    preserved so existing report consumers keep working; a lightweight
+    registry-only fallback runs if the shared module cannot be imported.
+    """
+    try:
+        from access_runtime import inspect_access_runtime
+    except ImportError:
+        return _legacy_windows_access_capabilities()
+    report = inspect_access_runtime(smoke_test=False)
+    views = report.get("registry", {}).get("views", {})
+    return {
+        "windows": report["platform"] == "Windows",
+        "process_bitness": report["python_process_bitness"],
+        "access_com_registered": any(view.get("access", {}).get("registered") for view in views.values()),
+        "ace_provider_registered": any(
+            provider.get("registered") for view in views.values() for provider in view.get("ace_providers", {}).values()
+        ),
+        "selected_host": report["selected_host"],
+        "runtime_status": report["status"],
+        "runasadmin_detected": report["runasadmin_detected"],
+    }
+
+
+def _legacy_windows_access_capabilities() -> dict[str, bool | str]:
     result: dict[str, bool | str] = {"windows": platform.system() == "Windows", "access_com_registered": False, "ace_provider_registered": False, "process_bitness": f"{8 * __import__('struct').calcsize('P')}-bit"}
     if not result["windows"]:
         return result

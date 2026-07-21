@@ -166,6 +166,48 @@ def test_synthetic_module_aware_pipeline(tmp_path: Path) -> None:
     assert any(task["module_targets"] for task in tasks)
 
 
+def test_access_runtime_probe_reports_json() -> None:
+    result = run_script("access_runtime.py")
+    report = json.loads(result.stdout)
+    for key in ("platform", "python_process_bitness", "registry", "powershell_candidates", "selected_host", "activation", "status"):
+        assert key in report, f"access runtime report missing {key}"
+    assert report["activation"]["status"] in {"NOT_REQUESTED", "READY", "NOT_INSTALLED", "REGISTERED_BUT_ACTIVATION_FAILED", "INSTALLED_BUT_BITNESS_MISMATCH", "NOT_FOUND"}
+    assert report["selected_host"]["status"] in {"READY", "NOT_INSTALLED", "INSTALLED_BUT_BITNESS_MISMATCH", "NOT_FOUND"}
+
+
+def test_extract_access_reports_runtime_block(tmp_path: Path) -> None:
+    database = tmp_path / "runtime.accdb"
+    database.write_text("synthetic dry-run placeholder", encoding="utf-8")
+
+    discovered = run_script(
+        "extract_access.py",
+        "--database", str(database),
+        "--database-id", "DBR",
+        "--session-id", "DRY-RUNTIME",
+        "--output-dir", str(tmp_path / "extracted"),
+        "--dry-run",
+    )
+    plan = json.loads(discovered.stdout)
+    assert plan["status"] == "PREFLIGHT_ONLY"
+    runtime = plan["runtime"]
+    assert runtime["runtime_check"] == "COMPLETED"
+    assert runtime["runtime_tested"] is False
+    assert "host" in runtime and "status" in runtime["host"]
+
+    skipped = run_script(
+        "extract_access.py",
+        "--database", str(database),
+        "--database-id", "DBR",
+        "--session-id", "DRY-SKIP",
+        "--output-dir", str(tmp_path / "extracted"),
+        "--dry-run",
+        "--skip-runtime-check",
+    )
+    skipped_runtime = json.loads(skipped.stdout)["runtime"]
+    assert skipped_runtime["runtime_check"] == "SKIPPED"
+    assert skipped_runtime["runtime_tested"] is False
+
+
 def test_adopt_existing_workspace_preserves_files(tmp_path: Path) -> None:
     app = tmp_path / "T23"
     original = app / "docs" / "scope.md"
