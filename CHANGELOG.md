@@ -23,6 +23,16 @@ All notable changes to this project are documented in this file. The format foll
 - ADP extraction validation on a compatible legacy Access environment.
 - A01 regression trial only after explicit authorization.
 
+## [2.5.0] - 2026-07-21
+
+### Added
+
+- `tools/ExportAccessObjects.bas`: a VBA module that exports every form, report, macro, module, query, and table schema from inside Access via the Immediate window — no external COM automation and no administrator elevation. This is the recommended export-mode path when a compatible, activatable Access runtime is not available (no Access on the host, elevation-blocked activation, or a non-Windows environment). Filenames keep the original object names and de-duplicate only on real collisions.
+
+### Changed
+
+- `scripts/extract_access.py`: an authorized `--execute` run now fails fast with `BLOCKED` status **before copying a snapshot** when the runtime cannot be activated (for example a `RunAsAdmin` executable that requires elevation), and the warning explains the remedy (run elevated, `--allow-run-as-invoker`, `--powershell`, or `--skip-runtime-check`). Previously it copied the snapshot and only then reported the adapter failure.
+
 ## [2.4.1] - 2026-07-21
 
 ### Fixed

@@ -293,6 +293,41 @@ def test_extract_ps1_safe_names_are_unique_on_collide() -> None:
         assert re.fullmatch(r"[A-Za-z0-9_.-]+", name), name
 
 
+def test_vba_export_tool_present() -> None:
+    bas = (PACKAGE / "tools" / "ExportAccessObjects.bas").read_text(encoding="utf-8")
+    assert "Public Sub ExportAccessObjects" in bas
+    assert "SaveAsText" in bas
+    # Keeps original names, only de-duplicates on real collision (no lossy sanitizing).
+    assert "UniquePath" in bas
+
+
+def test_extract_access_blocks_before_snapshot_when_runtime_unavailable(tmp_path: Path) -> None:
+    database = tmp_path / "blocked.accdb"
+    database.write_text("synthetic placeholder", encoding="utf-8")
+    out_dir = tmp_path / "extracted"
+    # A non-existent PowerShell host forces NOT_FOUND without ever activating Access.
+    result = subprocess.run(
+        [
+            sys.executable, str(SCRIPTS / "extract_access.py"),
+            "--database", str(database),
+            "--database-id", "DBX",
+            "--session-id", "S1",
+            "--output-dir", str(out_dir),
+            "--execute",
+            "--powershell", str(tmp_path / "missing" / "powershell.exe"),
+        ],
+        cwd=PACKAGE,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 3, f"STDOUT:\n{result.stdout}\nSTDERR:\n{result.stderr}"
+    plan = json.loads(result.stdout)
+    assert plan["status"] == "BLOCKED"
+    # The block must happen before any snapshot copy.
+    assert not (out_dir / "DBX" / "S1" / "snapshot").exists()
+
+
 def test_adopt_existing_workspace_preserves_files(tmp_path: Path) -> None:
     app = tmp_path / "T23"
     original = app / "docs" / "scope.md"

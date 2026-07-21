@@ -37,4 +37,18 @@ Before extraction, `scripts/access_runtime.py` inspects the host without opening
 python scripts/access_runtime.py [--smoke-test] [--powershell <PATH>] [--allow-run-as-invoker] [--require-ready]
 ```
 
-`extract_access.py` runs this discovery automatically, records it in the extraction `runtime` block, and drives the adapter with the matched host. An authorized `--execute` run is refused with `BLOCKED` status when no host is `READY`. If the registered executable carries a `RunAsAdmin` flag, pass `--allow-run-as-invoker` to activate it without an elevation prompt. Use `--skip-runtime-check` only to restore the pre-2.3 behavior of calling the default `powershell` host directly.
+`extract_access.py` runs this discovery automatically, records it in the extraction `runtime` block, and drives the adapter with the matched host. An authorized `--execute` run is refused with `BLOCKED` status **before any snapshot is copied** when the runtime cannot be activated (for example a `RunAsAdmin` executable that requires elevation). If the registered executable carries a `RunAsAdmin` flag, run the command from an elevated (Administrator) terminal, or pass `--allow-run-as-invoker` to activate it without an elevation prompt. Use `--skip-runtime-check` only to restore the pre-2.3 behavior of calling the default `powershell` host directly.
+
+## Manual export (no COM automation, no elevation)
+
+When the runtime extractor cannot run — no Access on the host, activation blocked by elevation, or a non-Windows environment holding only an exported source dump — export from inside Access instead with `tools/ExportAccessObjects.bas`.
+
+1. Open the database in Microsoft Access.
+2. Import `tools/ExportAccessObjects.bas` (VBA editor: File > Import File) or paste it into a new module.
+3. In the Immediate window (Ctrl+G) run, replacing the path with the app workspace `sources` folder:
+
+   ```text
+   ExportAccessObjects "D:\Anrakutei\<APP>\sources"
+   ```
+
+It writes every form, report, macro, and module (`SaveAsText`), each query's SQL, and a table schema summary, keeping the original object names and adding a numeric suffix only on a real filename collision — so nothing is lost. The result is export-mode input; run `scripts/preflight.py` afterward to confirm the detected mode and coverage. This path is the recommended default when a compatible, activatable Access runtime is not available.
