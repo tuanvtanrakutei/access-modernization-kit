@@ -7,14 +7,14 @@
   },
   "metadata": {
     "description": "SMS Legacy Investigation Kit marketplace for Claude Code.",
-    "version": "2.4.0"
+    "version": "2.4.1"
   },
   "plugins": [
     {
       "name": "sms-kit",
       "source": "./plugins/sms-kit",
       "description": "Evidence-backed six-phase investigation for Access/VBA and SQL Server legacy applications.",
-      "version": "2.4.0",
+      "version": "2.4.1",
       "author": {
         "name": "Vo Ta Tuan",
         "email": "vo-ta-tuan@anrakutei.vn",

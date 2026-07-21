@@ -23,6 +23,12 @@ All notable changes to this project are documented in this file. The format foll
 - ADP extraction validation on a compatible legacy Access environment.
 - A01 regression trial only after explicit authorization.
 
+## [2.4.1] - 2026-07-21
+
+### Fixed
+
+- `scripts/extract_access.ps1`: `Get-SafeName` now appends a deterministic hash of the original object name. Previously non-ASCII names (for example Japanese forms, queries, and reports) all sanitized to identical underscore filenames, so distinct objects overwrote one another on disk and the extraction silently lost sources (observed: 51 forms → 21 files, 98 queries → 60, 63 reports → 32). Extraction is now lossless; re-extract affected apps to recover the missing objects.
+
 ## [2.4.0] - 2026-07-21
 
 ### Added

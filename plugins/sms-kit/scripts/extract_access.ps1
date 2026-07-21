@@ -10,7 +10,21 @@ param(
 $ErrorActionPreference = 'Stop'
 
 function Get-SafeName([string]$Name) {
-    return ($Name -replace '[^A-Za-z0-9_.-]', '_')
+    $sanitized = ($Name -replace '[^A-Za-z0-9_.-]', '_')
+    if ([string]::IsNullOrEmpty($sanitized)) { $sanitized = 'object' }
+    if ($sanitized.Length -gt 48) { $sanitized = $sanitized.Substring(0, 48) }
+    # A short deterministic hash of the ORIGINAL name keeps filenames unique even
+    # when non-ASCII names (for example Japanese) sanitize to identical underscore
+    # runs. Without it, distinct objects overwrite one another on disk and the
+    # extraction silently loses forms, queries, and reports.
+    $sha1 = [System.Security.Cryptography.SHA1]::Create()
+    try {
+        $digest = $sha1.ComputeHash([System.Text.Encoding]::UTF8.GetBytes($Name))
+    } finally {
+        $sha1.Dispose()
+    }
+    $suffix = -join ($digest[0..3] | ForEach-Object { $_.ToString('x2') })
+    return ('{0}-{1}' -f $sanitized, $suffix)
 }
 
 function Redact-Connection([string]$Value) {

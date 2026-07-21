@@ -250,6 +250,49 @@ def test_preflight_input_preconditions(tmp_path: Path) -> None:
     assert "runtime_status" in extract["input_preconditions"]
 
 
+def test_extract_ps1_declares_unique_safe_names() -> None:
+    # Regression guard (runs everywhere): the safe-name function must derive a
+    # deterministic hash from the original name so distinct non-ASCII objects do
+    # not sanitize to the same filename and overwrite each other on disk.
+    ps1 = (SCRIPTS / "extract_access.ps1").read_text(encoding="utf-8")
+    assert "function Get-SafeName" in ps1
+    assert "ComputeHash" in ps1
+
+
+def test_extract_ps1_safe_names_are_unique_on_collide() -> None:
+    import re
+    import shutil
+
+    powershell = shutil.which("powershell") or shutil.which("pwsh")
+    if not powershell:
+        import pytest
+
+        pytest.skip("PowerShell not available on this platform")
+
+    script = (SCRIPTS / "extract_access.ps1").as_posix()
+    command = (
+        "$ErrorActionPreference='Stop';"
+        f"$c = Get-Content -Raw -LiteralPath '{script}';"
+        "$m = [regex]::Match($c, '(?ms)^function Get-SafeName\\(.*?^\\}');"
+        "if (-not $m.Success) { throw 'Get-SafeName not found' };"
+        "Invoke-Expression $m.Value;"
+        "$names = @('***','///','@@@','Form1','');"
+        "($names | ForEach-Object { Get-SafeName $_ }) -join [char]10"
+    )
+    result = subprocess.run(
+        [powershell, "-NoProfile", "-NonInteractive", "-Command", command],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 0, result.stderr
+    safe = [line.strip() for line in result.stdout.splitlines() if line.strip()]
+    assert len(safe) == 5, safe
+    assert len(set(safe)) == 5, f"safe names collide: {safe}"
+    for name in safe:
+        assert re.fullmatch(r"[A-Za-z0-9_.-]+", name), name
+
+
 def test_adopt_existing_workspace_preserves_files(tmp_path: Path) -> None:
     app = tmp_path / "T23"
     original = app / "docs" / "scope.md"
