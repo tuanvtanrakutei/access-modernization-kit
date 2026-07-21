@@ -98,9 +98,31 @@ def main() -> int:
     if args.dry_run or not args.execute:
         print(json.dumps(plan, ensure_ascii=False, indent=2))
         return 0
-    if host is not None and host.get("status") != "READY":
+    if not args.skip_runtime_check and runtime.get("status") != "READY":
+        # Fail before copying a snapshot when the runtime cannot actually be
+        # activated, and explain the most likely remedy.
         plan["status"] = "BLOCKED"
-        plan["warnings"].append(f"Access runtime is not ready: {host.get('reason', 'no compatible host found')}")
+        effective = runtime.get("status")
+        activation = runtime.get("activation", {})
+        if effective == "REGISTERED_BUT_ACTIVATION_FAILED":
+            plan["warnings"].append(
+                "Access is registered but COM activation failed. If the Access executable requires elevation "
+                "(RunAsAdmin), run this command from an elevated (Administrator) terminal, or pass "
+                "--allow-run-as-invoker. To skip runtime discovery entirely, pass --skip-runtime-check."
+            )
+        elif effective in {"INSTALLED_BUT_BITNESS_MISMATCH", "NOT_FOUND"}:
+            plan["warnings"].append(
+                f"No matching PowerShell host for the registered Access runtime ({host.get('reason') if host else effective}). "
+                "Pass --powershell to point at a matching-bitness host, or --skip-runtime-check to bypass discovery."
+            )
+        else:
+            plan["warnings"].append(
+                "Access automation is not available on this host (Access/ACE is not registered). "
+                "Export the VBA and SQL on a compatible machine and use export mode instead."
+            )
+        message = activation.get("message")
+        if message:
+            plan["warnings"].append(f"Activation detail: {str(message)[:500]}")
         print(json.dumps(plan, ensure_ascii=False, indent=2))
         return 3
     if output.exists() and any(output.iterdir()):
