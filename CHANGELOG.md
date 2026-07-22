@@ -23,6 +23,16 @@ All notable changes to this project are documented in this file. The format foll
 - ADP extraction validation on a compatible legacy Access environment.
 - A01 regression trial only after explicit authorization.
 
+## [2.5.1] - 2026-07-21
+
+### Fixed
+
+- `tools/ExportAccessObjects.bas`: output is now uniformly UTF-8. `SaveAsText` writes the system codepage (Shift-JIS on Japanese Windows), so the exporter transcodes each form/report/macro/module file to UTF-8 to match the UTF-8 query and schema files. Also renamed the module to `modExportAccess` (a module sharing the Sub's name caused "Expected variable or procedure, not module"), and made every object export independently so one failing object is recorded under `skipped=` instead of aborting the run.
+
+### Changed
+
+- `references/access-extraction-guide.md`: expanded the manual-export guide with per-database split-database steps, VBA-editor import (not the Access database import), `Shift` startup bypass, missing-reference handling, UTF-8 output, and guidance to filter junk tables during analysis rather than deleting objects from the live database.
+
 ## [2.5.0] - 2026-07-21
 
 ### Added
