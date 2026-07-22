@@ -9,6 +9,7 @@ import hashlib
 import json
 import shutil
 import subprocess
+import sys
 import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
@@ -338,6 +339,8 @@ def parse_args() -> argparse.Namespace:
 
 
 def main() -> int:
+    if hasattr(sys.stdout, "reconfigure"):
+        sys.stdout.reconfigure(encoding="utf-8")
     args = parse_args()
     app_root = Path(args.app_root).expanduser().resolve()
     manifest_path = app_root / "manifest.yaml"

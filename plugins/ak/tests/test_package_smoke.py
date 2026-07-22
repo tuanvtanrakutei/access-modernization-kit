@@ -23,6 +23,7 @@ def run_script(name: str, *args: str) -> subprocess.CompletedProcess[str]:
         check=False,
         capture_output=True,
         text=True,
+        encoding="utf-8",
     )
     assert result.returncode == 0, f"{name} failed\nSTDOUT:\n{result.stdout}\nSTDERR:\n{result.stderr}"
     return result
@@ -189,7 +190,7 @@ def test_synthetic_module_aware_pipeline(tmp_path: Path) -> None:
 
     inventory = json.loads((run / "source-inventory.json").read_text(encoding="utf-8"))
     assert any(item["relative_path"].endswith("ignored.tmp") for item in inventory["ignored"])
-    tasks = [json.loads(path.read_text(encoding="utf-8")) for path in (run / "tasks").glob("*.json")]
+    tasks = [json.loads(path.read_text(encoding="utf-8")) for path in sorted((run / "tasks").glob("*.json"))]
     assert tasks
     assert any(task["module_targets"] for task in tasks)
     graph_tasks = [task for task in tasks if task["role"] == "graph_builder"]
@@ -307,7 +308,7 @@ def test_nested_manifest_sources_drive_preflight_and_task_inputs(tmp_path: Path)
     run_script("create_run.py", "--app-root", str(app), "--runtime", "generic", "--run-id", "T25-NESTED")
     run = app / "runs" / "T25-NESTED"
     run_script("create_tasks.py", "--package", str(PACKAGE), "--run", str(run))
-    tasks = [json.loads(path.read_text(encoding="utf-8")) for path in (run / "tasks").glob("*.json")]
+    tasks = [json.loads(path.read_text(encoding="utf-8")) for path in sorted((run / "tasks").glob("*.json"))]
     vba_task = next(task for task in tasks if task["role"] == "vba_ui")
     sql_task = next(task for task in tasks if task["role"] == "sql_data")
     assert "../../sources/T25_FRONTEND/vba" in vba_task["input_paths"]
