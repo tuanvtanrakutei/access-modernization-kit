@@ -92,7 +92,7 @@ outputs:
   derived:
     e2e_html: true
     boundary_html: true
-    presentation_pptx: true
+    presentation_pptx: false  # optional; enable only when a presentation is required
 graphify:
   enabled: true
   mode: "standard"

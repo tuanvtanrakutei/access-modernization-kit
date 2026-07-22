@@ -19,7 +19,7 @@ Treat these short forms as explicit user requests. They are agent commands, not 
 | `$ak install codex` | Explain that `$ak` is already installed as a Codex plugin; do not create a manual skill link. |
 | `$ak install claude <PROJECT_PATH>` | Run `scripts/ak.py install --runtime claude --project <PROJECT_PATH>`; report the discovery path and restart requirement. |
 | `$ak init <APP_ID>` | Use app initialization mode. For a non-empty existing project root, require explicit adoption with scripts/ak.py init --app-root <APP_ROOT> --adopt-existing; preserve existing files, then stop. |
-| `$ak assess <APP_ID>` | Inspect the manifest and authorized source inventory; report coverage, gaps, and required approvals without analyzing a phase. |
+| `$ak assess <APP_ID>` | Inspect the manifest and authorized source inventory; report coverage, gaps, required approvals, and a **recommended optional evidence** list (from `templates/recommended-optional-evidence.md`) without analyzing a phase. |
 | `$ak phase <1-6> <APP_ID>` | Run only the named phase after reading its required contract/template and available evidence. |
 | `$ak run <APP_ID>` | Run the six phases in order only when the user explicitly authorizes the full investigation. |
 | `$ak status <APP_ID>` | Report app/run/phase/QA status without changing evidence or outputs. |
@@ -138,7 +138,7 @@ User action -> screen/form -> VBA event -> processing/query -> table/file -> out
 
 Before completing each phase, verify required template sections, evidence status and locations, open questions, app isolation, and manifest language. Before HTML rendering, verify Phase 4 and traceability. Before PPTX, verify Phase 6, evidence, decisions, and presentation scope.
 
-Use filenames in `specifications/output-contract.yaml`. Generate only declared language variants. For presentations, use the available presentation skill/runtime and manifest template; do not mutate PPTX through ad hoc OOXML.
+Use filenames in `specifications/output-contract.yaml`. Generate only declared language variants. **Presentation output is optional and off by default** (`outputs.derived.presentation_pptx: false`); generate a PPTX only when the manifest enables it or the user explicitly requests one. For presentations, use the available presentation skill/runtime and manifest template; do not mutate PPTX through ad hoc OOXML.
 
 ## Validate without running an app
 

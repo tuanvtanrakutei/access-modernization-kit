@@ -24,6 +24,7 @@ REQUIRED_FILES = (
     "templates/phase1-data-understanding.md", "templates/phase2-screen-analysis.md", "templates/phase3-logic-processing.md",
     "templates/phase4-workflow-reconstruction.md", "templates/phase5-document-integration.md", "templates/phase6-synthesis.md",
     "templates/question-list.md", "templates/qa-report.md", "templates/traceability-matrix.csv", "templates/e2e-trace.html",
+    "templates/recommended-optional-evidence.md",
     "templates/boundary-map.html", "templates/presentation-storyboard.md", "templates/task-envelope.json", "templates/agent-handoff.json",
     "templates/conflict-record.json", "templates/worker-prompt.md", "templates/app.gitignore", "templates/app.graphifyignore", "templates/app.investigationignore",
     "scripts/init_app.py", "scripts/preflight.py", "scripts/create_run.py", "scripts/create_tasks.py", "scripts/extract_access.py",

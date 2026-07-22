@@ -23,6 +23,17 @@ All notable changes to this project are documented in this file. The format foll
 - ADP extraction validation on a compatible legacy Access environment.
 - A01 regression trial only after explicit authorization.
 
+## [2.6.0] - 2026-07-22
+
+### Added
+
+- `templates/recommended-optional-evidence.md`: a standard, per-phase list of optional (non-blocking) supplementary evidence — sample input/output files, business documents, screenshots, and boundary/link targets. `$ak assess` now emits it so every app is prompted to strengthen coverage without ever inventing missing sources.
+
+### Changed
+
+- `tools/ExportAccessObjects.bas` now excludes system (`MSys*`), temporary (`~*`), and Access auto-generated ImportErrors tables (3-field Error/Field/Row signature) from `schema/tables.txt`, and reports the excluded count and names in `export-manifest.txt`. This keeps the exported data model clean at the source, so there is no need to delete objects from the live database.
+- Presentation output is now **optional and off by default** (`outputs.derived.presentation_pptx: false` in new manifests); generate a PPTX only when the manifest enables it or the user explicitly requests one. E2E Trace and Boundary Map remain on by default.
+
 ## [2.5.2] - 2026-07-21
 
 ### Changed

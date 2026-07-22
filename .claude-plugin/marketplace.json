@@ -7,14 +7,14 @@
   },
   "metadata": {
     "description": "Access Modernization Kit marketplace for Claude Code.",
-    "version": "2.5.2"
+    "version": "2.6.0"
   },
   "plugins": [
     {
       "name": "ak",
       "source": "./plugins/ak",
       "description": "Evidence-backed six-phase investigation for Access/VBA and SQL Server legacy applications.",
-      "version": "2.5.2",
+      "version": "2.6.0",
       "author": {
         "name": "Vo Ta Tuan",
         "email": "vo-ta-tuan@anrakutei.vn",

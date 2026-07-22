@@ -8,7 +8,7 @@ The goal is to create an evidence-backed investigation workspace without alterin
 
 Confirm all of the following:
 
-- `ak` version 2.5.2 or later is installed in Codex.
+- `ak` version 2.6.0 or later is installed in Codex.
 - The application workspace already exists and may contain documents or exported code.
 - You have a copyable Access database file. Never provide the production/original MDB for extraction.
 - You know whether the app is local-only or has linked tables. If unknown, record it as an open question.

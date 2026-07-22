@@ -93,6 +93,8 @@ def test_friendly_cli_entrypoint(tmp_path: Path) -> None:
     )
     app = tmp_path / "T22"
     assert (app / "manifest.yaml").is_file()
+    # Presentation output is optional and off by default.
+    assert "presentation_pptx: false" in (app / "manifest.yaml").read_text(encoding="utf-8")
     run_script("ak.py", "preflight", "--app-root", str(app))
 
 
@@ -307,6 +309,16 @@ def test_vba_export_tool_present() -> None:
     assert "shift_jis" in bas and 'Charset = "UTF-8"' in bas
     # Each object is exported independently; failures are recorded, not fatal.
     assert "AddSkip" in bas
+    # System/temp/ImportErrors tables are excluded from the schema export.
+    assert "IsSystemOrJunkTable" in bas
+
+
+def test_recommended_optional_evidence_template() -> None:
+    tpl = (PACKAGE / "templates" / "recommended-optional-evidence.md").read_text(encoding="utf-8")
+    assert "{{APP_ID}}" in tpl
+    assert "optional, non-blocking" in tpl
+    for phase in ("Phase 4", "Phase 5", "Phase 2"):
+        assert phase in tpl
 
 
 def test_extract_access_blocks_before_snapshot_when_runtime_unavailable(tmp_path: Path) -> None:

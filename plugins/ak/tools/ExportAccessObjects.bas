@@ -30,7 +30,9 @@ Option Explicit
 '   macros\     one .txt per macro     (SaveAsText)
 '   vba\        one .txt per module    (SaveAsText)
 '   queries\    one .sql per query     (QueryDef.SQL, UTF-8)
-'   schema\tables.txt   table list with linked/local flag and fields (UTF-8)
+'   schema\tables.txt   table list with linked/local flag and fields (UTF-8).
+'                       System (MSys*), temp (~*), and Access ImportErrors
+'                       tables are excluded; their count/names go in the manifest.
 '   export-manifest.txt object counts and the list of skipped objects
 '
 ' Every object is exported independently: a single failing object is recorded
@@ -81,9 +83,12 @@ Public Sub ExportAccessObjects(ByVal OutRoot As String)
         End If
     Next
 
-    Dim td As DAO.TableDef, sb As String
+    Dim td As DAO.TableDef, sb As String, nExcluded As Long, excludedNames As String
     For Each td In db.TableDefs
-        If Left$(td.Name, 4) <> "MSys" Then       ' skip system tables
+        If IsSystemOrJunkTable(td) Then
+            nExcluded = nExcluded + 1
+            excludedNames = excludedNames & "  " & td.Name & vbCrLf
+        Else
             sb = sb & TableSchemaLine(td)
             nTable = nTable + 1
         End If
@@ -97,7 +102,11 @@ Public Sub ExportAccessObjects(ByVal OutRoot As String)
               "modules=" & nModule & vbCrLf & _
               "queries=" & nQuery & vbCrLf & _
               "tables=" & nTable & vbCrLf & _
+              "excluded_system_or_junk_tables=" & nExcluded & vbCrLf & _
               "skipped=" & mSkipCount & vbCrLf
+    If nExcluded > 0 Then
+        summary = summary & vbCrLf & "EXCLUDED tables (system / temp / Access ImportErrors):" & vbCrLf & excludedNames
+    End If
     If mSkipCount > 0 Then
         summary = summary & vbCrLf & "SKIPPED (kind" & vbTab & "name" & vbTab & "error):" & vbCrLf & mSkipped
     End If
@@ -161,6 +170,25 @@ Private Function TryWriteQuery(ByVal qd As Object, ByVal path As String) As Bool
         TryWriteQuery = True
     End If
     Err.Clear
+    On Error GoTo 0
+End Function
+
+Private Function IsSystemOrJunkTable(ByVal td As Object) As Boolean
+    ' Exclude non-model tables from the schema export:
+    '  - MSys*  : Access system tables
+    '  - ~*     : temporary/work tables
+    '  - Access auto-generated ImportErrors tables (exactly 3 fields:
+    '    Error(Text 255) / Field(Text 255) / Row(Long); dbText=10, dbLong=4).
+    Dim n As String
+    n = td.name
+    If Left$(n, 4) = "MSys" Then IsSystemOrJunkTable = True: Exit Function
+    If Left$(n, 1) = "~" Then IsSystemOrJunkTable = True: Exit Function
+    On Error Resume Next
+    If td.Fields.Count = 3 Then
+        If td.Fields(0).Type = 10 And td.Fields(1).Type = 10 And td.Fields(2).Type = 4 Then
+            IsSystemOrJunkTable = True
+        End If
+    End If
     On Error GoTo 0
 End Function
 
