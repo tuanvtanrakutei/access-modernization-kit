@@ -1,4 +1,4 @@
 interface:
   display_name: "Access Modernization Kit"
   short_description: "Run six-phase, multi-agent legacy investigations"
-  default_prompt: "Use $ak V2.1 to coordinate an evidence-backed six-phase investigation for one legacy SMS app. Extract Access binaries from immutable snapshots, normalize build context without executing commands, process deterministic modules leaf-first, keep app data isolated, publish phases sequentially, and require independent QA before rendering derived outputs."
+  default_prompt: "Use $ak to coordinate an evidence-backed six-phase investigation for one legacy Access application, with manifest-declared sources, immutable snapshots, leaf-first modules, and independent QA."

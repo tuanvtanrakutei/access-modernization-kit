@@ -15,9 +15,9 @@ ROLE_INPUTS = {
     "access_extractor": ["manifest.lock.yaml", "source-inventory.json", "../../sources/access", "../../extracted/access"],
     "build_context_analyzer": ["manifest.lock.yaml", "source-inventory.json", "../../extracted/build-context"],
     "module_decomposer": ["manifest.lock.yaml", "source-inventory.json", "../../extracted/access", "../../extracted/module-plan"],
-    "sql_data": ["manifest.lock.yaml", "source-inventory.json", "../../sources/sql", "../../extracted/access", "../../extracted/module-plan"],
-    "vba_ui": ["manifest.lock.yaml", "source-inventory.json", "../../sources/vba", "../../sources/screenshots", "../../sources/reports", "../../extracted/access", "../../extracted/module-plan"],
-    "japanese_documents": ["manifest.lock.yaml", "source-inventory.json", "../../shared-docs"],
+    "sql_data": ["manifest.lock.yaml", "source-inventory.json", "../../extracted/access", "../../extracted/module-plan"],
+    "vba_ui": ["manifest.lock.yaml", "source-inventory.json", "../../sources/screenshots", "../../sources/reports", "../../extracted/access", "../../extracted/module-plan"],
+    "japanese_documents": ["manifest.lock.yaml", "source-inventory.json"],
     "file_interfaces": ["manifest.lock.yaml", "source-inventory.json", "../../sources/samples", "../../sources/reports", "../../sources/screenshots", "../../extracted/module-plan"],
 }
 MODULE_FANOUT_ROLES = {"sql_data", "vba_ui", "file_interfaces", "logic_processing"}
@@ -69,6 +69,59 @@ def scoped_writes(paths: list[str], role_id: str, module_id: str | None) -> list
     return scoped
 
 
+def _task_path(value: object) -> str | None:
+    if not isinstance(value, str) or not value.strip():
+        return None
+    path = Path(value)
+    if path.is_absolute() or ".." in path.parts:
+        return None
+    return "../../" + path.as_posix()
+
+
+def manifest_source_inputs(run: Path) -> dict[str, list[str]]:
+    """Return task-safe source paths declared in the locked app manifest."""
+    defaults = {
+        "vba": ["../../sources/vba"],
+        "sql": ["../../sources/sql"],
+        "documents": ["../../sources/documents"],
+        "japanese_documents": ["../../shared-docs"],
+    }
+    manifest = run / "manifest.lock.yaml"
+    if not manifest.is_file():
+        return defaults
+    try:
+        import yaml  # type: ignore[import-not-found]
+
+        data = yaml.safe_load(manifest.read_text(encoding="utf-8")) or {}
+        sources = data.get("sources", {})
+        sql_server = sources.get("sql_server", {}) or {}
+        japanese = sources.get("japanese_documents", {}) or {}
+        values = {
+            "vba": sources.get("vba_exports", []),
+            "sql": sql_server.get("exported_paths", []),
+            "documents": sources.get("app_documents", []),
+            "japanese_documents": list(japanese.values()) if isinstance(japanese, dict) else [],
+        }
+        return {
+            key: [item for value in raw if (item := _task_path(value))]
+            for key, raw in values.items()
+        }
+    except (ImportError, OSError, AttributeError, TypeError, ValueError):
+        return defaults
+
+
+def input_paths_for(role_id: str, manifest_sources: dict[str, list[str]]) -> list[str]:
+    paths = list(ROLE_INPUTS.get(role_id, ["manifest.lock.yaml", "source-inventory.json", "evidence", "outputs", "handoffs", "../../extracted/module-plan"]))
+    if role_id == "sql_data":
+        paths.extend(manifest_sources["sql"])
+    elif role_id == "vba_ui":
+        paths.extend(manifest_sources["vba"])
+    elif role_id == "japanese_documents":
+        paths.extend(manifest_sources["documents"])
+        paths.extend(manifest_sources["japanese_documents"])
+    return list(dict.fromkeys(paths))
+
+
 def main() -> int:
     args = parse_args()
     run = Path(args.run).expanduser().resolve()
@@ -80,6 +133,7 @@ def main() -> int:
     roles = {item["id"]: item for item in roles_data["roles"]}
     ordered_modules, leaf_modules = module_plan(run)
     fanout = bool(leaf_modules) and not args.no_module_fanout
+    manifest_sources = manifest_source_inputs(run)
 
     tasks: list[dict] = []
     wave_task_ids: dict[str, list[str]] = {}
@@ -108,7 +162,7 @@ def main() -> int:
                 tasks.append({
                     "task_id": identifier, "run_id": state["run_id"], "app_id": state["app_id"], "wave_id": wave["id"], "role": role_id,
                     "phase_targets": phases, "module_targets": [module_id] if module_id else [], "module_order": ordered_modules,
-                    "dependencies": dependency_ids, "input_paths": ROLE_INPUTS.get(role_id, ["manifest.lock.yaml", "source-inventory.json", "evidence", "outputs", "handoffs", "../../extracted/module-plan"]),
+                    "dependencies": dependency_ids, "input_paths": input_paths_for(role_id, manifest_sources),
                     "write_paths": scoped_writes(role["allowed_writes"], role_id, module_id), "evidence_namespace": f"{state['app_id']}-P{phase_token}-{safe_token(role_id)}" + (f"-{safe_token(module_id)}" if module_id else ""),
                     "instructions": instructions, "status": "PENDING", "attempt": 0,
                     "max_attempts": merge_policy["retry_policy"]["max_attempts_per_task"], "token_budget": None, "created_at": now,

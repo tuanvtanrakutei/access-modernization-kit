@@ -1,4 +1,14 @@
 # Changelog
+## [2.6.1] - 2026-07-22
+
+### Fixed
+
+- Source preflight and worker task envelopes now resolve VBA, SQL export, and document paths from the app manifest instead of assuming only `sources/vba`, `sources/sql`, and `sources/documents`. Local-only MDB applications with database-specific VBA export folders no longer receive a false missing-VBA warning, and an intentionally empty SQL Server export list is treated as not applicable.
+
+### Changed
+
+- Refresh skill UI metadata and the visible skill heading to the current 2.6 release line.
+
 ## 2.2.2 - 2026-07-17
 
 - Add explicit safe adoption of an existing app workspace without modifying its current files.

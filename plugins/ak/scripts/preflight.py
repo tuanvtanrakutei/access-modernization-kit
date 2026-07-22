@@ -151,26 +151,73 @@ def _legacy_windows_access_capabilities() -> dict[str, bool | str]:
     return result
 
 
-def scan_app_sources(app_root: Path) -> dict[str, bool]:
+def manifest_source_paths(manifest: Path | None) -> dict[str, list[str]]:
+    """Read declared source locations without assuming a fixed workspace layout."""
+    defaults = {
+        "vba": ["sources/vba"],
+        "sql": ["sources/sql"],
+        "documents": ["sources/documents"],
+        "japanese_documents": ["shared-docs"],
+    }
+    if not manifest or not manifest.is_file():
+        return defaults
+    try:
+        import yaml  # type: ignore[import-not-found]
+
+        data = yaml.safe_load(manifest.read_text(encoding="utf-8")) or {}
+        sources = data.get("sources", {})
+        sql_server = sources.get("sql_server", {}) or {}
+        japanese = sources.get("japanese_documents", {}) or {}
+        values = {
+            "vba": sources.get("vba_exports", []),
+            "sql": sql_server.get("exported_paths", []),
+            "documents": sources.get("app_documents", []),
+            "japanese_documents": list(japanese.values()) if isinstance(japanese, dict) else [],
+        }
+        return {
+            key: [str(item) for item in value if isinstance(item, str) and item.strip()]
+            for key, value in values.items()
+        }
+    except (ImportError, OSError, AttributeError, TypeError, ValueError):
+        return defaults
+
+
+def scan_app_sources(app_root: Path, declared: dict[str, list[str]]) -> dict[str, object]:
     def nonempty(rel: str) -> bool:
-        directory = app_root / rel
-        return directory.is_dir() and any(item.is_file() for item in directory.rglob("*"))
+        candidate = app_root / rel
+        if candidate.is_file():
+            return True
+        return candidate.is_dir() and any(item.is_file() for item in candidate.rglob("*"))
+
+    def existing(paths: list[str]) -> list[str]:
+        return [path for path in paths if nonempty(path)]
 
     access_dir = app_root / "sources" / "access"
     access_db = access_dir.is_dir() and any(
         item.is_file() and item.suffix.lower() in {".mdb", ".accdb", ".adp"} for item in access_dir.rglob("*")
     )
     extracted = app_root / "extracted" / "access"
+    vba_present = existing(declared["vba"])
+    sql_present = existing(declared["sql"])
+    document_present = existing(declared["documents"])
+    japanese_present = existing(declared["japanese_documents"])
     return {
-        "vba": nonempty("sources/vba"),
-        "sql": nonempty("sources/sql"),
+        "vba": bool(vba_present),
+        "sql": bool(sql_present),
         "access_db": access_db,
         "screenshots": nonempty("sources/screenshots"),
         "reports": nonempty("sources/reports"),
-        "documents": nonempty("sources/documents"),
+        "documents": bool(document_present),
         "samples": nonempty("sources/samples"),
-        "shared_docs": nonempty("shared-docs"),
+        "shared_docs": bool(japanese_present),
         "extracted_access": extracted.is_dir() and any(item.is_file() for item in extracted.rglob("*")),
+        "declared_paths": declared,
+        "present_paths": {
+            "vba": vba_present,
+            "sql": sql_present,
+            "documents": document_present,
+            "japanese_documents": japanese_present,
+        },
     }
 
 
@@ -179,7 +226,8 @@ def input_preconditions(manifest: Path | None, needs: dict[str, bool], access: d
     if not manifest or not (manifest.parent / "sources").is_dir():
         return {"mode": "unknown", "reason": "no app workspace beside the manifest"}, []
     app_root = manifest.parent
-    present = scan_app_sources(app_root)
+    declared = manifest_source_paths(manifest)
+    present = scan_app_sources(app_root, declared)
     warnings: list[str] = []
     has_export = present["vba"] or present["sql"] or present["extracted_access"]
     has_binary = bool(present["access_db"] or needs.get("access"))
@@ -193,10 +241,10 @@ def input_preconditions(manifest: Path | None, needs: dict[str, bool], access: d
 
     recommended_missing: list[str] = []
     if not present["extracted_access"]:
-        if not present["vba"]:
-            recommended_missing.append("sources/vba")
-        if not present["sql"]:
-            recommended_missing.append("sources/sql")
+        if declared["vba"] and not present["vba"]:
+            recommended_missing.extend(declared["vba"])
+        if declared["sql"] and not present["sql"]:
+            recommended_missing.extend(declared["sql"])
 
     if mode == "none":
         warnings.append("No app sources detected; add exported VBA/SQL (export mode) or an Access database (extract mode) before running the six phases.")

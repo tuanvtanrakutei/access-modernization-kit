@@ -252,6 +252,53 @@ def test_preflight_input_preconditions(tmp_path: Path) -> None:
     assert "runtime_status" in extract["input_preconditions"]
 
 
+def test_nested_manifest_sources_drive_preflight_and_task_inputs(tmp_path: Path) -> None:
+    run_script(
+        "init_app.py",
+        "--root", str(tmp_path),
+        "--app-id", "T25",
+        "--name-en", "Nested Source Test",
+        "--runtime", "generic",
+    )
+    app = tmp_path / "T25"
+    manifest = app / "manifest.yaml"
+    text = manifest.read_text(encoding="utf-8")
+    text = text.replace(
+        'vba_exports: ["sources/vba"]',
+        'vba_exports:\n    - "sources/T25_FRONTEND/vba"\n    - "sources/T25_DATA/vba"',
+    )
+    text = text.replace('exported_paths: ["sources/sql"]', "exported_paths: []")
+    manifest.write_text(text, encoding="utf-8")
+    frontend = app / "sources" / "T25_FRONTEND" / "vba"
+    data = app / "sources" / "T25_DATA" / "vba"
+    frontend.mkdir(parents=True)
+    data.mkdir(parents=True)
+    (frontend / "Form1.bas").write_text('Attribute VB_Name = "Form1"\n', encoding="utf-8")
+    (data / "DataModule.bas").write_text('Attribute VB_Name = "DataModule"\n', encoding="utf-8")
+    (app / "sources" / "access" / "T25.accdb").write_text("synthetic placeholder", encoding="utf-8")
+
+    report = json.loads(run_script("preflight.py", "--package", str(PACKAGE), "--manifest", str(manifest)).stdout)
+    preconditions = report["input_preconditions"]
+    assert preconditions["mode"] == "mixed"
+    assert preconditions["present"]["vba"] is True
+    assert preconditions["present"]["sql"] is False
+    assert preconditions["recommended_missing"] == []
+    assert preconditions["present"]["present_paths"]["vba"] == [
+        "sources/T25_FRONTEND/vba",
+        "sources/T25_DATA/vba",
+    ]
+
+    run_script("create_run.py", "--app-root", str(app), "--runtime", "generic", "--run-id", "T25-NESTED")
+    run = app / "runs" / "T25-NESTED"
+    run_script("create_tasks.py", "--package", str(PACKAGE), "--run", str(run))
+    tasks = [json.loads(path.read_text(encoding="utf-8")) for path in (run / "tasks").glob("*.json")]
+    vba_task = next(task for task in tasks if task["role"] == "vba_ui")
+    sql_task = next(task for task in tasks if task["role"] == "sql_data")
+    assert "../../sources/T25_FRONTEND/vba" in vba_task["input_paths"]
+    assert "../../sources/T25_DATA/vba" in vba_task["input_paths"]
+    assert "../../sources/sql" not in sql_task["input_paths"]
+
+
 def test_extract_ps1_declares_unique_safe_names() -> None:
     # Regression guard (runs everywhere): the safe-name function must derive a
     # deterministic hash from the original name so distinct non-ASCII objects do

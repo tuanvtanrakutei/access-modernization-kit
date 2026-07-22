@@ -8,7 +8,7 @@ The goal is to create an evidence-backed investigation workspace without alterin
 
 Confirm all of the following:
 
-- `ak` version 2.6.0 or later is installed in Codex.
+- `ak` version 2.6.1 or later is installed in Codex.
 - The application workspace already exists and may contain documents or exported code.
 - You have a copyable Access database file. Never provide the production/original MDB for extraction.
 - You know whether the app is local-only or has linked tables. If unknown, record it as an open question.
@@ -50,7 +50,7 @@ Copy, do not move, the MDB into the adopted workspace:
 <APP_ROOT>/sources/access/<database-copy>.mdb
 ```
 
-Keep authorized VBA exports in `sources/vba/` and business documents in `sources/documents/` where practical. Existing project documentation may remain in its current folder if the manifest records its role and source path.
+Keep authorized VBA exports in `sources/vba/` and business documents in `sources/documents/` where practical. Split Access applications may instead keep exports under database-specific paths such as `sources/A05_FRONTEND/vba/` and `sources/A05_DATA/vba/`; declare every such path in `sources.vba_exports`. Existing project documentation may remain in its current folder if the manifest records its role and source path.
 
 Never commit Access databases, credentials, customer documents, raw extraction sessions, or agent run state. The generated ignore files are designed for this policy.
 
