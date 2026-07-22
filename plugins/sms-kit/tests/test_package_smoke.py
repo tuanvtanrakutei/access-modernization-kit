@@ -299,6 +299,14 @@ def test_vba_export_tool_present() -> None:
     assert "SaveAsText" in bas
     # Keeps original names, only de-duplicates on real collision (no lossy sanitizing).
     assert "UniquePath" in bas
+    # Module name must differ from the Sub name, or calling it errors with
+    # "Expected variable or procedure, not module".
+    assert 'Attribute VB_Name = "modExportAccess"' in bas
+    # SaveAsText output (system codepage / Shift-JIS) is transcoded to UTF-8 so
+    # every export file is one consistent encoding.
+    assert "shift_jis" in bas and 'Charset = "UTF-8"' in bas
+    # Each object is exported independently; failures are recorded, not fatal.
+    assert "AddSkip" in bas
 
 
 def test_extract_access_blocks_before_snapshot_when_runtime_unavailable(tmp_path: Path) -> None:
