@@ -1,110 +1,35 @@
 {
   "version": "2.1",
-  "publication_policy": "phase_outputs_sequential_evidence_collection_parallel",
+  "publication_policy": "phase_outputs_sequential_evidence_collection_parallel_graphify_before_each_phase",
   "waves": [
-    {
-      "id": "wave0_inventory",
-      "roles": ["source_inventory"],
-      "depends_on": [],
-      "max_parallel": 1,
-      "gate": "inventory_accepted",
-      "human_checkpoint_default": true
-    },
-    {
-      "id": "wave0_context_extraction",
-      "roles": ["access_extractor", "build_context_analyzer"],
-      "depends_on": ["wave0_inventory"],
-      "max_parallel": 2,
-      "gate": "context_extraction_accepted",
-      "human_checkpoint_default": true
-    },
-    {
-      "id": "wave0_module_decomposition",
-      "roles": ["module_decomposer"],
-      "depends_on": ["wave0_context_extraction"],
-      "max_parallel": 1,
-      "gate": "module_plan_accepted",
-      "human_checkpoint_default": true
-    },
-    {
-      "id": "wave1_source_extraction",
-      "roles": ["sql_data", "vba_ui", "japanese_documents", "file_interfaces"],
-      "depends_on": ["wave0_module_decomposition"],
-      "max_parallel": 4,
-      "gate": "phase1_phase2_evidence_ready",
-      "human_checkpoint_default": false
-    },
-    {
-      "id": "gate1_publish_phase1_phase2",
-      "roles": ["coordinator"],
-      "depends_on": ["wave1_source_extraction"],
-      "max_parallel": 1,
-      "gate": "phase1_phase2_published",
-      "human_checkpoint_default": true
-    },
-    {
-      "id": "wave2_logic_alignment_graph",
-      "roles": ["logic_processing", "document_alignment", "graph_builder"],
-      "depends_on": ["gate1_publish_phase1_phase2"],
-      "max_parallel": 3,
-      "gate": "phase3_evidence_ready",
-      "human_checkpoint_default": false
-    },
-    {
-      "id": "gate2_publish_phase3",
-      "roles": ["coordinator"],
-      "depends_on": ["wave2_logic_alignment_graph"],
-      "max_parallel": 1,
-      "gate": "phase3_published",
-      "human_checkpoint_default": true
-    },
-    {
-      "id": "wave3_workflow_documents",
-      "roles": ["workflow_reconstruction", "document_integration"],
-      "depends_on": ["gate2_publish_phase3"],
-      "max_parallel": 2,
-      "gate": "phase4_phase5_evidence_ready",
-      "human_checkpoint_default": false
-    },
-    {
-      "id": "gate3_publish_phase4_phase5",
-      "roles": ["coordinator"],
-      "depends_on": ["wave3_workflow_documents"],
-      "max_parallel": 1,
-      "gate": "phase4_phase5_published",
-      "human_checkpoint_default": true
-    },
-    {
-      "id": "wave4_synthesis",
-      "roles": ["synthesis"],
-      "depends_on": ["gate3_publish_phase4_phase5"],
-      "max_parallel": 1,
-      "gate": "phase6_evidence_ready",
-      "human_checkpoint_default": false
-    },
-    {
-      "id": "gate4_publish_phase6",
-      "roles": ["coordinator"],
-      "depends_on": ["wave4_synthesis"],
-      "max_parallel": 1,
-      "gate": "phase6_published",
-      "human_checkpoint_default": true
-    },
-    {
-      "id": "wave4_independent_qa",
-      "roles": ["independent_qa"],
-      "depends_on": ["gate4_publish_phase6"],
-      "max_parallel": 1,
-      "gate": "qa_accepted",
-      "human_checkpoint_default": true
-    },
-    {
-      "id": "wave5_derived_rendering",
-      "roles": ["e2e_renderer", "boundary_renderer", "presentation_renderer"],
-      "depends_on": ["wave4_independent_qa"],
-      "max_parallel": 3,
-      "gate": "derived_outputs_validated",
-      "human_checkpoint_default": false
-    }
+    {"id": "wave0_inventory", "roles": ["source_inventory"], "depends_on": [], "max_parallel": 1, "gate": "inventory_accepted", "human_checkpoint_default": true},
+    {"id": "wave0_context_extraction", "roles": ["access_extractor", "build_context_analyzer"], "depends_on": ["wave0_inventory"], "max_parallel": 2, "gate": "context_extraction_accepted", "human_checkpoint_default": true},
+    {"id": "wave0_module_decomposition", "roles": ["module_decomposer"], "depends_on": ["wave0_context_extraction"], "max_parallel": 1, "gate": "module_plan_accepted", "human_checkpoint_default": true},
+
+    {"id": "gate_graph_phase1", "roles": ["graph_builder"], "phase_context": 1, "depends_on": ["wave0_module_decomposition"], "max_parallel": 1, "gate": "graph_phase1_ready", "human_checkpoint_default": false},
+    {"id": "wave1_source_extraction", "roles": ["sql_data", "vba_ui", "japanese_documents", "file_interfaces"], "depends_on": ["gate_graph_phase1"], "max_parallel": 4, "gate": "source_evidence_ready", "human_checkpoint_default": false},
+    {"id": "gate1_publish_phase1", "roles": ["coordinator"], "phase_context": 1, "depends_on": ["wave1_source_extraction"], "max_parallel": 1, "gate": "phase1_published", "human_checkpoint_default": true},
+
+    {"id": "gate_graph_phase2", "roles": ["graph_builder"], "phase_context": 2, "depends_on": ["gate1_publish_phase1"], "max_parallel": 1, "gate": "graph_phase2_ready", "human_checkpoint_default": false},
+    {"id": "gate2_publish_phase2", "roles": ["coordinator"], "phase_context": 2, "depends_on": ["gate_graph_phase2"], "max_parallel": 1, "gate": "phase2_published", "human_checkpoint_default": true},
+
+    {"id": "gate_graph_phase3", "roles": ["graph_builder"], "phase_context": 3, "depends_on": ["gate2_publish_phase2"], "max_parallel": 1, "gate": "graph_phase3_ready", "human_checkpoint_default": false},
+    {"id": "wave2_logic_processing", "roles": ["logic_processing"], "depends_on": ["gate_graph_phase3"], "max_parallel": 1, "gate": "phase3_evidence_ready", "human_checkpoint_default": false},
+    {"id": "gate3_publish_phase3", "roles": ["coordinator"], "phase_context": 3, "depends_on": ["wave2_logic_processing"], "max_parallel": 1, "gate": "phase3_published", "human_checkpoint_default": true},
+
+    {"id": "gate_graph_phase4", "roles": ["graph_builder"], "phase_context": 4, "depends_on": ["gate3_publish_phase3"], "max_parallel": 1, "gate": "graph_phase4_ready", "human_checkpoint_default": false},
+    {"id": "wave3_workflow", "roles": ["workflow_reconstruction"], "depends_on": ["gate_graph_phase4"], "max_parallel": 1, "gate": "phase4_evidence_ready", "human_checkpoint_default": false},
+    {"id": "gate4_publish_phase4", "roles": ["coordinator"], "phase_context": 4, "depends_on": ["wave3_workflow"], "max_parallel": 1, "gate": "phase4_published", "human_checkpoint_default": true},
+
+    {"id": "gate_graph_phase5", "roles": ["graph_builder"], "phase_context": 5, "depends_on": ["gate4_publish_phase4"], "max_parallel": 1, "gate": "graph_phase5_ready", "human_checkpoint_default": false},
+    {"id": "wave4_document_integration", "roles": ["document_alignment", "document_integration"], "depends_on": ["gate_graph_phase5"], "max_parallel": 2, "gate": "phase5_evidence_ready", "human_checkpoint_default": false},
+    {"id": "gate5_publish_phase5", "roles": ["coordinator"], "phase_context": 5, "depends_on": ["wave4_document_integration"], "max_parallel": 1, "gate": "phase5_published", "human_checkpoint_default": true},
+
+    {"id": "gate_graph_phase6", "roles": ["graph_builder"], "phase_context": 6, "depends_on": ["gate5_publish_phase5"], "max_parallel": 1, "gate": "graph_phase6_ready", "human_checkpoint_default": false},
+    {"id": "wave5_synthesis", "roles": ["synthesis"], "depends_on": ["gate_graph_phase6"], "max_parallel": 1, "gate": "phase6_evidence_ready", "human_checkpoint_default": false},
+    {"id": "gate6_publish_phase6", "roles": ["coordinator"], "phase_context": 6, "depends_on": ["wave5_synthesis"], "max_parallel": 1, "gate": "phase6_published", "human_checkpoint_default": true},
+
+    {"id": "wave6_independent_qa", "roles": ["independent_qa"], "depends_on": ["gate6_publish_phase6"], "max_parallel": 1, "gate": "qa_accepted", "human_checkpoint_default": true},
+    {"id": "wave7_derived_rendering", "roles": ["e2e_renderer", "boundary_renderer", "presentation_renderer"], "depends_on": ["wave6_independent_qa"], "max_parallel": 3, "gate": "derived_outputs_validated", "human_checkpoint_default": false}
   ]
 }

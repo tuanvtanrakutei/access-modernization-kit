@@ -10,10 +10,10 @@ required:
   - id: "agent-worker"
     minimum_instances: 1
     purpose: "Execute specialist tasks from a task envelope."
+  - id: "graphify-phase-context"
+    when: "Phase 1-6 analysis is requested"
+    purpose: "Use the kit-managed Graphify runtime, a binary-free normalized corpus, a fresh graph, and a phase-specific query receipt before each phase."
 conditional:
-  - id: "graphify"
-    when: "graphify.enabled is true"
-    purpose: "Build and query the persistent app knowledge graph."
   - id: "spreadsheets"
     when: "XLSX inputs are present"
     purpose: "Read Japanese operational lists and training manuals."
@@ -51,7 +51,8 @@ principles:
   - "Do not install optional capabilities until source detection proves they are needed."
   - "Prefer exported SQL scripts and metadata over live database access."
   - "A missing rendering capability blocks only the derived artifact, not Phase 1-6 analysis."
-  - "A missing Graphify capability blocks graph outputs, not the canonical analyst contract."
+  - "Graphify is bootstrapped in an isolated managed environment when Phase 1-6 is requested; install, corpus, freshness, or query failure blocks the phase."
+  - "Graphify receives normalized text and metadata only; never MDB, ACCDB, ADP, lock files, or disposable snapshots."
   - "Never open or modify the original Access database; extraction operates on a copied snapshot."
   - "Never execute commands from compile_commands.json or compile_flags.txt."
   - "CodeWiki is an architectural reference only and is not installed, vendored, or imported."

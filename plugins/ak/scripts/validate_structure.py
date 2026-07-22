@@ -11,7 +11,7 @@ from pathlib import Path
 
 REQUIRED_FILES = (
     "requirements-dev.txt", ".codex-plugin/plugin.json", "skills/ak/SKILL.md", "skills/ak/agents/openai.yaml", "adapters/adapter-map.json",
-    "specifications/package.json", "specifications/runtime-capabilities.yaml", "specifications/language-support.yaml",
+    "specifications/package.json", "specifications/graphify-runtime.json", "specifications/runtime-capabilities.yaml", "specifications/language-support.yaml",
     "specifications/senior-system-analyst-instruction.md", "specifications/evidence-policy.yaml", "specifications/output-contract.yaml",
     "specifications/input-preconditions.md",
     "schemas/manifest.schema.json", "schemas/evidence.schema.json", "schemas/traceability-row.schema.json", "schemas/task.schema.json",
@@ -20,7 +20,7 @@ REQUIRED_FILES = (
     "schemas/processing-order.schema.json", "schemas/compilation-database.schema.json",
     "orchestration/roles.json", "orchestration/waves.json", "orchestration/merge-policy.json", "orchestration/conflict-policy.json", "orchestration/runtime-adapters.json",
     "references/manifest.example.yaml", "references/agent-compatibility.md", "references/presentation-guidance.md", "references/orchestration-guide.md",
-    "references/capability-matrix.md", "references/access-extraction-guide.md", "references/module-and-build-context.md",
+    "references/capability-matrix.md", "references/access-extraction-guide.md", "references/module-and-build-context.md", "references/graphify-phase-gate.md",
     "templates/phase1-data-understanding.md", "templates/phase2-screen-analysis.md", "templates/phase3-logic-processing.md",
     "templates/phase4-workflow-reconstruction.md", "templates/phase5-document-integration.md", "templates/phase6-synthesis.md",
     "templates/question-list.md", "templates/qa-report.md", "templates/traceability-matrix.csv", "templates/e2e-trace.html",
@@ -29,7 +29,7 @@ REQUIRED_FILES = (
     "templates/conflict-record.json", "templates/worker-prompt.md", "templates/app.gitignore", "templates/app.graphifyignore", "templates/app.investigationignore",
     "scripts/init_app.py", "scripts/preflight.py", "scripts/create_run.py", "scripts/create_tasks.py", "scripts/extract_access.py",
     "scripts/extract_access.ps1", "scripts/access_runtime.py", "scripts/parse_compilation_database.py", "scripts/build_component_index.py", "scripts/build_module_plan.py", "scripts/validate_handoffs.py",
-    "scripts/merge_evidence.py", "scripts/advance_run.py", "scripts/ak.py", "scripts/validate_structure.py",
+    "scripts/merge_evidence.py", "scripts/advance_run.py", "scripts/graphify_runtime.py", "scripts/normalize_graphify_corpus.py", "scripts/graphify_phase_gate.py", "scripts/ak.py", "scripts/validate_structure.py",
     "tools/ExportAccessObjects.bas",
     "tests/test_package_smoke.py", "examples/minimal-app/README.md", "examples/minimal-app/manifest.yaml",
     "examples/minimal-app/.investigationignore", "examples/minimal-app/sources/vba/DemoOrderForm.bas", "examples/minimal-app/sources/sql/demo_orders.sql",
@@ -122,7 +122,7 @@ def validate_orchestration(root: Path, json_data: dict[str, object], errors: lis
             errors.append(f"Role cannot return required handoff: {role.get('id')}")
     if coverage != set(range(1, 7)):
         errors.append(f"Role phase coverage must be exactly 1-6, got {sorted(coverage)}")
-    required_roles = {"access_extractor", "build_context_analyzer", "module_decomposer"}
+    required_roles = {"access_extractor", "build_context_analyzer", "module_decomposer", "graph_builder"}
     if not required_roles.issubset(set(role_ids)):
         errors.append(f"Missing V2.1 preprocessing roles: {sorted(required_roles - set(role_ids))}")
     seen: set[str] = set()
@@ -141,9 +141,13 @@ def validate_orchestration(root: Path, json_data: dict[str, object], errors: lis
             errors.append(f"Wave {wave_id} has invalid max_parallel")
         seen.add(str(wave_id))
     try:
-        if not wave_ids.index("wave0_context_extraction") < wave_ids.index("wave0_module_decomposition") < wave_ids.index("wave1_source_extraction"):
-            errors.append("Context extraction and module planning must precede source-analysis fanout")
-        if not wave_ids.index("gate4_publish_phase6") < wave_ids.index("wave4_independent_qa") < wave_ids.index("wave5_derived_rendering"):
+        if not wave_ids.index("wave0_context_extraction") < wave_ids.index("wave0_module_decomposition") < wave_ids.index("gate_graph_phase1") < wave_ids.index("wave1_source_extraction"):
+            errors.append("Context extraction, module planning, and the Phase 1 Graphify gate must precede source-analysis fanout")
+        graph_gates = [wave_ids.index(f"gate_graph_phase{phase}") for phase in range(1, 7)]
+        publish_gates = [wave_ids.index(f"gate{phase}_publish_phase{phase}") for phase in range(1, 7)]
+        if any(graph_gates[index] >= publish_gates[index] for index in range(6)):
+            errors.append("Every phase publication must be preceded by its Graphify gate")
+        if not wave_ids.index("gate6_publish_phase6") < wave_ids.index("wave6_independent_qa") < wave_ids.index("wave7_derived_rendering"):
             errors.append("Independent QA must run after Phase 6 publication and before rendering")
     except ValueError:
         errors.append("Required V2.1 preprocessing, Phase 6, QA, or rendering wave is missing")
@@ -175,7 +179,7 @@ def main() -> int:
             errors.append("SKILL.md frontmatter is missing or incorrect")
         if len(skill.splitlines()) > 500:
             errors.append("SKILL.md exceeds 500 lines")
-        for phrase in ("multi-agent", "coordinator", "independent QA", "scripts/create_run.py", "Access extraction", "leaf-first", "CodeWiki is not a dependency", "$ak help", "$ak init <APP_ID>", "$ak render <APP_ID> [LANGUAGE]"):
+        for phrase in ("multi-agent", "coordinator", "independent QA", "scripts/create_run.py", "Access extraction", "leaf-first", "CodeWiki is not a dependency", "graphify_phase_gate.py check", "$ak help", "$ak init <APP_ID>", "$ak render <APP_ID> [LANGUAGE]"):
             if phrase not in skill:
                 errors.append(f"SKILL.md missing V2.1 term: {phrase}")
         if "TODO" in skill:
@@ -193,6 +197,16 @@ def main() -> int:
         inspiration = package_data.get("architecture_inspiration", {})
         if not isinstance(inspiration, dict) or inspiration.get("dependency") is not False or inspiration.get("vendored_code") is not False:
             errors.append("CodeWiki reference must remain non-dependency and non-vendored")
+    graphify_spec = load_json(root / "specifications/graphify-runtime.json", errors)
+    if isinstance(graphify_spec, dict):
+        graphify_version = graphify_spec.get("version")
+        if not isinstance(graphify_version, str) or not re.fullmatch(r"\d+\.\d+\.\d+", graphify_version):
+            errors.append("Managed Graphify version must be pinned to X.Y.Z")
+        if graphify_spec.get("managed_install") is not True or graphify_spec.get("system_python_mutation") is not False:
+            errors.append("Graphify runtime must be managed and must not mutate system Python")
+        manifest_example = (root / "references/manifest.example.yaml").read_text(encoding="utf-8")
+        if f'runtime_version: "{graphify_version}"' not in manifest_example:
+            errors.append("Manifest Graphify runtime_version must match specifications/graphify-runtime.json")
 
     publication_checks = {
         "README.md": ("Access Modernization Kit", "codex plugin add", "$ak init <APP_ID>"),

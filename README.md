@@ -59,6 +59,14 @@ a Boundary Map, a QA report, and presentation inputs.
 
 `run` does not grant live Access/ADP extraction or live SQL Server access. Those require separate approval.
 
+Graphify is prepared automatically when a Phase/run starts. The kit creates a
+pinned isolated runtime when Graphify is missing, normalizes supported code and
+documents into a binary-free corpus, then builds or refreshes the app graph and
+runs a phase-specific query. Users do not install Graphify into system Python.
+If installation, OCR/document conversion, graph freshness, or the query gate
+cannot be validated, the agent stops and reports the exact blocker before
+creating Phase output.
+
 ## Set up one app workspace
 
 For a new empty folder, ask the agent for `$ak init <APP_ID>`. For an existing app project, explicitly ask it to adopt <APP_ROOT> without changing current files. The optional CLI is:
@@ -79,7 +87,9 @@ Put the application's authorized exports and documents in that workspace. Each a
 ```mermaid
 flowchart LR
     S[Authorized legacy sources] --> W[App workspace]
-    W --> P[Six-phase investigation]
+    W --> C[Component index and module plan]
+    C --> G[Managed Graphify corpus and fresh graph]
+    G --> P[Graph query gate before each Phase 1-6]
     P --> O[Phase documents, E2E, Boundary Map, QA, presentation]
 ```
 

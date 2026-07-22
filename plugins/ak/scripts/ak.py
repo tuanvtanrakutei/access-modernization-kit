@@ -51,6 +51,14 @@ def parse_args() -> argparse.Namespace:
     preflight = commands.add_parser("preflight", help="Check capabilities and manifest before any analysis.")
     preflight.add_argument("--app-root", required=True, help="Initialized app workspace directory.")
     preflight.add_argument("--runtime", default="generic", help="Agent runtime label (default: generic).")
+
+    graphify = commands.add_parser("graphify", help="Prepare or validate the mandatory Graphify phase gate.")
+    graphify.add_argument("action", choices=("prepare", "check", "finalize"))
+    graphify.add_argument("--app-root", required=True)
+    graphify.add_argument("--phase", required=True, type=int, choices=range(1, 7))
+    graphify.add_argument("--runtime", choices=("codex", "claude", "generic"), default="generic")
+    graphify.add_argument("--no-install-missing", action="store_true")
+    graphify.add_argument("--dry-run", action="store_true")
     return parser.parse_args()
 
 
@@ -151,6 +159,18 @@ def main() -> int:
         if args.adopt_existing:
             init_args.append("--adopt-existing")
         return run("init_app.py", *init_args)
+    if args.command == "graphify":
+        graphify_args = [
+            args.action,
+            "--app-root", args.app_root,
+            "--phase", str(args.phase),
+            "--runtime", args.runtime,
+        ]
+        if args.no_install_missing:
+            graphify_args.append("--no-install-missing")
+        if args.dry_run:
+            graphify_args.append("--dry-run")
+        return run("graphify_phase_gate.py", *graphify_args)
     app_root = Path(args.app_root).expanduser().resolve()
     manifest = app_root / "manifest.yaml"
     if not manifest.is_file():

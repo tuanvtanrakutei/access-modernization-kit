@@ -151,6 +151,16 @@ def _legacy_windows_access_capabilities() -> dict[str, bool | str]:
     return result
 
 
+def managed_graphify_capabilities() -> dict[str, object]:
+    """Inspect the isolated Graphify runtime without installing anything."""
+    try:
+        from graphify_runtime import load_spec, runtime_report
+
+        return runtime_report(load_spec())
+    except (ImportError, OSError, ValueError) as exc:
+        return {"status": "NOT_AVAILABLE", "error": str(exc), "install_policy": "auto_managed"}
+
+
 def manifest_source_paths(manifest: Path | None) -> dict[str, list[str]]:
     """Read declared source locations without assuming a fixed workspace layout."""
     defaults = {
@@ -286,14 +296,17 @@ def main() -> int:
     modules = {name: importlib.util.find_spec(name) is not None for name in MODULES}
     executables = {name: shutil.which(name) is not None for name in EXECUTABLES}
     access = windows_access_capabilities()
+    graphify_runtime = managed_graphify_capabilities()
     skills = [] if args.skip_skill_scan else discover_skills()
 
     recommendations: list[str] = []
-    if needs["graphify"] and not executables["graphify"]:
-        recommendations.append("Install/enable Graphify before graph generation; Phase 1-6 can still run.")
-    if needs["xlsx"] and not any("spreadsheet" in name.lower() for name in skills) and not modules["openpyxl"]:
+    if needs["graphify"] and graphify_runtime.get("status") != "READY":
+        recommendations.append(
+            "The isolated Graphify runtime is not installed yet. The first Phase/run gate must bootstrap the pinned managed runtime, normalize a binary-free corpus, build or refresh the graph, and complete a phase query before analysis starts."
+        )
+    if needs["xlsx"] and not needs["graphify"] and not any("spreadsheet" in name.lower() for name in skills) and not modules["openpyxl"]:
         recommendations.append("Enable a spreadsheet skill/runtime or install openpyxl for XLSX fallback.")
-    if needs["pdf"] and not modules["pypdf"]:
+    if needs["pdf"] and not needs["graphify"] and not modules["pypdf"]:
         recommendations.append("Use a runtime PDF reader; install pypdf only if a local fallback is needed.")
     if needs["pptx"] and not any("presentation" in name.lower() for name in skills):
         recommendations.append("Enable a presentation skill/runtime before requesting PPTX output.")
@@ -319,6 +332,7 @@ def main() -> int:
         "required": required,
         "modules": modules,
         "executables": executables,
+        "graphify_runtime": graphify_runtime,
         "access": access,
         "discovered_skills": skills,
         "manifest_needs": needs,

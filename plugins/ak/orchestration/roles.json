@@ -81,10 +81,10 @@
     },
     {
       "id": "graph_builder",
-      "purpose": "Build or update the app graph from source-backed evidence and link approved shared nodes.",
+      "purpose": "Validate the fresh binary-free app graph and the required phase-specific Graphify query receipt before analysis is allowed to continue.",
       "phases": [],
       "may_merge": false,
-      "allowed_writes": ["work/graph_builder", "graphify-out", "handoffs"]
+      "allowed_writes": ["work/graph_builder", "handoffs"]
     },
     {
       "id": "workflow_reconstruction",

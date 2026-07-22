@@ -17,5 +17,14 @@ credentials/
 *.jpeg
 *.gif
 *.pptx
+*.xls
+*.xlsx
+*.doc
+*.docx
+*.pdf
+*.tif
+*.tiff
+*.bmp
 
-# VBA/SQL text exported under extracted/ remains intentionally visible.
+# Binary documents are normalized into graphify-out/corpus before ingestion.
+# VBA/SQL text exported under extracted/ remains visible to the normalizer.

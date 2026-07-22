@@ -20,8 +20,8 @@ Treat these short forms as explicit user requests. They are agent commands, not 
 | `$ak install claude <PROJECT_PATH>` | Run `scripts/ak.py install --runtime claude --project <PROJECT_PATH>`; report the discovery path and restart requirement. |
 | `$ak init <APP_ID>` | Use app initialization mode. For a non-empty existing project root, require explicit adoption with scripts/ak.py init --app-root <APP_ROOT> --adopt-existing; preserve existing files, then stop. |
 | `$ak assess <APP_ID>` | Inspect the manifest and authorized source inventory; report coverage, gaps, required approvals, and a **recommended optional evidence** list (from `templates/recommended-optional-evidence.md`) without analyzing a phase. |
-| `$ak phase <1-6> <APP_ID>` | Run only the named phase after reading its required contract/template and available evidence. |
-| `$ak run <APP_ID>` | Run the six phases in order only when the user explicitly authorizes the full investigation. |
+| `$ak phase <1-6> <APP_ID>` | Prepare/refresh Graphify and require a phase-specific `READY` gate, then run only the named phase. |
+| `$ak run <APP_ID>` | Run the six phases in order, repeating the Graphify freshness/query gate before every phase, only when the user explicitly authorizes the full investigation. |
 | `$ak status <APP_ID>` | Report app/run/phase/QA status without changing evidence or outputs. |
 | `$ak render <APP_ID> [LANGUAGE]` | Render declared outputs only after the required Phase 6, traceability, and QA gates pass. |
 
@@ -47,7 +47,7 @@ Before investigation work, read these files completely:
 - `specifications/language-support.yaml`
 - The target app's `manifest.yaml`
 
-Read only the phase template needed for the current phase. Read `references/presentation-guidance.md` only when generating a presentation. Read `references/agent-compatibility.md` only when installing or adapting the kit for another agent runtime.
+Read only the phase template needed for the current phase. Before any Phase/run request, read `references/graphify-phase-gate.md`. Read `references/presentation-guidance.md` only when generating a presentation. Read `references/agent-compatibility.md` only when installing or adapting the kit for another agent runtime.
 
 For multi-agent work, also read `references/orchestration-guide.md`, `orchestration/roles.json`, `orchestration/waves.json`, and `orchestration/runtime-adapters.json`. When Access binaries, compilation databases, or module planning are present, also read `references/access-extraction-guide.md` and `references/module-and-build-context.md`.
 
@@ -69,6 +69,7 @@ For multi-agent work, also read `references/orchestration-guide.md`, `orchestrat
 - Normalize declared `compile_commands.json` files with `scripts/parse_compilation_database.py`. Never execute `command` or `arguments` values.
 - Build the deterministic app index with `scripts/build_component_index.py`, then run `scripts/build_module_plan.py`. Every component must be assigned exactly once and module cycles are forbidden.
 - Process modules leaf-first. For incremental work, compare component indexes and re-run affected leaves plus their ancestors; keep prior evidence immutable.
+- Before Phase 1-6, run the managed Graphify prepare/check/finalize sequence in `references/graphify-phase-gate.md`. A missing runtime is installed into the kit-managed environment; a failed install, invalid corpus, stale graph, or missing phase-query receipt blocks that phase.
 
 ## Separate source, Git, and graph policies
 
@@ -125,11 +126,13 @@ User action -> screen/form -> VBA event -> processing/query -> table/file -> out
 
 ## Use Graphify as supporting infrastructure
 
-- Query an existing app graph before broad source search.
+- Query an existing app graph before broad source search and before every phase.
 - Keep one graph per app and link only verified shared nodes to the global SMS graph declared in the manifest.
 - Never treat an inferred graph edge as code evidence.
-- Use the Graphify skill for graph build/update and follow its corpus and honesty gates.
-- Run Graphify on extracted text and normalized metadata, never directly on MDB/ACCDB/ADP.
+- Use the Graphify skill for graph build/update and follow its corpus, scale, semantic extraction, and honesty gates.
+- Bootstrap the pinned managed Graphify runtime when missing; do not mutate system Python or install dependencies in the app workspace.
+- Run Graphify only on the audited UTF-8 corpus produced by `scripts/normalize_graphify_corpus.py`, never directly on MDB/ACCDB/ADP, snapshots, or binary documents.
+- Before each Phase N, require `scripts/graphify_phase_gate.py check --phase N` to return `READY`. Refresh changed sources incrementally, accept the resulting graph hash, and run the N-specific query first.
 - Graphify's lack of a guaranteed VBA AST does not weaken line-backed extraction evidence.
 - Graphify does not replace the six-phase contract.
 - CodeWiki is not a dependency. V2.1 independently implements component indexing, hierarchical decomposition, leaf-first ordering, session isolation, and affected-module refresh.

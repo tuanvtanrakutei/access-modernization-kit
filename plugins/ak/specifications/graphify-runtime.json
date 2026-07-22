@@ -1,0 +1,15 @@
+{
+  "schema_version": "2.1",
+  "distribution": "graphifyy",
+  "version": "0.9.18",
+  "packages": [
+    "graphifyy[pdf,office]==0.9.18",
+    "PyYAML>=6.0.3,<7",
+    "xlrd>=2.0.2,<3",
+    "python-pptx>=1.0.2,<2",
+    "PyMuPDF>=1.26.3,<2"
+  ],
+  "managed_install": true,
+  "system_python_mutation": false,
+  "supported_agent_platforms": ["codex", "claude"]
+}

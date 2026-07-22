@@ -1,4 +1,22 @@
 # Changelog
+## [2.6.2] - 2026-07-22
+
+### Added
+
+- A pinned, isolated Graphify runtime bootstrap that installs on first Phase/run use without modifying system Python, the plugin cache, or an app workspace.
+- A deterministic binary-free Graphify corpus normalizer for UTF-8/UTF-16/CP932/Shift-JIS text, Access VBA, CSV/TSV, XLS/XLSX, DOCX, PPTX, text-layer PDF, and OCR-capable scanned PDF/image sources.
+- Corpus provenance/fingerprint auditing, graph acceptance state, and phase-specific query receipts.
+
+### Changed
+
+- Graphify is now a mandatory freshness/query gate before every Phase 1-6. Installation, corpus validation, graph build/update, or phase-query failures block Phase output with an explicit status.
+- Multi-agent orchestration now publishes every phase separately and places a Graphify gate before each phase while preserving parallel source/module evidence collection.
+- New workspaces default to managed Graphify 0.9.18 with PDF/Office extras and a binary-free normalized corpus policy. Existing 2.1 manifests remain compatible and receive the same gate defaults at runtime.
+
+### Security
+
+- MDB/ACCDB/ADP files, Access locks, and disposable snapshots are explicitly excluded from Graphify ingestion; the corpus audit must report zero binary files ingested.
+
 ## [2.6.1] - 2026-07-22
 
 ### Fixed

@@ -19,6 +19,7 @@ ROLE_INPUTS = {
     "vba_ui": ["manifest.lock.yaml", "source-inventory.json", "../../sources/screenshots", "../../sources/reports", "../../extracted/access", "../../extracted/module-plan"],
     "japanese_documents": ["manifest.lock.yaml", "source-inventory.json"],
     "file_interfaces": ["manifest.lock.yaml", "source-inventory.json", "../../sources/samples", "../../sources/reports", "../../sources/screenshots", "../../extracted/module-plan"],
+    "graph_builder": ["manifest.lock.yaml", "source-inventory.json", "../../extracted/component-index.json", "../../extracted/module-plan", "../../graphify-out"],
 }
 MODULE_FANOUT_ROLES = {"sql_data", "vba_ui", "file_interfaces", "logic_processing"}
 
@@ -147,7 +148,7 @@ def main() -> int:
             for module_id in targets:
                 identifier = task_id(state["app_id"], wave["id"], role_id, module_id)
                 wave_task_ids[wave["id"]].append(identifier)
-                phases = role.get("phases", [])
+                phases = [wave["phase_context"]] if wave.get("phase_context") else role.get("phases", [])
                 phase_token = phases[0] if phases else 0
                 instructions = [
                     role["purpose"],
@@ -157,6 +158,8 @@ def main() -> int:
                     "Write only inside the current run directory and only to write_paths.",
                     "Return a schema-valid handoff with evidence, gaps, conflicts, and artifacts.",
                 ]
+                if role_id == "graph_builder":
+                    instructions.insert(1, "Run graphify_phase_gate.py check for this phase and require READY; the graph is navigation context, never substitute inferred edges for source-backed evidence.")
                 if module_id:
                     instructions.insert(1, f"Analyze only module {module_id}; follow the global leaf-first module_order and preserve cross-module dependencies as handoff references.")
                 tasks.append({

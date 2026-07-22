@@ -8,6 +8,8 @@ The V2.1 component-index, hierarchical decomposition, leaf-first ordering, sessi
 
 CodeWiki is not installed, imported, executed, or included as a runtime dependency. This acknowledgement does not imply endorsement or sponsorship.
 
-## Optional external capabilities
+## Managed and optional external capabilities
 
-Graphify, Microsoft Access/ACE, Microsoft SQL Server ODBC drivers, Python libraries, browser automation, OCR, spreadsheet, document, and presentation runtimes are optional external capabilities. They are not bundled and remain subject to their own licenses and terms when installed by a user.
+Graphify and its declared PDF/Office normalization dependencies are installed on demand into an isolated managed environment when a six-phase investigation is requested. They are not vendored in this repository and remain subject to their own licenses and terms.
+
+Microsoft Access/ACE, Microsoft SQL Server ODBC drivers, browser automation, Tesseract OCR/language data, and presentation runtimes remain conditional external capabilities. They are not bundled and remain subject to their own licenses and terms when installed by a user.

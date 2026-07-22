@@ -66,16 +66,20 @@ def main() -> int:
     if next_wave:
         state["wave_status"][next_wave] = "RUNNING"
     ready_map = {
-        "wave1_source_extraction": ("phase1", "phase2"),
-        "wave2_logic_alignment_graph": ("phase3",),
-        "wave3_workflow_documents": ("phase4", "phase5"),
-        "wave4_synthesis": ("phase6",),
+        "wave1_source_extraction": ("phase1",),
+        "gate_graph_phase2": ("phase2",),
+        "wave2_logic_processing": ("phase3",),
+        "wave3_workflow": ("phase4",),
+        "wave4_document_integration": ("phase5",),
+        "wave5_synthesis": ("phase6",),
     }
     publish_map = {
-        "gate1_publish_phase1_phase2": ("phase1", "phase2"),
-        "gate2_publish_phase3": ("phase3",),
-        "gate3_publish_phase4_phase5": ("phase4", "phase5"),
-        "gate4_publish_phase6": ("phase6",),
+        "gate1_publish_phase1": ("phase1",),
+        "gate2_publish_phase2": ("phase2",),
+        "gate3_publish_phase3": ("phase3",),
+        "gate4_publish_phase4": ("phase4",),
+        "gate5_publish_phase5": ("phase5",),
+        "gate6_publish_phase6": ("phase6",),
     }
     for phase in ready_map.get(args.wave, ()):
         state["phase_gates"][phase] = "READY"

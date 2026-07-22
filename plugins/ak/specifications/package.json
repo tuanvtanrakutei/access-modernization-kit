@@ -1,6 +1,6 @@
 {
   "name": "access-modernization-kit",
-  "version": "2.6.1",
+  "version": "2.6.2",
   "contract_version": "2.1",
   "features": [
     "six_phase_legacy_analysis",
@@ -17,7 +17,10 @@
     "incremental_affected_module_refresh",
     "language_dialect_encoding_inventory",
     "read_only_compilation_database_ingestion",
-    "independent_investigation_ignore_policy"
+    "independent_investigation_ignore_policy",
+    "managed_graphify_runtime",
+    "binary_free_document_normalization",
+    "graphify_gate_before_every_phase"
   ],
   "architecture_inspiration": {
     "project": "FSoft-AI4Code/CodeWiki",

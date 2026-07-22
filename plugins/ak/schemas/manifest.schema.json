@@ -138,7 +138,13 @@
       "required": ["enabled", "mode", "output_dir", "link_shared_nodes", "input_policy"],
       "properties": {
         "enabled": {"type": "boolean"}, "mode": {"enum": ["standard", "deep"]}, "output_dir": {"type": "string"},
-        "link_shared_nodes": {"type": "boolean"}, "input_policy": {"const": "extracted_text_and_supported_sources"}
+        "link_shared_nodes": {"type": "boolean"}, "input_policy": {"const": "extracted_text_and_supported_sources"},
+        "required_before_phases": {"const": true},
+        "install_policy": {"const": "auto_managed"},
+        "runtime_version": {"type": "string", "pattern": "^\\d+\\.\\d+\\.\\d+$"},
+        "extras": {"type": "array", "uniqueItems": true, "items": {"enum": ["pdf", "office"]}},
+        "refresh_policy": {"const": "before_each_phase"},
+        "corpus_policy": {"const": "binary_free_normalized"}
       },
       "additionalProperties": false
     },

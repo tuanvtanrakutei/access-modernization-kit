@@ -60,6 +60,22 @@ Environment expectations:
 If no host is `READY`, do not block: export the VBA and SQL manually on a
 compatible machine and proceed in export mode.
 
+## Mandatory pre-phase Graphify context
+
+After export/extraction and deterministic module planning, every Phase 1-6
+requires a fresh Graphify context. This is an execution gate rather than a
+source-evidence requirement:
+
+- bootstrap the pinned managed runtime when it is missing;
+- normalize the authorized sources into a UTF-8, binary-free corpus;
+- build or incrementally refresh the graph when the corpus fingerprint changes;
+- validate graph/corpus provenance and zero Access binaries ingested; and
+- run and record the query designed for the requested phase.
+
+Missing business sources remain evidence gaps, but a failed Graphify install,
+invalid corpus, stale/invalid graph, pending semantic update, or missing phase
+query receipt blocks Phase output until corrected.
+
 ## Precondition outcomes
 
 `preflight.py` reports an `input_preconditions` block describing the detected

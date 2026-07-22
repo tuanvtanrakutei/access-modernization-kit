@@ -8,7 +8,7 @@ The goal is to create an evidence-backed investigation workspace without alterin
 
 Confirm all of the following:
 
-- `ak` version 2.6.1 or later is installed in Codex.
+- `ak` version 2.6.2 or later is installed in Codex.
 - The application workspace already exists and may contain documents or exported code.
 - You have a copyable Access database file. Never provide the production/original MDB for extraction.
 - You know whether the app is local-only or has linked tables. If unknown, record it as an open question.
@@ -101,21 +101,33 @@ Do not start Phase analysis yet.
 
 The extractor inventory may include local and linked tables, relationships, QueryDefs, forms, reports, macros, VBA modules, startup properties, and Access/VBA references. A linked table is a boundary: it is not evidence that a live external database has been analyzed.
 
-## 6. Build the Graphify discovery map
+## 6. Prepare the Graphify discovery map
 
-Run Graphify only after extraction has produced text exports and normalized metadata:
+Graphify runs only after extraction or pre-exported sources have produced text
+and normalized metadata. You do not need a separate system-Python install: the
+first Phase request bootstraps the version-pinned managed runtime when needed.
+To prepare the graph without starting a Phase, ask:
 
 ```text
-Build or update the Graphify graph for <APP_ID> from extracted text and normalized metadata only.
-Do not ingest the MDB binary directly.
+Prepare or update the Graphify graph for <APP_ID> from the kit-normalized binary-free corpus.
+Never ingest an MDB/ACCDB/ADP, lock file, or disposable snapshot.
 Report graph coverage and gaps. Do not start a Phase analysis yet.
 ```
 
-The graph is stored per app, normally in `<APP_ROOT>/graphify-out/`. It helps navigate relationships such as form -> event -> VBA module -> query/table -> report/output. Its `INFERRED` edges are investigation leads, not evidence. Phase conclusions must still cite source locations.
+The graph is stored per app, normally in `<APP_ROOT>/graphify-out/`. The corpus
+normalizer supports UTF-8/CP932/Shift-JIS text and Access VBA, CSV/TSV, XLS/XLSX,
+DOCX, PPTX, and text-layer PDFs. Scanned PDFs/images require Tesseract and the
+appropriate language data; unsupported legacy DOC/PPT files are reported for
+conversion. It helps navigate relationships such as form -> event -> VBA module
+-> query/table -> report/output. Its `INFERRED` edges are investigation leads,
+not evidence. Phase conclusions must still cite source locations.
 
 ## 7. Run the investigation one phase at a time
 
-Review each phase before moving to the next:
+Review each phase before moving to the next. Before every command, the kit
+rechecks the corpus fingerprint, refreshes the graph when sources changed, and
+requires a phase-specific Graphify query receipt. A stale or missing graph
+blocks the Phase rather than silently falling back to broad source search.
 
 ```text
 $ak phase 1 <APP_ID>

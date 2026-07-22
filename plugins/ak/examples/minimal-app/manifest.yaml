@@ -47,11 +47,17 @@ outputs:
     boundary_html: false
     presentation_pptx: false
 graphify:
-  enabled: false
+  enabled: true
   mode: "standard"
   output_dir: "graphify-out"
   link_shared_nodes: false
   input_policy: "extracted_text_and_supported_sources"
+  required_before_phases: true
+  install_policy: "auto_managed"
+  runtime_version: "0.9.18"
+  extras: ["pdf", "office"]
+  refresh_policy: "before_each_phase"
+  corpus_policy: "binary_free_normalized"
 multi_agent:
   enabled: true
   preferred_runtime: "generic"
