@@ -18,6 +18,15 @@ REQUIRED_FILES = (
     "schemas/handoff.schema.json", "schemas/conflict.schema.json", "schemas/run-state.schema.json", "schemas/source-inventory.schema.json",
     "schemas/access-extraction.schema.json", "schemas/component-index.schema.json", "schemas/module-tree.schema.json",
     "schemas/processing-order.schema.json", "schemas/compilation-database.schema.json",
+    "schemas/classification-rule.schema.json", "schemas/manifest-v22.schema.json", "schemas/acquisition-plan.schema.json",
+    "schemas/bundle.schema.json", "schemas/bundle-provenance.schema.json", "schemas/bundle-coverage.schema.json",
+    "schemas/bundle-lock.schema.json", "schemas/bundle-approval.schema.json", "schemas/phase-readiness.schema.json",
+    "schemas/legacy-manifest-migration.schema.json",
+    "contracts/__init__.py", "contracts/classification.py", "contracts/manifest_v22.py", "contracts/staging.py",
+    "contracts/bundle.py", "contracts/phase_readiness.py", "contracts/migration.py",
+    "profiles/topology.yaml", "profiles/frontend.yaml", "profiles/source-availability.yaml", "profiles/backend.yaml", "profiles/README.md",
+    "tests/test_classification.py", "tests/test_manifest_v22.py", "tests/test_staging.py", "tests/test_bundle.py",
+    "tests/test_phase_readiness.py", "tests/test_migration.py", "tests/test_cli_v27.py",
     "orchestration/roles.json", "orchestration/waves.json", "orchestration/merge-policy.json", "orchestration/conflict-policy.json", "orchestration/runtime-adapters.json",
     "references/manifest.example.yaml", "references/agent-compatibility.md", "references/presentation-guidance.md", "references/orchestration-guide.md",
     "references/capability-matrix.md", "references/access-extraction-guide.md", "references/module-and-build-context.md", "references/graphify-phase-gate.md",
@@ -38,7 +47,10 @@ JSON_FILES = tuple(path for path in REQUIRED_FILES if path.endswith(".json"))
 REPOSITORY_FILES = (
     ".gitignore", ".graphifyignore", ".gitattributes", "README.md", "LICENSE", "NOTICE", "CHANGELOG.md", "CONTRIBUTING.md", "SECURITY.md",
     "CODE_OF_CONDUCT.md", "THIRD_PARTY_NOTICES.md", "CITATION.cff", ".agents/plugins/marketplace.json",
-    "docs/first-access-mdb-investigation.md",
+    "docs/first-access-mdb-investigation.md", "docs/architecture/investigation-pipeline.md", "docs/architecture/extraction-bundle.md",
+    "docs/project-classification/topology-rules.md", "docs/project-classification/frontend-format-rules.md",
+    "docs/project-classification/source-availability-rules.md", "docs/project-classification/backend-rules.md",
+    "docs/project-classification/resolved-examples.md", ".github/CODEOWNERS",
     ".github/workflows/validate.yml", ".github/dependabot.yml", ".github/pull_request_template.md",
     ".github/ISSUE_TEMPLATE/bug_report.yml", ".github/ISSUE_TEMPLATE/feature_request.yml",
 )
@@ -192,8 +204,8 @@ def main() -> int:
         if not isinstance(expected_version, str) or not re.fullmatch(r"\d+\.\d+\.\d+", expected_version):
             errors.append("Package version must be semantic (X.Y.Z)")
             expected_version = None
-        if package_data.get("contract_version") != "2.1":
-            errors.append("Contract version must be 2.1")
+        if package_data.get("contract_version") != "2.2":
+            errors.append("Contract version must be 2.2")
         inspiration = package_data.get("architecture_inspiration", {})
         if not isinstance(inspiration, dict) or inspiration.get("dependency") is not False or inspiration.get("vendored_code") is not False:
             errors.append("CodeWiki reference must remain non-dependency and non-vendored")
@@ -287,6 +299,11 @@ def main() -> int:
     example_manifest = root / "examples/minimal-app/manifest.yaml"
     if example_manifest.is_file():
         validate_manifest_yaml(example_manifest, root / "schemas/manifest.schema.json", errors, warnings)
+    fixture_manifests = sorted((root / "fixtures").glob("*/*/manifest.yaml"))
+    if len(fixture_manifests) != 6:
+        errors.append(f"Expected 6 V2.2 profile fixture manifests, found {len(fixture_manifests)}")
+    for fixture_manifest in fixture_manifests:
+        validate_manifest_yaml(fixture_manifest, root / "schemas/manifest-v22.schema.json", errors, warnings)
 
     forbidden = ("D:\\Anrakutei\\a01_docs", "C:\\Users\\USER")
     checked_suffixes = {".md", ".yaml", ".json", ".py", ".ps1", ".html", ".csv"}

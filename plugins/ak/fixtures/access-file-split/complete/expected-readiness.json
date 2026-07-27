@@ -1,0 +1,22 @@
+{
+  "classification": {
+    "topology": "split_file",
+    "frontend_format": "mdb",
+    "source_availability": "full",
+    "backend_kinds": [
+      "access_file"
+    ]
+  },
+  "present_capabilities": [
+    "access_object_inventory",
+    "source_inventory",
+    "access_schema_inventory",
+    "backend_authority_declared",
+    "field_inventory",
+    "key_index_inventory",
+    "boundary_inventory"
+  ],
+  "expected": {
+    "phase1": "READY"
+  }
+}

@@ -1,7 +1,7 @@
 {
   "name": "access-modernization-kit",
-  "version": "2.6.2",
-  "contract_version": "2.1",
+  "version": "2.7.0",
+  "contract_version": "2.2",
   "features": [
     "six_phase_legacy_analysis",
     "evidence_provenance",
@@ -20,7 +20,11 @@
     "independent_investigation_ignore_policy",
     "managed_graphify_runtime",
     "binary_free_document_normalization",
-    "graphify_gate_before_every_phase"
+    "graphify_gate_before_every_phase",
+    "composable_classification",
+    "canonical_extraction_bundle",
+    "phase_readiness_matrix",
+    "manifest_v22_reader"
   ],
   "architecture_inspiration": {
     "project": "FSoft-AI4Code/CodeWiki",

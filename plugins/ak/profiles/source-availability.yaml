@@ -1,0 +1,24 @@
+rules:
+  - id: source.full.editable
+    version: "1.0"
+    dimension: source_availability
+    when: {source_availability: full}
+    require: {all: [source_inventory]}
+  - id: source.compiled_only.no_full_vba
+    version: "1.0"
+    dimension: source_availability
+    when: {source_availability: compiled_only}
+    require: {all: [compiled_object_inventory]}
+    affects: {phase3: LIMITED}
+    applies_when_satisfied: true
+  - id: source.exported_only.validated_export
+    version: "1.0"
+    dimension: source_availability
+    when: {source_availability: exported_only}
+    require: {all: [validated_source_export]}
+  - id: source.mixed.per_artifact
+    version: "1.0"
+    dimension: source_availability
+    when: {source_availability: mixed}
+    require: {all: [per_artifact_source_availability]}
+    affects: {phase3: LIMITED}

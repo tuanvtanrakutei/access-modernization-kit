@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://sms.local/schemas/classification-rule.schema.json",
+  "title": "Composable Classification Rule Fragment",
+  "type": "object",
+  "required": ["id", "version", "dimension", "when", "require"],
+  "additionalProperties": false,
+  "properties": {
+    "id": {"type": "string", "minLength": 1},
+    "version": {"type": "string", "pattern": "^[0-9]+\\.[0-9]+$"},
+    "dimension": {"enum": ["topology", "frontend", "source_availability", "backend"]},
+    "when": {"type": "object"},
+    "require": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "all": {"type": "array", "items": {"type": "string"}},
+        "any": {"type": "array", "items": {"type": "string"}}
+      }
+    },
+    "affects": {
+      "type": "object",
+      "additionalProperties": false,
+      "patternProperties": {"^phase[1-6]$": {"enum": ["READY", "LIMITED", "BLOCKED", "NOT_APPLICABLE"]}}
+    },
+    "allow_limited_when": {"type": "array", "items": {"type": "string"}},
+    "not_applicable_when": {"type": "array", "items": {"type": "string"}},
+    "applies_when_satisfied": {"type": "boolean"},
+    "description": {"type": "string"}
+  }
+}

@@ -9,11 +9,14 @@ import json
 import os
 import subprocess
 import sys
+from datetime import datetime, timezone
 from pathlib import Path
 
 
 PACKAGE = Path(__file__).resolve().parents[1]
 SCRIPTS = PACKAGE / "scripts"
+CONTRACTS = PACKAGE / "contracts"
+sys.path.insert(0, str(CONTRACTS))
 
 
 def package_version() -> str:
@@ -59,7 +62,54 @@ def parse_args() -> argparse.Namespace:
     graphify.add_argument("--runtime", choices=("codex", "claude", "generic"), default="generic")
     graphify.add_argument("--no-install-missing", action="store_true")
     graphify.add_argument("--dry-run", action="store_true")
+
+    profile = commands.add_parser("profile", help="Detect or validate a composable project classification.")
+    profile_commands = profile.add_subparsers(dest="profile_action", required=True)
+    profile_validate = profile_commands.add_parser("validate")
+    profile_validate.add_argument("--topology", required=True)
+    profile_validate.add_argument("--frontend", required=True)
+    profile_validate.add_argument("--source-availability", required=True)
+    profile_validate.add_argument("--backend", action="append", required=True)
+    profile_validate.add_argument("--profile")
+    profile_detect = profile_commands.add_parser("detect")
+    profile_detect.add_argument("--manifest", required=True)
+
+    manifest = commands.add_parser("manifest", help="Read or migrate manifest contracts.")
+    manifest_commands = manifest.add_subparsers(dest="manifest_action", required=True)
+    manifest_migrate = manifest_commands.add_parser("migrate")
+    manifest_migrate.add_argument("--manifest", required=True)
+    manifest_migrate.add_argument("--output")
+
+    bundle = commands.add_parser("bundle", help="Validate or approve a canonical extraction bundle.")
+    bundle_commands = bundle.add_subparsers(dest="bundle_action", required=True)
+    bundle_validate = bundle_commands.add_parser("validate")
+    bundle_validate.add_argument("--bundle-dir", required=True)
+    bundle_approve = bundle_commands.add_parser("approve")
+    bundle_approve.add_argument("--bundle-dir", required=True)
+    bundle_approve.add_argument("--approval-id", required=True)
+    bundle_approve.add_argument("--approver", required=True)
+    bundle_approve.add_argument("--approved-at")
+    bundle_approve.add_argument("--distribution-policy", choices=("local_only", "shared_path", "artifact_store", "git_allowed"), default="artifact_store")
+    bundle_approve.add_argument("--output", required=True)
     return parser.parse_args()
+
+
+def print_json(value: object) -> None:
+    print(json.dumps(value, ensure_ascii=False, indent=2, sort_keys=True))
+
+
+def classification_result(classification: object, profile: str | None = None) -> dict[str, object]:
+    from classification import reconcile_alias, resolve_classification
+
+    if profile:
+        reconcile_alias(profile, classification)
+    resolved = resolve_classification(classification, PACKAGE / "profiles")
+    return {
+        "classification": classification.as_dict(),
+        "profile": profile,
+        "rule_ids": list(resolved.rule_ids),
+        "rule_versions": resolved.rule_versions,
+    }
 
 
 def install_destination(args: argparse.Namespace) -> Path:
@@ -171,6 +221,60 @@ def main() -> int:
         if args.dry_run:
             graphify_args.append("--dry-run")
         return run("graphify_phase_gate.py", *graphify_args)
+    if args.command == "profile":
+        from classification import Classification
+        from manifest_v22 import load_manifest
+        from migration import propose_migration
+
+        if args.profile_action == "validate":
+            classification = Classification(args.topology, args.frontend, args.source_availability, tuple(args.backend))
+            print_json(classification_result(classification, args.profile))
+            return 0
+        manifest_data = load_manifest(Path(args.manifest).expanduser().resolve())
+        if manifest_data.classification is None:
+            print_json({"status": "LIMITED", "migration": propose_migration(Path(args.manifest))})
+        else:
+            print_json(classification_result(manifest_data.classification, manifest_data.profile))
+        return 0
+    if args.command == "manifest":
+        from migration import propose_migration
+
+        report = propose_migration(Path(args.manifest).expanduser().resolve())
+        if args.output:
+            Path(args.output).expanduser().resolve().write_text(
+                json.dumps(report, ensure_ascii=False, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+            )
+        print_json(report)
+        return 0
+    if args.command == "bundle":
+        import hashlib
+        from bundle import make_approval, validate_bundle
+
+        bundle_dir = Path(args.bundle_dir).expanduser().resolve()
+        data = validate_bundle(bundle_dir)
+        if args.bundle_action == "validate":
+            print_json({"status": "VALID", "bundle_id": data["bundle_id"]})
+            return 0
+        output = Path(args.output).expanduser().resolve()
+        try:
+            output.relative_to(bundle_dir)
+        except ValueError:
+            pass
+        else:
+            print("ERROR: bundle approval must remain outside the immutable bundle")
+            return 2
+        checksum_source = bundle_dir / "checksums.sha256"
+        if not checksum_source.is_file():
+            checksum_source = bundle_dir / "bundle.json"
+        approval = make_approval(
+            args.approval_id, data["bundle_id"], hashlib.sha256(checksum_source.read_bytes()).hexdigest(),
+            data["schema_version"], package_version(), args.approver,
+            args.approved_at or datetime.now(timezone.utc).isoformat(), args.distribution_policy,
+        )
+        output.parent.mkdir(parents=True, exist_ok=True)
+        output.write_text(json.dumps(approval, ensure_ascii=False, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+        print_json(approval)
+        return 0
     app_root = Path(args.app_root).expanduser().resolve()
     manifest = app_root / "manifest.yaml"
     if not manifest.is_file():

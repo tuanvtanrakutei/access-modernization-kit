@@ -1,0 +1,50 @@
+rules:
+  - id: backend.embedded_access.schema
+    version: "1.0"
+    dimension: backend
+    when: {backend_kind: embedded_access}
+    require: {all: [access_schema_inventory]}
+    affects: {phase1: BLOCKED}
+  - id: backend.access_file.authority
+    version: "1.0"
+    dimension: backend
+    when: {backend_kind: access_file}
+    require: {all: [access_schema_inventory, backend_authority_declared]}
+    affects: {phase1: BLOCKED}
+  - id: backend.sql_server.programmable_objects
+    version: "1.0"
+    dimension: backend
+    when: {backend_kind: sql_server}
+    require: {all: [server_object_inventory, definitions_for_referenced_objects, dependency_closure]}
+    affects: {phase1: BLOCKED, phase3: BLOCKED}
+    allow_limited_when: [server_boundary_declared]
+  - id: backend.odbc_database.schema
+    version: "1.0"
+    dimension: backend
+    when: {backend_kind: odbc_database}
+    require: {all: [external_schema_inventory, server_boundary_declared]}
+    affects: {phase1: BLOCKED, phase3: LIMITED}
+  - id: backend.text_or_csv.interface
+    version: "1.0"
+    dimension: backend
+    when: {backend_kind: text_or_csv}
+    require: {all: [file_interface_inventory]}
+    affects: {phase4: LIMITED}
+  - id: backend.spreadsheet.interface
+    version: "1.0"
+    dimension: backend
+    when: {backend_kind: spreadsheet}
+    require: {all: [spreadsheet_interface_inventory]}
+    affects: {phase4: LIMITED}
+  - id: backend.external_application.boundary
+    version: "1.0"
+    dimension: backend
+    when: {backend_kind: external_application}
+    require: {all: [external_application_boundary]}
+    affects: {phase4: LIMITED}
+  - id: backend.unknown_boundary.blocks_ready
+    version: "1.0"
+    dimension: backend
+    when: {backend_kind: unknown_boundary}
+    require: {all: [boundary_authority_resolved]}
+    affects: {phase1: BLOCKED, phase3: BLOCKED, phase4: BLOCKED}

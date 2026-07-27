@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://sms.local/schemas/legacy-manifest-migration.schema.json",
+  "title": "Legacy Manifest Migration Proposal",
+  "type": "object",
+  "required": ["source_version", "target_version", "candidate_classification", "mapped_artifacts", "ambiguous_roles", "missing_mandatory_inputs", "quarantined_paths", "required_bundle_rebuild", "required_graphify_rebuild"],
+  "additionalProperties": false,
+  "properties": {
+    "source_version": {"const": "2.1"}, "target_version": {"const": "2.2"},
+    "candidate_classification": {"type": "object"},
+    "mapped_artifacts": {"type": "array", "items": {"type": "object"}},
+    "ambiguous_roles": {"type": "array", "items": {"type": "string"}},
+    "missing_mandatory_inputs": {"type": "array", "items": {"type": "string"}},
+    "quarantined_paths": {"type": "array", "items": {"type": "string"}},
+    "required_bundle_rebuild": {"type": "boolean"}, "required_graphify_rebuild": {"type": "boolean"}
+  }
+}

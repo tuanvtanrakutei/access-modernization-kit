@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://sms.local/schemas/phase-readiness.schema.json",
+  "title": "Rule-Computed Phase Readiness",
+  "type": "object",
+  "required": ["phase1", "phase2", "phase3", "phase4", "phase5", "phase6", "_meta"],
+  "additionalProperties": false,
+  "properties": {
+    "phase1": {"$ref": "#/$defs/phase"}, "phase2": {"$ref": "#/$defs/phase"},
+    "phase3": {"$ref": "#/$defs/phase"}, "phase4": {"$ref": "#/$defs/phase"},
+    "phase5": {"$ref": "#/$defs/phase"}, "phase6": {"$ref": "#/$defs/phase"},
+    "_meta": {
+      "type": "object", "required": ["waivers_accepted", "waivers_rejected", "rule_versions"],
+      "properties": {
+        "waivers_accepted": {"type": "array", "items": {"type": "string"}},
+        "waivers_rejected": {"type": "array", "items": {"type": "string"}},
+        "rule_versions": {"type": "object", "additionalProperties": {"type": "string"}}
+      }, "additionalProperties": false
+    }
+  },
+  "$defs": {
+    "phase": {
+      "type": "object", "required": ["status", "reasons", "rule_ids"], "additionalProperties": false,
+      "properties": {
+        "status": {"enum": ["READY", "LIMITED", "BLOCKED", "NOT_APPLICABLE"]},
+        "reasons": {"type": "array", "items": {"type": "string"}},
+        "rule_ids": {"type": "array", "items": {"type": "string"}}
+      }
+    }
+  }
+}

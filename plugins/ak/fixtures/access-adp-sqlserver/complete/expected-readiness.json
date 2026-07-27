@@ -1,0 +1,31 @@
+{
+  "classification": {
+    "topology": "client_server",
+    "frontend_format": "adp",
+    "source_availability": "full",
+    "backend_kinds": [
+      "sql_server"
+    ]
+  },
+  "present_capabilities": [
+    "server_boundary_declared",
+    "sql_server_schema_evidence",
+    "source_inventory",
+    "server_object_inventory",
+    "definitions_for_referenced_objects",
+    "dependency_closure",
+    "field_inventory",
+    "key_index_inventory",
+    "boundary_inventory",
+    "vba_query_inventory",
+    "trigger_effect_output_trace",
+    "document_inventory",
+    "prior_phase_outputs_accepted",
+    "unresolved_risk_register",
+    "ui_object_inventory"
+  ],
+  "expected": {
+    "phase1": "READY",
+    "phase3": "READY"
+  }
+}

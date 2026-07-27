@@ -1,0 +1,17 @@
+{
+  "classification": {
+    "topology": "client_server",
+    "frontend_format": "adp",
+    "source_availability": "full",
+    "backend_kinds": [
+      "sql_server"
+    ]
+  },
+  "present_capabilities": [
+    "server_boundary_declared"
+  ],
+  "expected": {
+    "phase1": "BLOCKED",
+    "phase3": "BLOCKED"
+  }
+}

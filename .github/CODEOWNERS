@@ -1,0 +1,13 @@
+# Contract and release ownership
+/plugins/ak/contracts/ @tuanvtanrakutei
+/plugins/ak/schemas/ @tuanvtanrakutei
+/plugins/ak/profiles/ @tuanvtanrakutei
+/plugins/ak/adapters/ @tuanvtanrakutei
+/plugins/ak/analyzers/ @tuanvtanrakutei
+/plugins/ak/templates/ @tuanvtanrakutei
+/plugins/ak/orchestration/ @tuanvtanrakutei
+/plugins/ak/specifications/ @tuanvtanrakutei
+/docs/ @tuanvtanrakutei
+/.claude-plugin/ @tuanvtanrakutei
+/plugins/ak/.codex-plugin/ @tuanvtanrakutei
+/.github/workflows/ @tuanvtanrakutei

@@ -1,0 +1,24 @@
+rules:
+  - id: topology.monolith.local_authority
+    version: "1.0"
+    dimension: topology
+    when: {topology: monolith}
+    require: {all: [access_schema_inventory]}
+  - id: topology.split_file.backend_required
+    version: "1.0"
+    dimension: topology
+    when: {topology: split_file}
+    require: {all: [backend_authority_declared]}
+    affects: {phase1: BLOCKED}
+  - id: topology.client_server.server_authority
+    version: "1.0"
+    dimension: topology
+    when: {topology: client_server}
+    require: {all: [server_boundary_declared]}
+    affects: {phase1: BLOCKED}
+  - id: topology.hybrid.multi_backend
+    version: "1.0"
+    dimension: topology
+    when: {topology: hybrid}
+    require: {all: [backend_authority_declared, interface_inventory]}
+    affects: {phase1: BLOCKED, phase4: LIMITED}

@@ -1,0 +1,20 @@
+version: "2.2"
+app:
+  id: "FX_ADP_GAP"
+  name_en: "Synthetic FX_ADP_GAP"
+project:
+  profile: "access-adp-sqlserver"
+  profile_version: "1.0"
+  classification:
+    topology: "client_server"
+    frontend_format: "adp"
+    source_availability: "full"
+    backend_kinds: ["sql_server"]
+artifacts:
+  - id: "FX_ADP_GAP_SOURCE"
+    kind: "source_export"
+    role: "frontend"
+    acquisition: "imported"
+    required: true
+    source_ref: {type: "generated_ref", value: "synthetic://FX_ADP_GAP"}
+

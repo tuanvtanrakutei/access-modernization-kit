@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://sms.local/schemas/acquisition-plan.schema.json",
+  "title": "Acquisition Staging Plan Or Result",
+  "type": "object",
+  "required": ["acquisition_id", "state", "incoming", "classified", "quarantine"],
+  "additionalProperties": false,
+  "properties": {
+    "acquisition_id": {"type": "string", "minLength": 1},
+    "state": {"enum": ["VALID", "PARTIAL", "INVALID", "BLOCKED"]},
+    "incoming": {"type": "array", "items": {"$ref": "#/$defs/record"}},
+    "classified": {"type": "array", "items": {"$ref": "#/$defs/record"}},
+    "quarantine": {"type": "array", "items": {"$ref": "#/$defs/record"}}
+  },
+  "$defs": {
+    "record": {
+      "type": "object", "required": ["logical_id", "path", "status"],
+      "properties": {
+        "logical_id": {"type": "string"}, "path": {"type": "string"},
+        "status": {"type": "string"}, "reason": {"type": "string"},
+        "sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"}
+      },
+      "additionalProperties": false
+    }
+  }
+}

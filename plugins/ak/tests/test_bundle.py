@@ -1,0 +1,72 @@
+from __future__ import annotations
+
+import hashlib
+import json
+import sys
+from pathlib import Path
+
+import jsonschema
+import pytest
+
+PACKAGE = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(PACKAGE / "contracts"))
+
+from bundle import BundleError, compute_bundle_id, make_lock, verify_immutable  # noqa: E402
+
+BASE = {
+    "app_id": "A05",
+    "classification": {"topology": "split_file", "frontend_format": "mdb", "source_availability": "full", "backend_kinds": ["access_file"]},
+    "classification_rule_versions": {"frontend.mdb.dao": "1.0"},
+    "artifacts": [{"logical_id": "A05_FRONTEND", "content_sha256": "a" * 64}],
+    "adapters": [{"id": "managed_access", "version": "2.7.0"}],
+    "bundle_schema_version": "1.0",
+    "normalization_config": {"encoding": "utf-8", "line_endings": "LF"},
+}
+
+
+def test_id_ignores_paths_and_timestamps() -> None:
+    noisy = dict(BASE, _absolute_path="D:/machine", _generated_at="2026-07-27T00:00:00Z")
+    assert compute_bundle_id(noisy) == compute_bundle_id(BASE)
+
+
+def test_id_changes_when_content_changes() -> None:
+    changed = dict(BASE, artifacts=[{"logical_id": "A05_FRONTEND", "content_sha256": "b" * 64}])
+    assert compute_bundle_id(changed) != compute_bundle_id(BASE)
+
+
+def test_id_changes_when_classification_changes() -> None:
+    changed = dict(BASE, classification={"topology": "hybrid", "frontend_format": "mdb", "source_availability": "full", "backend_kinds": ["access_file"]})
+    assert compute_bundle_id(changed) != compute_bundle_id(BASE)
+
+
+def test_immutable_hash_verification(tmp_path: Path) -> None:
+    file = tmp_path / "bundle.json"
+    file.write_text("{}", encoding="utf-8")
+    expected = {"bundle.json": hashlib.sha256(b"{}").hexdigest()}
+    verify_immutable(tmp_path, expected)
+    file.write_text("{ }", encoding="utf-8")
+    with pytest.raises(BundleError):
+        verify_immutable(tmp_path, expected)
+
+
+def test_lock_has_external_approval_reference() -> None:
+    lock = make_lock("bundle-abc", "c" * 64, "1.0", {"topology": "split_file"}, "artifact_store://a05", "AP-1")
+    assert lock["bundle_id"] == "bundle-abc"
+    assert lock["approval_record_id"] == "AP-1"
+
+
+def test_bundle_schema_requires_normalized_evidence_sources() -> None:
+    schema = json.loads((PACKAGE / "schemas/bundle.schema.json").read_text(encoding="utf-8"))
+    bundle = {
+        "schema_version": "1.0", "bundle_id": "bundle-abc", "app_id": "A05",
+        "classification": {"topology": "split_file", "frontend_format": "mdb",
+                           "source_availability": "full", "backend_kinds": ["access_file"]},
+        "rule_versions": {"frontend.mdb.dao": "1.0"},
+        "evidence_sources": {
+            "documents": {"inventory": "evidence-sources/documents/inventory.json"},
+            "screenshots": {"inventory": "evidence-sources/screenshots/inventory.json"},
+            "reports": {"inventory": "evidence-sources/reports/inventory.json"},
+            "samples": {"inventory": "evidence-sources/samples/inventory.json"},
+        },
+    }
+    jsonschema.validate(bundle, schema)

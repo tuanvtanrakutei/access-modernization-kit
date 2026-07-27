@@ -1,0 +1,20 @@
+version: "2.2"
+app:
+  id: "FX_COMPILED_OK"
+  name_en: "Synthetic FX_COMPILED_OK"
+project:
+  profile: "access-compiled-frontend"
+  profile_version: "1.0"
+  classification:
+    topology: "split_file"
+    frontend_format: "mde"
+    source_availability: "compiled_only"
+    backend_kinds: ["access_file"]
+artifacts:
+  - id: "FX_COMPILED_OK_SOURCE"
+    kind: "source_export"
+    role: "frontend"
+    acquisition: "imported"
+    required: true
+    source_ref: {type: "generated_ref", value: "synthetic://FX_COMPILED_OK"}
+

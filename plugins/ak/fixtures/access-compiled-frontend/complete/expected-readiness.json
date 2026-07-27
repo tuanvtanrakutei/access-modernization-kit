@@ -1,0 +1,19 @@
+{
+  "classification": {
+    "topology": "split_file",
+    "frontend_format": "mde",
+    "source_availability": "compiled_only",
+    "backend_kinds": [
+      "access_file"
+    ]
+  },
+  "present_capabilities": [
+    "access_schema_inventory",
+    "backend_authority_declared",
+    "compiled_object_inventory"
+  ],
+  "expected": {
+    "phase2": "LIMITED",
+    "phase3": "LIMITED"
+  }
+}

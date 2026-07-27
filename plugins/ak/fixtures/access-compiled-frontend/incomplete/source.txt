@@ -1,0 +1,2 @@
+Synthetic fixture only. No proprietary or database binary content.
+

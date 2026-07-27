@@ -1,0 +1,38 @@
+rules:
+  - id: frontend.mdb.dao
+    version: "1.0"
+    dimension: frontend
+    when: {frontend_format: mdb}
+    require: {all: [access_object_inventory]}
+  - id: frontend.accdb.data_macros
+    version: "1.0"
+    dimension: frontend
+    when: {frontend_format: accdb}
+    require: {all: [access_object_inventory, data_macro_inventory]}
+    affects: {phase2: LIMITED, phase3: LIMITED}
+  - id: frontend.adp.sql_server_context
+    version: "1.0"
+    dimension: frontend
+    when: {frontend_format: adp}
+    require: {all: [sql_server_schema_evidence]}
+    affects: {phase1: BLOCKED, phase3: BLOCKED}
+    allow_limited_when: [server_boundary_declared]
+  - id: frontend.mde.compiled
+    version: "1.0"
+    dimension: frontend
+    when: {frontend_format: mde}
+    require: {all: [compiled_object_inventory]}
+    affects: {phase2: LIMITED, phase3: LIMITED}
+    applies_when_satisfied: true
+  - id: frontend.accde.compiled
+    version: "1.0"
+    dimension: frontend
+    when: {frontend_format: accde}
+    require: {all: [compiled_object_inventory]}
+    affects: {phase2: LIMITED, phase3: LIMITED}
+    applies_when_satisfied: true
+  - id: frontend.exported.source_export
+    version: "1.0"
+    dimension: frontend
+    when: {frontend_format: exported}
+    require: {all: [validated_source_export]}

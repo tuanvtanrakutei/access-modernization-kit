@@ -1,0 +1,14 @@
+{
+  "classification": {
+    "topology": "split_file",
+    "frontend_format": "mdb",
+    "source_availability": "full",
+    "backend_kinds": [
+      "access_file"
+    ]
+  },
+  "present_capabilities": [],
+  "expected": {
+    "phase1": "BLOCKED"
+  }
+}
