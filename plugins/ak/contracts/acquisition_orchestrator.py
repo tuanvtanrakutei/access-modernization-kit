@@ -1,0 +1,165 @@
+from __future__ import annotations
+
+import dataclasses
+from pathlib import Path
+from typing import Any
+
+import bundle_assembly
+import phase_readiness as phase_readiness_contract
+from adapters.base import AcquisitionRequest
+from adapters.imported_sources.adapter import ImportedSourcesAdapter
+from adapters.managed_access.adapter import ManagedAccessAdapter
+from adapters.msaccess_vcs.adapter import MsAccessVcsAdapter
+from adapters.sql_server.adapter import SqlServerAdapter
+from classification import Classification, resolve_classification
+from manifest_v22 import load_manifest
+
+PACKAGE = Path(__file__).resolve().parents[1]
+PROFILES = PACKAGE / "profiles"
+
+
+def route_adapter(artifact: dict[str, Any]) -> str:
+    kind = artifact["kind"]
+    if artifact["acquisition"] == "managed" or kind == "access_database":
+        return "managed_access"
+    if kind == "producer_export" and artifact.get("format") == "msaccess-vcs":
+        return "msaccess_vcs"
+    if kind.startswith("sql_server"):
+        return "sql_server"
+    return "imported_sources"
+
+
+ADAPTERS = {
+    "managed_access": ManagedAccessAdapter,
+    "imported_sources": ImportedSourcesAdapter,
+    "msaccess_vcs": MsAccessVcsAdapter,
+    "sql_server": SqlServerAdapter,
+}
+
+
+def group_artifacts(artifacts: list[dict[str, Any]]) -> dict[str, list[dict[str, Any]]]:
+    grouped: dict[str, list[dict[str, Any]]] = {}
+    for artifact in artifacts:
+        grouped.setdefault(route_adapter(artifact), []).append(artifact)
+    return grouped
+
+
+def _classification_dict(manifest: Any) -> dict[str, Any]:
+    classification = manifest.classification
+    if classification is None:
+        raise ValueError("Acquisition requires a V2.2 classified manifest")
+    return {
+        "topology": classification.topology,
+        "frontend_format": classification.frontend_format,
+        "source_availability": classification.source_availability,
+        "backend_kinds": list(classification.backend_kinds),
+    }
+
+
+def _artifact_dict(artifact: Any) -> dict[str, Any]:
+    data = {
+        "id": artifact.id,
+        "kind": artifact.kind,
+        "role": artifact.role,
+        "acquisition": artifact.acquisition,
+        "required": artifact.required,
+        "source_ref": {"type": artifact.source_ref.type, "value": artifact.source_ref.value},
+    }
+    if artifact.format:
+        data["format"] = artifact.format
+    if artifact.backend_kind:
+        data["backend_kind"] = artifact.backend_kind
+    return data
+
+
+def plan_acquisition(manifest_path: Path) -> dict[str, Any]:
+    manifest = load_manifest(Path(manifest_path))
+    artifacts = [_artifact_dict(artifact) for artifact in manifest.artifacts]
+    grouped = group_artifacts(artifacts)
+    return {
+        "app_id": manifest.app["id"],
+        "classification": _classification_dict(manifest),
+        "adapters": {
+            adapter: [artifact["id"] for artifact in items]
+            for adapter, items in sorted(grouped.items())
+        },
+    }
+
+
+def run_acquisition(
+    manifest_path: Path,
+    output_root: Path,
+    granted_authorization: tuple[str, ...],
+    acquisition_id: str,
+) -> dict[str, Any]:
+    manifest = load_manifest(Path(manifest_path))
+    source_root = Path(manifest_path).resolve().parent
+    classification_dict = _classification_dict(manifest)
+    classification = Classification(
+        classification_dict["topology"],
+        classification_dict["frontend_format"],
+        classification_dict["source_availability"],
+        tuple(classification_dict["backend_kinds"]),
+    )
+    resolved = resolve_classification(classification, PROFILES)
+    artifacts = [_artifact_dict(artifact) for artifact in manifest.artifacts]
+    contributions: list[dict[str, Any]] = []
+    for adapter_id, items in sorted(group_artifacts(artifacts).items()):
+        adapter = ADAPTERS[adapter_id]()
+        request = AcquisitionRequest(
+            manifest.app["id"], classification_dict, tuple(items), source_root,
+            frozenset(granted_authorization),
+        )
+        plan = dataclasses.replace(
+            adapter.plan(request),
+            app_id=manifest.app["id"],
+            acquisition_id=acquisition_id,
+            granted_authorization=tuple(granted_authorization),
+            runtime_output_root=str(Path(output_root) / "staging"),
+        )
+        contributions.append(adapter.normalize(adapter.acquire(plan)))
+    capabilities = _capabilities(contributions)
+    readiness = phase_readiness_contract.compute_readiness(
+        classification, PROFILES, capabilities
+    )
+    profile_validation = {"status": _worst_contribution_status(contributions)}
+    return bundle_assembly.assemble_bundle(
+        app_id=manifest.app["id"],
+        classification=classification_dict,
+        rule_versions=resolved.rule_versions,
+        contributions=contributions,
+        normalization_config={"text": "utf-8-lf"},
+        profile_validation=profile_validation,
+        phase_readiness=readiness,
+        output_root=Path(output_root),
+    )
+
+
+def _capabilities(contributions: list[dict[str, Any]]) -> set[str]:
+    capabilities: set[str] = set()
+    for contribution in contributions:
+        if contribution["code"]["vba"] or contribution["code"]["access_sql"]:
+            capabilities.add("vba_query_inventory")
+        if contribution["ui"]["forms"] or contribution["ui"]["reports"] or contribution["ui"]["macros"]:
+            capabilities.add("ui_object_inventory")
+        if contribution["databases"]["objects"]:
+            capabilities.add("access_object_inventory")
+        if contribution["databases"]["tables"]:
+            capabilities.update({"access_schema_inventory", "field_inventory", "key_index_inventory"})
+        if contribution["interfaces"]["linked_tables"] or contribution["interfaces"]["file_interfaces"]:
+            capabilities.add("boundary_inventory")
+        if "server_object_inventory" in contribution["provenance"].get("capabilities", []):
+            capabilities.add("server_object_inventory")
+        if contribution["evidence_sources"]["documents"]["inventory"]:
+            capabilities.add("document_inventory")
+    return capabilities
+
+
+_STATUS_RANK = {"VALID": 0, "PARTIAL": 1, "INVALID": 2, "BLOCKED": 3}
+
+
+def _worst_contribution_status(contributions: list[dict[str, Any]]) -> str:
+    return max(
+        (contribution["status"] for contribution in contributions),
+        key=lambda status: _STATUS_RANK[status],
+    )

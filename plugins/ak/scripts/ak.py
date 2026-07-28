@@ -27,6 +27,18 @@ def run(script: str, *args: str) -> int:
     return subprocess.run([sys.executable, str(SCRIPTS / script), *args], check=False).returncode
 
 
+def configure_acquire_parser(commands: argparse._SubParsersAction) -> None:
+    acquire = commands.add_parser("acquire", help="Route declared artifacts through acquisition adapters.")
+    acquire_commands = acquire.add_subparsers(dest="acquire_action", required=True)
+    acquire_plan = acquire_commands.add_parser("plan")
+    acquire_plan.add_argument("--manifest", required=True)
+    acquire_run = acquire_commands.add_parser("run")
+    acquire_run.add_argument("--manifest", required=True)
+    acquire_run.add_argument("--output-root", required=True)
+    acquire_run.add_argument("--authorize", action="append", default=[])
+    acquire_run.add_argument("--acquisition-id", default="acquire")
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description=__doc__,
@@ -91,6 +103,7 @@ def parse_args() -> argparse.Namespace:
     bundle_approve.add_argument("--approved-at")
     bundle_approve.add_argument("--distribution-policy", choices=("local_only", "shared_path", "artifact_store", "git_allowed"), default="artifact_store")
     bundle_approve.add_argument("--output", required=True)
+    configure_acquire_parser(commands)
     return parser.parse_args()
 
 
@@ -245,6 +258,22 @@ def main() -> int:
                 json.dumps(report, ensure_ascii=False, indent=2, sort_keys=True) + "\n", encoding="utf-8"
             )
         print_json(report)
+        return 0
+    if args.command == "acquire":
+        package_path = str(PACKAGE)
+        if package_path not in sys.path:
+            sys.path.insert(0, package_path)
+        from acquisition_orchestrator import plan_acquisition, run_acquisition
+
+        manifest_path = Path(args.manifest).expanduser().resolve()
+        if args.acquire_action == "plan":
+            print_json(plan_acquisition(manifest_path))
+            return 0
+        result = run_acquisition(
+            manifest_path, Path(args.output_root).expanduser().resolve(),
+            tuple(args.authorize), args.acquisition_id,
+        )
+        print_json(result)
         return 0
     if args.command == "bundle":
         import hashlib
