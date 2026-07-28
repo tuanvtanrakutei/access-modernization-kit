@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://sms.local/schemas/import-source-manifest.schema.json",
+  "title": "Imported Source Package Manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["version", "producer", "files"],
+  "properties": {
+    "version": {"const": "1.0"},
+    "producer": {
+      "type": "object", "additionalProperties": false,
+      "required": ["id", "version"],
+      "properties": {"id": {"type": "string", "minLength": 1}, "version": {"type": "string", "minLength": 1}}
+    },
+    "files": {
+      "type": "array", "minItems": 1,
+      "items": {
+        "type": "object", "additionalProperties": false,
+        "required": ["logical_id", "path", "kind", "role", "sha256"],
+        "properties": {
+          "logical_id": {"type": "string", "minLength": 1},
+          "path": {"type": "string", "minLength": 1},
+          "kind": {"enum": ["vba", "access_sql", "sql_server", "form", "report", "macro", "document", "screenshot", "sample", "metadata"]},
+          "role": {"type": "string", "minLength": 1},
+          "sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+          "encoding": {"enum": ["utf-8", "utf-8-sig", "utf-16-le", "utf-16-be", "cp932"]},
+          "media_type": {"type": "string"},
+          "object_name": {"type": "string"}
+        }
+      }
+    }
+  }
+}

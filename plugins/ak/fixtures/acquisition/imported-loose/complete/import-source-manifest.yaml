@@ -1,0 +1,9 @@
+schema_version: "1.0.0"
+package_id: SYNTHETIC_IMPORT
+files:
+  - logical_id: MOD_ORDER
+    path: modules/Order.bas
+    kind: vba
+    role: frontend
+    sha256: 2365b910a2b09bf32bb7524e175230023c6d52a44210916db92a80aec2cbe86f
+    encoding: utf-8
