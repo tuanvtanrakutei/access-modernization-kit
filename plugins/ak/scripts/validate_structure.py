@@ -27,7 +27,7 @@ REQUIRED_FILES = (
     "adapters/base.py", "adapters/imported_sources/adapter.py", "adapters/managed_access/adapter.py", "adapters/msaccess_vcs/adapter.py", "adapters/sql_server/adapter.py",
     "profiles/topology.yaml", "profiles/frontend.yaml", "profiles/source-availability.yaml", "profiles/backend.yaml", "profiles/README.md",
     "tests/test_classification.py", "tests/test_manifest_v22.py", "tests/test_staging.py", "tests/test_bundle.py",
-    "tests/test_phase_readiness.py", "tests/test_migration.py", "tests/test_cli_v27.py", "tests/test_bundle_assembly.py", "tests/test_cli_acquire.py",
+    "tests/test_phase_readiness.py", "tests/test_migration.py", "tests/test_cli_v27.py", "tests/test_bundle_assembly.py", "tests/test_cli_acquire.py", "tests/test_acquisition_orchestrator.py",
     "tests/adapters/test_base.py", "tests/adapters/test_imported_sources.py", "tests/adapters/test_managed_access.py", "tests/adapters/test_msaccess_vcs.py", "tests/adapters/test_sql_server.py",
     "orchestration/roles.json", "orchestration/waves.json", "orchestration/merge-policy.json", "orchestration/conflict-policy.json", "orchestration/runtime-adapters.json",
     "references/manifest.example.yaml", "references/agent-compatibility.md", "references/presentation-guidance.md", "references/orchestration-guide.md",
@@ -250,6 +250,18 @@ def main() -> int:
         "NOTICE": ("Copyright 2026 Vo Ta Tuan", "vo-ta-tuan@anrakutei.vn"),
         "SECURITY.md": ("vo-ta-tuan@anrakutei.vn", "Do not open a public GitHub issue"),
         ".github/workflows/validate.yml": ("pytest", "plugins/ak"),
+        "docs/acquisition/decision-guide.md": (
+            "Invalid or blocked acquisition", "does not produce a bundle", "PARTIAL"
+        ),
+        "docs/acquisition/imported-sources.md": (
+            "UNDECLARED_PACKAGE_MEMBER", "ARCHIVE_MEMBER_CONFLICT", "without extracting"
+        ),
+        "docs/acquisition/managed-access.md": (
+            "STALE_EXTRACTION_RESULT", "EXTRACTOR_FAILED", "disposable snapshot"
+        ),
+        "docs/acquisition/sql-server.md": (
+            "DACPAC_MODEL_REQUIRED", "server_object_inventory", "model.xml"
+        ),
     }
     for relative, tokens in publication_checks.items():
         path = repository_root / relative

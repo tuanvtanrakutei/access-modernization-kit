@@ -18,9 +18,13 @@ python plugins/ak/scripts/ak.py acquire run --manifest <APP_ROOT>/manifest.yaml 
 
 `probe` and `plan` do not open Access. `run` delegates to `extract_access.py --execute`, which creates and hash-verifies a disposable snapshot before COM automation. The adapter never opens or modifies the original database directly. Raw Access binaries and snapshot paths never enter the canonical bundle.
 
+Default acquisition IDs are unique. Explicitly reusing an acquisition ID is allowed only when no prior extraction receipt exists.
+
 ## Failures
 
 - `AUTHORIZATION_REQUIRED`: snapshot extraction was not explicitly authorized.
+- `STALE_EXTRACTION_RESULT`: the acquisition ID already has an extraction receipt; the adapter does not delete or reuse it.
+- `EXTRACTOR_FAILED`: the delegated extractor returned a nonzero exit code.
 - `EXTRACTION_RESULT_MISSING`: the delegated extractor did not produce `access-extraction.json`.
 - `PARTIAL`: protected objects, unavailable linked sources, or other extractor warnings remain visible.
 

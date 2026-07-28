@@ -1,4 +1,21 @@
 # Changelog
+
+## [2.7.1] - 2026-07-28
+
+### Added
+
+- Managed/imported Access, msaccess-vcs, and SQL Server acquisition adapters with `ak acquire plan|run`.
+- Deterministic canonical bundle assembly and English acquisition decision guides.
+
+### Fixed
+
+- ZIP package acquisition now validates and reads declared members without extraction.
+- Cross-adapter conflicts, stale bundle targets, stale managed-extraction receipts, and invalid pre-bundle acquisition are rejected.
+- DACPAC object inventory and adapter-owned readiness capabilities prevent false Access/SQL completeness claims.
+
+### Security
+
+- Raw Access databases, SQL Server backups/data files, archive executables, path escapes, symlinks, undeclared package members, and unapproved bundles remain outside analysis inputs.
 ## [2.6.2] - 2026-07-22
 
 ### Added

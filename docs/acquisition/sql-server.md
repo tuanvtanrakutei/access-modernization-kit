@@ -5,6 +5,7 @@
 - SQL scripts are UTF-8 and contain DDL or programmable-object definitions.
 - Catalog JSON matches `sql-server-catalog.schema.json`.
 - A DACPAC contains exactly one `model.xml` and is treated as a read-only ZIP package.
+- DACPAC processing reads `model.xml` in memory, maps only supported object types, and never extracts or copies the package.
 - BAK references are external-only. Live connection and restore automation are outside standard acquisition.
 
 ## Commands

@@ -24,3 +24,7 @@ python plugins/ak/scripts/ak.py acquire run --manifest <APP_ROOT>/manifest.yaml 
 ```
 
 The result is an unapproved canonical bundle. Approval remains a separate `bundle approve` action.
+
+## Publication Gate
+
+Invalid or blocked acquisition returns diagnostics and does not produce a bundle. A `PARTIAL` acquisition may produce an unapproved bundle so known gaps remain explicit and reviewable.
