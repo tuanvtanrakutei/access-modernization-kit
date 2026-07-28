@@ -1,0 +1,51 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://sms.local/schemas/bundle-contribution.schema.json",
+  "title": "Bundle Contribution",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["adapter_id", "adapter_version", "app_id", "status", "databases", "code", "ui", "interfaces", "evidence_sources", "failures", "provenance"],
+  "properties": {
+    "adapter_id": {"type": "string", "minLength": 1},
+    "adapter_version": {"type": "string", "minLength": 1},
+    "app_id": {"type": "string", "minLength": 1},
+    "status": {"enum": ["VALID", "PARTIAL", "INVALID", "BLOCKED"]},
+    "databases": {
+      "type": "object", "additionalProperties": false,
+      "required": ["objects", "tables", "fields", "indexes", "declared_relationships"],
+      "properties": {
+        "objects": {"type": "array"}, "tables": {"type": "array"}, "fields": {"type": "array"},
+        "indexes": {"type": "array"}, "declared_relationships": {"type": "array"}
+      }
+    },
+    "code": {
+      "type": "object", "additionalProperties": false,
+      "required": ["vba", "access_sql", "sql_server"],
+      "properties": {"vba": {"type": "array"}, "access_sql": {"type": "array"}, "sql_server": {"type": "array"}}
+    },
+    "ui": {
+      "type": "object", "additionalProperties": false,
+      "required": ["forms", "reports", "macros"],
+      "properties": {"forms": {"type": "array"}, "reports": {"type": "array"}, "macros": {"type": "array"}}
+    },
+    "interfaces": {
+      "type": "object", "additionalProperties": false,
+      "required": ["linked_tables", "file_interfaces", "connections_redacted"],
+      "properties": {"linked_tables": {"type": "array"}, "file_interfaces": {"type": "array"}, "connections_redacted": {"type": "array"}}
+    },
+    "evidence_sources": {
+      "type": "object", "additionalProperties": false,
+      "required": ["documents", "screenshots", "reports", "samples"],
+      "properties": {
+        "documents": {"$ref": "#/$defs/inventory"}, "screenshots": {"$ref": "#/$defs/inventory"},
+        "reports": {"$ref": "#/$defs/inventory"}, "samples": {"$ref": "#/$defs/inventory"}
+      }
+    },
+    "failures": {"type": "array", "items": {"type": "object", "required": ["logical_id", "reason"], "properties": {"logical_id": {"type": "string"}, "reason": {"type": "string"}}}},
+    "provenance": {
+      "type": "object", "additionalProperties": true, "required": ["producer", "source_hashes"],
+      "properties": {"producer": {"type": "string"}, "source_hashes": {"type": "object", "additionalProperties": {"type": "string", "pattern": "^[a-f0-9]{64}$"}}}
+    }
+  },
+  "$defs": {"inventory": {"type": "object", "required": ["inventory"], "properties": {"inventory": {"type": "array"}}, "additionalProperties": true}}
+}
