@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from copy import deepcopy
+from itertools import permutations
 import json
 from pathlib import Path
 
@@ -8,6 +10,8 @@ import pytest
 
 from collaboration import (
     CollaborationError,
+    find_collaboration_conflicts,
+    integration_order,
     load_work_package,
     validate_work_package,
     work_package_digest,
@@ -51,6 +55,28 @@ def schema() -> dict:
     path = Path(__file__).resolve().parents[1] / "schemas" / "work-package.schema.json"
     return json.loads(path.read_text(encoding="utf-8"))
 
+def conflict_schema() -> dict:
+    path = Path(__file__).resolve().parents[1] / "schemas" / "conflict.schema.json"
+    return json.loads(path.read_text(encoding="utf-8"))
+
+def conflict_record() -> dict:
+    return {
+        "conflict_id": "SYN-CONFLICT-001",
+        "run_id": "SYN-RUN-001",
+        "app_id": "SYN",
+        "topic": "COLLAB_WRITE_CONFLICT",
+        "severity": "HIGH",
+        "status": "OPEN",
+        "observations": [
+            {"evidence_id": "SYN-EVIDENCE-001", "statement": "First claim"},
+            {"evidence_id": "SYN-EVIDENCE-002", "statement": "Second claim"},
+        ],
+        "created_at": "2026-07-28T00:00:00Z",
+    }
+
+def codes(packages: list[dict]) -> set[str]:
+    return {item["code"] for item in find_collaboration_conflicts(packages)}
+
 
 @pytest.mark.parametrize(
     "package_factory", [kit_package, application_package, mixed_package]
@@ -76,6 +102,8 @@ def test_digest_ignores_created_at_and_dict_order_only() -> None:
     [
         "D:/secret/file",
         "D:\\secret\\file",
+        "D:secret/file",
+        "D:",
         "../escape",
         "safe/../../escape",
         "/etc/passwd",
@@ -209,3 +237,271 @@ def test_load_work_package_reads_utf8_validates_and_returns_dict(tmp_path: Path)
     path.write_text(json.dumps(package, ensure_ascii=False), encoding="utf-8")
 
     assert load_work_package(path) == package
+
+def test_overlapping_write_paths_are_blocked() -> None:
+    first, second = application_package("WP_ONE"), application_package("WP_TWO")
+    second["write_paths"] = ["work/sql_data/module-orders/details"]
+    assert "COLLAB_WRITE_CONFLICT" in codes([first, second])
+
+def test_overlapping_evidence_prefixes_are_blocked() -> None:
+    first, second = application_package("WP_ONE"), application_package("WP_TWO")
+    second["evidence_namespace"] = first["evidence_namespace"] + "-CHILD"
+    assert "COLLAB_EVIDENCE_CONFLICT" in codes([first, second])
+
+def test_mismatched_bundle_authority_is_blocked() -> None:
+    first, second = application_package("WP_ONE"), application_package("WP_TWO")
+    second["authority"]["bundle_id"] = "bundle-" + "d" * 64
+    assert "COLLAB_AUTHORITY_MISMATCH" in codes([first, second])
+
+def test_dependency_cycle_is_blocked() -> None:
+    first = application_package("WP_ONE")
+    second = application_package("WP_TWO")
+    first["dependencies"], second["dependencies"] = ["WP_TWO"], ["WP_ONE"]
+    second["authority"]["app_id"] = "OTHER"
+
+    with pytest.raises(CollaborationError, match="COLLAB_DEPENDENCY_CYCLE") as error:
+        integration_order([first, second])
+
+    assert error.value.detail == "WP_ONE"
+    assert find_collaboration_conflicts([first, second]) == [
+        {
+            "code": "COLLAB_AUTHORITY_MISMATCH",
+            "packages": ["WP_ONE", "WP_TWO"],
+        },
+        {"code": "COLLAB_DEPENDENCY_CYCLE", "packages": ["WP_ONE"]},
+        {
+            "code": "COLLAB_EVIDENCE_CONFLICT",
+            "packages": ["WP_ONE", "WP_TWO"],
+        },
+        {
+            "code": "COLLAB_WRITE_CONFLICT",
+            "packages": ["WP_ONE", "WP_TWO"],
+        },
+    ]
+
+def test_integration_order_is_dependency_stable() -> None:
+    first, second = kit_package("WP_ONE"), kit_package("WP_TWO")
+    second["dependencies"] = ["WP_ONE"]
+    assert integration_order([second, first]) == ["WP_ONE", "WP_TWO"]
+
+def test_integrated_predecessor_allows_sequential_overlap() -> None:
+    first, second = kit_package("WP_ONE"), kit_package("WP_TWO")
+    first["write_paths"] = ["docs/collaboration"]
+    second["write_paths"] = ["docs/collaboration/contributor-workflow.md"]
+    second["dependencies"] = ["WP_ONE"]
+    conflicts = find_collaboration_conflicts(
+        [first, second], integrated_package_ids={"WP_ONE"}
+    )
+    assert "COLLAB_WRITE_CONFLICT" not in {item["code"] for item in conflicts}
+
+def test_reverse_lexical_integrated_predecessor_allows_sequential_overlap() -> None:
+    predecessor, dependent = kit_package("WP_Z"), kit_package("WP_A")
+    predecessor["write_paths"] = ["docs/collaboration"]
+    dependent["write_paths"] = ["docs/collaboration/contributor-workflow.md"]
+    dependent["dependencies"] = ["WP_Z"]
+
+    assert find_collaboration_conflicts(
+        [dependent, predecessor], integrated_package_ids={"WP_Z"}
+    ) == []
+
+def test_sequential_packages_still_require_identical_authority() -> None:
+    predecessor = application_package("WP_A")
+    dependent = application_package("WP_Z")
+    dependent["dependencies"] = ["WP_A"]
+    dependent["write_paths"] = ["work/isolated/WP_Z"]
+    dependent["evidence_namespace"] = "SYN-P1-ISOLATED-Z"
+    dependent["authority"]["app_id"] = "OTHER"
+
+    assert find_collaboration_conflicts(
+        [dependent, predecessor], integrated_package_ids={"WP_A"}
+    ) == [
+        {
+            "code": "COLLAB_AUTHORITY_MISMATCH",
+            "packages": ["WP_A", "WP_Z"],
+        }
+    ]
+
+@pytest.mark.parametrize(
+    ("package_factory", "field", "value"),
+    [
+        (application_package, "app_id", "OTHER"),
+        (application_package, "bundle_lock_digest", "d" * 64),
+        (application_package, "approval_record_id", "AP-SYN-2"),
+        (application_package, "distribution_policy", "shared_path"),
+        (
+            application_package,
+            "artifact_reference",
+            "artifact_store://fixture/SYN/bundle-b",
+        ),
+        (mixed_package, "repository", "other-repository"),
+        (mixed_package, "base_revision", "deadbeef"),
+        (mixed_package, "app_id", "OTHER"),
+        (mixed_package, "bundle_id", "bundle-" + "d" * 64),
+        (mixed_package, "checksum", "d" * 64),
+        (mixed_package, "bundle_lock_digest", "d" * 64),
+        (mixed_package, "approval_record_id", "AP-SYN-2"),
+        (mixed_package, "distribution_policy", "shared_path"),
+        (
+            mixed_package,
+            "artifact_reference",
+            "artifact_store://fixture/SYN/bundle-b",
+        ),
+    ],
+)
+def test_authority_comparison_uses_complete_validated_object(
+    package_factory, field: str, value: str
+) -> None:
+    first = package_factory("WP_ONE")
+    second = package_factory("WP_TWO")
+    second["write_paths"] = ["work/isolated/WP_TWO"]
+    second["evidence_namespace"] = "SYN-P1-ISOLATED-TWO"
+    second["authority"][field] = value
+
+    assert find_collaboration_conflicts([second, first]) == [
+        {
+            "code": "COLLAB_AUTHORITY_MISMATCH",
+            "packages": ["WP_ONE", "WP_TWO"],
+        }
+    ]
+
+@pytest.mark.parametrize("reverse", [False, True])
+def test_differing_duplicate_package_ids_are_rejected_deterministically(
+    reverse: bool,
+) -> None:
+    first = kit_package("WP_DUP")
+    second = deepcopy(first)
+    second["title"] = "Different semantic package"
+    packages = [second, first] if reverse else [first, second]
+
+    assert find_collaboration_conflicts(packages) == [
+        {"code": "COLLAB_PACKAGE_INVALID", "packages": ["WP_DUP"]}
+    ]
+
+def test_exact_duplicate_packages_are_deduplicated() -> None:
+    package = kit_package("WP_DUP")
+
+    assert integration_order([deepcopy(package), package]) == ["WP_DUP"]
+    assert find_collaboration_conflicts([package, deepcopy(package)]) == []
+
+def test_multiple_differing_duplicate_ids_are_permutation_stable() -> None:
+    alpha_first = kit_package("WP_ALPHA")
+    alpha_second = deepcopy(alpha_first)
+    alpha_second["title"] = "Different alpha package"
+    zeta_first = kit_package("WP_ZETA")
+    zeta_second = deepcopy(zeta_first)
+    zeta_second["title"] = "Different zeta package"
+    expected = [
+        {
+            "code": "COLLAB_PACKAGE_INVALID",
+            "packages": ["WP_ALPHA", "WP_ZETA"],
+        }
+    ]
+
+    for ordered in permutations(
+        [alpha_first, alpha_second, zeta_first, zeta_second]
+    ):
+        packages = list(ordered)
+        with pytest.raises(CollaborationError, match="COLLAB_PACKAGE_INVALID") as error:
+            integration_order(packages)
+        assert error.value.detail == ["WP_ALPHA", "WP_ZETA"]
+        assert find_collaboration_conflicts(packages) == expected
+
+def test_unresolved_dependency_is_rejected_by_integration_order() -> None:
+    package = kit_package("WP_ONE")
+    package["dependencies"] = ["WP_MISSING"]
+
+    with pytest.raises(CollaborationError, match="COLLAB_PACKAGE_INVALID") as error:
+        integration_order([package])
+
+    assert error.value.detail == ["WP_ONE", "WP_MISSING"]
+
+def test_unresolved_dependency_is_reported_by_conflict_detection() -> None:
+    package = kit_package("WP_ONE")
+    package["dependencies"] = ["WP_MISSING"]
+
+    assert find_collaboration_conflicts([package]) == [
+        {
+            "code": "COLLAB_PACKAGE_INVALID",
+            "packages": ["WP_ONE", "WP_MISSING"],
+        }
+    ]
+
+def test_integrated_dependency_satisfies_order_and_conflict_detection() -> None:
+    package = kit_package("WP_ONE")
+    package["dependencies"] = ["WP_INTEGRATED"]
+
+    assert integration_order(
+        [package], integrated_package_ids={"WP_INTEGRATED"}
+    ) == ["WP_ONE"]
+    assert find_collaboration_conflicts(
+        [package], integrated_package_ids={"WP_INTEGRATED"}
+    ) == []
+
+def test_evidence_namespace_schema_rejects_empty_string() -> None:
+    package = application_package()
+    package["evidence_namespace"] = ""
+
+    with pytest.raises(jsonschema.ValidationError):
+        jsonschema.validate(package, schema())
+
+def test_empty_evidence_namespaces_cannot_bypass_validation() -> None:
+    packages = [application_package("WP_ONE"), application_package("WP_TWO")]
+    for package in packages:
+        package["evidence_namespace"] = ""
+
+    for package in packages:
+        with pytest.raises(CollaborationError, match="COLLAB_PACKAGE_INVALID"):
+            validate_work_package(package)
+
+@pytest.mark.parametrize("reverse", [False, True])
+def test_conflict_payloads_are_exact_and_permutation_stable(reverse: bool) -> None:
+    first = application_package("WP_ONE")
+    second = application_package("WP_TWO")
+    second["authority"]["app_id"] = "OTHER"
+    packages = [second, first] if reverse else [first, second]
+
+    assert find_collaboration_conflicts(packages) == [
+        {
+            "code": "COLLAB_AUTHORITY_MISMATCH",
+            "packages": ["WP_ONE", "WP_TWO"],
+        },
+        {
+            "code": "COLLAB_EVIDENCE_CONFLICT",
+            "packages": ["WP_ONE", "WP_TWO"],
+        },
+        {
+            "code": "COLLAB_WRITE_CONFLICT",
+            "packages": ["WP_ONE", "WP_TWO"],
+        },
+    ]
+
+def test_legacy_task_reported_conflict_is_valid() -> None:
+    record = conflict_record()
+    record["reported_by_task"] = "SYN-TASK-001"
+
+    jsonschema.validate(record, conflict_schema())
+
+def test_work_package_reported_conflict_is_valid() -> None:
+    record = conflict_record()
+    record["reported_by_work_package"] = "WP_ONE"
+
+    jsonschema.validate(record, conflict_schema())
+
+def test_conflict_with_both_reporters_is_invalid() -> None:
+    record = conflict_record()
+    record["reported_by_task"] = "SYN-TASK-001"
+    record["reported_by_work_package"] = "WP_ONE"
+
+    with pytest.raises(jsonschema.ValidationError):
+        jsonschema.validate(record, conflict_schema())
+
+def test_conflict_without_reporter_is_invalid() -> None:
+    with pytest.raises(jsonschema.ValidationError):
+        jsonschema.validate(conflict_record(), conflict_schema())
+
+def test_resolved_by_work_package_is_valid() -> None:
+    record = conflict_record()
+    record["reported_by_work_package"] = "WP_ONE"
+    record["resolved_by_work_package"] = "WP_COORDINATOR"
+
+    jsonschema.validate(record, conflict_schema())
