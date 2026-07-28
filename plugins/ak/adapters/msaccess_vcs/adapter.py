@@ -73,8 +73,26 @@ class MsAccessVcsAdapter:
         return validate_contribution({
             "adapter_id": self.adapter_id, "adapter_version": self.adapter_version, "app_id": result.app_id,
             "status": result.status, **sections, "failures": list(result.failures),
-            "provenance": {"producer": "msaccess-vcs-addin", "source_hashes": dict(sorted(result.source_hashes.items())), **result.metadata},
+            "provenance": {
+                "producer": "msaccess-vcs-addin",
+                "source_hashes": dict(sorted(result.source_hashes.items())),
+                "capabilities": _content_capabilities(sections),
+                **result.metadata,
+            },
         })
+
+
+def _content_capabilities(sections: dict[str, Any]) -> list[str]:
+    capabilities: set[str] = set()
+    if sections["code"]["vba"] or sections["code"]["access_sql"]:
+        capabilities.add("vba_query_inventory")
+    if any(sections["ui"].values()):
+        capabilities.add("ui_object_inventory")
+    if sections["evidence_sources"]["documents"]["inventory"]:
+        capabilities.add("document_inventory")
+    if sections["interfaces"]["linked_tables"] or sections["interfaces"]["file_interfaces"]:
+        capabilities.add("boundary_inventory")
+    return sorted(capabilities)
 
 def _kind(root: Path, path: Path, producer_version: str) -> str | None:
     suffix = path.suffix.lower()

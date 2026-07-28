@@ -138,20 +138,7 @@ def run_acquisition(
 def _capabilities(contributions: list[dict[str, Any]]) -> set[str]:
     capabilities: set[str] = set()
     for contribution in contributions:
-        if contribution["code"]["vba"] or contribution["code"]["access_sql"]:
-            capabilities.add("vba_query_inventory")
-        if contribution["ui"]["forms"] or contribution["ui"]["reports"] or contribution["ui"]["macros"]:
-            capabilities.add("ui_object_inventory")
-        if contribution["databases"]["objects"]:
-            capabilities.add("access_object_inventory")
-        if contribution["databases"]["tables"]:
-            capabilities.update({"access_schema_inventory", "field_inventory", "key_index_inventory"})
-        if contribution["interfaces"]["linked_tables"] or contribution["interfaces"]["file_interfaces"]:
-            capabilities.add("boundary_inventory")
-        if "server_object_inventory" in contribution["provenance"].get("capabilities", []):
-            capabilities.add("server_object_inventory")
-        if contribution["evidence_sources"]["documents"]["inventory"]:
-            capabilities.add("document_inventory")
+        capabilities.update(contribution["provenance"].get("capabilities", []))
     return capabilities
 
 

@@ -97,9 +97,32 @@ class ManagedAccessAdapter:
         contribution = {
             "adapter_id": self.adapter_id, "adapter_version": self.adapter_version, "app_id": result.app_id,
             "status": result.status, **sections, "failures": failures,
-            "provenance": {"producer": "ak-managed-access", "source_hashes": dict(sorted(result.source_hashes.items()))},
+            "provenance": {
+                "producer": "ak-managed-access",
+                "source_hashes": dict(sorted(result.source_hashes.items())),
+                "capabilities": _access_capabilities(sections),
+            },
         }
         return validate_contribution(contribution)
+
+
+def _access_capabilities(sections: dict[str, Any]) -> list[str]:
+    capabilities: set[str] = set()
+    if any(sections["databases"].values()) or any(sections["ui"].values()) or any(sections["code"].values()):
+        capabilities.add("access_object_inventory")
+    if sections["databases"]["tables"]:
+        capabilities.add("access_schema_inventory")
+    if sections["databases"]["fields"]:
+        capabilities.add("field_inventory")
+    if sections["databases"]["indexes"]:
+        capabilities.add("key_index_inventory")
+    if sections["code"]["vba"] or sections["code"]["access_sql"]:
+        capabilities.add("vba_query_inventory")
+    if any(sections["ui"].values()):
+        capabilities.add("ui_object_inventory")
+    if sections["interfaces"]["linked_tables"]:
+        capabilities.add("boundary_inventory")
+    return sorted(capabilities)
 
 def _find_extraction(root: Path, database_id: str, acquisition_id: str) -> Path:
     return root / database_id / acquisition_id / "access-extraction.json"
