@@ -91,3 +91,52 @@ def test_assemble_rejects_forbidden_binary(tmp_path: Path) -> None:
     except ValueError:
         return
     raise AssertionError("assembly must reject raw binary contributions")
+
+
+def _assemble(tmp_path: Path, contributions: list[dict]) -> dict:
+    return assemble_bundle(
+        app_id="SYN", classification=_classification(), rule_versions={"topology": "1.0.0"},
+        contributions=contributions, normalization_config={"text": "utf-8-lf"},
+        profile_validation={"status": "VALID"}, phase_readiness={"phase1": {"status": "LIMITED"}},
+        output_root=tmp_path,
+    )
+
+
+def test_cross_adapter_hash_conflict_is_rejected(tmp_path: Path) -> None:
+    first = _contribution("imported_sources")
+    second = _contribution("msaccess_vcs")
+    second["provenance"]["source_hashes"]["q1"] = "b" * 64
+    second["code"]["access_sql"][0]["sha256"] = "b" * 64
+    try:
+        _assemble(tmp_path, [first, second])
+    except ValueError as exc:
+        assert str(exc) == "DUPLICATE_MISMATCH:q1"
+        return
+    raise AssertionError("cross-adapter digest conflicts must be rejected")
+
+
+def test_identical_cross_adapter_record_is_deduplicated(tmp_path: Path) -> None:
+    result = _assemble(tmp_path, [_contribution("imported_sources"), _contribution("msaccess_vcs")])
+    inventory = json.loads(
+        (Path(result["bundle_dir"]) / "code" / "access-sql" / "inventory.json").read_text(encoding="utf-8")
+    )
+    assert len(inventory) == 1
+
+
+def test_reassembly_reuses_identical_existing_bundle(tmp_path: Path) -> None:
+    first = _assemble(tmp_path, [_contribution("imported_sources")])
+    second = _assemble(tmp_path, [_contribution("imported_sources")])
+    assert second == first
+
+
+def test_reassembly_rejects_stale_extra_file_without_deleting_it(tmp_path: Path) -> None:
+    first = _assemble(tmp_path, [_contribution("imported_sources")])
+    stale = Path(first["bundle_dir"]) / "stale.txt"
+    stale.write_text("stale", encoding="utf-8")
+    try:
+        _assemble(tmp_path, [_contribution("imported_sources")])
+    except ValueError as exc:
+        assert str(exc) == "BUNDLE_PATH_CONFLICT"
+        assert stale.read_text(encoding="utf-8") == "stale"
+        return
+    raise AssertionError("stale target content must not be overwritten")

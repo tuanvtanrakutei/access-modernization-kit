@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import hashlib
 import json
+import shutil
+import tempfile
 from pathlib import Path
 from typing import Any
 
@@ -31,8 +33,27 @@ def _logical_artifacts(contributions: list[dict[str, Any]]) -> list[dict[str, st
     artifacts: dict[str, str] = {}
     for contribution in contributions:
         for logical_id, digest in contribution["provenance"]["source_hashes"].items():
+            previous = artifacts.get(logical_id)
+            if previous is not None and previous != digest:
+                raise ValueError(f"DUPLICATE_MISMATCH:{logical_id}")
             artifacts[logical_id] = digest
     return [{"logical_id": key, "content_sha256": artifacts[key]} for key in sorted(artifacts)]
+
+
+def _merge_records(target: list[dict[str, Any]], incoming: list[dict[str, Any]]) -> None:
+    keyed: dict[tuple[str, str], dict[str, Any]] = {}
+    unkeyed: list[dict[str, Any]] = []
+    for record in [*target, *incoming]:
+        logical_id = record.get("logical_id")
+        digest = record.get("sha256")
+        if logical_id is None or digest is None:
+            unkeyed.append(record)
+            continue
+        keyed.setdefault((str(logical_id), str(digest)), record)
+    target[:] = [keyed[key] for key in sorted(keyed)] + sorted(
+        unkeyed, key=lambda item: json.dumps(item, ensure_ascii=False, sort_keys=True)
+    )
+
 
 def _merge_sections(contributions: list[dict[str, Any]]) -> dict[str, Any]:
     from adapters.base import empty_sections
@@ -41,12 +62,28 @@ def _merge_sections(contributions: list[dict[str, Any]]) -> dict[str, Any]:
     for contribution in sorted(contributions, key=lambda item: item["adapter_id"]):
         for group in ("databases", "code", "ui", "interfaces"):
             for key, values in contribution[group].items():
-                merged[group][key].extend(values)
+                _merge_records(merged[group][key], values)
         for key in ("documents", "screenshots", "reports", "samples"):
-            merged["evidence_sources"][key]["inventory"].extend(
+            _merge_records(
+                merged["evidence_sources"][key]["inventory"],
                 contribution["evidence_sources"][key]["inventory"]
             )
     return merged
+
+
+def _tree_hashes(root: Path) -> dict[str, str]:
+    return {
+        path.relative_to(root).as_posix(): hashlib.sha256(path.read_bytes()).hexdigest()
+        for path in sorted(root.rglob("*")) if path.is_file()
+    }
+
+
+def _publish_bundle(staged: Path, target: Path) -> None:
+    if target.exists():
+        if _tree_hashes(target) != _tree_hashes(staged):
+            raise ValueError("BUNDLE_PATH_CONFLICT")
+        return
+    staged.replace(target)
 
 def assemble_bundle(
     app_id: str,
@@ -76,12 +113,7 @@ def assemble_bundle(
         "bundle_schema_version": schema_version, "normalization_config": normalization_config,
     }
     bundle_id = bundle_contract.compute_bundle_id(identity)
-    bundle_dir = Path(output_root).expanduser().resolve() / bundle_id
     merged = _merge_sections(contributions)
-    _write_layout(bundle_dir, merged, contributions, bundle_id, schema_version)
-    _write_json(bundle_dir / "profile-validation.json", profile_validation)
-    _write_json(bundle_dir / "phase-readiness.json", phase_readiness)
-
     worst = _worst_status(contributions)
     bundle_json = {
         "schema_version": schema_version, "bundle_id": bundle_id, "app_id": app_id,
@@ -96,12 +128,24 @@ def assemble_bundle(
         },
     }
     provenance = _provenance(bundle_id, schema_version, contributions)
-    _write_json(bundle_dir / "bundle.json", bundle_json)
-    _write_json(bundle_dir / "provenance.json", provenance)
-    _validate_json(bundle_dir / "provenance.json", "bundle-provenance.schema.json")
-    _validate_json(bundle_dir / "coverage.json", "bundle-coverage.schema.json")
-    _write_checksums(bundle_dir)
-    bundle_contract.validate_bundle(bundle_dir)
+    output = Path(output_root).expanduser().resolve()
+    output.mkdir(parents=True, exist_ok=True)
+    bundle_dir = output / bundle_id
+    staged = Path(tempfile.mkdtemp(prefix=f".{bundle_id}.", dir=output))
+    try:
+        _write_layout(staged, merged, contributions, bundle_id, schema_version)
+        _write_json(staged / "profile-validation.json", profile_validation)
+        _write_json(staged / "phase-readiness.json", phase_readiness)
+        _write_json(staged / "bundle.json", bundle_json)
+        _write_json(staged / "provenance.json", provenance)
+        _validate_json(staged / "provenance.json", "bundle-provenance.schema.json")
+        _validate_json(staged / "coverage.json", "bundle-coverage.schema.json")
+        _write_checksums(staged)
+        bundle_contract.validate_bundle(staged)
+        _publish_bundle(staged, bundle_dir)
+    finally:
+        if staged.exists():
+            shutil.rmtree(staged)
     return {"bundle_id": bundle_id, "bundle_dir": str(bundle_dir), "status": worst}
 
 def _write_layout(
