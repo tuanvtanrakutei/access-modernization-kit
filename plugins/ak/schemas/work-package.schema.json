@@ -1,0 +1,113 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://sms.local/schemas/work-package.schema.json",
+  "title": "Canonical Collaboration Work Package",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version", "package_id", "title", "objective", "work_kind", "authority",
+    "scope", "dependencies", "input_paths", "write_paths", "expected_artifacts",
+    "evidence_namespace", "validation_commands", "coordinator", "reviewer",
+    "publication_policy", "security_constraints", "created_by", "created_at"
+  ],
+  "properties": {
+    "schema_version": {"type": "string", "minLength": 1},
+    "package_id": {"type": "string", "pattern": "^[A-Z0-9_-]+$"},
+    "title": {"type": "string", "minLength": 1},
+    "objective": {"type": "string", "minLength": 1},
+    "work_kind": {"type": "string", "enum": ["kit_code", "kit_contract", "kit_docs", "application_evidence", "application_docs", "application_qa", "mixed_pilot"]},
+    "authority": {
+      "type": "object",
+      "oneOf": [
+        {
+          "additionalProperties": false,
+          "required": ["kind", "repository", "base_revision"],
+          "properties": {
+            "kind": {"const": "repository_revision"},
+            "repository": {"type": "string", "minLength": 1},
+            "base_revision": {"type": "string", "minLength": 1}
+          }
+        },
+        {
+          "additionalProperties": false,
+          "required": ["kind", "app_id", "bundle_id", "checksum", "bundle_lock_digest", "approval_record_id", "distribution_policy", "artifact_reference"],
+          "properties": {
+            "kind": {"const": "approved_bundle"},
+            "app_id": {"type": "string", "minLength": 1},
+            "bundle_id": {"type": "string", "pattern": "^bundle-[A-Za-z0-9_-]+$"},
+            "checksum": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+            "bundle_lock_digest": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+            "approval_record_id": {"type": "string", "minLength": 1},
+            "distribution_policy": {"type": "string", "enum": ["local_only", "shared_path", "artifact_store", "git_allowed"]},
+            "artifact_reference": {"type": "string", "minLength": 1}
+          }
+        },
+        {
+          "additionalProperties": false,
+          "required": ["kind", "repository", "base_revision", "app_id", "bundle_id", "checksum", "bundle_lock_digest", "approval_record_id", "distribution_policy", "artifact_reference"],
+          "properties": {
+            "kind": {"const": "mixed"},
+            "repository": {"type": "string", "minLength": 1},
+            "base_revision": {"type": "string", "minLength": 1},
+            "app_id": {"type": "string", "minLength": 1},
+            "bundle_id": {"type": "string", "pattern": "^bundle-[A-Za-z0-9_-]+$"},
+            "checksum": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+            "bundle_lock_digest": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+            "approval_record_id": {"type": "string", "minLength": 1},
+            "distribution_policy": {"type": "string", "enum": ["local_only", "shared_path", "artifact_store", "git_allowed"]},
+            "artifact_reference": {"type": "string", "minLength": 1}
+          }
+        }
+      ]
+    },
+    "scope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["roles", "wave_ids", "phase_targets", "module_targets", "profile_targets", "adapter_targets", "document_targets"],
+      "properties": {
+        "roles": {"type": "array", "items": {"type": "string"}},
+        "wave_ids": {"type": "array", "items": {"type": "string"}},
+        "phase_targets": {"type": "array", "items": {"type": "integer", "minimum": 1, "maximum": 6}},
+        "module_targets": {"type": "array", "items": {"type": "string"}},
+        "profile_targets": {"type": "array", "items": {"type": "string"}},
+        "adapter_targets": {"type": "array", "items": {"type": "string"}},
+        "document_targets": {"type": "array", "items": {"type": "string"}}
+      }
+    },
+    "dependencies": {"type": "array", "items": {"type": "string", "pattern": "^[A-Z0-9_-]+$"}},
+    "input_paths": {"type": "array", "items": {"type": "string", "minLength": 1}},
+    "write_paths": {"type": "array", "items": {"type": "string", "minLength": 1}},
+    "expected_artifacts": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["path", "kind", "required", "publication_class"],
+        "properties": {
+          "path": {"type": "string", "minLength": 1},
+          "kind": {"type": "string", "minLength": 1},
+          "required": {"type": "boolean"},
+          "publication_class": {"type": "string", "minLength": 1}
+        }
+      }
+    },
+    "evidence_namespace": {"type": ["string", "null"]},
+    "validation_commands": {"type": "array", "items": {"type": "string", "minLength": 1}},
+    "coordinator": {"type": "string", "minLength": 1},
+    "reviewer": {"type": "string", "minLength": 1},
+    "publication_policy": {"type": "string", "enum": ["scoped_only", "document_owner", "coordinator_only"]},
+    "security_constraints": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["network", "live_access", "live_sql_server", "production_data"],
+      "properties": {
+        "network": {"type": "boolean"},
+        "live_access": {"type": "boolean"},
+        "live_sql_server": {"type": "boolean"},
+        "production_data": {"type": "boolean"}
+      }
+    },
+    "created_by": {"type": "string", "minLength": 1},
+    "created_at": {"type": "string", "minLength": 1}
+  }
+}
