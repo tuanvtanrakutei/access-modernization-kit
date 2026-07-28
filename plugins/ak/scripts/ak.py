@@ -9,6 +9,7 @@ import json
 import os
 import subprocess
 import sys
+import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -36,7 +37,7 @@ def configure_acquire_parser(commands: argparse._SubParsersAction) -> None:
     acquire_run.add_argument("--manifest", required=True)
     acquire_run.add_argument("--output-root", required=True)
     acquire_run.add_argument("--authorize", action="append", default=[])
-    acquire_run.add_argument("--acquisition-id", default="acquire")
+    acquire_run.add_argument("--acquisition-id", default=None)
 
 
 def parse_args() -> argparse.Namespace:
@@ -269,9 +270,10 @@ def main() -> int:
         if args.acquire_action == "plan":
             print_json(plan_acquisition(manifest_path))
             return 0
+        acquisition_id = args.acquisition_id or f"acquire-{uuid.uuid4().hex}"
         result = run_acquisition(
             manifest_path, Path(args.output_root).expanduser().resolve(),
-            tuple(args.authorize), args.acquisition_id,
+            tuple(args.authorize), acquisition_id,
         )
         print_json(result)
         return 0

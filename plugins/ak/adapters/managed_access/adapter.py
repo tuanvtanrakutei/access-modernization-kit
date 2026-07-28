@@ -56,10 +56,26 @@ class ManagedAccessAdapter:
                 "--output-dir", plan.runtime_output_root, "--session-id", plan.acquisition_id,
                 "--execute",
             ]
+            extraction = _find_extraction(
+                Path(plan.runtime_output_root), artifact["id"], plan.acquisition_id
+            )
+            if extraction.exists():
+                failures.append({
+                    "logical_id": artifact["id"], "reason": "STALE_EXTRACTION_RESULT"
+                })
+                continue
             completed = subprocess.run(command, check=False, capture_output=True, text=True, encoding="utf-8")
-            extraction = _find_extraction(Path(plan.runtime_output_root), artifact["id"], plan.acquisition_id)
+            if completed.returncode != 0:
+                failures.append({
+                    "logical_id": artifact["id"], "reason": "EXTRACTOR_FAILED",
+                    "returncode": completed.returncode,
+                })
+                continue
             if not extraction.is_file():
-                failures.append({"logical_id": artifact["id"], "reason": "EXTRACTION_RESULT_MISSING", "returncode": completed.returncode})
+                failures.append({
+                    "logical_id": artifact["id"], "reason": "EXTRACTION_RESULT_MISSING",
+                    "returncode": completed.returncode,
+                })
                 continue
             data = json.loads(extraction.read_text(encoding="utf-8"))
             records.append(data)
