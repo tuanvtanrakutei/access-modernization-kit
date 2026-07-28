@@ -97,12 +97,73 @@ def detect_record_conflicts(records: list[dict[str, Any]]) -> list[dict[str, str
         safe_names.setdefault(name_key, (logical_id, digest))
     return sorted(failures, key=lambda item: (item["logical_id"], item["reason"]))
 
-def load_import_manifest(path: Path) -> dict[str, Any]:
-    data = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+def load_import_manifest_bytes(raw: bytes) -> dict[str, Any]:
+    data = yaml.safe_load(raw.decode("utf-8", errors="strict")) or {}
     schema_path = Path(__file__).resolve().parents[2] / "schemas" / "import-source-manifest.schema.json"
-    schema = json.loads(schema_path.read_text(encoding="utf-8"))
-    jsonschema.validate(data, schema)
+    jsonschema.validate(data, json.loads(schema_path.read_text(encoding="utf-8")))
     return data
+
+
+def load_import_manifest(path: Path) -> dict[str, Any]:
+    return load_import_manifest_bytes(path.read_bytes())
+
+
+def _normalized_member_name(value: str) -> str:
+    member = PurePosixPath(value.replace("\\", "/"))
+    if member.is_absolute() or ".." in member.parts:
+        raise ValueError("ARCHIVE_PATH_ESCAPE")
+    return member.as_posix()
+
+
+def _zip_member_map(archive: zipfile.ZipFile) -> dict[str, zipfile.ZipInfo]:
+    result: dict[str, zipfile.ZipInfo] = {}
+    for info in safe_zip_members(archive):
+        if info.is_dir():
+            continue
+        name = _normalized_member_name(info.filename)
+        if name in result:
+            raise ValueError("ARCHIVE_MEMBER_CONFLICT")
+        result[name] = info
+    return result
+
+
+def _read_directory_package(source: Path) -> tuple[dict[str, Any], dict[str, bytes]]:
+    manifest_path = source / "import-source-manifest.yaml"
+    if not manifest_path.is_file():
+        raise ValueError("IMPORT_MANIFEST_REQUIRED")
+    manifest = load_import_manifest(manifest_path)
+    declared = {_normalized_member_name(item["path"]): item for item in manifest["files"]}
+    actual = {
+        path.relative_to(source).as_posix()
+        for path in source.rglob("*")
+        if path.is_file() and path != manifest_path
+    }
+    if actual != set(declared):
+        raise ValueError("UNDECLARED_PACKAGE_MEMBER")
+    payloads: dict[str, bytes] = {}
+    for name in sorted(declared):
+        path = source / Path(*PurePosixPath(name).parts)
+        if path.is_symlink():
+            raise ValueError("PACKAGE_SYMLINK")
+        payloads[name] = confined(source, name).read_bytes()
+    return manifest, payloads
+
+
+def _read_zip_package(source: Path) -> tuple[dict[str, Any], dict[str, bytes]]:
+    with zipfile.ZipFile(source) as archive:
+        members = _zip_member_map(archive)
+        manifest_info = members.get("import-source-manifest.yaml")
+        if manifest_info is None:
+            raise ValueError("IMPORT_MANIFEST_REQUIRED")
+        manifest = load_import_manifest_bytes(archive.read(manifest_info))
+        declared = {_normalized_member_name(item["path"]): item for item in manifest["files"]}
+        if set(members) != set(declared) | {"import-source-manifest.yaml"}:
+            raise ValueError("UNDECLARED_PACKAGE_MEMBER")
+        return manifest, {name: archive.read(members[name]) for name in sorted(declared)}
+
+
+def _read_package(source: Path) -> tuple[dict[str, Any], dict[str, bytes]]:
+    return _read_directory_package(source) if source.is_dir() else _read_zip_package(source)
 
 class ImportedSourcesAdapter:
     adapter_id = ADAPTER_ID
@@ -139,13 +200,15 @@ class ImportedSourcesAdapter:
             artifact = operation["artifact"]
             source = Path(operation["source"])
             if operation["is_package"]:
-                manifest = source / "import-source-manifest.yaml" if source.is_dir() else None
-                if manifest is None or not manifest.is_file():
-                    failures.append({"logical_id": artifact["id"], "reason": "IMPORT_MANIFEST_REQUIRED"})
+                try:
+                    manifest, payloads = _read_package(source)
+                except (OSError, UnicodeError, ValueError, zipfile.BadZipFile, jsonschema.ValidationError) as exc:
+                    reason = str(exc) if str(exc).isupper() else "INVALID_IMPORT_PACKAGE"
+                    failures.append({"logical_id": artifact["id"], "reason": reason})
                     continue
-                for item in load_import_manifest(manifest)["files"]:
-                    path = confined(source, item["path"])
-                    raw = path.read_bytes()
+                for item in manifest["files"]:
+                    name = _normalized_member_name(item["path"])
+                    raw = payloads[name]
                     if sha256_bytes(raw) != item["sha256"]:
                         failures.append({"logical_id": item["logical_id"], "reason": "HASH_MISMATCH"})
                         continue
