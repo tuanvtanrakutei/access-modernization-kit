@@ -93,6 +93,19 @@ def application_package(package_id: str = "WP_SYN_SQL") -> dict:
     return value
 
 
+def candidate_task() -> dict:
+    return {
+        "task_id": "SYN-W1-SQL-ORDERS", "run_id": "SYN-RUN", "app_id": "SYN",
+        "wave_id": "wave1_source_extraction", "role": "sql_data", "phase_targets": [1],
+        "module_targets": ["module-orders"], "module_order": ["module-orders"], "dependencies": [],
+        "input_paths": ["../../extracted/bundles/bundle-a/code/access-sql"],
+        "write_paths": ["work/sql_data/module-orders"],
+        "evidence_namespace": "SYN-P1-SQL_DATA-ORDERS", "instructions": [],
+        "status": "PENDING", "attempt": 0, "max_attempts": 2, "token_budget": None,
+        "created_at": "2026-07-28T00:00:00Z",
+    }
+
+
 def mixed_package(package_id: str = "WP_SYN_PILOT") -> dict:
     value = application_package(package_id)
     value["work_kind"] = "mixed_pilot"

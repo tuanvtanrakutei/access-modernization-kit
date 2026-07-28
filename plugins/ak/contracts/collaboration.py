@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from copy import deepcopy
 import hashlib
 import json
 from pathlib import Path, PurePosixPath, PureWindowsPath
@@ -21,6 +22,11 @@ FORBIDDEN_SUFFIXES = {
     ".dsn",
     ".env",
 }
+WINDOWS_RESERVED_TASK_NAMES = {"CON", "PRN", "AUX", "NUL"} | {
+    f"{prefix}{number}"
+    for prefix in ("COM", "LPT")
+    for number in range(1, 10)
+}
 
 
 class CollaborationError(ValueError):
@@ -33,6 +39,12 @@ class CollaborationError(ValueError):
 def _schema(name: str) -> dict[str, Any]:
     return json.loads((PACKAGE / "schemas" / name).read_text(encoding="utf-8"))
 
+
+def _validate_task(value: dict[str, Any]) -> None:
+    try:
+        jsonschema.validate(value, _schema('task.schema.json'))
+    except jsonschema.ValidationError as exc:
+        raise CollaborationError('COLLAB_PROJECTION_EXPANDED', exc.message) from exc
 
 def work_package_digest(value: dict[str, Any]) -> str:
     scoped = {key: item for key, item in value.items() if key != "created_at"}
@@ -61,6 +73,18 @@ def validate_work_package(value: dict[str, Any]) -> None:
         jsonschema.validate(value, _schema("work-package.schema.json"))
     except jsonschema.ValidationError as exc:
         raise CollaborationError("COLLAB_PACKAGE_INVALID", exc.message) from exc
+
+    required_authority_kind = {
+        "kit_code": "repository_revision",
+        "kit_contract": "repository_revision",
+        "kit_docs": "repository_revision",
+        "application_evidence": "approved_bundle",
+        "application_docs": "approved_bundle",
+        "application_qa": "approved_bundle",
+        "mixed_pilot": "mixed",
+    }[value["work_kind"]]
+    if value["authority"]["kind"] != required_authority_kind:
+        raise CollaborationError("COLLAB_PACKAGE_INVALID", "authority")
 
     paths = (
         value["input_paths"]
@@ -95,6 +119,124 @@ def _contains(parent: str, child: str) -> bool:
     left = PurePosixPath(parent.replace("\\", "/"))
     right = PurePosixPath(child.replace("\\", "/"))
     return left == right or left in right.parents
+
+def _task_logical_path(path: str, *, allow_parent_prefix: bool) -> str:
+    raw_parts = tuple(path.split('/'))
+    if (
+        '\\' in path
+        or path.startswith('./')
+        or '//' in path
+        or path.endswith('/')
+        or ':' in path
+        or '.' in raw_parts
+    ):
+        raise CollaborationError('COLLAB_PROJECTION_EXPANDED', 'task path')
+    parsed = PurePosixPath(path)
+    if parsed.is_absolute() or PureWindowsPath(path).drive or not path:
+        raise CollaborationError('COLLAB_PROJECTION_EXPANDED', 'task path')
+    if (
+        allow_parent_prefix
+        and raw_parts[:2] == ('..', '..')
+        and raw_parts[2:]
+        and '..' not in raw_parts[2:]
+    ):
+        logical_parts = raw_parts[2:]
+    elif '..' in raw_parts:
+        raise CollaborationError('COLLAB_PROJECTION_EXPANDED', 'task path')
+    else:
+        logical_parts = raw_parts
+    if any(
+        not part.rstrip(' .') or part.endswith((' ', '.'))
+        for part in logical_parts
+    ):
+        raise CollaborationError('COLLAB_PROJECTION_EXPANDED', 'task path')
+    if any(
+        part.rstrip(' .').split('.', 1)[0].rstrip(' .').upper()
+        in WINDOWS_RESERVED_TASK_NAMES
+        for part in logical_parts
+    ):
+        raise CollaborationError('COLLAB_PROJECTION_EXPANDED', 'task path')
+    return PurePosixPath(*logical_parts).as_posix()
+
+def _inside_any(
+    path: str, allowed: list[str], *, allow_parent_prefix: bool
+) -> bool:
+    logical = _task_logical_path(path, allow_parent_prefix=allow_parent_prefix)
+    return any(_contains(parent, logical) for parent in allowed)
+
+def project_task(package: dict[str, Any], task: dict[str, Any]) -> dict[str, Any]:
+    validate_work_package(package)
+    scope = package['scope']
+    authority = package['authority']
+    package_namespace = package['evidence_namespace']
+    bindings = {
+        'work_package_id': package['package_id'],
+        'work_package_digest': work_package_digest(package),
+        'projection_version': '1.0',
+    }
+    projection_fields = tuple(bindings)
+    has_projection = any(field in task for field in projection_fields)
+    validation_task = task
+    if (
+        package_namespace is None
+        and task.get('evidence_namespace') is None
+        and not has_projection
+    ):
+        validation_task = dict(task)
+        validation_task.update(bindings)
+    _validate_task(validation_task)
+    if has_projection and (
+        not all(field in task for field in projection_fields)
+        or any(task[field] != bindings[field] for field in projection_fields)
+    ):
+        raise CollaborationError('COLLAB_PROJECTION_EXPANDED', 'work package binding')
+    task_namespace = task['evidence_namespace']
+    namespace_valid = (
+        task_namespace is None
+        if package_namespace is None
+        else isinstance(task_namespace, str)
+        and (
+            task_namespace == package_namespace
+            or task_namespace.startswith(package_namespace + '-')
+        )
+    )
+    checks = (
+        (
+            authority['kind'] not in {'approved_bundle', 'mixed'}
+            or task['app_id'] == authority['app_id'],
+            'app_id',
+        ),
+        (task['role'] in scope['roles'], 'role'),
+        (task['wave_id'] in scope['wave_ids'], 'wave_id'),
+        (set(task.get('phase_targets', [])).issubset(scope['phase_targets']), 'phase_targets'),
+        (set(task.get('module_targets', [])).issubset(scope['module_targets']), 'module_targets'),
+        (
+            all(
+                _inside_any(
+                    path, package['input_paths'], allow_parent_prefix=True
+                )
+                for path in task['input_paths']
+            ),
+            'input_paths',
+        ),
+        (
+            all(
+                _inside_any(
+                    path, package['write_paths'], allow_parent_prefix=False
+                )
+                for path in task['write_paths']
+            ),
+            'write_paths',
+        ),
+        (namespace_valid, 'evidence_namespace'),
+    )
+    for valid, field in checks:
+        if not valid:
+            raise CollaborationError('COLLAB_PROJECTION_EXPANDED', field)
+    projected = deepcopy(task)
+    projected.update(bindings)
+    _validate_task(projected)
+    return projected
 
 def _authority_key(package: dict[str, Any]) -> str:
     return json.dumps(

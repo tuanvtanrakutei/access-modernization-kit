@@ -27,7 +27,7 @@ REQUIRED_FILES = (
     "adapters/base.py", "adapters/imported_sources/adapter.py", "adapters/managed_access/adapter.py", "adapters/msaccess_vcs/adapter.py", "adapters/sql_server/adapter.py",
     "profiles/topology.yaml", "profiles/frontend.yaml", "profiles/source-availability.yaml", "profiles/backend.yaml", "profiles/README.md",
     "tests/test_classification.py", "tests/test_manifest_v22.py", "tests/test_staging.py", "tests/test_bundle.py",
-    "tests/test_phase_readiness.py", "tests/test_migration.py", "tests/test_cli_v27.py", "tests/test_bundle_assembly.py", "tests/test_cli_acquire.py", "tests/test_acquisition_orchestrator.py", "tests/collaboration_helpers.py", "tests/test_collaboration.py",
+    "tests/test_phase_readiness.py", "tests/test_migration.py", "tests/test_cli_v27.py", "tests/test_bundle_assembly.py", "tests/test_cli_acquire.py", "tests/test_acquisition_orchestrator.py", "tests/collaboration_helpers.py", "tests/test_collaboration.py", "tests/test_collaboration_projection.py",
     "tests/adapters/test_base.py", "tests/adapters/test_imported_sources.py", "tests/adapters/test_managed_access.py", "tests/adapters/test_msaccess_vcs.py", "tests/adapters/test_sql_server.py",
     "orchestration/roles.json", "orchestration/waves.json", "orchestration/merge-policy.json", "orchestration/conflict-policy.json", "orchestration/runtime-adapters.json",
     "references/manifest.example.yaml", "references/agent-compatibility.md", "references/presentation-guidance.md", "references/orchestration-guide.md",
@@ -113,9 +113,11 @@ def validate_json_schemas(root: Path, errors: list[str]) -> None:
     try:
         import jsonschema  # type: ignore[import-not-found]
     except ImportError:
-        errors.append("jsonschema is required to validate acquisition schemas")
+        errors.append("jsonschema is required to validate schemas")
         return
+    schemas: dict[str, object] = {}
     for relative in (
+        "schemas/task.schema.json",
         "schemas/bundle-contribution.schema.json",
         "schemas/import-source-manifest.schema.json",
         "schemas/sql-server-catalog.schema.json",
@@ -123,8 +125,14 @@ def validate_json_schemas(root: Path, errors: list[str]) -> None:
         try:
             schema = json.loads((root / relative).read_text(encoding="utf-8"))
             jsonschema.validators.validator_for(schema).check_schema(schema)
+            schemas[relative] = schema
         except Exception as exc:  # noqa: BLE001
             errors.append(f"Invalid JSON Schema {relative}: {exc}")
+    try:
+        task = json.loads((root / "templates/task-envelope.json").read_text(encoding="utf-8"))
+        jsonschema.validate(task, schemas["schemas/task.schema.json"])
+    except Exception as exc:  # noqa: BLE001
+        errors.append(f"Invalid projected task template: {exc}")
 
 def validate_orchestration(root: Path, json_data: dict[str, object], errors: list[str]) -> None:
     roles_data = json_data.get("orchestration/roles.json")
