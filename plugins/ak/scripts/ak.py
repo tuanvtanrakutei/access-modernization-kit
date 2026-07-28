@@ -276,7 +276,7 @@ def main() -> int:
             tuple(args.authorize), acquisition_id,
         )
         print_json(result)
-        return 0
+        return 0 if result.get("bundle_id") else 2
     if args.command == "bundle":
         import hashlib
         from bundle import make_approval, validate_bundle

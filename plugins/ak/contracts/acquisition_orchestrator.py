@@ -123,6 +123,12 @@ def run_acquisition(
         classification, PROFILES, capabilities
     )
     profile_validation = {"status": _worst_contribution_status(contributions)}
+    worst = _worst_contribution_status(contributions)
+    if worst in {"INVALID", "BLOCKED"}:
+        return {
+            "bundle_id": None, "bundle_dir": None, "status": worst,
+            "failures": _contribution_failures(contributions),
+        }
     return bundle_assembly.assemble_bundle(
         app_id=manifest.app["id"],
         classification=classification_dict,
@@ -132,6 +138,13 @@ def run_acquisition(
         profile_validation=profile_validation,
         phase_readiness=readiness,
         output_root=Path(output_root),
+    )
+
+
+def _contribution_failures(contributions: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    return sorted(
+        [failure for contribution in contributions for failure in contribution["failures"]],
+        key=lambda item: (item.get("logical_id", ""), item.get("reason", "")),
     )
 
 
