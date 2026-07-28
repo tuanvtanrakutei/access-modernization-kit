@@ -21,12 +21,14 @@ REQUIRED_FILES = (
     "schemas/classification-rule.schema.json", "schemas/manifest-v22.schema.json", "schemas/acquisition-plan.schema.json",
     "schemas/bundle.schema.json", "schemas/bundle-provenance.schema.json", "schemas/bundle-coverage.schema.json",
     "schemas/bundle-lock.schema.json", "schemas/bundle-approval.schema.json", "schemas/phase-readiness.schema.json",
-    "schemas/legacy-manifest-migration.schema.json",
+    "schemas/legacy-manifest-migration.schema.json", "schemas/bundle-contribution.schema.json", "schemas/import-source-manifest.schema.json", "schemas/sql-server-catalog.schema.json",
     "contracts/__init__.py", "contracts/classification.py", "contracts/manifest_v22.py", "contracts/staging.py",
-    "contracts/bundle.py", "contracts/phase_readiness.py", "contracts/migration.py",
+    "contracts/bundle.py", "contracts/phase_readiness.py", "contracts/migration.py", "contracts/bundle_assembly.py", "contracts/acquisition_orchestrator.py",
+    "adapters/base.py", "adapters/imported_sources/adapter.py", "adapters/managed_access/adapter.py", "adapters/msaccess_vcs/adapter.py", "adapters/sql_server/adapter.py",
     "profiles/topology.yaml", "profiles/frontend.yaml", "profiles/source-availability.yaml", "profiles/backend.yaml", "profiles/README.md",
     "tests/test_classification.py", "tests/test_manifest_v22.py", "tests/test_staging.py", "tests/test_bundle.py",
-    "tests/test_phase_readiness.py", "tests/test_migration.py", "tests/test_cli_v27.py",
+    "tests/test_phase_readiness.py", "tests/test_migration.py", "tests/test_cli_v27.py", "tests/test_bundle_assembly.py", "tests/test_cli_acquire.py",
+    "tests/adapters/test_base.py", "tests/adapters/test_imported_sources.py", "tests/adapters/test_managed_access.py", "tests/adapters/test_msaccess_vcs.py", "tests/adapters/test_sql_server.py",
     "orchestration/roles.json", "orchestration/waves.json", "orchestration/merge-policy.json", "orchestration/conflict-policy.json", "orchestration/runtime-adapters.json",
     "references/manifest.example.yaml", "references/agent-compatibility.md", "references/presentation-guidance.md", "references/orchestration-guide.md",
     "references/capability-matrix.md", "references/access-extraction-guide.md", "references/module-and-build-context.md", "references/graphify-phase-gate.md",
@@ -50,7 +52,8 @@ REPOSITORY_FILES = (
     "docs/first-access-mdb-investigation.md", "docs/architecture/investigation-pipeline.md", "docs/architecture/extraction-bundle.md",
     "docs/project-classification/topology-rules.md", "docs/project-classification/frontend-format-rules.md",
     "docs/project-classification/source-availability-rules.md", "docs/project-classification/backend-rules.md",
-    "docs/project-classification/resolved-examples.md", ".github/CODEOWNERS",
+    "docs/project-classification/resolved-examples.md",
+    "docs/acquisition/decision-guide.md", "docs/acquisition/managed-access.md", "docs/acquisition/imported-sources.md", "docs/acquisition/sql-server.md", ".github/CODEOWNERS",
     ".github/workflows/validate.yml", ".github/dependabot.yml", ".github/pull_request_template.md",
     ".github/ISSUE_TEMPLATE/bug_report.yml", ".github/ISSUE_TEMPLATE/feature_request.yml",
 )
@@ -104,6 +107,24 @@ def validate_manifest_yaml(path: Path, schema_path: Path, errors: list[str], war
     except Exception as exc:  # noqa: BLE001
         errors.append(f"Manifest schema validation failed for {path}: {exc}")
 
+
+
+def validate_json_schemas(root: Path, errors: list[str]) -> None:
+    try:
+        import jsonschema  # type: ignore[import-not-found]
+    except ImportError:
+        errors.append("jsonschema is required to validate acquisition schemas")
+        return
+    for relative in (
+        "schemas/bundle-contribution.schema.json",
+        "schemas/import-source-manifest.schema.json",
+        "schemas/sql-server-catalog.schema.json",
+    ):
+        try:
+            schema = json.loads((root / relative).read_text(encoding="utf-8"))
+            jsonschema.validators.validator_for(schema).check_schema(schema)
+        except Exception as exc:  # noqa: BLE001
+            errors.append(f"Invalid JSON Schema {relative}: {exc}")
 
 def validate_orchestration(root: Path, json_data: dict[str, object], errors: list[str]) -> None:
     roles_data = json_data.get("orchestration/roles.json")
@@ -184,6 +205,8 @@ def main() -> int:
         if not path.is_file() or path.stat().st_size == 0:
             errors.append(f"Missing or empty repository file: {relative}")
 
+    validate_json_schemas(root, errors)
+
     skill_path = root / "skills/ak/SKILL.md"
     if skill_path.is_file():
         skill = skill_path.read_text(encoding="utf-8")
@@ -191,7 +214,7 @@ def main() -> int:
             errors.append("SKILL.md frontmatter is missing or incorrect")
         if len(skill.splitlines()) > 500:
             errors.append("SKILL.md exceeds 500 lines")
-        for phrase in ("multi-agent", "coordinator", "independent QA", "scripts/create_run.py", "Access extraction", "leaf-first", "CodeWiki is not a dependency", "graphify_phase_gate.py check", "$ak help", "$ak init <APP_ID>", "$ak render <APP_ID> [LANGUAGE]"):
+        for phrase in ("multi-agent", "coordinator", "independent QA", "scripts/create_run.py", "Access extraction", "leaf-first", "CodeWiki is not a dependency", "graphify_phase_gate.py check", "$ak help", "$ak init <APP_ID>", "$ak acquire <APP_ID>", "$ak render <APP_ID> [LANGUAGE]"):
             if phrase not in skill:
                 errors.append(f"SKILL.md missing V2.1 term: {phrase}")
         if "TODO" in skill:

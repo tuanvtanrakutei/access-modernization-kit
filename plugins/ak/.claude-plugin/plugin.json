@@ -1,6 +1,6 @@
 {
   "name": "ak",
-  "version": "2.7.0",
+  "version": "2.7.1",
   "description": "Evidence-backed six-phase investigation for Access/VBA and SQL Server legacy applications.",
   "author": {
     "name": "Vo Ta Tuan",
@@ -10,5 +10,11 @@
   "homepage": "https://github.com/tuanvtanrakutei/access-modernization-kit",
   "repository": "https://github.com/tuanvtanrakutei/access-modernization-kit",
   "license": "Apache-2.0",
-  "keywords": ["microsoft-access", "vba", "sql-server", "legacy-modernization", "multi-agent"]
+  "keywords": [
+    "microsoft-access",
+    "vba",
+    "sql-server",
+    "legacy-modernization",
+    "multi-agent"
+  ]
 }

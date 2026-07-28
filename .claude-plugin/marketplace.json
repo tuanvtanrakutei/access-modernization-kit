@@ -7,14 +7,14 @@
   },
   "metadata": {
     "description": "Access Modernization Kit marketplace for Claude Code.",
-    "version": "2.7.0"
+    "version": "2.7.1"
   },
   "plugins": [
     {
       "name": "ak",
       "source": "./plugins/ak",
       "description": "Evidence-backed six-phase investigation for Access/VBA and SQL Server legacy applications.",
-      "version": "2.7.0",
+      "version": "2.7.1",
       "author": {
         "name": "Vo Ta Tuan",
         "email": "vo-ta-tuan@anrakutei.vn",
@@ -23,7 +23,13 @@
       "homepage": "https://github.com/tuanvtanrakutei/access-modernization-kit",
       "repository": "https://github.com/tuanvtanrakutei/access-modernization-kit",
       "license": "Apache-2.0",
-      "keywords": ["microsoft-access", "vba", "sql-server", "legacy-modernization", "multi-agent"],
+      "keywords": [
+        "microsoft-access",
+        "vba",
+        "sql-server",
+        "legacy-modernization",
+        "multi-agent"
+      ],
       "category": "productivity"
     }
   ]

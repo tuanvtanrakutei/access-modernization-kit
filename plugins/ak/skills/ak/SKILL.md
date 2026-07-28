@@ -3,7 +3,7 @@ name: ak
 description: Analyze Microsoft Access VBA applications and MDB/ACCDB/ADP projects connected to SQL Server through a mandatory six-phase, evidence-backed legacy-system investigation with Access extraction, deterministic module planning, and provider-neutral multi-agent orchestration. Use when an agent must package, initialize, analyze, review, or continue investigation of an SMS A-series satellite app and produce Phase documents, E2E traces, boundary maps, question lists, QA, or presentation inputs.
 ---
 
-# Access Modernization Kit V2.7
+# Access Modernization Kit V2.7.1
 
 Use one shared investigation method while keeping every app's sources, graph, decisions, sessions, and outputs isolated.
 
@@ -20,6 +20,7 @@ Treat these short forms as explicit user requests. They are agent commands, not 
 | `$ak install claude <PROJECT_PATH>` | Run `scripts/ak.py install --runtime claude --project <PROJECT_PATH>`; report the discovery path and restart requirement. |
 | `$ak init <APP_ID>` | Use app initialization mode. For a non-empty existing project root, require explicit adoption with scripts/ak.py init --app-root <APP_ROOT> --adopt-existing; preserve existing files, then stop. |
 | `$ak assess <APP_ID>` | Resolve or propose the project classification, inspect authorized artifacts/staging, report bundle and phase readiness, gaps, required approvals, and recommended optional evidence without analyzing a phase. |
+| `$ak acquire <APP_ID>` | Plan or run declared acquisition adapters to create an unapproved canonical bundle; managed Access requires explicit `access_snapshot_extract` authorization and operates only through a verified disposable snapshot. |
 | `$ak phase <1-6> <APP_ID>` | For V2.2 require an approved bundle and non-blocked phase readiness before Graphify; for V2.1 warn that migration is pending, preserve the legacy gate, then run only the named phase. |
 | `$ak run <APP_ID>` | Run technically permitted phases in order, stopping on `BLOCKED`; this never authorizes live Access, ADP, SQL Server, backup restore, or network access. |
 | `$ak status <APP_ID>` | Report app/run/phase/QA status without changing evidence or outputs. |

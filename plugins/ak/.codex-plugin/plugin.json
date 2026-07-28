@@ -1,6 +1,6 @@
 {
   "name": "ak",
-  "version": "2.7.0",
+  "version": "2.7.1",
   "description": "Evidence-backed six-phase investigation for Access/VBA and SQL Server legacy applications.",
   "author": {
     "name": "Vo Ta Tuan",
@@ -10,7 +10,13 @@
   "homepage": "https://github.com/tuanvtanrakutei/access-modernization-kit",
   "repository": "https://github.com/tuanvtanrakutei/access-modernization-kit",
   "license": "Apache-2.0",
-  "keywords": ["microsoft-access", "vba", "sql-server", "legacy-modernization", "multi-agent"],
+  "keywords": [
+    "microsoft-access",
+    "vba",
+    "sql-server",
+    "legacy-modernization",
+    "multi-agent"
+  ],
   "skills": "./skills/",
   "interface": {
     "displayName": "Access Modernization Kit",
@@ -18,9 +24,16 @@
     "longDescription": "An evidence-backed six-phase method for analyzing an independent legacy business application.",
     "developerName": "Vo Ta Tuan",
     "category": "Productivity",
-    "capabilities": ["Read", "Write"],
+    "capabilities": [
+      "Read",
+      "Write"
+    ],
     "websiteURL": "https://github.com/tuanvtanrakutei/access-modernization-kit",
-    "defaultPrompt": ["Use $ak help.", "Use $ak init A03.", "Use $ak assess A03."],
+    "defaultPrompt": [
+      "Use $ak help.",
+      "Use $ak init A03.",
+      "Use $ak assess A03."
+    ],
     "brandColor": "#2563EB"
   }
 }

@@ -11,3 +11,8 @@
 /.claude-plugin/ @tuanvtanrakutei
 /plugins/ak/.codex-plugin/ @tuanvtanrakutei
 /.github/workflows/ @tuanvtanrakutei
+/plugins/ak/adapters/managed_access/ @tuanvtanrakutei
+/plugins/ak/adapters/imported_sources/ @tuanvtanrakutei
+/plugins/ak/adapters/msaccess_vcs/ @tuanvtanrakutei
+/plugins/ak/adapters/sql_server/ @tuanvtanrakutei
+/docs/acquisition/ @tuanvtanrakutei

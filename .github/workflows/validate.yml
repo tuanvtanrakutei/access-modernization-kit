@@ -32,8 +32,8 @@ jobs:
       - name: Install validation dependencies
         run: python -m pip install --disable-pip-version-check -r plugins/ak/requirements-dev.txt
 
-      - name: Compile Python scripts
-        run: python -m compileall -q plugins/ak/scripts plugins/ak/tests
+      - name: Compile Python package and tests
+        run: python -m compileall -q plugins/ak/contracts plugins/ak/adapters plugins/ak/scripts plugins/ak/tests
 
       - name: Validate package contracts
         run: python plugins/ak/scripts/validate_structure.py --package plugins/ak --repository-root .

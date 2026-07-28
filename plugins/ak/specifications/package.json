@@ -1,6 +1,6 @@
 {
   "name": "access-modernization-kit",
-  "version": "2.7.0",
+  "version": "2.7.1",
   "contract_version": "2.2",
   "features": [
     "six_phase_legacy_analysis",
@@ -24,11 +24,18 @@
     "composable_classification",
     "canonical_extraction_bundle",
     "phase_readiness_matrix",
-    "manifest_v22_reader"
+    "manifest_v22_reader",
+    "acquisition_adapters"
   ],
   "architecture_inspiration": {
     "project": "FSoft-AI4Code/CodeWiki",
-    "adopted_patterns": ["component_index", "hierarchical_modules", "leaf_first_order", "session_isolation", "affected_module_refresh"],
+    "adopted_patterns": [
+      "component_index",
+      "hierarchical_modules",
+      "leaf_first_order",
+      "session_isolation",
+      "affected_module_refresh"
+    ],
     "dependency": false,
     "vendored_code": false
   },
