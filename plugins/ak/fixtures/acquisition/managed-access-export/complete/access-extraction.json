@@ -1,0 +1,27 @@
+{
+  "components": [
+    {
+      "name": "SyntheticModule",
+      "text": "Option Explicit",
+      "type": "vba_module"
+    },
+    {
+      "name": "qSynthetic",
+      "sql": "SELECT 1",
+      "type": "query"
+    },
+    {
+      "name": "F_Synthetic",
+      "text": "Version =20",
+      "type": "form"
+    }
+  ],
+  "database_id": "FRONTEND",
+  "project_context": {},
+  "snapshot_path": "C:/redacted/snapshot.mdb",
+  "source": {
+    "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+  },
+  "status": "EXTRACTED",
+  "warnings": []
+}

@@ -1,0 +1,12 @@
+{
+  "components": [],
+  "database_id": "FRONTEND",
+  "project_context": {},
+  "source": {
+    "sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+  },
+  "status": "PARTIAL",
+  "warnings": [
+    "PROTECTED_OBJECT_SKIPPED"
+  ]
+}
