@@ -1,3 +1,4 @@
+import zipfile
 from pathlib import Path
 
 from adapters.base import AcquisitionRequest
@@ -37,3 +38,53 @@ def test_bak_is_reference_only() -> None:
     contribution = adapter.normalize(result)
     assert ".bak" not in str(contribution).lower()
     assert result.status == "PARTIAL"
+
+
+MODEL_XML = b'''<?xml version="1.0" encoding="utf-8"?>
+<DataSchemaModel xmlns="http://schemas.microsoft.com/sqlserver/dac/Serialization/2012/02">
+  <Model>
+    <Element Type="SqlTable" Name="[sales].[Order]" />
+    <Element Type="SqlProcedure" Name="[sales].[usp_Order]" />
+    <Element Type="SqlScalarFunction" Name="[sales].[fn_Order]" />
+    <Element Type="SqlColumn" Name="[sales].[Order].[OrderId]" />
+  </Model>
+</DataSchemaModel>'''
+
+
+def _write_dacpac(path: Path, members: dict[str, bytes]) -> None:
+    with zipfile.ZipFile(path, "w", compression=zipfile.ZIP_DEFLATED) as archive:
+        for name, raw in members.items():
+            archive.writestr(name, raw)
+
+
+def test_dacpac_model_maps_supported_objects_without_extracting(tmp_path: Path) -> None:
+    _write_dacpac(tmp_path / "schema.dacpac", {"model.xml": MODEL_XML})
+    artifact = {
+        "id": "DACPAC", "kind": "sql_server_package", "role": "backend",
+        "acquisition": "imported", "required": True,
+        "source_ref": {"type": "local_path", "value": "schema.dacpac"}, "format": "dacpac",
+    }
+    adapter = SqlServerAdapter()
+    result = adapter.acquire(adapter.plan(_request(tmp_path, (artifact,))))
+    contribution = adapter.normalize(result)
+    assert result.status == "VALID"
+    assert [(item["schema"], item["name"], item["type"]) for item in contribution["databases"]["tables"]] == [
+        ("sales", "Order", "table")
+    ]
+    assert {(item["name"], item["type"]) for item in contribution["databases"]["objects"]} == {
+        ("fn_Order", "function"), ("usp_Order", "procedure")
+    }
+    assert not (tmp_path / "model.xml").exists()
+
+
+def test_dacpac_requires_exactly_one_model(tmp_path: Path) -> None:
+    _write_dacpac(tmp_path / "schema.dacpac", {"a/model.xml": MODEL_XML, "b/model.xml": MODEL_XML})
+    artifact = {
+        "id": "DACPAC", "kind": "sql_server_package", "role": "backend",
+        "acquisition": "imported", "required": True,
+        "source_ref": {"type": "local_path", "value": "schema.dacpac"}, "format": "dacpac",
+    }
+    adapter = SqlServerAdapter()
+    result = adapter.acquire(adapter.plan(_request(tmp_path, (artifact,))))
+    assert result.status == "INVALID"
+    assert result.failures == ({"logical_id": "DACPAC", "reason": "DACPAC_MODEL_REQUIRED"},)

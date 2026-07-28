@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 import zipfile
 from pathlib import Path
 from typing import Any
@@ -22,6 +23,11 @@ SCRIPT_FORMATS = {"sql"}
 CATALOG_FORMATS = {"json"}
 PACKAGE_FORMATS = {"dacpac"}
 BACKUP_FORMATS = {"bak"}
+DACPAC_TYPES = {
+    "SqlTable": "table", "SqlView": "view", "SqlProcedure": "procedure",
+    "SqlScalarFunction": "function", "SqlTableValuedFunction": "function",
+    "SqlDmlTrigger": "trigger", "SqlUserDefinedType": "type", "SqlSequence": "sequence",
+}
 
 
 class SqlServerAdapter:
@@ -53,7 +59,15 @@ class SqlServerAdapter:
         failures: list[dict[str, Any]] = []
         hashes: dict[str, str] = {}
         for operation in plan.operations:
-            produced, produced_failures, produced_hashes = _handle_artifact(operation["artifact"], Path(operation["source_root"]))
+            artifact = operation["artifact"]
+            try:
+                produced, produced_failures, produced_hashes = _handle_artifact(
+                    artifact, Path(operation["source_root"])
+                )
+            except (OSError, UnicodeError, ValueError, zipfile.BadZipFile, ElementTree.ParseError) as exc:
+                reason = str(exc) if str(exc).isupper() else "INVALID_SQL_ARTIFACT"
+                failures.append({"logical_id": artifact["id"], "reason": reason})
+                continue
             records.extend(produced)
             failures.extend(produced_failures)
             hashes.update(produced_hashes)
@@ -120,7 +134,8 @@ def _handle_artifact(artifact: dict[str, Any], source_root: Path) -> tuple[list[
         return [{"logical_id": artifact["id"], "kind": "catalog", "catalog": catalog, "sha256": digest}], [], {artifact["id"]: digest}
     if fmt in PACKAGE_FORMATS:
         objects = _read_dacpac_model(path)
-        return [{"logical_id": artifact["id"], "kind": "catalog", "catalog": {"version": "1.0", "database": artifact["id"], "objects": objects}, "sha256": digest}], [], {artifact["id"]: digest}
+        catalog = _validate_catalog({"version": "1.0", "database": artifact["id"], "objects": objects})
+        return [{"logical_id": artifact["id"], "kind": "catalog", "catalog": catalog, "sha256": digest}], [], {artifact["id"]: digest}
     return [], [{"logical_id": artifact["id"], "reason": "UNSUPPORTED_SQL_ARTIFACT"}], {}
 
 
@@ -132,21 +147,35 @@ def _validate_catalog(catalog: dict[str, Any]) -> dict[str, Any]:
     return catalog
 
 
+def _local_name(tag: str) -> str:
+    return tag.rsplit("}", 1)[-1]
+
+
+def _qualified_name(value: str) -> tuple[str, str]:
+    parts = re.findall(r"\[([^]]+)\]", value)
+    if len(parts) >= 2:
+        return parts[-2], parts[-1]
+    plain = [part for part in value.split(".") if part]
+    return (plain[-2], plain[-1]) if len(plain) >= 2 else ("dbo", plain[-1])
+
+
 def _read_dacpac_model(path: Path) -> list[dict[str, Any]]:
-    with zipfile.ZipFile(path) as handle:
-        members = safe_zip_members(handle)
-        models = [name for name in members if Path(name).name == "model.xml"]
+    with zipfile.ZipFile(path) as archive:
+        members = safe_zip_members(archive)
+        models = [info for info in members if Path(info.filename).name == "model.xml"]
         if len(models) != 1:
             raise ValueError("DACPAC_MODEL_REQUIRED")
-        root = ElementTree.fromstring(handle.read(models[0]))
+        root = ElementTree.fromstring(archive.read(models[0]))
     objects: list[dict[str, Any]] = []
-    for element in root.iter("{http://schemas.microsoft.com/sqlserver/dac/Serialization/2012/02}Element"):
-        obj_type = element.get("Type", "")
-        name = element.get("Name", "")
+    for element in root.iter():
+        if _local_name(element.tag) != "Element":
+            continue
+        mapped = DACPAC_TYPES.get(str(element.get("Type", "")))
+        if mapped is None:
+            continue
+        schema, name = _qualified_name(str(element.get("Name", "")))
         objects.append({
-            "schema": name.split(".")[0].strip("[]") if "." in name else "dbo",
-            "name": name.split(".")[-1].strip("[]"),
-            "type": "table" if obj_type.endswith("Table") else "view",
+            "schema": schema, "name": name, "type": mapped,
             "columns": [], "definition": None,
         })
-    return sorted(objects, key=lambda item: (item["schema"], item["name"]))
+    return sorted(objects, key=lambda item: (item["schema"], item["name"], item["type"]))
