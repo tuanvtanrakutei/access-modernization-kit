@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://sms.local/schemas/sql-server-catalog.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["version", "database", "objects"],
+  "properties": {
+    "version": {"const": "1.0"},
+    "database": {"type": "string", "minLength": 1},
+    "objects": {
+      "type": "array",
+      "items": {
+        "type": "object", "additionalProperties": false,
+        "required": ["schema", "name", "type"],
+        "properties": {
+          "schema": {"type": "string"}, "name": {"type": "string"},
+          "type": {"enum": ["table", "view", "procedure", "function", "trigger", "type", "sequence"]},
+          "columns": {"type": "array"}, "definition": {"type": ["string", "null"]}
+        }
+      }
+    }
+  }
+}

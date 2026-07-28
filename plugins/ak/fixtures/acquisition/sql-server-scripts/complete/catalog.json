@@ -1,0 +1,25 @@
+{
+  "version": "1.0",
+  "database": "SyntheticDb",
+  "objects": [
+    {
+      "schema": "dbo",
+      "name": "SyntheticOrder",
+      "type": "table",
+      "columns": [
+        {
+          "name": "OrderId",
+          "type": "int"
+        }
+      ],
+      "definition": null
+    },
+    {
+      "schema": "dbo",
+      "name": "usp_SyntheticOrder",
+      "type": "procedure",
+      "columns": [],
+      "definition": "SELECT 1"
+    }
+  ]
+}
