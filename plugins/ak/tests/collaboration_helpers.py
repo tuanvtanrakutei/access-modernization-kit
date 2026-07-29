@@ -1,5 +1,7 @@
 from copy import deepcopy
 
+from collaboration import work_package_digest
+
 
 def kit_package(package_id: str = "WP_KIT_SCHEMA") -> dict:
     return {
@@ -117,3 +119,14 @@ def mixed_package(package_id: str = "WP_SYN_PILOT") -> dict:
         }
     )
     return value
+
+def acceptance_receipt(package: dict) -> dict:
+    return {
+        "schema_version": "1.0", "receipt_id": "RR-" + package["package_id"],
+        "work_package_id": package["package_id"], "work_package_digest": work_package_digest(package),
+        "review_stage": "scope_acceptance", "authority_snapshot": package["authority"],
+        "producer": package["created_by"], "reviewer": package["reviewer"],
+        "review_scope": ["schema", "authority", "paths", "dependencies", "security"],
+        "validation_results": [{"command": command, "exit_code": 0, "result": "PASS"} for command in package["validation_commands"]],
+        "findings": [], "decision": "APPROVED", "reviewed_at": "2026-07-28T00:10:00Z",
+    }

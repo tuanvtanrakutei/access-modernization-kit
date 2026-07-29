@@ -31,6 +31,9 @@ def kit_projection_pair() -> tuple[dict, dict]:
     package["scope"]["module_targets"] = task["module_targets"]
     package["input_paths"] = ["extracted/bundles/bundle-a/code/access-sql"]
     package["write_paths"] = ["work/sql_data/module-orders"]
+    package["expected_artifacts"][0]["path"] = (
+        "work/sql_data/module-orders/result.json"
+    )
     task["evidence_namespace"] = None
     return package, task
 
@@ -317,6 +320,54 @@ def test_projection_rejects_noncanonical_task_paths(field: str, path: str) -> No
 
     with pytest.raises(CollaborationError, match="COLLAB_PROJECTION_EXPANDED"):
         project_task(package, task)
+
+@pytest.mark.parametrize("field", ["input_paths", "write_paths"])
+@pytest.mark.parametrize("character", ["<", ">", '"', "|", "?", "*"])
+def test_projection_rejects_windows_forbidden_filename_characters(
+    field: str, character: str
+) -> None:
+    package, task = application_package(), candidate_task()
+    base = (
+        "../../extracted/bundles/bundle-a/code/access-sql"
+        if field == "input_paths"
+        else "work/sql_data/module-orders"
+    )
+    task[field] = [f"{base}/result{character}.json"]
+
+    with pytest.raises(CollaborationError, match="COLLAB_PROJECTION_EXPANDED"):
+        project_task(package, task)
+
+def test_projection_allows_japanese_path_components() -> None:
+    package, task = application_package(), candidate_task()
+    task["input_paths"] = [
+        "../../extracted/bundles/bundle-a/code/access-sql/注文照会"
+    ]
+    task["write_paths"] = ["work/sql_data/module-orders/結果"]
+
+    projected = project_task(package, task)
+
+    assert projected["input_paths"] == task["input_paths"]
+    assert projected["write_paths"] == task["write_paths"]
+
+def test_validated_package_can_project_equivalent_canonical_paths() -> None:
+    package, task = application_package(), candidate_task()
+    package["input_paths"] = [
+        "extracted/bundles/bundle-a/code/access-sql/\u6ce8\u6587\u7167\u4f1a"
+    ]
+    package["write_paths"] = ["work/sql_data/module-orders/\u7d50\u679c"]
+    package["expected_artifacts"][0]["path"] = (
+        "work/sql_data/module-orders/\u7d50\u679c/result.json"
+    )
+    task["input_paths"] = [
+        "../../extracted/bundles/bundle-a/code/access-sql/\u6ce8\u6587\u7167\u4f1a"
+    ]
+    task["write_paths"] = ["work/sql_data/module-orders/\u7d50\u679c"]
+
+    validate_work_package(package)
+    projected = project_task(package, task)
+
+    assert projected["input_paths"] == task["input_paths"]
+    assert projected["write_paths"] == task["write_paths"]
 
 
 @pytest.mark.parametrize("field", ["input_paths", "write_paths"])

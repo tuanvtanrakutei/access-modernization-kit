@@ -13,10 +13,16 @@ from collaboration import (
     find_collaboration_conflicts,
     integration_order,
     load_work_package,
+    project_task,
     validate_work_package,
     work_package_digest,
 )
-from collaboration_helpers import application_package, kit_package, mixed_package
+from collaboration_helpers import (
+    application_package,
+    candidate_task,
+    kit_package,
+    mixed_package,
+)
 
 
 TOP_LEVEL_FIELDS = {
@@ -85,6 +91,34 @@ def test_synthetic_authority_variants_validate(package_factory) -> None:
     validate_work_package(package_factory())
 
 
+def test_expected_artifact_must_be_inside_package_write_scope() -> None:
+    package = application_package()
+    package["expected_artifacts"][0]["path"] = "work/other/result.json"
+
+    with pytest.raises(CollaborationError, match="COLLAB_PACKAGE_INVALID"):
+        validate_work_package(package)
+
+
+def test_expected_artifact_identities_are_casefold_unique() -> None:
+    package = application_package()
+    duplicate = deepcopy(package["expected_artifacts"][0])
+    duplicate["path"] = duplicate["path"].replace("result.json", "RESULT.JSON")
+    package["expected_artifacts"].append(duplicate)
+
+    with pytest.raises(CollaborationError, match="COLLAB_PACKAGE_INVALID"):
+        validate_work_package(package)
+
+
+def test_invalid_artifact_contract_fails_before_scope_review() -> None:
+    package = application_package()
+    package["expected_artifacts"][0]["path"] = "work/other/result.json"
+    task = candidate_task()
+    task["role"] = "workflow"
+
+    with pytest.raises(CollaborationError, match="COLLAB_PACKAGE_INVALID"):
+        project_task(package, task)
+
+
 def test_digest_ignores_created_at_and_dict_order_only() -> None:
     first = kit_package()
     second = dict(reversed(list(first.items())))
@@ -100,22 +134,84 @@ def test_digest_ignores_created_at_and_dict_order_only() -> None:
 @pytest.mark.parametrize(
     "bad_path",
     [
-        "D:/secret/file",
-        "D:\\secret\\file",
-        "D:secret/file",
-        "D:",
-        "../escape",
-        "safe/../../escape",
-        "/etc/passwd",
-        "//server/share/file",
+        "safe\\file.txt",
+        "/absolute/file.txt",
+        "C:/drive/file.txt",
+        "C:relative/file.txt",
+        "C:",
+        "//server/share/file.txt",
+        "safe/../escape.txt",
+        "safe/./file.txt",
+        "safe//file.txt",
+        "safe/file.txt/",
+        "safe/" + chr(1) + "file.txt",
+        "safe/" + chr(127) + "file.txt",
+        "safe/file.txt:stream",
+        "safe/file<.txt",
+        "safe/file>.txt",
+        'safe/file".txt',
+        "safe/file|.txt",
+        "safe/file?.txt",
+        "safe/file*.txt",
+        "safe/CON/file.txt",
+        "safe/prn.txt",
+        "safe/file.txt ",
+        "safe/file.txt.",
     ],
 )
-def test_paths_must_be_relative_and_confined(bad_path: str) -> None:
+@pytest.mark.parametrize(
+    "collection", ["input_paths", "write_paths", "expected_artifacts"]
+)
+def test_package_paths_use_canonical_cross_platform_rules(
+    collection: str, bad_path: str
+) -> None:
     package = kit_package()
-    package["write_paths"] = [bad_path]
+    if collection == "expected_artifacts":
+        package[collection][0]["path"] = bad_path
+    else:
+        package[collection] = [bad_path]
 
     with pytest.raises(CollaborationError, match="COLLAB_PATH_ESCAPE"):
         validate_work_package(package)
+
+@pytest.mark.parametrize(
+    ("collection", "path"),
+    [
+        ("input_paths", "inputs/\u6ce8\u6587\u7167\u4f1a.sql"),
+        ("write_paths", "work/\u7d50\u679c"),
+        ("expected_artifacts", "work/\u7d50\u679c.json"),
+    ],
+)
+def test_package_paths_preserve_japanese_unicode(
+    collection: str, path: str
+) -> None:
+    package = kit_package()
+    if collection == "expected_artifacts":
+        package[collection][0]["path"] = path
+        package["write_paths"] = ["work"]
+    elif collection == "write_paths":
+        package[collection] = [path]
+        package["expected_artifacts"][0]["path"] = f"{path}/result.json"
+    else:
+        package[collection] = [path]
+
+    validate_work_package(package)
+
+
+@pytest.mark.parametrize("command", [" ", "\t"])
+def test_validation_commands_must_be_nonblank(command: str) -> None:
+    package = kit_package()
+    package["validation_commands"] = [command]
+
+    with pytest.raises(CollaborationError, match="COLLAB_PACKAGE_INVALID"):
+        validate_work_package(package)
+
+
+def test_validation_commands_preserve_unicode() -> None:
+    package = kit_package()
+    package["validation_commands"] = ["python -m pytest \u30c6\u30b9\u30c8/\u6ce8\u6587.py -q"]
+
+    validate_work_package(package)
 
 
 @pytest.mark.parametrize("phase", range(1, 7))
@@ -131,7 +227,7 @@ def test_scoped_worker_cannot_bypass_publication_with_backslashes() -> None:
     package = application_package()
     package["write_paths"].append("outputs\\SYN_Phase1_Canonical_EN.md")
 
-    with pytest.raises(CollaborationError, match="COLLAB_PUBLICATION_FORBIDDEN"):
+    with pytest.raises(CollaborationError, match="COLLAB_PATH_ESCAPE"):
         validate_work_package(package)
 
 
@@ -185,6 +281,35 @@ def test_other_schema_failures_have_stable_code(field: str, value: str) -> None:
         validate_work_package(package)
 
 
+def test_duplicate_validation_commands_are_invalid() -> None:
+    package = kit_package()
+    package["validation_commands"].append(package["validation_commands"][0])
+
+    with pytest.raises(CollaborationError, match="COLLAB_PACKAGE_INVALID"):
+        validate_work_package(package)
+
+
+@pytest.mark.parametrize("field", ["coordinator", "reviewer", "created_by"])
+@pytest.mark.parametrize("value", [" ", "	", " identity", "identity "])
+def test_work_package_identities_must_be_nonblank(
+    field: str, value: str
+) -> None:
+    package = kit_package()
+    package[field] = value
+
+    with pytest.raises(CollaborationError, match="COLLAB_PACKAGE_INVALID"):
+        validate_work_package(package)
+
+
+def test_work_package_identities_preserve_unicode() -> None:
+    package = kit_package()
+    package["coordinator"] = "調整担当"
+    package["reviewer"] = "査読担当"
+    package["created_by"] = "計画担当"
+
+    validate_work_package(package)
+
+
 def test_unknown_top_level_field_is_invalid() -> None:
     package = kit_package()
     package["future_field"] = True
@@ -224,6 +349,7 @@ def test_schema_is_closed_draft_2020_12_contract() -> None:
         "document_owner",
         "coordinator_only",
     ]
+    assert value["properties"]["validation_commands"]["uniqueItems"] is True
     assert {
         item["properties"]["kind"]["const"]
         for item in value["properties"]["authority"]["oneOf"]
@@ -241,6 +367,14 @@ def test_load_work_package_reads_utf8_validates_and_returns_dict(tmp_path: Path)
 def test_overlapping_write_paths_are_blocked() -> None:
     first, second = application_package("WP_ONE"), application_package("WP_TWO")
     second["write_paths"] = ["work/sql_data/module-orders/details"]
+    assert "COLLAB_WRITE_CONFLICT" in codes([first, second])
+
+
+def test_write_conflict_containment_is_case_insensitive() -> None:
+    first, second = application_package("WP_ONE"), application_package("WP_TWO")
+    first["write_paths"] = ["work/Orders"]
+    second["write_paths"] = ["work/orders/details"]
+
     assert "COLLAB_WRITE_CONFLICT" in codes([first, second])
 
 def test_overlapping_evidence_prefixes_are_blocked() -> None:
@@ -481,6 +615,22 @@ def test_legacy_task_reported_conflict_is_valid() -> None:
 
     jsonschema.validate(record, conflict_schema())
 
+
+def test_legacy_open_conflict_allows_null_closure_fields() -> None:
+    record = conflict_record()
+    record["reported_by_task"] = "SYN-TASK-001"
+    record.update(
+        {
+            "resolution": None,
+            "decision_source": None,
+            "resolved_by_task": None,
+            "resolved_by_work_package": None,
+            "resolved_at": None,
+        }
+    )
+
+    jsonschema.validate(record, conflict_schema())
+
 def test_work_package_reported_conflict_is_valid() -> None:
     record = conflict_record()
     record["reported_by_work_package"] = "WP_ONE"
@@ -502,6 +652,10 @@ def test_conflict_without_reporter_is_invalid() -> None:
 def test_resolved_by_work_package_is_valid() -> None:
     record = conflict_record()
     record["reported_by_work_package"] = "WP_ONE"
+    record["status"] = "RESOLVED"
+    record["resolution"] = "Use the coordinator decision."
+    record["decision_source"] = "review-record-001"
     record["resolved_by_work_package"] = "WP_COORDINATOR"
+    record["resolved_at"] = "2026-07-28T00:10:00Z"
 
     jsonschema.validate(record, conflict_schema())

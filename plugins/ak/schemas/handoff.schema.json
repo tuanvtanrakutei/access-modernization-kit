@@ -3,6 +3,25 @@
   "title": "Multi-Agent Investigation Handoff",
   "type": "object",
   "required": ["task_id", "run_id", "app_id", "role", "status", "summary", "artifacts", "evidence_ids", "gaps", "conflict_ids", "source_files_read", "completed_at"],
+  "allOf": [
+    {
+      "if": {
+        "anyOf": [
+          {"required": ["work_package_id"]},
+          {"required": ["work_package_digest"]},
+          {"required": ["produced_revision"]},
+          {"required": ["validation_results"]},
+          {"required": ["review_receipt_required"]}
+        ]
+      },
+      "then": {
+        "required": ["work_package_id", "work_package_digest", "produced_revision", "validation_results", "review_receipt_required", "agent_id"],
+        "properties": {
+          "agent_id": {"type": "string", "pattern": "^\\S(?:[\\s\\S]*\\S)?$"}
+        }
+      }
+    }
+  ],
   "properties": {
     "task_id": {"type": "string"},
     "run_id": {"type": "string"},
@@ -17,6 +36,28 @@
     "gaps": {"type": "array", "items": {"type": "string"}},
     "conflict_ids": {"type": "array", "items": {"type": "string"}},
     "source_files_read": {"type": "array", "items": {"type": "string"}},
+    "work_package_id": {"type": "string", "pattern": "^[A-Z0-9_-]+$"},
+    "work_package_digest": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "produced_revision": {
+      "oneOf": [
+        {"type": "string", "pattern": "\\S"},
+        {"type": "null"}
+      ]
+    },
+    "validation_results": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["command", "exit_code", "result"],
+        "properties": {
+          "command": {"type": "string", "pattern": "\\S"},
+          "exit_code": {"type": "integer"},
+          "result": {"enum": ["PASS", "FAIL"]}
+        }
+      }
+    },
+    "review_receipt_required": {"type": "boolean"},
     "input_tokens": {"type": ["integer", "null"], "minimum": 0},
     "output_tokens": {"type": ["integer", "null"], "minimum": 0},
     "completed_at": {"type": "string", "format": "date-time"}

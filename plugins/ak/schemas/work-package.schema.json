@@ -98,9 +98,9 @@
         {"type": "null"}
       ]
     },
-    "validation_commands": {"type": "array", "items": {"type": "string", "minLength": 1}},
-    "coordinator": {"type": "string", "minLength": 1},
-    "reviewer": {"type": "string", "minLength": 1},
+    "validation_commands": {"type": "array", "uniqueItems": true, "items": {"type": "string", "pattern": "\\S"}},
+    "coordinator": {"type": "string", "pattern": "^\\S(?:[\\s\\S]*\\S)?$"},
+    "reviewer": {"type": "string", "pattern": "^\\S(?:[\\s\\S]*\\S)?$"},
     "publication_policy": {"type": "string", "enum": ["scoped_only", "document_owner", "coordinator_only"]},
     "security_constraints": {
       "type": "object",
@@ -113,7 +113,7 @@
         "production_data": {"type": "boolean"}
       }
     },
-    "created_by": {"type": "string", "minLength": 1},
+    "created_by": {"type": "string", "pattern": "^\\S(?:[\\s\\S]*\\S)?$"},
     "created_at": {"type": "string", "minLength": 1}
   }
 }

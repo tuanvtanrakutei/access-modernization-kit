@@ -54,16 +54,58 @@ def work_package_digest(value: dict[str, Any]) -> str:
     return hashlib.sha256(encoded).hexdigest()
 
 
-def _validate_relative(path: str) -> None:
-    normalized = path.replace("\\", "/")
-    parsed = PurePosixPath(normalized)
+def _canonical_logical_path(
+    path: str,
+    *,
+    allow_parent_prefix: bool,
+    error_code: str,
+    error_message: str,
+) -> str:
+    raw_parts = tuple(path.split("/"))
+    parsed = PurePosixPath(path)
+    invalid = (
+        not path
+        or "\\" in path
+        or path.startswith("./")
+        or "//" in path
+        or path.endswith("/")
+        or ":" in path
+        or any(character in path for character in '<>"|?*')
+        or "." in raw_parts
+        or parsed.is_absolute()
+        or bool(PureWindowsPath(path).drive)
+        or any(ord(character) < 32 or ord(character) == 127 for character in path)
+    )
     if (
-        parsed.is_absolute()
-        or PureWindowsPath(path).drive
-        or ".." in parsed.parts
-        or not parsed.parts
+        allow_parent_prefix
+        and raw_parts[:2] == ("..", "..")
+        and raw_parts[2:]
+        and ".." not in raw_parts[2:]
     ):
-        raise CollaborationError("COLLAB_PATH_ESCAPE", path)
+        logical_parts = raw_parts[2:]
+    else:
+        logical_parts = raw_parts
+        invalid = invalid or ".." in raw_parts
+    invalid = invalid or any(
+        not part.rstrip(" .") or part.endswith((" ", "."))
+        for part in logical_parts
+    )
+    invalid = invalid or any(
+        part.rstrip(" .").split(".", 1)[0].rstrip(" .").upper()
+        in WINDOWS_RESERVED_TASK_NAMES
+        for part in logical_parts
+    )
+    if invalid:
+        raise CollaborationError(error_code, error_message)
+    return PurePosixPath(*logical_parts).as_posix()
+
+def _validate_relative(path: str) -> None:
+    _canonical_logical_path(
+        path,
+        allow_parent_prefix=False,
+        error_code="COLLAB_PATH_ESCAPE",
+        error_message=path,
+    )
 
 
 def validate_work_package(value: dict[str, Any]) -> None:
@@ -101,6 +143,20 @@ def validate_work_package(value: dict[str, Any]) -> None:
         ):
             raise CollaborationError("COLLAB_SECRET_OR_BINARY_PROHIBITED", path)
 
+    artifact_identities: set[str] = set()
+    for artifact in value["expected_artifacts"]:
+        path = artifact["path"]
+        identity = path.casefold()
+        if identity in artifact_identities:
+            raise CollaborationError(
+                "COLLAB_PACKAGE_INVALID", "duplicate expected artifact"
+            )
+        artifact_identities.add(identity)
+        if not any(_contains(write_path, path) for write_path in value["write_paths"]):
+            raise CollaborationError(
+                "COLLAB_PACKAGE_INVALID", "expected artifact outside write_paths"
+            )
+
     if value["publication_policy"] == "scoped_only":
         for path in value["write_paths"]:
             normalized = path.replace("\\", "/")
@@ -116,47 +172,17 @@ def load_work_package(path: Path) -> dict[str, Any]:
     return value
 
 def _contains(parent: str, child: str) -> bool:
-    left = PurePosixPath(parent.replace("\\", "/"))
-    right = PurePosixPath(child.replace("\\", "/"))
+    left = PurePosixPath(parent.replace("\\", "/").casefold())
+    right = PurePosixPath(child.replace("\\", "/").casefold())
     return left == right or left in right.parents
 
 def _task_logical_path(path: str, *, allow_parent_prefix: bool) -> str:
-    raw_parts = tuple(path.split('/'))
-    if (
-        '\\' in path
-        or path.startswith('./')
-        or '//' in path
-        or path.endswith('/')
-        or ':' in path
-        or '.' in raw_parts
-    ):
-        raise CollaborationError('COLLAB_PROJECTION_EXPANDED', 'task path')
-    parsed = PurePosixPath(path)
-    if parsed.is_absolute() or PureWindowsPath(path).drive or not path:
-        raise CollaborationError('COLLAB_PROJECTION_EXPANDED', 'task path')
-    if (
-        allow_parent_prefix
-        and raw_parts[:2] == ('..', '..')
-        and raw_parts[2:]
-        and '..' not in raw_parts[2:]
-    ):
-        logical_parts = raw_parts[2:]
-    elif '..' in raw_parts:
-        raise CollaborationError('COLLAB_PROJECTION_EXPANDED', 'task path')
-    else:
-        logical_parts = raw_parts
-    if any(
-        not part.rstrip(' .') or part.endswith((' ', '.'))
-        for part in logical_parts
-    ):
-        raise CollaborationError('COLLAB_PROJECTION_EXPANDED', 'task path')
-    if any(
-        part.rstrip(' .').split('.', 1)[0].rstrip(' .').upper()
-        in WINDOWS_RESERVED_TASK_NAMES
-        for part in logical_parts
-    ):
-        raise CollaborationError('COLLAB_PROJECTION_EXPANDED', 'task path')
-    return PurePosixPath(*logical_parts).as_posix()
+    return _canonical_logical_path(
+        path,
+        allow_parent_prefix=allow_parent_prefix,
+        error_code="COLLAB_PROJECTION_EXPANDED",
+        error_message="task path",
+    )
 
 def _inside_any(
     path: str, allowed: list[str], *, allow_parent_prefix: bool
