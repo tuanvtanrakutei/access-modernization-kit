@@ -54,6 +54,15 @@ def _is_date_time(value: object) -> bool:
 def _latest_date_time(values: list[str]) -> str | None:
     return max(values, key=_parse_date_time, default=None)
 
+def _changed_paths(records: list[dict]) -> list[str]:
+    by_identity = {
+        artifact.casefold(): artifact
+        for record in records
+        if record["receipt_eligible"]
+        for artifact in record["artifacts"]
+    }
+    return [by_identity[identity] for identity in sorted(by_identity)]
+
 def _inventory_paths(inventory: dict, errors: list[str]) -> set[str]:
     grouped: dict[str, list[str]] = {}
     canonical: set[str] = set()
@@ -307,6 +316,74 @@ def load_review_inventory(
         receipts.append(receipt)
     return receipts
 
+def load_contract_impact_inventory(
+    work_package_root: Path | None,
+    known_package_ids: set[str],
+    errors: list[str],
+) -> dict[str, dict]:
+    if work_package_root is None:
+        return {}
+    root = work_package_root.expanduser().resolve().parent / "contract-impacts"
+    if not root.exists():
+        return {}
+    if not root.is_dir():
+        errors.append("contract-impacts: invalid contract impact control entry")
+        return {}
+    grouped: dict[str, list[tuple[str, dict]]] = {}
+    validator = _validator("contract-impact.schema.json")
+    for path in sorted(
+        root.rglob("*"), key=lambda item: item.relative_to(root).as_posix()
+    ):
+        relative = path.relative_to(root).as_posix()
+        if path.parent != root or not path.is_file() or path.suffix != ".json":
+            errors.append(
+                f"contract-impacts/{relative}: invalid contract impact control entry"
+            )
+            continue
+        try:
+            impact = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, UnicodeError, json.JSONDecodeError):
+            errors.append(f"{relative}: invalid contract impact JSON")
+            continue
+        try:
+            validator.validate(impact)
+        except jsonschema.ValidationError as exc:
+            errors.append(
+                f"{relative}: invalid contract impact schema: {exc.message}"
+            )
+            continue
+        grouped.setdefault(impact["impact_id"], []).append((relative, impact))
+
+    by_package: dict[str, list[tuple[str, dict]]] = {}
+    for impact_id in sorted(grouped):
+        records = grouped[impact_id]
+        if len(records) != 1:
+            filenames = ", ".join(sorted(name for name, _ in records))
+            errors.append(
+                f"duplicate contract impact id {impact_id}: {filenames}"
+            )
+            continue
+        filename, impact = records[0]
+        package_id = impact["work_package_id"]
+        if package_id not in known_package_ids:
+            errors.append(f"{filename}: unknown work package id {package_id}")
+            continue
+        if filename != f"{impact_id}.json":
+            errors.append(
+                f"{filename}: filename does not match impact_id {impact_id}"
+            )
+            continue
+        by_package.setdefault(package_id, []).append((filename, impact))
+
+    impacts: dict[str, dict] = {}
+    for package_id in sorted(by_package):
+        records = by_package[package_id]
+        if len(records) != 1:
+            errors.append(f"{package_id}: duplicate contract impacts")
+            continue
+        impacts[package_id] = records[0][1]
+    return impacts
+
 def load_conflict_inventory(
     work_package_root: Path | None,
     known_task_ids: set[str],
@@ -478,6 +555,9 @@ def validate_run_handoffs(
         if PROJECTION_FIELDS <= set(task)
     }
     receipts = load_review_inventory(work_package_root, known_package_ids, errors)
+    impacts = load_contract_impact_inventory(
+        work_package_root, known_package_ids, errors
+    )
     handoffs = load_handoff_inventory(run, declared_task_ids, errors)
     inventory_paths = _inventory_paths(inventory, errors)
     task_packages: dict[str, dict] = {}
@@ -884,6 +964,7 @@ def validate_run_handoffs(
                     if bind_current_output
                     else []
                 )
+                implementation_changed_paths = _changed_paths(completed)
                 if exact_publication_gate:
                     implementation_receipts = receipts_by_package_stage.get(
                         (package_id, "implementation", None), []
@@ -902,6 +983,8 @@ def validate_run_handoffs(
                             package,
                             implementation_receipt,
                             expected_producer=implementation_workers.get(package_id),
+                            changed_paths=implementation_changed_paths,
+                            contract_impact=impacts.get(package_id),
                             require_exact_output_binding=True,
                             review_not_before=_latest_date_time(
                                 [record["completed_at"] for record in completed]
@@ -937,6 +1020,12 @@ def validate_run_handoffs(
                     expected_publication_phase=(
                         receipt_phase if stage == "publication" else None
                     ),
+                    changed_paths=(
+                        implementation_changed_paths
+                        if bind_current_output
+                        else None
+                    ),
+                    contract_impact=impacts.get(package_id),
                     require_exact_output_binding=bind_current_output,
                     review_not_before=review_not_before,
                     **(output_context or {}),

@@ -13,7 +13,7 @@ from collaboration import (
     project_task,
     work_package_digest,
 )
-from collaboration_helpers import acceptance_receipt, application_package, candidate_task, kit_package, mixed_package
+from collaboration_helpers import acceptance_receipt, application_package, candidate_task, impact, kit_package, mixed_package
 from review import validate_review_receipt
 from validate_handoffs import in_write_scope, validate_run_handoffs
 
@@ -119,6 +119,16 @@ def write_review_receipt(
     reviews.mkdir(parents=True, exist_ok=True)
     path = reviews / (filename or f"{receipt['receipt_id']}.json")
     path.write_text(json.dumps(receipt), encoding="utf-8")
+    return path
+
+
+def write_contract_impact(
+    package_root: Path, record: dict, filename: str | None = None
+) -> Path:
+    impacts = package_root.parent / "contract-impacts"
+    impacts.mkdir(parents=True, exist_ok=True)
+    path = impacts / (filename or f"{record['impact_id']}.json")
+    path.write_text(json.dumps(record), encoding="utf-8")
     return path
 
 
@@ -359,6 +369,27 @@ def repository_package() -> dict:
     ]
     package["evidence_namespace"] = task["evidence_namespace"]
     return package
+
+
+def sensitive_repository_review_run(
+    tmp_path: Path,
+) -> tuple[dict, Path, Path, dict, dict]:
+    package = repository_package()
+    package["write_paths"].append(
+        "plugins/ak/schemas/work-package.schema.json"
+    )
+    run, package_root, _, handoff = write_run(
+        tmp_path,
+        package,
+        handoff_changes={"produced_revision": "revision-one"},
+        create_receipt=False,
+    )
+    receipt = handoff_receipt(package, run, handoff)
+    receipt["receipt_id"] = "RR-IMPL-SENSITIVE"
+    write_review_receipt(package_root, receipt)
+    record = impact(package)
+    record["changed_paths"] = package["write_paths"]
+    return package, run, package_root, receipt, record
 
 
 def write_task_only_run(tmp_path: Path, contents: str) -> Path:
@@ -2096,6 +2127,295 @@ def test_duplicate_optional_cross_task_artifact_report_is_rejected(
     errors, _, _ = validate_run_handoffs(run, work_package_root=package_root)
 
     assert f"{package['package_id']}: artifact reported multiple times: {artifact}" in errors
+
+
+def test_sensitive_allowed_but_unproduced_path_does_not_require_contract_impact(
+    tmp_path: Path,
+) -> None:
+    _, run, package_root, _, _ = sensitive_repository_review_run(
+        tmp_path
+    )
+
+    assert validate_run_handoffs(run, work_package_root=package_root) == (
+        [],
+        1,
+        0,
+    )
+
+
+def sensitive_produced_artifact_review_run(
+    tmp_path: Path,
+) -> tuple[dict, Path, Path, dict, dict]:
+    package = repository_package()
+    sensitive_artifact = "plugins/ak/schemas/work-package.schema.json"
+    package["write_paths"].append(sensitive_artifact)
+    artifacts = [package["expected_artifacts"][0]["path"], sensitive_artifact]
+    run, package_root, _, handoff = write_run(
+        tmp_path,
+        package,
+        task_changes={"write_paths": package["write_paths"]},
+        handoff_changes={
+            "produced_revision": "revision-one",
+            "artifacts": artifacts,
+        },
+        create_receipt=False,
+    )
+    receipt = handoff_receipt(package, run, handoff)
+    receipt["receipt_id"] = "RR-IMPL-SENSITIVE-PRODUCED"
+    write_review_receipt(package_root, receipt)
+    record = impact(package)
+    record["changed_paths"] = artifacts
+    return package, run, package_root, receipt, record
+
+
+def test_sensitive_produced_artifact_requires_contract_impact(
+    tmp_path: Path,
+) -> None:
+    _, run, package_root, receipt, _ = sensitive_produced_artifact_review_run(
+        tmp_path
+    )
+
+    errors, _, _ = validate_run_handoffs(run, work_package_root=package_root)
+
+    assert any(
+        receipt["receipt_id"] in error
+        and "COLLAB_IMPACT_REQUIRED" in error
+        for error in errors
+    )
+
+
+def test_sensitive_produced_artifact_accepts_exact_contract_impact(
+    tmp_path: Path,
+) -> None:
+    _, run, package_root, _, record = sensitive_produced_artifact_review_run(
+        tmp_path
+    )
+    write_contract_impact(package_root, record)
+
+    assert validate_run_handoffs(run, work_package_root=package_root) == (
+        [],
+        1,
+        0,
+    )
+
+
+def test_contract_impact_changed_paths_match_all_actual_package_artifacts(
+    tmp_path: Path,
+) -> None:
+    _, run, package_root, receipt, record = sensitive_produced_artifact_review_run(
+        tmp_path
+    )
+    record["changed_paths"] = ["plugins/ak/schemas/work-package.schema.json"]
+    write_contract_impact(package_root, record)
+
+    errors, _, _ = validate_run_handoffs(run, work_package_root=package_root)
+
+    assert any(
+        receipt["receipt_id"] in error
+        and "COLLAB_IMPACT_REQUIRED: changed paths" in error
+        for error in errors
+    )
+
+
+def test_historical_publication_impact_is_metadata_only(
+    tmp_path: Path,
+) -> None:
+    package, run, package_root, _, record = sensitive_produced_artifact_review_run(
+        tmp_path
+    )
+    write_contract_impact(package_root, record)
+    receipt = implementation_receipt(
+        package,
+        stage="publication",
+        producer=package["coordinator"],
+        produced_revision="revision-one",
+        publication_phase=1,
+    )
+    receipt["receipt_id"] = "RR-PUB-HISTORICAL-SENSITIVE"
+    write_review_receipt(package_root, receipt)
+
+    assert validate_run_handoffs(run, work_package_root=package_root) == (
+        [],
+        1,
+        0,
+    )
+
+
+def test_exact_publication_impact_binds_current_output_artifact_set(
+    tmp_path: Path,
+) -> None:
+    package = repository_package()
+    phase_one_artifact = "plugins/ak/schemas/work-package.schema.json"
+    phase_two_artifact = "plugins/ak/contracts/review.py"
+    package["scope"]["wave_ids"].append("gate2_publish_phase2")
+    package["scope"]["phase_targets"] = [1, 2]
+    package["write_paths"].extend([phase_one_artifact, phase_two_artifact])
+    main_artifacts = [package["expected_artifacts"][0]["path"], phase_one_artifact]
+    run, package_root, _, handoff = write_run(
+        tmp_path,
+        package,
+        task_changes={
+            "phase_targets": [1],
+            "write_paths": [package["write_paths"][0], phase_one_artifact],
+        },
+        handoff_changes={
+            "produced_revision": "revision-one",
+            "artifacts": main_artifacts,
+        },
+        create_receipt=False,
+    )
+    task, sibling = add_collaboration_sibling(
+        run,
+        package,
+        task_id="SYN-GATE2-SQL-SECOND",
+        wave_id="gate2_publish_phase2",
+        status="COMPLETED",
+        agent_id=handoff["agent_id"],
+        phase_targets=[2],
+    )
+    task["write_paths"] = [phase_two_artifact]
+    sibling["artifacts"] = [phase_two_artifact]
+    sibling["produced_revision"] = "revision-one"
+    (run / phase_two_artifact).parent.mkdir(parents=True, exist_ok=True)
+    (run / phase_two_artifact).write_text("{}", encoding="utf-8")
+    (run / "tasks" / f"{task['task_id']}.json").write_text(
+        json.dumps(task), encoding="utf-8"
+    )
+    (run / "handoffs" / f"{task['task_id']}.json").write_text(
+        json.dumps(sibling), encoding="utf-8"
+    )
+    implementation = handoff_receipt(package, run, handoff)
+    implementation["receipt_id"] = "RR-IMPL-CURRENT-OUTPUT"
+    write_review_receipt(package_root, implementation)
+    record = impact(package)
+    record["changed_paths"] = [*main_artifacts, phase_two_artifact]
+    write_contract_impact(package_root, record)
+    publication = implementation_receipt(
+        package,
+        stage="publication",
+        producer=package["coordinator"],
+        produced_revision="revision-one",
+        publication_phase=2,
+    )
+    publication["receipt_id"] = "RR-PUB-CURRENT-OUTPUT"
+    write_review_receipt(package_root, publication)
+
+    assert validate_run_handoffs(
+        run,
+        work_package_root=package_root,
+        publication_phase=2,
+    ) == ([], 2, 0)
+
+
+def test_production_review_cannot_bypass_impact_with_empty_changed_paths(
+    tmp_path: Path,
+) -> None:
+    package, run, package_root, receipt, _ = sensitive_produced_artifact_review_run(
+        tmp_path
+    )
+    validate_review_receipt(
+        package,
+        receipt,
+        expected_producer="implementation-agent",
+        produced_revision="revision-one",
+        changed_paths=[],
+    )
+
+    errors, _, _ = validate_run_handoffs(run, work_package_root=package_root)
+
+    assert any("COLLAB_IMPACT_REQUIRED" in error for error in errors)
+
+
+def test_sensitive_scope_acceptance_never_requires_contract_impact(
+    tmp_path: Path,
+) -> None:
+    package = repository_package()
+    package["write_paths"].append(
+        "plugins/ak/schemas/work-package.schema.json"
+    )
+    run, package_root, _, _ = write_run(
+        tmp_path,
+        package,
+        handoff_changes={"status": "FAILED", "artifacts": []},
+        create_receipt=False,
+    )
+    receipt = acceptance_receipt(package)
+    receipt["receipt_id"] = "RR-SCOPE-SENSITIVE"
+    write_review_receipt(package_root, receipt)
+
+    errors, _, _ = validate_run_handoffs(run, work_package_root=package_root)
+
+    assert not any(
+        receipt["receipt_id"] in error and "COLLAB_IMPACT_REQUIRED" in error
+        for error in errors
+    )
+
+
+def test_contract_impact_root_must_be_a_directory(tmp_path: Path) -> None:
+    _, run, package_root, _, _ = sensitive_repository_review_run(tmp_path)
+    impacts = package_root.parent / "contract-impacts"
+    impacts.write_text("not a directory", encoding="utf-8")
+
+    errors, _, _ = validate_run_handoffs(run, work_package_root=package_root)
+
+    assert "contract-impacts: invalid contract impact control entry" in errors
+
+
+@pytest.mark.parametrize(
+    ("case", "message"),
+    [
+        ("nested", "contract-impacts/nested: invalid contract impact control entry"),
+        ("misc", "contract-impacts/notes.txt: invalid contract impact control entry"),
+        ("non-utf8", "extra.json: invalid contract impact JSON"),
+        ("malformed", "extra.json: invalid contract impact JSON"),
+        ("schema", "extra.json: invalid contract impact schema"),
+        ("filename", "wrong.json: filename does not match impact_id"),
+        ("duplicate", "duplicate contract impact id CI-WP_KIT_SCHEMA"),
+        ("orphan", "CI-UNKNOWN.json: unknown work package id WP_UNKNOWN"),
+        ("package-duplicate", "WP_KIT_SCHEMA: duplicate contract impacts"),
+    ],
+)
+def test_contract_impact_directory_is_closed_and_fail_closed(
+    tmp_path: Path, case: str, message: str
+) -> None:
+    package, run, package_root, _, record = sensitive_repository_review_run(
+        tmp_path
+    )
+    canonical = write_contract_impact(package_root, record)
+    impacts = canonical.parent
+    if case == "nested":
+        nested = impacts / "nested"
+        nested.mkdir()
+        (nested / "extra.json").write_text("{}", encoding="utf-8")
+    elif case == "misc":
+        (impacts / "notes.txt").write_text("note", encoding="utf-8")
+    elif case == "non-utf8":
+        (impacts / "extra.json").write_bytes(bytes([0xFF]))
+    elif case == "malformed":
+        (impacts / "extra.json").write_text("{", encoding="utf-8")
+    elif case == "schema":
+        (impacts / "extra.json").write_text("{}", encoding="utf-8")
+    elif case == "filename":
+        canonical.rename(impacts / "wrong.json")
+    elif case == "duplicate":
+        write_contract_impact(package_root, record, "duplicate.json")
+    elif case == "orphan":
+        orphan = deepcopy(record)
+        orphan["impact_id"] = "CI-UNKNOWN"
+        orphan["work_package_id"] = "WP_UNKNOWN"
+        orphan["work_package_digest"] = "d" * 64
+        write_contract_impact(package_root, orphan)
+    elif case == "package-duplicate":
+        duplicate = deepcopy(record)
+        duplicate["impact_id"] = "CI-SECOND"
+        duplicate["work_package_digest"] = work_package_digest(package)
+        write_contract_impact(package_root, duplicate)
+    else:
+        raise AssertionError(case)
+
+    errors, _, _ = validate_run_handoffs(run, work_package_root=package_root)
+
+    assert any(message in error for error in errors)
 
 
 def test_review_root_must_be_a_directory(tmp_path: Path) -> None:

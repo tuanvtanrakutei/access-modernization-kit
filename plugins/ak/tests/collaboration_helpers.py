@@ -130,3 +130,36 @@ def acceptance_receipt(package: dict) -> dict:
         "validation_results": [{"command": command, "exit_code": 0, "result": "PASS"} for command in package["validation_commands"]],
         "findings": [], "decision": "APPROVED", "reviewed_at": "2026-07-28T00:10:00Z",
     }
+
+
+def impact(package: dict) -> dict:
+    return {
+        "schema_version": "1.0",
+        "impact_id": "CI-" + package["package_id"],
+        "work_package_id": package["package_id"],
+        "work_package_digest": work_package_digest(package),
+        "changed_paths": ["plugins/ak/schemas/work-package.schema.json"],
+        "affected_contracts": ["work-package.schema.json"],
+        "compatibility": "compatible",
+        "migration_behavior": {
+            "required": False,
+            "summary": "The additive schema remains compatible.",
+        },
+        "synthetic_fixtures": [
+            "plugins/ak/fixtures/collaboration/two-contributor"
+        ],
+        "compatibility_tests": ["plugins/ak/tests/test_collaboration.py"],
+        "documentation_updates": ["docs/collaboration/contract-changes.md"],
+        "validation_evidence": [
+            "python -m pytest plugins/ak/tests/test_collaboration.py -q"
+        ],
+        "untested_runtime_paths": [],
+        "untested_runtime_reason": (
+            "All affected deterministic paths are covered by synthetic tests."
+        ),
+        "security_and_data_handling_impact": (
+            "No production bundle content or secrets enter Git."
+        ),
+        "release_target": "2.7.2",
+        "reviewer": package["reviewer"],
+    }

@@ -15,6 +15,7 @@ from collaboration import (
     work_package_digest,
     _task_logical_path,
 )
+from contract_impact import contract_impact_required, validate_contract_impact
 
 REVIEW_FORMAT_CHECKER = jsonschema.FormatChecker()
 
@@ -69,6 +70,7 @@ def validate_review_receipt(
     expected_publication_phase: int | None = None,
     require_exact_output_binding: bool = True,
     review_not_before: str | None = None,
+    changed_paths: list[str] | None = None,
     contract_impact: dict[str, Any] | None = None,
 ) -> None:
     validate_work_package(package)
@@ -106,6 +108,14 @@ def validate_review_receipt(
     if snapshot != package["authority"]:
         raise CollaborationError("COLLAB_REVIEW_STALE", "authority snapshot")
     stage = receipt["review_stage"]
+    if (
+        stage != "scope_acceptance"
+        and changed_paths is not None
+        and contract_impact_required(changed_paths)
+    ):
+        if contract_impact is None:
+            raise CollaborationError("COLLAB_IMPACT_REQUIRED", "contract impact")
+        validate_contract_impact(package, contract_impact, changed_paths)
     try:
         reviewed_at = _parse_date_time(receipt["reviewed_at"])
         not_before = _parse_date_time(
