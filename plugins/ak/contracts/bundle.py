@@ -59,12 +59,31 @@ def verify_immutable(bundle_dir: Path, expected_hashes: dict[str, str]) -> None:
 def make_lock(
     bundle_id: str, checksum: str, schema_version: str,
     classification: dict[str, Any], approved_location: str, approval_record_id: str,
+    *,
+    lock_version: str | None = None,
+    distribution_policy: str | None = None,
+    artifact_reference: str | None = None,
+    bundle_approval_checksum: str | None = None,
+    profile_rule_versions: dict[str, str] | None = None,
+    normalization_config_checksum: str | None = None,
+    supersedes_lock_checksum: str | None = None,
 ) -> dict[str, Any]:
-    return {
+    value = {
         "bundle_id": bundle_id, "checksum": checksum, "schema_version": schema_version,
         "classification": classification, "approved_location": approved_location,
         "approval_record_id": approval_record_id,
     }
+    optional = {
+        "lock_version": lock_version,
+        "distribution_policy": distribution_policy,
+        "artifact_reference": artifact_reference,
+        "bundle_approval_checksum": bundle_approval_checksum,
+        "profile_rule_versions": profile_rule_versions,
+        "normalization_config_checksum": normalization_config_checksum,
+        "supersedes_lock_checksum": supersedes_lock_checksum,
+    }
+    value.update({key: item for key, item in optional.items() if item is not None})
+    return value
 
 
 def make_approval(
