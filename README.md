@@ -5,6 +5,17 @@
 
 An agent skill for investigating a legacy Microsoft Access/VBA and SQL Server application, one app at a time. It turns authorized source material into the six analyst phases, evidence, E2E Trace, Boundary Map, QA report, and presentation inputs.
 
+## Prerequisites
+
+The kit itself installs with no extra runtime. Two optional capabilities depend on what your app manifest declares:
+
+- **Access/VBA extraction** (`managed_access` adapter): requires Microsoft Access or the Microsoft Access Database Engine (ACE) already installed and COM/DAO-registered on a Windows host. The kit never installs Access for you; it only detects whether a compatible host is present. Run `$ak preflight <APP_ID>` before `$ak acquire` to check this.
+- **Live SQL Server access**: requires `pyodbc` and a Microsoft ODBC Driver, installed only after live access is explicitly authorized.
+
+If a required runtime is missing, `$ak preflight` reports the exact gap; `$ak acquire run` blocks with `AUTHORIZATION_REQUIRED` or a capability failure instead of guessing.
+
+There is no single Access version/bitness to install. It depends on the target app's file format and vintage (`.mdb`, `.accdb`, or `.adp`), which only the app owner or system manager can identify; a modern Access install is not assumed compatible with an older `.mdb`/`.adp` project. `scripts/access_runtime.py` inspects both the 32-bit and 64-bit registry views and reports the registered Access executable, version, and bitness so you install or activate the matching one instead of guessing.
+
 ## Install in Codex
 
 You do **not** need to clone this repository or create a link in an agent folder. Add the public marketplace once, then install the plugin:
