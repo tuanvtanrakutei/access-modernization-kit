@@ -1,0 +1,64 @@
+{
+  "authority": {
+    "app_id": "SYN",
+    "approval_record_id": "AP-SYN-1",
+    "artifact_reference": "artifact_store://fixture/SYN/bundles/bundle-synthetic",
+    "bundle_id": "bundle-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "bundle_lock_digest": "9790b22d1b7b3d4e30e1f57e9fa296db078b1ce213fbe1bcef0bf8f59d3c52e7",
+    "checksum": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "distribution_policy": "artifact_store",
+    "kind": "approved_bundle"
+  },
+  "coordinator": "maintainer",
+  "created_at": "2026-07-28T00:00:00Z",
+  "created_by": "planner",
+  "dependencies": [],
+  "evidence_namespace": "SYN-P1-SQL_DATA-ORDERS",
+  "expected_artifacts": [
+    {
+      "kind": "analysis_fragment",
+      "path": "work/sql_data/module-orders/result.json",
+      "publication_class": "scoped",
+      "required": true
+    }
+  ],
+  "input_paths": [
+    "extracted/bundles/bundle-synthetic/code/access-sql"
+  ],
+  "objective": "Produce one scoped SQL evidence fragment.",
+  "package_id": "WP_SYN_SQL",
+  "publication_policy": "scoped_only",
+  "reviewer": "contract-reviewer",
+  "schema_version": "1.0",
+  "scope": {
+    "adapter_targets": [],
+    "document_targets": [],
+    "module_targets": [
+      "module-orders"
+    ],
+    "phase_targets": [
+      1
+    ],
+    "profile_targets": [],
+    "roles": [
+      "sql_data"
+    ],
+    "wave_ids": [
+      "wave1_source_extraction"
+    ]
+  },
+  "security_constraints": {
+    "live_access": false,
+    "live_sql_server": false,
+    "network": false,
+    "production_data": false
+  },
+  "title": "Analyze synthetic SQL evidence",
+  "validation_commands": [
+    "python -m pytest plugins/ak/tests/test_collaboration_integration.py -q"
+  ],
+  "work_kind": "application_evidence",
+  "write_paths": [
+    "work/sql_data/module-orders"
+  ]
+}

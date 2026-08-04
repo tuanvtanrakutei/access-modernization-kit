@@ -1,0 +1,34 @@
+{
+  "affected_contracts": [
+    "work-package.schema.json"
+  ],
+  "changed_paths": [
+    "plugins/ak/schemas/work-package.schema.json"
+  ],
+  "compatibility": "compatible",
+  "compatibility_tests": [
+    "plugins/ak/tests/test_collaboration.py"
+  ],
+  "documentation_updates": [
+    "docs/collaboration/contract-changes.md"
+  ],
+  "impact_id": "CI-WP_KIT_CONTRACT",
+  "migration_behavior": {
+    "required": false,
+    "summary": "The additive schema remains compatible."
+  },
+  "release_target": "2.7.2",
+  "reviewer": "contract-reviewer",
+  "schema_version": "1.0",
+  "security_and_data_handling_impact": "No production bundle content or secrets enter Git.",
+  "synthetic_fixtures": [
+    "plugins/ak/fixtures/collaboration/two-contributor"
+  ],
+  "untested_runtime_paths": [],
+  "untested_runtime_reason": "All affected deterministic paths are covered by synthetic tests.",
+  "validation_evidence": [
+    "python -m pytest plugins/ak/tests/test_collaboration.py -q"
+  ],
+  "work_package_digest": "b53555eb2478c6c5a22fdbd90bb55d837d655c771f0cc2572cd6c403c206c023",
+  "work_package_id": "WP_KIT_CONTRACT"
+}

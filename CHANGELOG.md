@@ -1,5 +1,20 @@
 # Changelog
 
+## [2.7.2] - 2026-07-28
+
+### Added
+
+- Canonical human/agent work packages, review receipts, and contract-impact records.
+- Deterministic collaboration conflict checks, runtime task projection, and English team workflows.
+
+### Changed
+
+- Bundle locks may carry portable multi-developer artifact authority while legacy locks remain valid.
+
+### Security
+
+- Production bundles remain outside Git by default; scoped paths, evidence namespaces, publication authority, and reviewer independence are validated before integration.
+
 ## [2.7.1] - 2026-07-28
 
 ### Added

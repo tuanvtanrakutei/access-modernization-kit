@@ -1,0 +1,36 @@
+{
+  "authority_snapshot": {
+    "app_id": "SYN",
+    "approval_record_id": "AP-SYN-1",
+    "artifact_reference": "artifact_store://fixture/SYN/bundles/bundle-synthetic",
+    "bundle_id": "bundle-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "bundle_lock_digest": "9790b22d1b7b3d4e30e1f57e9fa296db078b1ce213fbe1bcef0bf8f59d3c52e7",
+    "checksum": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "distribution_policy": "artifact_store",
+    "kind": "approved_bundle"
+  },
+  "decision": "APPROVED",
+  "findings": [],
+  "producer": "planner",
+  "receipt_id": "RR-WP_SYN_SQL",
+  "review_scope": [
+    "schema",
+    "authority",
+    "paths",
+    "dependencies",
+    "security"
+  ],
+  "review_stage": "scope_acceptance",
+  "reviewed_at": "2026-07-28T00:10:00Z",
+  "reviewer": "contract-reviewer",
+  "schema_version": "1.0",
+  "validation_results": [
+    {
+      "command": "python -m pytest plugins/ak/tests/test_collaboration_integration.py -q",
+      "exit_code": 0,
+      "result": "PASS"
+    }
+  ],
+  "work_package_digest": "bd87e6ebae2a1b77a084122f242f64f47c626f3d39c0ed97d678b5d768d3550b",
+  "work_package_id": "WP_SYN_SQL"
+}

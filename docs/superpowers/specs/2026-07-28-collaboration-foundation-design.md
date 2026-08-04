@@ -1,8 +1,8 @@
 # Plan 3A Collaboration Foundation Design
 
-**Status:** Proposed for user approval  
-**Target release:** AK 2.7.2  
-**Canonical language:** English  
+**Status:** Proposed for user approval
+**Target release:** AK 2.7.2
+**Canonical language:** English
 **Parent design:** `docs/superpowers/specs/2026-07-23-profile-driven-extraction-bundle-design.md`
 
 ## 1. Summary

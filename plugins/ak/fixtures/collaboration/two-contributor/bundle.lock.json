@@ -1,0 +1,18 @@
+{
+  "approval_record_id": "AP-SYN-1",
+  "approved_location": "artifact_store://fixture/SYN/bundles/bundle-synthetic",
+  "artifact_reference": "artifact_store://fixture/SYN/bundles/bundle-synthetic",
+  "bundle_approval_checksum": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+  "bundle_id": "bundle-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "checksum": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+  "classification": {
+    "topology": "split_file"
+  },
+  "distribution_policy": "artifact_store",
+  "lock_version": "1.1",
+  "normalization_config_checksum": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+  "profile_rule_versions": {
+    "topology.split_file.backend_required": "1.0"
+  },
+  "schema_version": "1.0"
+}
