@@ -8,6 +8,11 @@
 /plugins/ak/orchestration/ @tuanvtanrakutei
 /plugins/ak/specifications/ @tuanvtanrakutei
 /docs/ @tuanvtanrakutei
+/docs/collaboration/ @tuanvtanrakutei
+/plugins/ak/contracts/collaboration.py @tuanvtanrakutei
+/plugins/ak/contracts/contract_impact.py @tuanvtanrakutei
+/plugins/ak/contracts/review.py @tuanvtanrakutei
+/plugins/ak/scripts/collaboration_cli.py @tuanvtanrakutei
 /.claude-plugin/ @tuanvtanrakutei
 /plugins/ak/.codex-plugin/ @tuanvtanrakutei
 /.github/workflows/ @tuanvtanrakutei
