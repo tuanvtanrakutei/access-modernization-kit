@@ -17,7 +17,7 @@
     "required": false,
     "summary": "The additive schema remains compatible."
   },
-  "release_target": "2.7.2",
+  "release_target": "2.7.3",
   "reviewer": "contract-reviewer",
   "schema_version": "1.0",
   "security_and_data_handling_impact": "No production bundle content or secrets enter Git.",

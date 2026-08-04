@@ -1,5 +1,16 @@
 # Changelog
 
+## [2.7.3] - 2026-08-04
+
+### Added
+
+- Streamlined `$ak init --source <PATH>` with auto-discovery for exported sources, directories, and ZIP archives.
+- Streamlined 1-step `$ak acquire <APP_ID>` shortcut.
+
+### Changed
+
+- Streamlined user documentation in README.md and SKILL.md.
+
 ## [2.7.2] - 2026-07-28
 
 ### Added

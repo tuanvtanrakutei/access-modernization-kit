@@ -63,7 +63,7 @@
     "security_and_data_handling_impact": {
       "type": "string", "pattern": "^\\S(?:[\\s\\S]*\\S)?$"
     },
-    "release_target": {"const": "2.7.2"},
+    "release_target": {"const": "2.7.3"},
     "reviewer": {"type": "string", "pattern": "^\\S(?:[\\s\\S]*\\S)?$"}
   }
 }

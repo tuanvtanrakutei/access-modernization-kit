@@ -277,5 +277,5 @@ def validate_contract_impact(
         raise _impact_error("reviewer")
     if impact["reviewer"] == package["created_by"]:
         raise _impact_error("reviewer independence")
-    if impact["release_target"] != "2.7.2":
+    if impact["release_target"] != "2.7.3":
         raise _impact_error("release target")

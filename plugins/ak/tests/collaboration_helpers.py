@@ -160,6 +160,6 @@ def impact(package: dict) -> dict:
         "security_and_data_handling_impact": (
             "No production bundle content or secrets enter Git."
         ),
-        "release_target": "2.7.2",
+        "release_target": "2.7.3",
         "reviewer": package["reviewer"],
     }
