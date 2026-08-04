@@ -140,3 +140,34 @@ def test_managed_without_authorization_does_not_create_bundle(tmp_path: Path) ->
     assert data["status"] == "BLOCKED"
     assert data["failures"][0]["reason"] == "AUTHORIZATION_REQUIRED"
     assert not list(output.glob("bundle-*"))
+
+
+def test_streamlined_acquire_shortcut(tmp_path: Path) -> None:
+    manifest = _write_manifest(tmp_path)
+    data = _run(["acquire", str(tmp_path)], tmp_path)
+    assert data["status"] == "VALID"
+    assert data["bundle_id"].startswith("bundle-")
+    assert "plan" in data
+
+
+def test_init_with_source_discovery(tmp_path: Path) -> None:
+    src_dir = tmp_path / "raw_sources"
+    src_dir.mkdir()
+    (src_dir / "Customer.bas").write_text("Attribute VB_Name = \"Customer\"", encoding="utf-8")
+    (src_dir / "Orders.sql").write_text("SELECT * FROM Orders;", encoding="utf-8")
+
+    app_root = tmp_path / "TESTAPP"
+    completed = subprocess.run([
+        sys.executable, str(AK), "init",
+        "--app-root", str(app_root),
+        "--app-id", "TESTAPP",
+        "--name-en", "Test Discovery App",
+        "--source", str(src_dir),
+    ], capture_output=True, text=True, encoding="utf-8")
+    assert completed.returncode == 0
+    manifest = app_root / "manifest.yaml"
+    assert manifest.is_file()
+
+    acq = _run(["acquire", str(app_root)], app_root)
+    assert acq["status"] == "VALID"
+    assert acq["bundle_id"].startswith("bundle-")

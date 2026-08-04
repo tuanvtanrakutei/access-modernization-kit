@@ -1,155 +1,70 @@
-# Access Modernization Kit
+# Access Modernization Kit (AK)
 
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
 [![Release](https://img.shields.io/github/v/release/tuanvtanrakutei/access-modernization-kit?color=green&label=release)](https://github.com/tuanvtanrakutei/access-modernization-kit/releases/latest)
 
-An agent skill for investigating a legacy Microsoft Access/VBA and SQL Server application, one app at a time. It turns authorized source material into the six analyst phases, evidence, E2E Trace, Boundary Map, QA report, and presentation inputs.
+An agent skill for investigating legacy Microsoft Access, VBA, and SQL Server applications. It turns source material into 6 Analyst Phase documents, Evidence trace, Boundary Maps, QA reports, and Modernization System Specs.
 
-## Prerequisites
+---
 
-The kit itself installs with no extra runtime. Two optional capabilities depend on what your app manifest declares:
+## ? Quick Install
 
-- **Access/VBA extraction** (`managed_access` adapter): requires Microsoft Access or the Microsoft Access Database Engine (ACE) already installed and COM/DAO-registered on a Windows host. The kit never installs Access for you; it only detects whether a compatible host is present. Run `$ak preflight <APP_ID>` before `$ak acquire` to check this.
-- **Live SQL Server access**: requires `pyodbc` and a Microsoft ODBC Driver, installed only after live access is explicitly authorized.
-
-If a required runtime is missing, `$ak preflight` reports the exact gap; `$ak acquire run` blocks with `AUTHORIZATION_REQUIRED` or a capability failure instead of guessing.
-
-There is no single Access version/bitness to install. It depends on the target app's file format and vintage (`.mdb`, `.accdb`, or `.adp`), which only the app owner or system manager can identify; a modern Access install is not assumed compatible with an older `.mdb`/`.adp` project. `scripts/access_runtime.py` inspects both the 32-bit and 64-bit registry views and reports the registered Access executable, version, and bitness so you install or activate the matching one instead of guessing.
-
-## Install in Codex
-
-You do **not** need to clone this repository or create a link in an agent folder. Add the public marketplace once, then install the plugin:
+Run in **Codex CLI**:
 
 ```powershell
 codex plugin marketplace add tuanvtanrakutei/access-modernization-kit --sparse .agents/plugins --sparse plugins/ak
 codex plugin add ak@access-modernization-kit
 ```
 
-Start a new Codex conversation after installation. Codex manages the installed plugin location and discovers `$ak` automatically.
+*(For **Claude Code**, run `/plugin marketplace add tuanvtanrakutei/access-modernization-kit` and `/plugin install ak@access-modernization-kit`).*
 
-> To pin a specific release instead of the latest, add `--ref vX.Y.Z` to the marketplace command (for example `--ref v2.3.0`). See the [releases page](https://github.com/tuanvtanrakutei/access-modernization-kit/releases).
+---
 
-To update later:
+## ?? Streamlined Workflow
 
-```powershell
-codex plugin marketplace upgrade access-modernization-kit
-codex plugin add ak@access-modernization-kit
-```
-
-## Install in Claude Code
-
-You do **not** need to clone this repository. Add the marketplace once, then install the plugin:
+### **Scenario A: You have exported sources (.bas, .sql, .csv, or .zip archive)**
+*(No Microsoft Access runtime required!)*
 
 ```text
-/plugin marketplace add tuanvtanrakutei/access-modernization-kit
-/plugin install ak@access-modernization-kit
+1. Initialize & auto-discover sources:  $ak init MYAPP --source D:/Path/To/Source_Or_Zip
+2. Validate & assemble bundle:          $ak acquire MYAPP
+3. Run 6-Phase Analysis:                $ak run MYAPP
 ```
 
-Restart the session after installation. Claude Code discovers the `ak` skill automatically. To update later, run `/plugin marketplace update access-modernization-kit` and reinstall.
-
-## Use it with an agent
-
-In Codex, select **Access Modernization Kit** from `/skills`, or include `$ak` in your request. These are agent messages, not PowerShell commands.
-
-| Goal | Say this to the agent |
-|---|---|
-| Create an empty workspace | `$ak init <APP_ID>` |
-| Check sources and missing inputs | `$ak assess <APP_ID>` |
-| Run a specific phase | `$ak phase 1 <APP_ID>` |
-| Run the six phases | `$ak run <APP_ID>` |
-| View progress only | `$ak status <APP_ID>` |
-| Produce final approved outputs | `$ak render <APP_ID> English` |
-
-Example:
+### **Scenario B: You have a live .mdb / .accdb database file**
+*(Requires Microsoft Access or ACE OLEDB/DAO registered on a Windows host)*
 
 ```text
-Use $ak to investigate <APP_ID> from the authorized sources.
-Run the six phases and produce English Phase documents, an E2E Trace,
-a Boundary Map, a QA report, and presentation inputs.
+1. Initialize workspace:                $ak init MYAPP
+2. Check host runtime capabilities:     $ak preflight MYAPP
+3. Extract safely from snapshot:        $ak acquire MYAPP --authorize access_snapshot_extract
+4. Run 6-Phase Analysis:                $ak run MYAPP
 ```
 
-`run` does not grant live Access/ADP extraction or live SQL Server access. Those require separate approval.
+---
 
-Graphify is prepared automatically when a Phase/run starts. The kit creates a
-pinned isolated runtime when Graphify is missing, normalizes supported code and
-documents into a binary-free corpus, then builds or refreshes the app graph and
-runs a phase-specific query. Users do not install Graphify into system Python.
-If installation, OCR/document conversion, graph freshness, or the query gate
-cannot be validated, the agent stops and reports the exact blocker before
-creating Phase output.
+## ??? Command Guide
 
-## Set up one app workspace
+| Command | Action |
+| :--- | :--- |
+| `$ak init <APP_ID> [--source <PATH>]` | Scaffold app workspace. If `--source` is provided (folder or .zip), auto-discovers artifacts into `manifest.yaml`. |
+| `$ak preflight <APP_ID>` | Check host capabilities (Access runtime 32/64-bit, ODBC, source files). |
+| `$ak acquire <APP_ID>` | Plan and assemble the canonical bundle in 1 step. |
+| `$ak phase <1-6> <APP_ID>` | Run a specific phase (Phases 1 to 6). |
+| `$ak run <APP_ID>` | Run all permitted phases sequentially. |
+| `$ak status <APP_ID>` | View investigation status and QA reports. |
+| `$ak render <APP_ID> [LANG]` | Generate final approved deliverables (English, Japanese, or Vietnamese). |
 
-For a new empty folder, ask the agent for `$ak init <APP_ID>`. For an existing app project, explicitly ask it to adopt <APP_ROOT> without changing current files. The optional CLI is:
-
-```powershell
-py -3.11 plugins\ak\scripts\ak.py init `
-  --root <WORKSPACE_ROOT> `
-  --app-id <APP_ID> `
-  --name-en "<APP_NAME>"
-```
-
-For an existing non-empty app project, use --app-root <APP_ROOT> and --adopt-existing instead of --root. The initializer preserves existing files and creates only missing kit-owned folders/files.
-
-For a guided, safe first run against an existing local Access MDB workspace, see [First investigation of an existing Access MDB workspace](docs/first-access-mdb-investigation.md).
-
-Put the application's authorized exports and documents in that workspace. Each application has its own sources, evidence, graph, decisions, runs, and outputs; the installed plugin remains shared.
-
-```mermaid
-flowchart LR
-    S[Authorized legacy sources] --> W[App workspace]
-    W --> C[Component index and module plan]
-    C --> G[Managed Graphify corpus and fresh graph]
-    G --> P[Graph query gate before each Phase 1-6]
-    P --> O[Phase documents, E2E, Boundary Map, QA, presentation]
-```
-
-## What you provide
-
-- Access VBA exports, forms, reports, or authorized MDB/ACCDB/ADP snapshots
-- SQL Server schemas, queries, and stored procedures
-- Japanese manuals, XLSX lists, PDFs, screenshots, and reports
-
-## What you receive
-
-1. Data understanding
-2. Screen and form analysis
-3. Logic and processing analysis
-4. End-to-end workflow reconstruction
-5. Document integration and mismatch review
-6. System synthesis with risks, assumptions, and unknowns
-
-Plus traceable evidence, a question list, QA report, E2E Trace, Boundary Map, and presentation-ready material.
-
-## Use with another agent runtime
-
-For Claude Code, prefer the marketplace install above. For another compatible runtime (or a project-scoped manual link without a marketplace), first obtain the package (clone/download or use its local plugin cache), then ask an agent to run:
-
-```text
-$ak install claude <PROJECT_PATH>
-```
-
-That creates the project-scoped Claude skill link. The six-phase contract and outputs stay the same.
+---
 
 <details>
-<summary>Advanced: local validation, extraction, and architecture</summary>
+<summary>?? Prerequisites & Safety Contract</summary>
 
-The CLI is for local setup and package checks, not normal investigation work:
-
-```powershell
-py -3.11 plugins\ak\scripts\ak.py validate
-py -3.11 plugins\ak\scripts\ak.py preflight --app-root <APP_WORKSPACE>
-```
-
-The kit supports controlled Access extraction, `pyodbc`/Microsoft SQL Server ODBC access when explicitly authorized, Graphify-assisted discovery, optional compilation-database context, and provider-neutral multi-agent processing. It does not include CodeWiki as a dependency. Read the installed skill or the package files under `plugins/ak/` only when maintaining the kit.
+- **Imported Sources**: Exported text sources (.bas, .cls, .sql, .csv) or ZIP packages do not require Microsoft Access to be installed.
+- **Managed Access Live Extraction**: Requires host Microsoft Access or ACE Database Engine registered in Windows registry. `$ak preflight` checks bitness automatically.
+- **Safety Guarantee**: The kit **never** opens or modifies live original `.mdb`/`.accdb` files. Live extraction executes strictly against a byte-for-byte verified disposable snapshot.
 </details>
 
-## Safety
+## License & Contributing
 
-- Never commit production databases, credentials, DSNs, customer documents, or investigation runs.
-- Access extraction works from a hash-verified snapshot; never open the original database.
-- The current replacement implementation stays outside scope unless explicitly included.
-
-## Contributing and security
-
-See [CONTRIBUTING.md](CONTRIBUTING.md) and [SECURITY.md](SECURITY.md). Licensed under the [Apache License 2.0](LICENSE). Copyright 2026 Vo Ta Tuan.
+See [CONTRIBUTING.md](CONTRIBUTING.md) and [SECURITY.md](SECURITY.md). Licensed under [Apache License 2.0](LICENSE). Copyright 2026 Vo Ta Tuan.

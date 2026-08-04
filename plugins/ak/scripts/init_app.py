@@ -7,8 +7,11 @@ import argparse
 import json
 import re
 import shutil
+import zipfile
 from datetime import datetime, timezone
-from pathlib import Path
+from pathlib import Path, PurePosixPath
+from typing import Any
+import yaml
 
 
 APP_ID_RE = re.compile(r"^[A-Z][A-Z0-9_-]{1,15}$")
@@ -37,6 +40,126 @@ OWNED_FILES = (
     ".graphifyignore",
     ".investigationignore",
 )
+
+
+def safe_extract_zip(zip_path: Path, dest_dir: Path) -> None:
+    with zipfile.ZipFile(zip_path, "r") as archive:
+        for info in archive.infolist():
+            member_path = PurePosixPath(info.filename.replace(chr(92), "/"))
+            if member_path.is_absolute() or ".." in member_path.parts:
+                raise ValueError(f"Unsafe zip member path: {info.filename}")
+            target = (dest_dir / member_path).resolve()
+            try:
+                target.relative_to(dest_dir.resolve())
+            except ValueError:
+                raise ValueError(f"Zip path escape attempt: {info.filename}")
+            if info.is_dir():
+                target.mkdir(parents=True, exist_ok=True)
+            else:
+                target.parent.mkdir(parents=True, exist_ok=True)
+                with archive.open(info) as src, open(target, "wb") as dst:
+                    shutil.copyfileobj(src, dst)
+
+
+def discover_sources(app_root: Path) -> tuple[dict[str, Any], list[dict[str, Any]]]:
+    sources_dir = app_root / "sources"
+    if not sources_dir.exists():
+        return {
+            "topology": "monolith",
+            "frontend_format": "exported",
+            "source_availability": "exported_only",
+            "backend_kinds": ["embedded_access"],
+        }, []
+
+    artifacts: list[dict[str, Any]] = []
+    seen_ids: set[str] = set()
+    found_db = False
+    found_sql = False
+    frontend_fmt = "exported"
+
+    for file_path in sorted(sources_dir.rglob("*")):
+        if file_path.is_dir():
+            continue
+        rel_path = file_path.relative_to(app_root).as_posix()
+        if rel_path in OWNED_FILES or rel_path.endswith(".yaml") or rel_path.startswith("."):
+            continue
+        suffix = file_path.suffix.lower()
+        stem = file_path.stem
+
+        if suffix in (".bas", ".cls", ".vba"):
+            kind, fmt, role, acq = "source_export", "vba", "frontend", "imported"
+        elif suffix == ".sql":
+            kind, fmt, role, acq = "source_export", "access_sql", "backend", "imported"
+            found_sql = True
+        elif suffix in (".form", ".fmt", ".frm"):
+            kind, fmt, role, acq = "source_export", "form", "frontend", "imported"
+        elif suffix in (".report", ".rpt"):
+            kind, fmt, role, acq = "source_export", "report", "frontend", "imported"
+        elif suffix in (".macro", ".mcr"):
+            kind, fmt, role, acq = "source_export", "macro", "frontend", "imported"
+        elif suffix in (".mdb", ".accdb", ".adp"):
+            kind, fmt, role, acq = "access_database", suffix[1:], "frontend", "managed"
+            found_db = True
+            frontend_fmt = suffix[1:]
+        elif suffix in (".png", ".jpg", ".jpeg", ".bmp"):
+            kind, fmt, role, acq = "screenshot", suffix[1:], "interface", "imported"
+        elif suffix in (".pdf", ".docx", ".xlsx", ".md"):
+            kind, fmt, role, acq = "document", suffix[1:], "documentation", "imported"
+        else:
+            kind, fmt, role, acq = "sample", suffix[1:] if suffix else "text", "interface", "imported"
+
+        base_id = re.sub(r"[^A-Z0-9_]+", "_", stem.upper()).strip("_") or "ART"
+        art_id = base_id
+        idx = 1
+        while art_id in seen_ids:
+            art_id = f"{base_id}_{idx}"
+            idx += 1
+        seen_ids.add(art_id)
+
+        artifacts.append({
+            "id": art_id,
+            "kind": kind,
+            "role": role,
+            "acquisition": acq,
+            "required": True,
+            "format": fmt,
+            "source_ref": {
+                "type": "local_path",
+                "value": rel_path,
+            },
+        })
+
+    backend_kinds = ["sql_server"] if (found_sql or frontend_fmt == "adp") else ["embedded_access"]
+    source_avail = "full" if found_db else "exported_only"
+    classification = {
+        "topology": "monolith",
+        "frontend_format": frontend_fmt,
+        "source_availability": source_avail,
+        "backend_kinds": backend_kinds,
+    }
+    return classification, artifacts
+
+
+def manifest_v22_text(
+    app_id: str,
+    name_en: str,
+    classification: dict[str, Any],
+    artifacts: list[dict[str, Any]],
+) -> str:
+    data = {
+        "version": "2.2",
+        "app": {
+            "id": app_id,
+            "name_en": name_en,
+            "name_ja": "",
+            "name_vi": "",
+        },
+        "project": {
+            "classification": classification,
+        },
+        "artifacts": artifacts,
+    }
+    return yaml.safe_dump(data, sort_keys=False, allow_unicode=True)
 
 
 def manifest_text(app_id: str, name_en: str, languages: list[str], runtime: str, max_parallel: int) -> str:
@@ -130,6 +253,7 @@ def parse_args() -> argparse.Namespace:
         default="EN",
         help="Comma-separated output languages from EN,JA,VI (default: EN)",
     )
+    parser.add_argument("--source", help="Path to source directory or ZIP archive for automatic imported_sources discovery")
     parser.add_argument("--dry-run", action="store_true", help="Print planned paths only")
     parser.add_argument(
         "--adopt-existing",
@@ -182,9 +306,33 @@ def main() -> int:
     for directory in SOURCE_DIRS:
         (app_root / directory).mkdir(parents=True, exist_ok=True)
 
-    (app_root / "manifest.yaml").write_text(
-        manifest_text(app_id, args.name_en, languages, args.runtime, args.max_parallel), encoding="utf-8"
-    )
+    if args.source:
+        src_path = Path(args.source).expanduser().resolve()
+        if not src_path.exists():
+            raise SystemExit(f"Source path does not exist: {src_path}")
+        sources_dest = app_root / "sources"
+        sources_dest.mkdir(parents=True, exist_ok=True)
+        if src_path.is_file() and (src_path.suffix.lower() == ".zip" or zipfile.is_zipfile(src_path)):
+            safe_extract_zip(src_path, sources_dest)
+        elif src_path.is_dir() and src_path.resolve() != sources_dest.resolve():
+            for item in src_path.iterdir():
+                dest_item = sources_dest / item.name
+                if item.is_dir():
+                    if dest_item.exists():
+                        shutil.rmtree(dest_item)
+                    shutil.copytree(item, dest_item)
+                else:
+                    shutil.copy2(item, dest_item)
+        elif src_path.is_file():
+            shutil.copy2(src_path, sources_dest / src_path.name)
+
+    classification, discovered_artifacts = discover_sources(app_root)
+    if discovered_artifacts:
+        manifest_content = manifest_v22_text(app_id, args.name_en, classification, discovered_artifacts)
+    else:
+        manifest_content = manifest_text(app_id, args.name_en, languages, args.runtime, args.max_parallel)
+
+    (app_root / "manifest.yaml").write_text(manifest_content, encoding="utf-8")
     evidence = {
         "app_id": app_id,
         "generated_at": datetime.now(timezone.utc).isoformat(),

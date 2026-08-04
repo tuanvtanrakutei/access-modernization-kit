@@ -30,14 +30,12 @@ def run(script: str, *args: str) -> int:
 
 def configure_acquire_parser(commands: argparse._SubParsersAction) -> None:
     acquire = commands.add_parser("acquire", help="Route declared artifacts through acquisition adapters.")
-    acquire_commands = acquire.add_subparsers(dest="acquire_action", required=True)
-    acquire_plan = acquire_commands.add_parser("plan")
-    acquire_plan.add_argument("--manifest", required=True)
-    acquire_run = acquire_commands.add_parser("run")
-    acquire_run.add_argument("--manifest", required=True)
-    acquire_run.add_argument("--output-root", required=True)
-    acquire_run.add_argument("--authorize", action="append", default=[])
-    acquire_run.add_argument("--acquisition-id", default=None)
+    acquire.add_argument("app_or_action", nargs="?", help="App workspace, ID, or action ('plan' or 'run').")
+    acquire.add_argument("target", nargs="?", help="Target app workspace or directory when action is specified.")
+    acquire.add_argument("--manifest", help="Path to manifest.yaml")
+    acquire.add_argument("--output-root", help="Output directory for acquisition bundle")
+    acquire.add_argument("--authorize", action="append", default=[])
+    acquire.add_argument("--acquisition-id", default=None)
 
 def configure_collaboration_parser(commands: argparse._SubParsersAction) -> None:
     collaboration = commands.add_parser(
@@ -101,6 +99,7 @@ def parse_args() -> argparse.Namespace:
     init.add_argument("--app-id", required=True, help="App identifier, for example A03.")
     init.add_argument("--name-en", required=True, help="English app name.")
     init.add_argument("--adopt-existing", action="store_true", help="Safely add kit files to a non-empty --app-root.")
+    init.add_argument("--source", help="Path to source directory or ZIP archive to auto-import and scan.")
     init.add_argument("--runtime", default="generic", help="Agent runtime label (default: generic).")
 
     preflight = commands.add_parser("preflight", help="Check capabilities and manifest before any analysis.")
@@ -262,6 +261,8 @@ def main() -> int:
             init_args.extend(["--app-root", args.app_root])
         if args.adopt_existing:
             init_args.append("--adopt-existing")
+        if getattr(args, "source", None):
+            init_args.extend(["--source", args.source])
         return run("init_app.py", *init_args)
     if args.command == "graphify":
         graphify_args = [
@@ -306,15 +307,57 @@ def main() -> int:
             sys.path.insert(0, package_path)
         from acquisition_orchestrator import plan_acquisition, run_acquisition
 
-        manifest_path = Path(args.manifest).expanduser().resolve()
-        if args.acquire_action == "plan":
+        app_or_action = getattr(args, "app_or_action", None)
+        target = getattr(args, "target", None)
+        action = None
+        app = None
+
+        if app_or_action in ("plan", "run"):
+            action = app_or_action
+            app = target
+        elif target in ("plan", "run"):
+            action = target
+            app = app_or_action
+        else:
+            app = app_or_action or target
+
+        manifest_arg = getattr(args, "manifest", None)
+        if manifest_arg:
+            manifest_path = Path(manifest_arg).expanduser().resolve()
+        elif app:
+            app_path = Path(app).expanduser().resolve()
+            if (app_path / "manifest.yaml").is_file():
+                manifest_path = app_path / "manifest.yaml"
+            elif app_path.is_file():
+                manifest_path = app_path
+            else:
+                manifest_path = app_path / "manifest.yaml"
+        else:
+            manifest_path = Path.cwd() / "manifest.yaml"
+
+        if not manifest_path.is_file():
+            print(f"ERROR: manifest not found: {manifest_path}")
+            return 2
+
+        output_root = (
+            Path(args.output_root).expanduser().resolve()
+            if getattr(args, "output_root", None)
+            else manifest_path.parent / "acquired"
+        )
+        acquisition_id = getattr(args, "acquisition_id", None) or f"acquire-{uuid.uuid4().hex}"
+        authorize = tuple(getattr(args, "authorize", []) or [])
+
+        if action == "plan":
             print_json(plan_acquisition(manifest_path))
             return 0
-        acquisition_id = args.acquisition_id or f"acquire-{uuid.uuid4().hex}"
-        result = run_acquisition(
-            manifest_path, Path(args.output_root).expanduser().resolve(),
-            tuple(args.authorize), acquisition_id,
-        )
+        elif action == "run":
+            result = run_acquisition(manifest_path, output_root, authorize, acquisition_id)
+            print_json(result)
+            return 0 if result.get("bundle_id") else 2
+
+        plan = plan_acquisition(manifest_path)
+        result = run_acquisition(manifest_path, output_root, authorize, acquisition_id)
+        result["plan"] = plan
         print_json(result)
         return 0 if result.get("bundle_id") else 2
     if args.command == "bundle":
