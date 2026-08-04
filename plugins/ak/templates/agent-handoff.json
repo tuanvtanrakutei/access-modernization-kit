@@ -3,8 +3,19 @@
   "run_id": "AXX-YYYYMMDD-HHMMSS",
   "app_id": "AXX",
   "role": "sql_data",
+  "work_package_id": "WP_AXX_SQL_DATA",
+  "work_package_digest": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+  "produced_revision": null,
+  "validation_results": [
+    {
+      "command": "python -m pytest plugins/ak/tests/test_collaboration_review.py -q",
+      "exit_code": 0,
+      "result": "PASS"
+    }
+  ],
+  "review_receipt_required": true,
   "agent_runtime": "generic",
-  "agent_id": null,
+  "agent_id": "worker-agent-id",
   "status": "COMPLETED",
   "summary": "Short evidence-backed summary.",
   "artifacts": ["work/sql_data/result.json"],

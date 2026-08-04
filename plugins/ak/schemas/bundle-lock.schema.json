@@ -1,1 +1,98 @@
-{"$schema":"https://json-schema.org/draft/2020-12/schema","title":"Bundle Lock","type":"object","required":["bundle_id","checksum","schema_version","classification","approved_location","approval_record_id"],"properties":{"bundle_id":{"type":"string"},"checksum":{"type":"string","pattern":"^[a-f0-9]{64}$"},"schema_version":{"type":"string"},"classification":{"type":"object"},"approved_location":{"type":"string"},"approval_record_id":{"type":"string"}},"additionalProperties":false}
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Bundle Lock",
+  "type": "object",
+  "required": [
+    "bundle_id",
+    "checksum",
+    "schema_version",
+    "classification",
+    "approved_location",
+    "approval_record_id"
+  ],
+  "properties": {
+    "bundle_id": {"type": "string"},
+    "checksum": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "schema_version": {"type": "string"},
+    "classification": {"type": "object"},
+    "approved_location": {"type": "string"},
+    "approval_record_id": {"type": "string"},
+    "lock_version": {"const": "1.1"},
+    "distribution_policy": {
+      "enum": ["artifact_store", "shared_path", "local_only", "git_allowed"]
+    },
+    "artifact_reference": {
+      "type": "string",
+      "pattern": "^(artifact_store|shared_path|local_only|git_allowed)://[^@?#\\s]+$"
+    },
+    "bundle_approval_checksum": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "profile_rule_versions": {
+      "type": "object",
+      "minProperties": 1,
+      "propertyNames": {"pattern": "\\S"},
+      "additionalProperties": {"type": "string", "pattern": "\\S"}
+    },
+    "normalization_config_checksum": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "supersedes_lock_checksum": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "required": ["lock_version"],
+        "properties": {"lock_version": {"const": "1.1"}}
+      },
+      "then": {
+        "required": [
+          "distribution_policy",
+          "artifact_reference",
+          "bundle_approval_checksum",
+          "profile_rule_versions",
+          "normalization_config_checksum"
+        ],
+        "properties": {
+          "approved_location": {
+            "pattern": "^(artifact_store|shared_path|local_only|git_allowed)://[^@?#\\s]+$"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "required": ["distribution_policy"],
+        "properties": {"distribution_policy": {"const": "artifact_store"}}
+      },
+      "then": {"properties": {"artifact_reference": {"pattern": "^artifact_store://"}}}
+    },
+    {
+      "if": {
+        "required": ["distribution_policy"],
+        "properties": {"distribution_policy": {"const": "shared_path"}}
+      },
+      "then": {"properties": {"artifact_reference": {"pattern": "^shared_path://"}}}
+    },
+    {
+      "if": {
+        "required": ["distribution_policy"],
+        "properties": {"distribution_policy": {"const": "local_only"}}
+      },
+      "then": {"properties": {"artifact_reference": {"pattern": "^local_only://"}}}
+    },
+    {
+      "if": {
+        "required": ["distribution_policy"],
+        "properties": {"distribution_policy": {"const": "git_allowed"}}
+      },
+      "then": {"properties": {"artifact_reference": {"pattern": "^git_allowed://"}}}
+    }
+  ],
+  "additionalProperties": false
+}

@@ -1,0 +1,159 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://sms.local/schemas/review-receipt.schema.json",
+  "title": "Collaboration Review Receipt",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version", "receipt_id", "work_package_id", "work_package_digest",
+    "review_stage", "authority_snapshot", "producer", "reviewer", "review_scope",
+    "validation_results", "findings", "decision", "reviewed_at"
+  ],
+  "allOf": [
+    {
+      "if": {
+        "required": ["review_stage"],
+        "properties": {"review_stage": {"const": "publication"}}
+      },
+      "then": {"required": ["publication_phase"]},
+      "else": {"not": {"required": ["publication_phase"]}}
+    },
+    {
+      "if": {
+        "required": ["review_stage"],
+        "properties": {"review_stage": {"const": "scope_acceptance"}}
+      },
+      "then": {
+        "properties": {
+          "authority_snapshot": {
+            "not": {
+              "anyOf": [
+                {"required": ["produced_revision"]},
+                {"required": ["produced_artifact_digest"]}
+              ]
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "required": ["review_stage", "authority_snapshot"],
+        "properties": {
+          "review_stage": {"enum": ["implementation", "publication"]},
+          "authority_snapshot": {
+            "required": ["kind"],
+            "properties": {"kind": {"const": "approved_bundle"}}
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "authority_snapshot": {
+            "required": ["produced_artifact_digest"],
+            "not": {"required": ["produced_revision"]}
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "required": ["review_stage", "authority_snapshot"],
+        "properties": {
+          "review_stage": {"enum": ["implementation", "publication"]},
+          "authority_snapshot": {
+            "required": ["kind"],
+            "properties": {
+              "kind": {"enum": ["repository_revision", "mixed"]}
+            }
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "authority_snapshot": {
+            "required": ["produced_revision"],
+            "not": {"required": ["produced_artifact_digest"]}
+          }
+        }
+      }
+    }
+  ],
+  "properties": {
+    "schema_version": {"const": "1.0"},
+    "receipt_id": {"type": "string", "pattern": "\\S"},
+    "work_package_id": {"type": "string", "pattern": "^[A-Z0-9_-]+$"},
+    "work_package_digest": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "review_stage": {"enum": ["scope_acceptance", "implementation", "publication"]},
+    "publication_phase": {"type": "integer", "minimum": 1, "maximum": 6},
+    "authority_snapshot": {
+      "type": "object",
+      "oneOf": [
+        {
+          "additionalProperties": false,
+          "required": ["kind", "repository", "base_revision"],
+          "properties": {
+            "kind": {"const": "repository_revision"},
+            "repository": {"type": "string", "minLength": 1},
+            "base_revision": {"type": "string", "minLength": 1},
+            "produced_revision": {"type": "string", "minLength": 1},
+            "produced_artifact_digest": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+          }
+        },
+        {
+          "additionalProperties": false,
+          "required": ["kind", "app_id", "bundle_id", "checksum", "bundle_lock_digest", "approval_record_id", "distribution_policy", "artifact_reference"],
+          "properties": {
+            "kind": {"const": "approved_bundle"},
+            "app_id": {"type": "string", "minLength": 1},
+            "bundle_id": {"type": "string", "pattern": "^bundle-[A-Za-z0-9_-]+$"},
+            "checksum": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+            "bundle_lock_digest": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+            "approval_record_id": {"type": "string", "minLength": 1},
+            "distribution_policy": {"enum": ["local_only", "shared_path", "artifact_store", "git_allowed"]},
+            "artifact_reference": {"type": "string", "minLength": 1},
+            "produced_revision": {"type": "string", "minLength": 1},
+            "produced_artifact_digest": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+          }
+        },
+        {
+          "additionalProperties": false,
+          "required": ["kind", "repository", "base_revision", "app_id", "bundle_id", "checksum", "bundle_lock_digest", "approval_record_id", "distribution_policy", "artifact_reference"],
+          "properties": {
+            "kind": {"const": "mixed"},
+            "repository": {"type": "string", "minLength": 1},
+            "base_revision": {"type": "string", "minLength": 1},
+            "app_id": {"type": "string", "minLength": 1},
+            "bundle_id": {"type": "string", "pattern": "^bundle-[A-Za-z0-9_-]+$"},
+            "checksum": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+            "bundle_lock_digest": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+            "approval_record_id": {"type": "string", "minLength": 1},
+            "distribution_policy": {"enum": ["local_only", "shared_path", "artifact_store", "git_allowed"]},
+            "artifact_reference": {"type": "string", "minLength": 1},
+            "produced_revision": {"type": "string", "minLength": 1},
+            "produced_artifact_digest": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+          }
+        }
+      ]
+    },
+    "producer": {"type": "string", "pattern": "^\\S(?:[\\s\\S]*\\S)?$"},
+    "reviewer": {"type": "string", "pattern": "^\\S(?:[\\s\\S]*\\S)?$"},
+    "review_scope": {"type": "array", "items": {"type": "string", "minLength": 1}},
+    "validation_results": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["command", "exit_code", "result"],
+        "properties": {
+          "command": {"type": "string", "pattern": "\\S"},
+          "exit_code": {"type": "integer"},
+          "result": {"enum": ["PASS", "FAIL"]}
+        }
+      }
+    },
+    "findings": {"type": "array"},
+    "decision": {"enum": ["APPROVED", "CHANGES_REQUESTED", "REJECTED"]},
+    "reviewed_at": {"type": "string", "format": "date-time"}
+  }
+}

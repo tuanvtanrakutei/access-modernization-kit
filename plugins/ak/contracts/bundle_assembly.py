@@ -94,7 +94,7 @@ def assemble_bundle(
     profile_validation: dict[str, Any],
     phase_readiness: dict[str, Any],
     output_root: Path,
-    schema_version: str = "2.7.1",
+    schema_version: str = "2.7.2",
 ) -> dict[str, Any]:
     from adapters.base import validate_contribution
 

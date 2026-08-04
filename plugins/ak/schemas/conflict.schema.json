@@ -2,12 +2,55 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "Evidence Conflict Record",
   "type": "object",
-  "required": ["conflict_id", "run_id", "app_id", "reported_by_task", "topic", "severity", "status", "observations", "created_at"],
+  "required": ["conflict_id", "run_id", "app_id", "topic", "severity", "status", "observations", "created_at"],
+  "oneOf": [
+    {"required": ["reported_by_task"]},
+    {"required": ["reported_by_work_package"]}
+  ],
+  "allOf": [
+    {
+      "if": {"properties": {"status": {"const": "OPEN"}}},
+      "then": {
+        "properties": {
+          "resolution": {"type": "null"},
+          "decision_source": {"type": "null"},
+          "resolved_by_task": {"type": "null"},
+          "resolved_by_work_package": {"type": "null"},
+          "resolved_at": {"type": "null"}
+        }
+      },
+      "else": {
+        "required": ["resolution", "decision_source", "resolved_at"],
+        "properties": {
+          "resolution": {"type": "string", "pattern": "\\S"},
+          "decision_source": {"type": "string", "pattern": "\\S"},
+          "resolved_at": {"type": "string", "format": "date-time"}
+        },
+        "oneOf": [
+          {
+            "required": ["resolved_by_task"],
+            "properties": {
+              "resolved_by_task": {"type": "string", "pattern": "^\\S(?:[\\s\\S]*\\S)?$"},
+              "resolved_by_work_package": {"type": "null"}
+            }
+          },
+          {
+            "required": ["resolved_by_work_package"],
+            "properties": {
+              "resolved_by_task": {"type": "null"},
+              "resolved_by_work_package": {"type": "string", "pattern": "^\\S(?:[\\s\\S]*\\S)?$"}
+            }
+          }
+        ]
+      }
+    }
+  ],
   "properties": {
     "conflict_id": {"type": "string"},
     "run_id": {"type": "string"},
     "app_id": {"type": "string"},
-    "reported_by_task": {"type": "string"},
+    "reported_by_task": {"type": "string", "pattern": "^\\S(?:[\\s\\S]*\\S)?$"},
+    "reported_by_work_package": {"type": "string", "pattern": "^\\S(?:[\\s\\S]*\\S)?$"},
     "topic": {"type": "string"},
     "severity": {"enum": ["LOW", "MEDIUM", "HIGH", "CRITICAL"]},
     "status": {"enum": ["OPEN", "RESOLVED", "ACCEPTED_RISK", "OUT_OF_SCOPE"]},
@@ -27,9 +70,20 @@
     "resolution": {"type": ["string", "null"]},
     "decision_source": {"type": ["string", "null"]},
     "resolved_by_task": {"type": ["string", "null"]},
-    "owner": {"type": ["string", "null"]},
+    "resolved_by_work_package": {"type": ["string", "null"]},
+    "owner": {
+      "oneOf": [
+        {"type": "string", "pattern": "^\\S(?:[\\s\\S]*\\S)?$"},
+        {"type": "null"}
+      ]
+    },
     "created_at": {"type": "string", "format": "date-time"},
-    "resolved_at": {"type": ["string", "null"], "format": "date-time"}
+    "resolved_at": {
+      "oneOf": [
+        {"type": "string", "format": "date-time"},
+        {"type": "null"}
+      ]
+    }
   },
   "additionalProperties": false
 }

@@ -1,0 +1,51 @@
+{
+  "authority": {
+    "base_revision": "8b9f7e0",
+    "kind": "repository_revision",
+    "repository": "access-modernization-kit"
+  },
+  "coordinator": "maintainer",
+  "created_at": "2026-07-28T00:00:00Z",
+  "created_by": "planner",
+  "dependencies": [],
+  "evidence_namespace": null,
+  "expected_artifacts": [
+    {
+      "kind": "schema",
+      "path": "plugins/ak/schemas/work-package.schema.json",
+      "publication_class": "scoped",
+      "required": true
+    }
+  ],
+  "input_paths": [
+    "plugins/ak/schemas/task.schema.json"
+  ],
+  "objective": "Add one validated work-package contract.",
+  "package_id": "WP_KIT_CONTRACT",
+  "publication_policy": "scoped_only",
+  "reviewer": "contract-reviewer",
+  "schema_version": "1.0",
+  "scope": {
+    "adapter_targets": [],
+    "document_targets": [],
+    "module_targets": [],
+    "phase_targets": [],
+    "profile_targets": [],
+    "roles": [],
+    "wave_ids": []
+  },
+  "security_constraints": {
+    "live_access": false,
+    "live_sql_server": false,
+    "network": false,
+    "production_data": false
+  },
+  "title": "Add collaboration schema",
+  "validation_commands": [
+    "python -m pytest plugins/ak/tests/test_collaboration.py -q"
+  ],
+  "work_kind": "kit_contract",
+  "write_paths": [
+    "plugins/ak/schemas/work-package.schema.json"
+  ]
+}

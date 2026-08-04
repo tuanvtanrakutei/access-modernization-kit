@@ -55,6 +55,90 @@ def test_lock_has_external_approval_reference() -> None:
     assert lock["approval_record_id"] == "AP-1"
 
 
+def lock_schema() -> dict:
+    return json.loads(
+        (PACKAGE / "schemas/bundle-lock.schema.json").read_text(encoding="utf-8")
+    )
+
+
+def enriched_lock(**overrides) -> dict:
+    values = {
+        "lock_version": "1.1",
+        "distribution_policy": "artifact_store",
+        "artifact_reference": "artifact_store://sms/A05/bundles/bundle-abc",
+        "bundle_approval_checksum": "d" * 64,
+        "profile_rule_versions": {"topology.split_file.backend_required": "1.0"},
+        "normalization_config_checksum": "e" * 64,
+    }
+    values.update(overrides)
+    return make_lock(
+        "bundle-abc",
+        "c" * 64,
+        "1.0",
+        {"topology": "split_file"},
+        values.pop("approved_location", "artifact_store://a05"),
+        "AP-1",
+        **values,
+    )
+
+
+def test_legacy_lock_remains_valid() -> None:
+    lock = make_lock(
+        "bundle-abc",
+        "c" * 64,
+        "1.0",
+        {"topology": "split_file"},
+        "D:/legacy/bundles/a05",
+        "AP-1",
+    )
+
+    jsonschema.validate(lock, lock_schema())
+
+
+def test_enriched_lock_records_portable_authority() -> None:
+    lock = enriched_lock()
+
+    jsonschema.validate(lock, lock_schema())
+    assert lock["artifact_reference"].startswith("artifact_store://")
+    assert lock["bundle_approval_checksum"] == "d" * 64
+
+
+@pytest.mark.parametrize(
+    "field",
+    [
+        "distribution_policy",
+        "artifact_reference",
+        "bundle_approval_checksum",
+        "profile_rule_versions",
+        "normalization_config_checksum",
+    ],
+)
+def test_enriched_lock_requires_complete_authority(field: str) -> None:
+    lock = enriched_lock()
+    del lock[field]
+
+    with pytest.raises(jsonschema.ValidationError):
+        jsonschema.validate(lock, lock_schema())
+
+
+@pytest.mark.parametrize(
+    "overrides",
+    [
+        {"artifact_reference": "D:/bundles/a05"},
+        {"approved_location": "D:/bundles/a05"},
+        {"artifact_reference": "artifact_store://user:secret@store/a05"},
+        {"artifact_reference": "artifact_store://store/a05?token=secret"},
+        {
+            "distribution_policy": "shared_path",
+            "artifact_reference": "artifact_store://sms/A05/bundle-abc",
+        },
+    ],
+)
+def test_enriched_lock_rejects_nonportable_authority(overrides: dict) -> None:
+    with pytest.raises(jsonschema.ValidationError):
+        jsonschema.validate(enriched_lock(**overrides), lock_schema())
+
+
 def test_bundle_schema_requires_normalized_evidence_sources() -> None:
     schema = json.loads((PACKAGE / "schemas/bundle.schema.json").read_text(encoding="utf-8"))
     bundle = {

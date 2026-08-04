@@ -49,6 +49,19 @@ def test_public_package_contract() -> None:
     run_script("validate_structure.py", "--package", str(PACKAGE), "--repository-root", str(REPOSITORY))
 
 
+def test_synthetic_collaboration_fixture_has_no_conflicts() -> None:
+    fixture = PACKAGE / "fixtures" / "collaboration" / "two-contributor"
+    result = run_script(
+        "ak.py",
+        "collaboration",
+        "package",
+        "conflicts",
+        "--root",
+        str(fixture / "collaboration" / "work-packages"),
+    )
+    assert json.loads(result.stdout)["status"] == "VALID"
+
+
 def test_public_yaml_has_unique_keys() -> None:
     class UniqueKeyLoader(yaml.SafeLoader):
         pass

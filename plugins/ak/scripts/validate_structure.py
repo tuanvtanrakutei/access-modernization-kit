@@ -15,7 +15,7 @@ REQUIRED_FILES = (
     "specifications/senior-system-analyst-instruction.md", "specifications/evidence-policy.yaml", "specifications/output-contract.yaml",
     "specifications/input-preconditions.md",
     "schemas/manifest.schema.json", "schemas/evidence.schema.json", "schemas/traceability-row.schema.json", "schemas/task.schema.json",
-    "schemas/handoff.schema.json", "schemas/conflict.schema.json", "schemas/run-state.schema.json", "schemas/source-inventory.schema.json",
+    "schemas/handoff.schema.json", "schemas/conflict.schema.json", "schemas/run-state.schema.json", "schemas/source-inventory.schema.json", "schemas/work-package.schema.json", "schemas/review-receipt.schema.json", "schemas/contract-impact.schema.json",
     "schemas/access-extraction.schema.json", "schemas/component-index.schema.json", "schemas/module-tree.schema.json",
     "schemas/processing-order.schema.json", "schemas/compilation-database.schema.json",
     "schemas/classification-rule.schema.json", "schemas/manifest-v22.schema.json", "schemas/acquisition-plan.schema.json",
@@ -23,11 +23,11 @@ REQUIRED_FILES = (
     "schemas/bundle-lock.schema.json", "schemas/bundle-approval.schema.json", "schemas/phase-readiness.schema.json",
     "schemas/legacy-manifest-migration.schema.json", "schemas/bundle-contribution.schema.json", "schemas/import-source-manifest.schema.json", "schemas/sql-server-catalog.schema.json",
     "contracts/__init__.py", "contracts/classification.py", "contracts/manifest_v22.py", "contracts/staging.py",
-    "contracts/bundle.py", "contracts/phase_readiness.py", "contracts/migration.py", "contracts/bundle_assembly.py", "contracts/acquisition_orchestrator.py",
+    "contracts/bundle.py", "contracts/phase_readiness.py", "contracts/migration.py", "contracts/bundle_assembly.py", "contracts/acquisition_orchestrator.py", "contracts/collaboration.py", "contracts/review.py", "contracts/contract_impact.py",
     "adapters/base.py", "adapters/imported_sources/adapter.py", "adapters/managed_access/adapter.py", "adapters/msaccess_vcs/adapter.py", "adapters/sql_server/adapter.py",
     "profiles/topology.yaml", "profiles/frontend.yaml", "profiles/source-availability.yaml", "profiles/backend.yaml", "profiles/README.md",
     "tests/test_classification.py", "tests/test_manifest_v22.py", "tests/test_staging.py", "tests/test_bundle.py",
-    "tests/test_phase_readiness.py", "tests/test_migration.py", "tests/test_cli_v27.py", "tests/test_bundle_assembly.py", "tests/test_cli_acquire.py", "tests/test_acquisition_orchestrator.py",
+    "tests/test_phase_readiness.py", "tests/test_migration.py", "tests/test_cli_v27.py", "tests/test_bundle_assembly.py", "tests/test_cli_acquire.py", "tests/test_acquisition_orchestrator.py", "tests/collaboration_helpers.py", "tests/test_collaboration.py", "tests/test_collaboration_projection.py", "tests/test_collaboration_review.py", "tests/test_contract_impact.py", "tests/test_cli_collaboration.py", "tests/test_collaboration_integration.py",
     "tests/adapters/test_base.py", "tests/adapters/test_imported_sources.py", "tests/adapters/test_managed_access.py", "tests/adapters/test_msaccess_vcs.py", "tests/adapters/test_sql_server.py",
     "orchestration/roles.json", "orchestration/waves.json", "orchestration/merge-policy.json", "orchestration/conflict-policy.json", "orchestration/runtime-adapters.json",
     "references/manifest.example.yaml", "references/agent-compatibility.md", "references/presentation-guidance.md", "references/orchestration-guide.md",
@@ -40,8 +40,13 @@ REQUIRED_FILES = (
     "templates/conflict-record.json", "templates/worker-prompt.md", "templates/app.gitignore", "templates/app.graphifyignore", "templates/app.investigationignore",
     "scripts/init_app.py", "scripts/preflight.py", "scripts/create_run.py", "scripts/create_tasks.py", "scripts/extract_access.py",
     "scripts/extract_access.ps1", "scripts/access_runtime.py", "scripts/parse_compilation_database.py", "scripts/build_component_index.py", "scripts/build_module_plan.py", "scripts/validate_handoffs.py",
-    "scripts/merge_evidence.py", "scripts/advance_run.py", "scripts/graphify_runtime.py", "scripts/normalize_graphify_corpus.py", "scripts/graphify_phase_gate.py", "scripts/ak.py", "scripts/validate_structure.py",
+    "scripts/merge_evidence.py", "scripts/advance_run.py", "scripts/graphify_runtime.py", "scripts/normalize_graphify_corpus.py", "scripts/graphify_phase_gate.py", "scripts/collaboration_cli.py", "scripts/ak.py", "scripts/validate_structure.py",
     "tools/ExportAccessObjects.bas",
+    "fixtures/collaboration/two-contributor/bundle.lock.json", "fixtures/collaboration/two-contributor/expected-integration-order.json",
+    "fixtures/collaboration/two-contributor/collaboration/work-packages/WP_SYN_SQL/work-package.json", "fixtures/collaboration/two-contributor/collaboration/work-packages/WP_SYN_UI/work-package.json",
+    "fixtures/collaboration/two-contributor/collaboration/reviews/RR-WP_SYN_SQL.json", "fixtures/collaboration/two-contributor/collaboration/reviews/RR-WP_SYN_UI.json",
+    "fixtures/collaboration/two-contributor/contract-fixture/work-package.json", "fixtures/collaboration/two-contributor/contract-fixture/contract-impact.json",
+    "fixtures/collaboration/two-contributor/run/candidate-tasks/WP_SYN_SQL.json", "fixtures/collaboration/two-contributor/run/candidate-tasks/WP_SYN_UI.json",
     "tests/test_package_smoke.py", "examples/minimal-app/README.md", "examples/minimal-app/manifest.yaml",
     "examples/minimal-app/.investigationignore", "examples/minimal-app/sources/vba/DemoOrderForm.bas", "examples/minimal-app/sources/sql/demo_orders.sql",
 )
@@ -50,6 +55,7 @@ REPOSITORY_FILES = (
     ".gitignore", ".graphifyignore", ".gitattributes", "README.md", "LICENSE", "NOTICE", "CHANGELOG.md", "CONTRIBUTING.md", "SECURITY.md",
     "CODE_OF_CONDUCT.md", "THIRD_PARTY_NOTICES.md", "CITATION.cff", ".agents/plugins/marketplace.json",
     "docs/first-access-mdb-investigation.md", "docs/architecture/investigation-pipeline.md", "docs/architecture/extraction-bundle.md",
+    "docs/collaboration/contributor-workflow.md", "docs/collaboration/application-team-workflow.md", "docs/collaboration/contract-changes.md",
     "docs/project-classification/topology-rules.md", "docs/project-classification/frontend-format-rules.md",
     "docs/project-classification/source-availability-rules.md", "docs/project-classification/backend-rules.md",
     "docs/project-classification/resolved-examples.md",
@@ -113,9 +119,12 @@ def validate_json_schemas(root: Path, errors: list[str]) -> None:
     try:
         import jsonschema  # type: ignore[import-not-found]
     except ImportError:
-        errors.append("jsonschema is required to validate acquisition schemas")
+        errors.append("jsonschema is required to validate schemas")
         return
+    schemas: dict[str, object] = {}
     for relative in (
+        "schemas/task.schema.json",
+        "schemas/contract-impact.schema.json",
         "schemas/bundle-contribution.schema.json",
         "schemas/import-source-manifest.schema.json",
         "schemas/sql-server-catalog.schema.json",
@@ -123,8 +132,14 @@ def validate_json_schemas(root: Path, errors: list[str]) -> None:
         try:
             schema = json.loads((root / relative).read_text(encoding="utf-8"))
             jsonschema.validators.validator_for(schema).check_schema(schema)
+            schemas[relative] = schema
         except Exception as exc:  # noqa: BLE001
             errors.append(f"Invalid JSON Schema {relative}: {exc}")
+    try:
+        task = json.loads((root / "templates/task-envelope.json").read_text(encoding="utf-8"))
+        jsonschema.validate(task, schemas["schemas/task.schema.json"])
+    except Exception as exc:  # noqa: BLE001
+        errors.append(f"Invalid projected task template: {exc}")
 
 def validate_orchestration(root: Path, json_data: dict[str, object], errors: list[str]) -> None:
     roles_data = json_data.get("orchestration/roles.json")

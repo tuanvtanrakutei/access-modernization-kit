@@ -39,6 +39,45 @@ def configure_acquire_parser(commands: argparse._SubParsersAction) -> None:
     acquire_run.add_argument("--authorize", action="append", default=[])
     acquire_run.add_argument("--acquisition-id", default=None)
 
+def configure_collaboration_parser(commands: argparse._SubParsersAction) -> None:
+    collaboration = commands.add_parser(
+        "collaboration", help="Validate deterministic collaboration contracts."
+    )
+    groups = collaboration.add_subparsers(dest="collaboration_group", required=True)
+
+    package = groups.add_parser("package")
+    package_commands = package.add_subparsers(dest="collaboration_action", required=True)
+    package_validate = package_commands.add_parser("validate")
+    package_validate.add_argument("--package", required=True)
+    package_conflicts = package_commands.add_parser("conflicts")
+    package_conflicts.add_argument("--root", required=True)
+    package_project = package_commands.add_parser("project")
+    package_project.add_argument("--package", required=True)
+    package_project.add_argument("--receipt", required=True)
+    package_project.add_argument("--run", required=True)
+
+    handoff = groups.add_parser("handoff")
+    handoff_validate = handoff.add_subparsers(
+        dest="collaboration_action", required=True
+    ).add_parser("validate")
+    handoff_validate.add_argument("--run", required=True)
+    handoff_validate.add_argument("--work-package-root", required=True)
+
+    review = groups.add_parser("review")
+    review_validate = review.add_subparsers(
+        dest="collaboration_action", required=True
+    ).add_parser("validate")
+    review_validate.add_argument("--package", required=True)
+    review_validate.add_argument("--receipt", required=True)
+
+    impact = groups.add_parser("impact")
+    impact_validate = impact.add_subparsers(
+        dest="collaboration_action", required=True
+    ).add_parser("validate")
+    impact_validate.add_argument("--package", required=True)
+    impact_validate.add_argument("--impact", required=True)
+    impact_validate.add_argument("--changed-paths", required=True)
+
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
@@ -105,6 +144,7 @@ def parse_args() -> argparse.Namespace:
     bundle_approve.add_argument("--distribution-policy", choices=("local_only", "shared_path", "artifact_store", "git_allowed"), default="artifact_store")
     bundle_approve.add_argument("--output", required=True)
     configure_acquire_parser(commands)
+    configure_collaboration_parser(commands)
     return parser.parse_args()
 
 
@@ -306,6 +346,44 @@ def main() -> int:
         output.write_text(json.dumps(approval, ensure_ascii=False, indent=2, sort_keys=True) + "\n", encoding="utf-8")
         print_json(approval)
         return 0
+    if args.command == "collaboration":
+        from collaboration import CollaborationError
+        from collaboration_cli import (
+            project_package,
+            scan_conflicts,
+            validate_handoff,
+            validate_impact,
+            validate_package,
+            validate_review,
+        )
+
+        try:
+            if args.collaboration_group == "package":
+                if args.collaboration_action == "validate":
+                    result = validate_package(Path(args.package))
+                elif args.collaboration_action == "conflicts":
+                    result = scan_conflicts(Path(args.root))
+                else:
+                    result = project_package(
+                        Path(args.package), Path(args.receipt), Path(args.run)
+                    )
+            elif args.collaboration_group == "handoff":
+                result = validate_handoff(
+                    Path(args.run), Path(args.work_package_root)
+                )
+            elif args.collaboration_group == "review":
+                result = validate_review(Path(args.package), Path(args.receipt))
+            else:
+                result = validate_impact(
+                    Path(args.package), Path(args.impact), Path(args.changed_paths)
+                )
+        except CollaborationError as exc:
+            print_json(
+                {"status": "ERROR", "code": exc.code, "message": str(exc.detail)}
+            )
+            return 2
+        print_json(result)
+        return 2 if result.get("status") == "CONFLICT" else 0
     app_root = Path(args.app_root).expanduser().resolve()
     manifest = app_root / "manifest.yaml"
     if not manifest.is_file():

@@ -30,6 +30,9 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--package", default=str(Path(__file__).resolve().parent.parent))
     parser.add_argument("--no-module-fanout", action="store_true", help="Keep one task per role even when a module plan exists")
     parser.add_argument("--dry-run", action="store_true")
+    parser.add_argument("--work-package")
+    parser.add_argument("--acceptance-receipt")
+    parser.add_argument("--work-package-root")
     return parser.parse_args()
 
 
@@ -125,6 +128,16 @@ def input_paths_for(role_id: str, manifest_sources: dict[str, list[str]]) -> lis
 
 def main() -> int:
     args = parse_args()
+    collaboration_args = (
+        args.work_package,
+        args.acceptance_receipt,
+        args.work_package_root,
+    )
+    if any(collaboration_args) and not all(collaboration_args):
+        raise SystemExit(
+            "--work-package, --acceptance-receipt, and --work-package-root "
+            "must be provided together"
+        )
     run = Path(args.run).expanduser().resolve()
     package = Path(args.package).expanduser().resolve()
     state = json.loads((run / "run-state.json").read_text(encoding="utf-8"))
@@ -179,6 +192,20 @@ def main() -> int:
         raise SystemExit(f"Refusing to overwrite existing tasks in {tasks_dir}")
     for task in tasks:
         (tasks_dir / f"{task['task_id']}.json").write_text(json.dumps(task, indent=2) + "\n", encoding="utf-8")
+    if args.work_package:
+        root = Path(args.work_package_root).expanduser().resolve()
+        work_package = Path(args.work_package).expanduser().resolve()
+        try:
+            work_package.relative_to(root)
+        except ValueError as exc:
+            raise SystemExit("Work package must be inside --work-package-root") from exc
+        from collaboration_cli import project_package
+
+        project_package(
+            work_package,
+            Path(args.acceptance_receipt),
+            run,
+        )
     print(f"Created {len(tasks)} task envelopes in {tasks_dir}; module_fanout={fanout}")
     return 0
 

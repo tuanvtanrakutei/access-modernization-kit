@@ -3,7 +3,7 @@ name: ak
 description: Analyze Microsoft Access VBA applications and MDB/ACCDB/ADP projects connected to SQL Server through a mandatory six-phase, evidence-backed legacy-system investigation with Access extraction, deterministic module planning, and provider-neutral multi-agent orchestration. Use when an agent must package, initialize, analyze, review, or continue investigation of an SMS A-series satellite app and produce Phase documents, E2E traces, boundary maps, question lists, QA, or presentation inputs.
 ---
 
-# Access Modernization Kit V2.7.1
+# Access Modernization Kit V2.7.2
 
 Use one shared investigation method while keeping every app's sources, graph, decisions, sessions, and outputs isolated.
 
@@ -100,6 +100,10 @@ Do not skip a phase because sources appear incomplete. Produce a scoped gap repo
 
 ## Orchestrate multi-agent execution
 
+- For new multi-developer kit or application work, require a schema-valid work package and an approved `scope_acceptance` receipt before projecting run tasks.
+- Run collaboration conflict detection before execution. Do not widen accepted role, module, path, evidence, dependency, or publication scope in a projected task.
+- Require contract-impact records for contract-sensitive changes and bind implementation or publication review to the exact changed artifact set.
+- Follow `docs/collaboration/contributor-workflow.md` and `docs/collaboration/application-team-workflow.md`; do not duplicate the six-phase pipeline in team instructions.
 - Create an immutable run with `scripts/create_run.py`, then provider-neutral task envelopes with `scripts/create_tasks.py`.
 - When a module plan exists, task generation fans SQL, VBA/UI, interface, and logic work out by affected leaf module. Parent and cross-module analysis consumes those handoffs.
 - Map abstract spawn, message, wait, inspect, and interrupt operations to the active runtime. Do not hard-code a provider into evidence or outputs.
