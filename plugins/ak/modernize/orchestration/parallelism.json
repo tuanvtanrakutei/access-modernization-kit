@@ -1,0 +1,56 @@
+{
+  "version": "0.1",
+  "note": "Machine-readable form of MASTER_WORKFLOW.md 'Parallelism Rules'. That document remains the explanation; this file is what an orchestrator reads so the rules are applied the same way on every run instead of being re-derived from prose. If the two ever disagree, the document wins and this file is the bug.",
+  "batchable_reads": {
+    "rule": "Independent reads within one stage may be issued in a single message. Writes are never batched, and any call depending on a prior result runs sequentially.",
+    "by_stage": {
+      "pre_flight": ["PROJECT_CONFIG.md", "registry row", "Known_Issues.md grep", "evidence directory listings", "table mapping", "coding rule documents"],
+      "1": ["legacy form and report exports", "screenshots", "output samples", "prior business-flow artifact"],
+      "2": ["prior screen plan", "current backend sources", "current frontend sources", "table mapping", "stage 1 output"],
+      "5": ["all upstream artifacts", "code files cited in the coding record"]
+    }
+  },
+  "stage_order": ["1", "2", "3a", "3b", "4a", "4b", "5", "6"],
+  "no_overlap_within_screen": {
+    "rule": "Stages are sequential because each consumes the previous artifact.",
+    "reasons": {
+      "2_after_1": "Stage 2 anchors on Stage 1's structure.",
+      "3b_after_2": "Stage 3b codes against the contract Stage 2 froze.",
+      "4a_after_3a": "Stage 4a needs Stage 3a's code.",
+      "4b_after_4a": "Stage 4b needs a running backend.",
+      "5_after_4": "Stage 5 needs test evidence."
+    },
+    "exceptions": [
+      {
+        "pair": ["3a", "3b"],
+        "allowed_when": "the Stage 2 backend contract is explicitly marked frozen in the screen plan",
+        "consequence": "The frontend codes against the documented contract, not a running server. A later backend deviation from the frozen contract is a Stage 5 blocker, not a frontend defect."
+      }
+    ]
+  },
+  "across_screens": {
+    "rule": "Parallelize across screens only when modules differ.",
+    "partition_key": "module",
+    "second_axis": "Frontend files are a second axis: two screens sharing a frontend layout, route group, or store count as the same module for partitioning even when their backend modules differ.",
+    "matrix": [
+      {"composition": "different module values", "parallel": true, "why": "code lands in different directories; no shared file"},
+      {"composition": "same module, different url prefix", "parallel": false, "why": "still shares tests, services, and module-level files"},
+      {"composition": "same module and prefix", "parallel": false, "why": "shares routing and serializers"}
+    ],
+    "dispatch": {
+      "agents": "one screen_group agent per module group",
+      "within_group": "sequential",
+      "shared_file_writes": "queued in the parent, never performed by a group agent"
+    }
+  },
+  "failure_policy": {
+    "group_failure": "does not stop the other groups",
+    "aggregation": "wait for all groups, then report one row per screen with artifacts, verdict, open follow-ups and group",
+    "ordering": "list blockers first and state whether the green screens can proceed independently"
+  },
+  "high_finding_protocol": {
+    "group_agent": "pause and report the finding to the parent; do not prompt the user",
+    "parent": "collect HIGH findings across all groups, prompt once with a numbered list, then dispatch the decisions back",
+    "why": "avoids fragmented prompts across many screens, which is what makes a large batch unusable"
+  }
+}

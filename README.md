@@ -5,6 +5,13 @@
 
 An agent skill for investigating legacy Microsoft Access, VBA, and SQL Server applications. It turns source material into 6 Analyst Phase documents, Evidence trace, Boundary Maps, QA reports, and Modernization System Specs.
 
+**Merged 2026-08-04:** this package also ships a second, independently invokable pipeline —
+`plugins/ak/modernize/` — that carries a project from those Phase outputs through to a working
+Django REST + React implementation, one screen at a time, with coverage gates tracing every
+legacy artifact to implemented code. Installing `ak` installs both; running the six phases never
+auto-triggers modernization, and modernization never auto-triggers the six phases. See
+[`plugins/ak/modernize/README.md`](plugins/ak/modernize/README.md).
+
 ---
 
 ## ? Quick Install

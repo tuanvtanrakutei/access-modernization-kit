@@ -1,0 +1,73 @@
+{
+  "_comment": "One envelope per module group, written by the parent and handed to a screen_group agent. Shape follows the sibling investigation kit's task-envelope.json. The point of the envelope is write_paths: an agent's scope is data the parent controls, not a paragraph the agent has to remember.",
+
+  "task_id": "{{SUBSYSTEM_CODE}}-{{RUN_ID}}-GRP-{{MODULE}}",
+  "run_id": "{{RUN_ID}}",
+  "subsystem_code": "{{SUBSYSTEM_CODE}}",
+  "role": "screen_group",
+  "module": "{{MODULE}}",
+
+  "screens": [
+    {
+      "screen": "{{SCREEN_1}}",
+      "screen_key": "{{SCREEN_1_KEY}}",
+      "doc_mode": "Greenfield | Backfill | Refresh",
+      "be_mode": "Greenfield | Backfill | Refresh",
+      "fe_mode": "Greenfield | Backfill | Refresh"
+    }
+  ],
+  "screen_order": ["{{SCREEN_1}}"],
+
+  "stages": ["1", "2", "3a", "3b", "4a", "4b", "5"],
+  "backend_contract_frozen": false,
+
+  "input_paths": [
+    "{{DOCS_DIR}}/PROJECT_CONFIG.md",
+    "{{DOCS_DIR}}/MASTER_WORKFLOW.md",
+    "{{DOCS_DIR}}/TRACEBACK_GATES.md",
+    "{{BACKEND_RULES_DOC}}",
+    "{{FRONTEND_RULES_DOC}}",
+    "{{CONVENTIONS_DOC}}",
+    "{{TABLE_MAP_DOC}}",
+    "{{EVIDENCE_CODE_DIR}}",
+    "{{EVIDENCE_UI_DIR}}",
+    "{{EVIDENCE_OUTPUT_DIR}}"
+  ],
+
+  "write_paths": [
+    "{{DOCS_DIR}}/Business_flows/{{SCREEN_1}}.md",
+    "{{DOCS_DIR}}/Screen_plans/{{SCREEN_1}}.md",
+    "{{DOCS_DIR}}/Coding_Records/{{SCREEN_1}}.md",
+    "{{DOCS_DIR}}/Test_Instruction/{{SCREEN_1}}.md",
+    "{{DOCS_DIR}}/Code_Review/{{SCREEN_1}}.md",
+    "{{DOCS_DIR}}/Final_Acceptance/{{SCREEN_1}}.md",
+    "{{DOCS_DIR}}/Bug_Reports/{{SCREEN_1}}.md",
+    "{{BACKEND_ROOT}}/{{MODULE}}",
+    "{{FRONTEND_ROOT}}/pages/{{FE_ROUTE_GROUP}}"
+  ],
+
+  "forbidden_writes": [
+    "{{DOCS_DIR}}/Screens_Registry.md",
+    "{{DOCS_DIR}}/Known_Issues.md"
+  ],
+
+  "commands_allowed": [
+    "{{LINT_CMD}}",
+    "{{FE_LINT_CMD}}",
+    "{{TEST_CMD}}",
+    "{{FE_UNIT_TEST_CMD}}",
+    "{{FE_E2E_TEST_CMD}}"
+  ],
+
+  "instructions": [
+    "Run the screens in screen_order sequentially. Never start a screen before the previous one reaches its closing gate or is reported BLOCKED.",
+    "Write only inside write_paths. A needed path outside them is a BLOCKED report to the parent, not a decision to make.",
+    "Registry rows and issue rows are returned in the handoff for the parent to write. Never edit those two files.",
+    "Run 3a and 3b concurrently only when backend_contract_frozen is true.",
+    "Run only the commands in commands_allowed, and only in check or read mode where the command has such a mode. Never run a formatter or a --fix flag over a whole change list.",
+    "On a HIGH gate finding, stop that screen, record it in the handoff, and continue with the next screen. Do not prompt the user.",
+    "Return one handoff per screen: artifacts written, gate verdicts, intended registry row, intended issue rows, and blockers."
+  ],
+
+  "status": "pending"
+}

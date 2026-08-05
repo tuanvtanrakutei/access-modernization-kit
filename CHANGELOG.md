@@ -1,5 +1,24 @@
 # Changelog
 
+## [2.8.0] - 2026-08-05
+
+### Added
+
+- Merged the `access-modernize` pipeline into this package as a second, independently invokable pipeline (`plugins/ak/modernize/`). Six stages carry a project from six-phase output through a working Django REST + React implementation, one screen at a time, with coverage gates tracing every legacy artifact to implemented code. Installing `ak` installs both pipelines; running one never auto-triggers the other.
+- `bootstrap-project` skill: one-time project setup that copies templates, seeds `Screens_Registry.md` from a six-phase run's Phase 2 inventory after a single accept over the whole table, and wires a pointer block into the target project's `CLAUDE.md`/`AGENTS.md` (created if missing, otherwise updated in place inside a marked block) so a fresh session has standing awareness of the pipeline before any skill's own trigger phrase fires.
+- `validate-docs`, `triage-suite`, and `modernize-screen` skills; five per-stage commands (`/plan-screen`, `/code-screen`, `/test-screen`, `/review-screen`, `/screen-status`); an orchestration policy set (`write_paths` allowlist) for multi-screen batches; a non-writing scope-sensor hook.
+- `templates/FRONTEND_API_PATTERNS_TEMPLATE.md` and `FRONTEND_UI_PATTERNS_TEMPLATE.md` — fill-in-the-blank starting points for a project's own concrete frontend patterns, generalized from a real implementation.
+- `docs/PHASE_OUTPUT_GUIDE.md` — a human-oriented quick reference for reading a six-phase run's output before or while bootstrapping a modernization project on it.
+
+### Changed
+
+- `README.md` and every document under `plugins/ak/modernize/docs/` restructured for navigation: a nested Contents/TOC on all ten, an "At A Glance" diagram leading `modernize/README.md` ahead of the detailed stage diagram, and an explicit split between human-facing and agent-facing documents.
+- `plugins/ak/modernize/docs/LEGACY_EVIDENCE.md` documents the exact handoff contract between the six-phase pipeline and the modernization pipeline — real output filenames (not the template's own), cross-artifact screen-identity matching and its limits, and why the pre-flight gate check reads three phases rather than being simplified to one.
+
+### Fixed
+
+- Six `skills/*/SKILL.md` and `commands/*.md` files under `plugins/ak/modernize/` had unquoted YAML frontmatter (`description`, `argument-hint`) that a strict parser reads as a nested mapping or a flow sequence — quoted and re-verified against an actual YAML parser, not just visually.
+
 ## [2.7.3] - 2026-08-04
 
 ### Added

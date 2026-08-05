@@ -1,0 +1,45 @@
+{
+  "version": "0.1",
+  "note": "Roles for a multi-screen modernization run. Shapes follow the sibling investigation kit's orchestration/roles.json so the two merge without translation. Writes are governed by an explicit allowlist in the task envelope, not by prose: an agent that needs a path outside its allowlist stops and reports rather than widening its own scope.",
+  "roles": [
+    {
+      "id": "parent",
+      "purpose": "Partition the requested screens into module groups, dispatch one group agent per group, own every shared-file write, collect HIGH gate findings from all groups and prompt the user once, then aggregate the run report.",
+      "runs_in_parallel": false,
+      "may_prompt_user": true,
+      "allowed_writes": [
+        "Screens_Registry.md",
+        "Known_Issues.md"
+      ],
+      "prohibitions": [
+        "Do not perform stage work for a screen a group agent owns; dispatch it.",
+        "Do not prompt the user per group. Collect HIGH findings across all groups and prompt once with a numbered list.",
+        "Do not stop the remaining groups when one group fails."
+      ]
+    },
+    {
+      "id": "screen_group",
+      "purpose": "Run the full per-screen pipeline for every screen in one module group, sequentially, writing only that group's artifacts and code.",
+      "runs_in_parallel": true,
+      "may_prompt_user": false,
+      "allowed_writes": [
+        "Business_flows/{screen}.md",
+        "Screen_plans/{screen}.md",
+        "Coding_Records/{screen}.md",
+        "Test_Instruction/{screen}.md",
+        "Code_Review/{screen}.md",
+        "Final_Acceptance/{screen}.md",
+        "Bug_Reports/{screen}.md",
+        "{{BACKEND_ROOT}} paths owned by this group's module",
+        "{{FRONTEND_ROOT}} paths owned by this group's module"
+      ],
+      "prohibitions": [
+        "Never write Screens_Registry.md or Known_Issues.md. Return the intended row or issue to the parent and let the parent write it; two agents editing either file concurrently corrupts it.",
+        "Never prompt the user. On a HIGH gate finding, pause and report to the parent.",
+        "Never write under a backend or frontend directory belonging to another group.",
+        "Never widen your own write scope. A needed path outside the allowlist is a BLOCKED report, not a decision you make.",
+        "Never run a formatter or any --fix flag over a whole change list. Lint in check mode and report; a formatter run over an entire diff once reformatted seven files belonging to other people's work in progress."
+      ]
+    }
+  ]
+}
