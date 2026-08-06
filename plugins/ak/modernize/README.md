@@ -40,19 +40,22 @@ one manual step named under "Bootstrapping A New Project" below.
 ## Command Guide
 
 Not covered by the repository root README — that one documents `$ak`'s own six-phase
-commands only.
+commands only, a separate, optional upstream step (see "At A Glance" above).
 
-| Command | Action |
+**The four skills — natural language, no special syntax:**
+
+| Skill | Say something like ... |
 | :--- | :--- |
-| `Bootstrap a new project for {app}` | One-time setup: templates, folders, registry seed, `CLAUDE.md`/`AGENTS.md` pointer |
-| `Implement screen {screen}` | Full pipeline, Stages 1–6, for one screen |
-| `/plan-screen {screen}` | Stages 1–2 only — documents, no code |
-| `/code-screen {screen}` | Stages 3a–3b — backend and frontend coding |
-| `/test-screen {screen}` | Stages 4a–4b — write and run tests |
-| `/review-screen {screen}` | Stage 5 — review verdict |
-| `/screen-status {screen\|all}` | Read-only status — always safe to run |
+| `bootstrap-project` | "Bootstrap a new project for {app}" |
+| `modernize-screen` | "Implement screen {screen}" |
+| `validate-docs` | "Validate the docs" / "check the a01_docs set" |
+| `triage-suite` | "Why are 48 tests failing" / "triage the test suite" |
 
-Full detail, options, and examples for each: [Common Commands](#common-commands) below.
+**The five per-stage slash commands** — type the exact name shown, Claude Code only for
+now (see [Installation](#installation)): `/plan-screen`, `/code-screen`, `/test-screen`,
+`/review-screen`, `/screen-status`. What each stops on, and what it refuses without:
+[Single stage](#single-stage) below — not repeated here to avoid two copies going stale
+against each other.
 
 ## The Pipeline In Detail
 

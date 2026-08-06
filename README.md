@@ -49,6 +49,11 @@ codex plugin add ak@access-modernization-kit
 
 ## III. Command Guide — Six-Phase Investigation
 
+Not literal CLI syntax — `$ak ...` is the `ak` skill's own recognized phrasing, matched by
+the agent from your chat message, the same as any natural-language request. Typing the
+exact form below always works; describing the same intent in plain English (e.g.
+"initialize a workspace for MYAPP") is understood the same way.
+
 | Command | Action |
 | :--- | :--- |
 | `$ak init <APP_ID> [--source <PATH>]` | Scaffold app workspace. If `--source` is provided (folder or .zip), auto-discovers artifacts into `manifest.yaml`. |
@@ -64,11 +69,15 @@ codex plugin add ak@access-modernization-kit
 ## IV. Command Guide — Modernization Pipeline
 
 Full detail: [`plugins/ak/modernize/README.md`](plugins/ak/modernize/README.md#command-guide).
+Everything below is invoked the same way as above — a slash command types exactly as
+shown; everything else is a natural-language request, phrased however feels natural.
 
-| Command | Action |
+| Skill / Command | Action |
 | :--- | :--- |
 | `Bootstrap a new project for {app}` | One-time setup: templates, folders, registry seed, `CLAUDE.md`/`AGENTS.md` pointer |
 | `Implement screen {screen}` | Full pipeline, Stages 1–6, for one screen |
+| `Validate the docs` / `check the a01_docs set` | Check a bootstrapped project's documentation set for defects |
+| `Why are 48 tests failing` / `triage the test suite` | Group test failures by cause instead of by file |
 | `/plan-screen {screen}` | Stages 1–2 only — documents, no code |
 | `/code-screen {screen}` | Stages 3a–3b — backend and frontend coding |
 | `/test-screen {screen}` | Stages 4a–4b — write and run tests |
