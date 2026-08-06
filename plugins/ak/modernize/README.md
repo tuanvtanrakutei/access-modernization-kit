@@ -74,21 +74,29 @@ never auto-triggers Stage 1, and Stage 1 never auto-triggers the six phases: eac
 explicit user action. See the repository root `README.md` for how to install `ak`; there is
 nothing to install from this subdirectory on its own.
 
-**Skills work on both Claude Code and Codex CLI.** `bootstrap-project`, `modernize-screen`,
-`validate-docs`, and `triage-suite` live at `plugins/ak/skills/`, the same folder the six-phase
-`ak` skill already sits in — not nested under `modernize/`. Claude Code finds them there by
-default; Codex CLI's manifest (`plugins/ak/.codex-plugin/plugin.json`) already points at that
-exact path (`"skills": "./skills/"`, enforced by `plugins/ak/scripts/validate_structure.py`), so
-no manifest change was needed to expose them.
+**Skills work on both Claude Code and Codex CLI, confirmed against a real install, not just
+the manifest.** `bootstrap-project`, `modernize-screen`, `validate-docs`, and `triage-suite`
+live at `plugins/ak/skills/`, the same folder the six-phase `ak` skill already sits in — not
+nested under `modernize/`. Claude Code finds them there by default; Codex CLI's manifest
+(`plugins/ak/.codex-plugin/plugin.json`) already points at that exact path (`"skills":
+"./skills/"`, enforced by `plugins/ak/scripts/validate_structure.py`). `codex plugin add`
+copies the whole `plugins/ak/` package verbatim into
+`~/.codex/plugins/cache/access-modernization-kit/ak/{version}/` and reads `skills` relative to
+that cached copy — a real 2.7.3 install cached on this machine shows the exact fault this
+fixes, `./skills/` holding only the six-phase skill with the four modernize skills stranded
+under `modernize/skills/`, invisible to Codex. Moving them here is what makes the next
+`codex plugin add` at 2.8.0 actually expose all five.
 
-**Commands and hooks are Claude Code only, for now.** The five per-stage commands and the
-scope-sensor hook live at `plugins/ak/commands/` and `plugins/ak/hooks/` — declared in
-`plugins/ak/.claude-plugin/plugin.json`, with no equivalent field in the Codex manifest today.
-They sit at that same plugin-root convention rather than nested under `modernize/` specifically
-so that if Codex's manifest schema adds a comparable field later, it is a one-line addition
-there, not another file move here. Until then, a Codex user reaches the same stage-by-stage
-control through `modernize-screen`'s own instructions in natural language — "just run Stage 1
-and 2 for {screen}" — rather than a dedicated slash command.
+**Commands and hooks now declare the same fields for Codex — result unconfirmed.** The five
+per-stage commands and the scope-sensor hook live at `plugins/ak/commands/` and
+`plugins/ak/hooks/`, declared in both `plugins/ak/.claude-plugin/plugin.json` and, since this
+release, `plugins/ak/.codex-plugin/plugin.json` (`"commands": "./commands/"`, `"hooks":
+"./hooks/hooks.json"`). Unlike `skills`, nothing confirms Codex's plugin runtime reads either
+field — `ak` never declared them before this merge, so there is no prior cache to check
+against. The fields cost nothing if unread; if Codex does support them, this is already done.
+Until confirmed, a Codex user reaches the same stage-by-stage control through
+`modernize-screen`'s own instructions in natural language — "just run Stage 1 and 2 for
+{screen}" — rather than a dedicated slash command.
 
 Installing `ak` is not the same as setting up a project to modernize. `ak` and this pipeline
 give you the method and the tooling; a target repository still needs the bootstrap below.
@@ -103,13 +111,13 @@ plugins/ak/
 │   ├── modernize-screen/           ← the full pipeline, the usual entry point
 │   ├── validate-docs/              ← check a bootstrapped project's documents
 │   └── triage-suite/               ← work out why a suite is red
-├── commands/                       ← per-stage entry points for mid-pipeline work (Claude Code only)
+├── commands/                       ← per-stage entry points for mid-pipeline work (Codex support declared, unconfirmed)
 │   ├── plan-screen.md              ← Stages 1–2, documents only
 │   ├── code-screen.md              ← Stages 3a–3b
 │   ├── test-screen.md              ← Stages 4a–4b
 │   ├── review-screen.md            ← Stage 5
 │   └── screen-status.md            ← read-only, writes nothing
-├── hooks/                          ← a sensor, never an actor (Claude Code only)
+├── hooks/                          ← a sensor, never an actor (Codex support declared, unconfirmed)
 │   ├── hooks.json
 │   └── scope_sensor.py             ← warns on parent-owned files and over-long lines
 └── modernize/

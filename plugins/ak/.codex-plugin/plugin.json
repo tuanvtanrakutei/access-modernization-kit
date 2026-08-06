@@ -18,6 +18,8 @@
     "multi-agent"
   ],
   "skills": "./skills/",
+  "commands": "./commands/",
+  "hooks": "./hooks/hooks.json",
   "interface": {
     "displayName": "Access Modernization Kit",
     "shortDescription": "Investigate Access/VBA and SQL Server applications.",

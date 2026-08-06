@@ -18,12 +18,18 @@ and modernization never auto-triggers the six phases. See
 `modernize/` — because that is the one path both CLIs' discovery conventions already look
 at: Claude Code's default scan, and Codex CLI's single fixed `./skills/`
 (`plugins/ak/.codex-plugin/plugin.json`, validated by
-`plugins/ak/scripts/validate_structure.py`). **The five per-stage commands and the
-scope-sensor hook are Claude Code only, for now** — they live at `plugins/ak/commands/` and
-`plugins/ak/hooks/`, declared in `plugins/ak/.claude-plugin/plugin.json`, with no equivalent
-field in the Codex manifest today. They sit at that same plugin-root convention so that if
-Codex's manifest schema adds a comparable field later, exposing them is a one-line addition
-there, not another file move here.
+`plugins/ak/scripts/validate_structure.py`). This is confirmed against a real installed
+Codex cache, not just the manifest contract: `codex plugin add` copies the whole `plugins/ak/`
+package verbatim to `~/.codex/plugins/cache/access-modernization-kit/ak/{version}/` and reads
+`skills` as a path relative to that copy — a cached 2.7.3 install on this machine shows
+exactly the bug this fixes, `./skills/` containing only the six-phase skill with all four
+modernize skills stranded under `modernize/skills/`, outside the declared path.
+
+`plugins/ak/.codex-plugin/plugin.json` also now declares `"commands": "./commands/"` and
+`"hooks": "./hooks/hooks.json"`, mirroring `plugins/ak/.claude-plugin/plugin.json` exactly.
+**Unlike `skills`, this is unconfirmed** — nothing here establishes that Codex's plugin
+runtime reads a `commands` or `hooks` field at all; `ak` never declared either before this
+merge; added because the cost of an unread field is nothing.
 
 ---
 
