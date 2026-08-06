@@ -1,7 +1,7 @@
 {
   "name": "ak",
-  "version": "2.7.3",
-  "description": "Evidence-backed six-phase investigation for Access/VBA and SQL Server legacy applications.",
+  "version": "2.8.0",
+  "description": "Evidence-backed six-phase investigation for Access/VBA and SQL Server legacy applications, plus an optional Django REST + React modernization pipeline that carries a project from that investigation's output to implemented, coverage-traced code.",
   "author": {
     "name": "Vo Ta Tuan",
     "email": "vo-ta-tuan@anrakutei.vn",
