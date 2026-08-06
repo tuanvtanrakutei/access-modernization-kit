@@ -26,6 +26,13 @@ Treat these short forms as explicit user requests. They are agent commands, not 
 | `$ak status <APP_ID>` | Report app/run/phase/QA status without changing evidence or outputs. |
 | `$ak render <APP_ID> [LANGUAGE]` | Render declared outputs only after the required Phase 6, traceability, and QA gates pass. |
 
+This table covers six-phase investigation only — `$ak help` does not describe or run the
+separate modernization pipeline this package also ships (`bootstrap-project`,
+`modernize-screen`, `validate-docs`, `triage-suite` skills; `/plan-screen`, `/code-screen`,
+`/test-screen`, `/review-screen`, `/screen-status` commands). Invoke those directly by name
+or natural-language request; see the repository root README's modernization Command Guide
+for the full list.
+
 Accept the equivalent Vietnamese or plain-language request. If an app ID is omitted, ask for it before any app-specific action. Never interpret `run` as approval for live Access/ADP or SQL Server access; require that approval separately.
 
 ## Select the operating mode

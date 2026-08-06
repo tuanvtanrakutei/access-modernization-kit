@@ -42,20 +42,25 @@ one manual step named under "Bootstrapping A New Project" below.
 Not covered by the repository root README — that one documents `$ak`'s own six-phase
 commands only, a separate, optional upstream step (see "At A Glance" above).
 
-**The four skills — natural language, no special syntax:**
+Confirmed against a real Claude Code install: all nine entries below appear in the `/`
+slash-command picker as `/ak:<name>`. Pick one there, or, for the four skills, describe the
+same request in plain language instead — both trigger the same skill.
 
-| Skill | Say something like ... |
-| :--- | :--- |
-| `bootstrap-project` | "Bootstrap a new project for {app}" |
-| `modernize-screen` | "Implement screen {screen}" |
-| `validate-docs` | "Validate the docs" / "check the a01_docs set" |
-| `triage-suite` | "Why are 48 tests failing" / "triage the test suite" |
+**The four skills — slash command, or natural language:**
 
-**The five per-stage slash commands** — type the exact name shown, Claude Code only for
-now (see [Installation](#installation)): `/plan-screen`, `/code-screen`, `/test-screen`,
-`/review-screen`, `/screen-status`. What each stops on, and what it refuses without:
-[Single stage](#single-stage) below — not repeated here to avoid two copies going stale
-against each other.
+| Skill | Slash (Claude Code) | Or say something like ... |
+| :--- | :--- | :--- |
+| `bootstrap-project` | `/ak:bootstrap-project` | "Bootstrap a new project for {app}" |
+| `modernize-screen` | `/ak:modernize-screen` | "Implement screen {screen}" |
+| `validate-docs` | `/ak:validate-docs` | "Validate the docs" / "check the docs set" |
+| `triage-suite` | `/ak:triage-suite` | "Why are 48 tests failing" / "triage the test suite" |
+
+**The five per-stage commands — slash only, no natural-language shortcut:**
+`/ak:plan-screen`, `/ak:code-screen`, `/ak:test-screen`, `/ak:review-screen`,
+`/ak:screen-status` (Claude Code only for now — see [Installation](#installation)).
+Example: `/ak:plan-screen OrderEntry` runs Stages 1–2 for the `OrderEntry` screen. What
+each stops on, and what it refuses without: [Single stage](#single-stage) below — not
+repeated here to avoid two copies going stale against each other.
 
 ## The Pipeline In Detail
 

@@ -18,6 +18,9 @@
 ### Fixed
 
 - Six `skills/*/SKILL.md` and `commands/*.md` files under `plugins/ak/modernize/` had unquoted YAML frontmatter (`description`, `argument-hint`) that a strict parser reads as a nested mapping or a flow sequence — quoted and re-verified against an actual YAML parser, not just visually.
+- `plugins/ak/.claude-plugin/plugin.json` explicitly declared `"hooks": "./hooks/hooks.json"`, which Claude Code auto-loads by default at that same path — the explicit field caused a real `Duplicate hooks file detected` error on install. Removed the field; `hooks/hooks.json` still loads via the default convention.
+- Both READMEs' modernization command tables showed bare `/plan-screen`-style command names and left `triage-suite`/`validate-docs` out entirely. Confirmed against a real Claude Code install that every skill and command in this package appears in the slash-command picker as `/ak:<name>` (all nine modernization entries, plus `/ak:ak` for the six-phase skill) — tables corrected to the real `/ak:` form, both missing skills added, and a "check the a01_docs set" example (a project-specific name, confusing as a generic example) reworded to "check the docs set".
+- Root `README.md`'s six-phase Command Guide had drifted from `skills/ak/SKILL.md`'s own real command table: missing `$ak help`, `$ak install codex`, and `$ak install claude <PROJECT_PATH>` rows entirely, and still listing a `$ak preflight <APP_ID>` row that `SKILL.md` no longer defines (superseded by the broader `$ak assess <APP_ID>`). Realigned the README table, the Scenario B walkthrough, and the Safety Contract note to match `SKILL.md` exactly. Separately, `$ak help`'s own output (the table in `SKILL.md`) never mentioned that a second, independently invokable modernization pipeline exists in the same package — added one paragraph directly after the table so `$ak help` itself surfaces this, not just the README.
 
 ## [2.7.3] - 2026-08-04
 
