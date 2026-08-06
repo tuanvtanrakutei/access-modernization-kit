@@ -5,14 +5,9 @@
 
 An agent skill for investigating legacy Microsoft Access, VBA, and SQL Server applications. It turns source material into 6 Analyst Phase documents, Evidence trace, Boundary Maps, QA reports, and Modernization System Specs.
 
-**Merged 2026-08-04:** this package also ships a second, independently invokable pipeline —
-`plugins/ak/modernize/` — that carries a project from those Phase outputs through to a working
-Django REST + React implementation, one screen at a time, with coverage gates tracing every
-legacy artifact to implemented code. Running one pipeline never auto-triggers the other. Every
-skill from both pipelines works on Claude Code and Codex CLI, one install. See
-[`plugins/ak/modernize/README.md`](plugins/ak/modernize/README.md) for the modernization
-pipeline, and [`plugins/ak/references/agent-compatibility.md`](plugins/ak/references/agent-compatibility.md)
-for how skill discovery works across runtimes.
+Also ships a second, independently invokable pipeline — [`plugins/ak/modernize/`](plugins/ak/modernize/README.md)
+— that carries a project from those Phase outputs to a working Django REST + React
+implementation, one screen at a time. One install below covers both.
 
 ---
 

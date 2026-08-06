@@ -67,36 +67,10 @@ Generic documents reference L3 values as `{{PLACEHOLDER}}`. The agent resolves t
 
 ## Installation
 
-**Merged 2026-08-04.** This is no longer an independent plugin. It ships inside `ak`, under
-`plugins/ak/modernize/`, as the second of two independently invokable pipelines — the six-phase
-investigation (`ak`'s own skills, unchanged) and this one, Stages 1-6. Running the six phases
-never auto-triggers Stage 1, and Stage 1 never auto-triggers the six phases: each is a separate,
-explicit user action. See the repository root `README.md` for how to install `ak`; there is
-nothing to install from this subdirectory on its own.
-
-**Skills work on both Claude Code and Codex CLI, confirmed against a real install, not just
-the manifest.** `bootstrap-project`, `modernize-screen`, `validate-docs`, and `triage-suite`
-live at `plugins/ak/skills/`, the same folder the six-phase `ak` skill already sits in — not
-nested under `modernize/`. Claude Code finds them there by default; Codex CLI's manifest
-(`plugins/ak/.codex-plugin/plugin.json`) already points at that exact path (`"skills":
-"./skills/"`, enforced by `plugins/ak/scripts/validate_structure.py`). `codex plugin add`
-copies the whole `plugins/ak/` package verbatim into
-`~/.codex/plugins/cache/access-modernization-kit/ak/{version}/` and reads `skills` relative to
-that cached copy — a real 2.7.3 install cached on this machine shows the exact fault this
-fixes, `./skills/` holding only the six-phase skill with the four modernize skills stranded
-under `modernize/skills/`, invisible to Codex. Moving them here is what makes the next
-`codex plugin add` at 2.8.0 actually expose all five.
-
-**Commands and hooks now declare the same fields for Codex — result unconfirmed.** The five
-per-stage commands and the scope-sensor hook live at `plugins/ak/commands/` and
-`plugins/ak/hooks/`, declared in both `plugins/ak/.claude-plugin/plugin.json` and, since this
-release, `plugins/ak/.codex-plugin/plugin.json` (`"commands": "./commands/"`, `"hooks":
-"./hooks/hooks.json"`). Unlike `skills`, nothing confirms Codex's plugin runtime reads either
-field — `ak` never declared them before this merge, so there is no prior cache to check
-against. The fields cost nothing if unread; if Codex does support them, this is already done.
-Until confirmed, a Codex user reaches the same stage-by-stage control through
-`modernize-screen`'s own instructions in natural language — "just run Stage 1 and 2 for
-{screen}" — rather than a dedicated slash command.
+Nothing separate to install. This pipeline ships inside `ak` — install that, per the
+[repository root README](../../../README.md), and every skill here (`bootstrap-project`,
+`modernize-screen`, `validate-docs`, `triage-suite`) comes with it, on both Claude Code and
+Codex CLI. Cross-runtime mechanics: [`references/agent-compatibility.md`](../references/agent-compatibility.md).
 
 Installing `ak` is not the same as setting up a project to modernize. `ak` and this pipeline
 give you the method and the tooling; a target repository still needs the bootstrap below.
