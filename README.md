@@ -11,7 +11,7 @@ implementation, one screen at a time. One install below covers both.
 
 ---
 
-## ? Quick Install
+## I. Quick Install
 
 Run in **Codex CLI**:
 
@@ -24,7 +24,7 @@ codex plugin add ak@access-modernization-kit
 
 ---
 
-## ?? Streamlined Workflow
+## II. Streamlined Workflow
 
 ### **Scenario A: You have exported sources (.bas, .sql, .csv, or .zip archive)**
 *(No Microsoft Access runtime required!)*
@@ -47,7 +47,7 @@ codex plugin add ak@access-modernization-kit
 
 ---
 
-## ??? Command Guide
+## III. Command Guide — Six-Phase Investigation
 
 | Command | Action |
 | :--- | :--- |
@@ -61,14 +61,30 @@ codex plugin add ak@access-modernization-kit
 
 ---
 
+## IV. Command Guide — Modernization Pipeline
+
+Full detail: [`plugins/ak/modernize/README.md`](plugins/ak/modernize/README.md#command-guide).
+
+| Command | Action |
+| :--- | :--- |
+| `Bootstrap a new project for {app}` | One-time setup: templates, folders, registry seed, `CLAUDE.md`/`AGENTS.md` pointer |
+| `Implement screen {screen}` | Full pipeline, Stages 1–6, for one screen |
+| `/plan-screen {screen}` | Stages 1–2 only — documents, no code |
+| `/code-screen {screen}` | Stages 3a–3b — backend and frontend coding |
+| `/test-screen {screen}` | Stages 4a–4b — write and run tests |
+| `/review-screen {screen}` | Stage 5 — review verdict |
+| `/screen-status {screen\|all}` | Read-only status — always safe to run |
+
+---
+
 <details>
-<summary>?? Prerequisites & Safety Contract</summary>
+<summary>V. Prerequisites &amp; Safety Contract</summary>
 
 - **Imported Sources**: Exported text sources (.bas, .cls, .sql, .csv) or ZIP packages do not require Microsoft Access to be installed.
 - **Managed Access Live Extraction**: Requires host Microsoft Access or ACE Database Engine registered in Windows registry. `$ak preflight` checks bitness automatically.
 - **Safety Guarantee**: The kit **never** opens or modifies live original `.mdb`/`.accdb` files. Live extraction executes strictly against a byte-for-byte verified disposable snapshot.
 </details>
 
-## License & Contributing
+## VI. License & Contributing
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) and [SECURITY.md](SECURITY.md). Licensed under [Apache License 2.0](LICENSE). Copyright 2026 Vo Ta Tuan.
