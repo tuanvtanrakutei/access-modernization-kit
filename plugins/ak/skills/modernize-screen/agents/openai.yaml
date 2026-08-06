@@ -1,0 +1,4 @@
+interface:
+  display_name: "Modernize One Screen"
+  short_description: "Run the end-to-end legacy Access modernization pipeline for one screen"
+  default_prompt: "Run the end-to-end legacy Access modernization pipeline for one screen or several in parallel - business flow, screen plan, backend coding, frontend coding, tests, and review - against a Django REST plus React target."

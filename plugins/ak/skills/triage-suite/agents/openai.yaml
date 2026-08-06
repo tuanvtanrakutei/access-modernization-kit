@@ -1,0 +1,4 @@
+interface:
+  display_name: "Triage Failing Test Suite"
+  short_description: "Group test failures by error signature so a wall of red resolves into a few causes"
+  default_prompt: "Work out what is actually wrong with a failing test suite by grouping failures by error signature instead of by file, so a wall of red resolves into a few root causes."

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Bootstrap Modernization Project"
+  short_description: "Set up a new project's docs and seed the screen registry from Phase 2"
+  default_prompt: "Bootstrap a new Access-family modernization project: copy the template documents into the target repo's docs directory, and seed Screens_Registry.md from a six-phase run's Phase 2 inventory when one exists."

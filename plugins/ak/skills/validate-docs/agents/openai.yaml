@@ -1,0 +1,4 @@
+interface:
+  display_name: "Validate Modernization Docs"
+  short_description: "Check a bootstrapped project's documentation set for defects a reader will not notice"
+  default_prompt: "Check a bootstrapped modernization project's documentation set for unfilled config keys, unresolved placeholders, dangling document references, malformed issue rows, and other defects a reader would not notice by eye."
