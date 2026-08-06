@@ -8,9 +8,17 @@ An agent skill for investigating legacy Microsoft Access, VBA, and SQL Server ap
 **Merged 2026-08-04:** this package also ships a second, independently invokable pipeline —
 `plugins/ak/modernize/` — that carries a project from those Phase outputs through to a working
 Django REST + React implementation, one screen at a time, with coverage gates tracing every
-legacy artifact to implemented code. Installing `ak` installs both; running the six phases never
-auto-triggers modernization, and modernization never auto-triggers the six phases. See
+legacy artifact to implemented code. Running the six phases never auto-triggers modernization,
+and modernization never auto-triggers the six phases. See
 [`plugins/ak/modernize/README.md`](plugins/ak/modernize/README.md).
+
+**Claude Code gets both pipelines from one install.** `plugins/ak/.claude-plugin/plugin.json`
+declares `modernize/skills`, `modernize/commands`, and `modernize/hooks` additively alongside
+the six-phase skill. **Codex CLI currently gets six-phase investigation only** —
+`plugins/ak/.codex-plugin/plugin.json`'s `skills` field is a single static path
+(`./skills/`, validated by `plugins/ak/scripts/validate_structure.py`), with no confirmed
+multi-path mechanism to add `modernize/skills` alongside it. If Codex's plugin manifest gains
+that capability, this line — and the validator's own assertion — should be revisited together.
 
 ---
 

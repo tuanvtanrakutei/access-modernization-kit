@@ -69,14 +69,17 @@ Generic documents reference L3 values as `{{PLACEHOLDER}}`. The agent resolves t
 
 **Merged 2026-08-04.** This is no longer an independent plugin. It ships inside `ak`, under
 `plugins/ak/modernize/`, as the second of two independently invokable pipelines — the six-phase
-investigation (`ak`'s own skills, unchanged) and this one, Stages 1-6. Installing `ak` installs
-both. Running the six phases never auto-triggers Stage 1, and Stage 1 never auto-triggers the
-six phases: each is a separate, explicit user action. See the repository root `README.md` for
-how to install `ak`; there is nothing to install from this subdirectory on its own.
+investigation (`ak`'s own skills, unchanged) and this one, Stages 1-6. Running the six phases
+never auto-triggers Stage 1, and Stage 1 never auto-triggers the six phases: each is a separate,
+explicit user action. See the repository root `README.md` for how to install `ak`; there is
+nothing to install from this subdirectory on its own.
 
-The three component-path fields that make this subtree discoverable live in
+The three component-path fields that make this subtree discoverable to **Claude Code** live in
 `plugins/ak/.claude-plugin/plugin.json`: `"skills": ["./modernize/skills/"]`,
-`"commands": ["./modernize/commands/"]`, `"hooks": "./modernize/hooks/hooks.json"`.
+`"commands": ["./modernize/commands/"]`, `"hooks": "./modernize/hooks/hooks.json"`. **Codex CLI
+does not get this pipeline yet** — `plugins/ak/.codex-plugin/plugin.json`'s `skills` field is a
+single static path validated by `plugins/ak/scripts/validate_structure.py`, with no confirmed way
+to add a second path alongside it. Installing `ak` installs both pipelines only on Claude Code.
 
 Installing `ak` is not the same as setting up a project to modernize. `ak` and this pipeline
 give you the method and the tooling; a target repository still needs the bootstrap below.
