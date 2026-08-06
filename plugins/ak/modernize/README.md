@@ -7,6 +7,7 @@ It drives **one screen at a time** through a fixed pipeline, and enforces covera
 ## Contents
 
 - [At A Glance](#at-a-glance)
+- [Command Guide](#command-guide)
 - [The Pipeline In Detail](#the-pipeline-in-detail)
 - [Bootstrapping A New Project](#bootstrapping-a-new-project)
 - [Common Commands](#common-commands)
@@ -35,6 +36,23 @@ flowchart LR
 Two commands cover the whole pipeline end to end: bootstrap once per project, then run the
 per-screen pipeline once per screen. Everything inside each command is automatic except the
 one manual step named under "Bootstrapping A New Project" below.
+
+## Command Guide
+
+Not covered by the repository root README — that one documents `$ak`'s own six-phase
+commands only.
+
+| Command | Action |
+| :--- | :--- |
+| `Bootstrap a new project for {app}` | One-time setup: templates, folders, registry seed, `CLAUDE.md`/`AGENTS.md` pointer |
+| `Implement screen {screen}` | Full pipeline, Stages 1–6, for one screen |
+| `/plan-screen {screen}` | Stages 1–2 only — documents, no code |
+| `/code-screen {screen}` | Stages 3a–3b — backend and frontend coding |
+| `/test-screen {screen}` | Stages 4a–4b — write and run tests |
+| `/review-screen {screen}` | Stage 5 — review verdict |
+| `/screen-status {screen\|all}` | Read-only status — always safe to run |
+
+Full detail, options, and examples for each: [Common Commands](#common-commands) below.
 
 ## The Pipeline In Detail
 
@@ -159,8 +177,8 @@ This plugin makes that failure mode visible **between stages**, while the contex
 
 | | Files | Read these when ... |
 |---|---|---|
-| **You read** | This `README.md`<br>`docs/PHASE_OUTPUT_GUIDE.md`<br>Target repo's `{{DOCS_DIR}}/README.md` | You want to understand what's happening, or find where something lives |
-| **The agent reads** | `docs/MASTER_WORKFLOW.md`<br>`TRACEBACK_GATES.md`<br>`LEGACY_EVIDENCE.md`<br>`*_CODING.md`, `*_TESTING.md`<br>`CONVENTIONS.md`<br>every `skills/*/SKILL.md`, `commands/*.md`<br>`orchestration/*.json` | You're debugging *why* the agent stopped or what a gate checked — not for a first read |
+| **You read** | This `README.md`, `docs/PHASE_OUTPUT_GUIDE.md`, the target repo's own `{{DOCS_DIR}}/README.md` | you want to understand what's happening, or find where something lives |
+| **The agent reads** | `docs/MASTER_WORKFLOW.md`, `TRACEBACK_GATES.md`, `LEGACY_EVIDENCE.md`, `*_CODING.md`, `*_TESTING.md`, `CONVENTIONS.md`, every `skills/*/SKILL.md` and `commands/*.md`, `orchestration/*.json` | you're debugging *why* the agent stopped or what a gate checked — not for a first read |
 
 The agent-facing set is exhaustive and rule-precise on purpose — that precision is what the
 coverage gates depend on. It reads like a spec because it is one. Start with the files in the
