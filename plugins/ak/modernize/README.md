@@ -6,28 +6,22 @@ It drives **one screen at a time** through a fixed pipeline, and enforces covera
 
 ## Contents
 
-- [What Problem This Solves](#what-problem-this-solves)
 - [At A Glance](#at-a-glance)
-- [Which Files Are For You, Which Are For The Agent](#which-files-are-for-you-which-are-for-the-agent)
-- [Design Layers](#design-layers)
-- [Installation](#installation)
-- [What This Pipeline Ships](#what-this-pipeline-ships)
-- [Bootstrapping A New Project](#bootstrapping-a-new-project)
 - [The Pipeline In Detail](#the-pipeline-in-detail)
+- [Bootstrapping A New Project](#bootstrapping-a-new-project)
 - [Common Commands](#common-commands)
   - [Single screen, end-to-end](#single-screen-end-to-end)
   - [Single stage](#single-stage)
   - [Multiple screens in parallel](#multiple-screens-in-parallel)
   - [Adding a new screen mid-pipeline](#adding-a-new-screen-mid-pipeline)
 - [Stage 0 — Legacy Analysis Integration](#stage-0-legacy-analysis-integration)
+- [What Problem This Solves](#what-problem-this-solves)
+- [Which Files Are For You, Which Are For The Agent](#which-files-are-for-you-which-are-for-the-agent)
+- [Design Layers](#design-layers)
+- [Installation](#installation)
+- [What This Pipeline Ships](#what-this-pipeline-ships)
 - [Scope Boundaries](#scope-boundaries)
 - [Reusing Across Projects](#reusing-across-projects)
-
-## What Problem This Solves
-
-Access modernization projects fail in a predictable way: a developer reads part of a legacy form, implements what they saw, and nobody notices the three event handlers they never opened. The defect surfaces in UAT months later, when the original context is gone.
-
-This plugin makes that failure mode visible **between stages**, while the context is still fresh and the rework is cheap.
 
 ## At A Glance
 
@@ -41,6 +35,123 @@ flowchart LR
 Two commands cover the whole pipeline end to end: bootstrap once per project, then run the
 per-screen pipeline once per screen. Everything inside each command is automatic except the
 one manual step named under "Bootstrapping A New Project" below.
+
+## The Pipeline In Detail
+
+What `modernize-screen` runs for one screen — the "At A Glance" diagram's `M` box, expanded:
+
+```mermaid
+flowchart LR
+    S0["Stage 0<br/>Legacy Analysis<br/>(external, optional)"] --> S1["Stage 1<br/>Business flow"]
+    S1 --> G1{{"G1<br/>Evidence"}}
+    G1 --> S2["Stage 2<br/>Screen plan<br/>(BE + FE contract)"]
+    S2 --> G2{{"G2<br/>Rules"}}
+    G2 --> S3a["Stage 3a<br/>Backend coding"]
+    S3a --> S3b["Stage 3b<br/>Frontend coding"]
+    S3b --> G3{{"G3<br/>API + UI"}}
+    G3 --> S4a["Stage 4a<br/>Backend test"]
+    S4a --> S4b["Stage 4b<br/>Frontend test"]
+    S4b --> S5["Stage 5<br/>Review"]
+    S5 -->|blocker| S3a
+    S5 -->|approved| S6["Stage 6<br/>Final Acceptance"]
+    S6 -->|accepted| DONE["Ready to merge"]
+```
+
+Full stage definitions, gates, run modes, and failure handling are in `docs/MASTER_WORKFLOW.md`. Read that file before running the pipeline.
+
+## Bootstrapping A New Project
+
+One command:
+
+```text
+Bootstrap a new project for {app}
+```
+
+(or invoke the `bootstrap-project` skill directly). It asks for five values up front
+(`{{DOCS_DIR}}`, `AK_RUN_DIR`, `PROJECT_NAME`, `SUBSYSTEM_CODE`, `LEGACY_VARIANT`), copies
+every template, creates every per-screen folder, and — when a six-phase `ak` run exists and
+its Phase 2 gate reads `PUBLISHED` — detects `Screens_Registry.md` rows from Phase 2's
+"Screen, Form, and Report Inventory" and writes them after a single `ok`/`cancel` over the
+whole table. It then does the same — one preview, one accept — for a small pointer block in
+the project's `CLAUDE.md` and `AGENTS.md` (created if missing, appended or updated in place
+if not, never touching anything outside its own marked block), so a fresh session in the
+project has standing awareness of where the pipeline lives even before any skill's trigger
+phrase fires.
+
+**The one manual step, before or after that command:** fill every remaining `{{...}}` value
+in the copied `PROJECT_CONFIG.md`. Every downstream stage reads it; an unfilled placeholder
+makes the agent stop and ask rather than guess a path. Nothing else here is done by hand —
+not the folders, not the per-folder `README.md`s, not the registry when phase output
+exists, not the `CLAUDE.md`/`AGENTS.md` pointer.
+
+If Stage 0 (the six-phase analysis) hasn't run yet, that is a separate command, documented
+in `ak`'s own top-level `README.md` — `$ak run <APP_ID>` — not part of this one. Bootstrap
+still works without it (`AK_RUN_DIR: n/a`); the registry then stays the template's empty
+skeleton, and rows are added by hand or via Agent-Assisted Registration per screen.
+
+## Common Commands
+
+These apply once a project is bootstrapped (`PROJECT_CONFIG.md` filled, `Screens_Registry.md`
+seeded). They are also documented, verbatim, in the target repo's own `{{DOCS_DIR}}/README.md`
+once bootstrap copies `templates/DOCS_README.md` there — this copy exists so you don't have to
+bootstrap a project just to see what running it looks like.
+
+### Single screen, end-to-end
+
+Invoke the `modernize-screen` skill, or describe the goal directly:
+
+```text
+Implement screen 受注一覧
+```
+
+The agent reads `MASTER_WORKFLOW.md`, runs Pre-Flight, resolves `doc_mode`/`be_mode`/`fe_mode`,
+and executes whichever stages each mode calls for.
+
+### Single stage
+
+| Command | Stages | Refuses without |
+|---|---|---|
+| `/plan-screen {screen}` | 1–2, documents only | (nothing upstream to check beyond evidence) |
+| `/code-screen {screen} [--backend-only\|--frontend-only]` | 3a–3b | a two-contract screen plan with a populated gap matrix |
+| `/test-screen {screen} [--backend-only\|--frontend-only]` | 4a–4b | a coding record for the track being tested |
+| `/review-screen {screen}` | 5 | (reviews whatever upstream artifacts exist, and says what's missing) |
+| `/screen-status {screen\|all}` | none — read-only | nothing; always safe to run |
+
+### Multiple screens in parallel
+
+```text
+Implement 受注一覧 and 出荷実績表 in parallel
+```
+
+The agent partitions by `module` (`orchestration/parallelism.json`), dispatches one group
+agent per module group with an envelope from `templates/group-task-envelope.json`, and
+aggregates the per-screen handoffs. See `MASTER_WORKFLOW.md` §"Multi-Screen Batch".
+
+### Adding a new screen mid-pipeline
+
+You do not need to edit `Screens_Registry.md` by hand for a screen that already has phase
+output. Ask the agent to work on it directly and it runs **Agent-Assisted Registration** —
+detects `screen_key`/`module`/priority/status from evidence and code, proposes a row, and
+waits for `ok`, `edit field=value`, or `cancel`. Full flow: `MASTER_WORKFLOW.md`
+§"Agent-Assisted Registration". This is the per-screen counterpart to what
+`bootstrap-project` does once, in bulk, for every screen Phase 2 already lists.
+
+## Stage 0 — Legacy Analysis Integration
+
+Stage 0 is **outside this plugin**. It is the seam where a legacy-analysis tool (Access extraction, screen inventory, dependency mapping) hands off to this pipeline.
+
+The pipeline consumes whatever Stage 0 produces, as long as it satisfies the **input contract** in `docs/LEGACY_EVIDENCE.md` §"Stage 0 Handoff Contract". If you have no analysis tooling yet, export evidence manually — the contract is the same either way, so swapping in tooling later requires no pipeline change.
+
+If Stage 0 was `ak`'s own six-phase analysis and you haven't read that kind of output before,
+start with `docs/PHASE_OUTPUT_GUIDE.md` — a quick-reference for what each phase document
+answers and the order worth reading them in — before opening `LEGACY_EVIDENCE.md` §6.1–6.4
+for the exact mechanics of what this pipeline consumes.
+
+## What Problem This Solves
+
+Access modernization projects fail in a predictable way: a developer reads part of a legacy form, implements what they saw, and nobody notices the three event handlers they never opened. The defect surfaces in UAT months later, when the original context is gone.
+
+This plugin makes that failure mode visible **between stages**, while the context is still fresh and the rework is cheap.
 
 ## Which Files Are For You, Which Are For The Agent
 
@@ -67,13 +178,13 @@ Generic documents reference L3 values as `{{PLACEHOLDER}}`. The agent resolves t
 
 ## Installation
 
-Nothing separate to install. This pipeline ships inside `ak` — install that, per the
-[repository root README](../../../README.md), and every skill here (`bootstrap-project`,
-`modernize-screen`, `validate-docs`, `triage-suite`) comes with it, on both Claude Code and
-Codex CLI. Cross-runtime mechanics: [`references/agent-compatibility.md`](../references/agent-compatibility.md).
+Nothing separate to install — ships inside `ak`. See the
+[repository root README](../../../README.md) to install, and
+[`references/agent-compatibility.md`](../references/agent-compatibility.md) for cross-runtime
+mechanics.
 
-Installing `ak` is not the same as setting up a project to modernize. `ak` and this pipeline
-give you the method and the tooling; a target repository still needs the bootstrap below.
+Installing `ak` is not the same as setting up a project to modernize: it gives you the method
+and tooling, but a target repository still needs the bootstrap above.
 
 ## What This Pipeline Ships
 
@@ -144,117 +255,6 @@ damage here: **the machine detects, the human decides, the agent executes** — 
 both scripts report and never write; and **an agent's write scope is data the parent
 controls**, declared as `write_paths` in a task envelope rather than a paragraph the agent
 has to remember.
-
-## Bootstrapping A New Project
-
-One command:
-
-```text
-Bootstrap a new project for {app}
-```
-
-(or invoke the `bootstrap-project` skill directly). It asks for five values up front
-(`{{DOCS_DIR}}`, `AK_RUN_DIR`, `PROJECT_NAME`, `SUBSYSTEM_CODE`, `LEGACY_VARIANT`), copies
-every template, creates every per-screen folder, and — when a six-phase `ak` run exists and
-its Phase 2 gate reads `PUBLISHED` — detects `Screens_Registry.md` rows from Phase 2's
-"Screen, Form, and Report Inventory" and writes them after a single `ok`/`cancel` over the
-whole table. It then does the same — one preview, one accept — for a small pointer block in
-the project's `CLAUDE.md` and `AGENTS.md` (created if missing, appended or updated in place
-if not, never touching anything outside its own marked block), so a fresh session in the
-project has standing awareness of where the pipeline lives even before any skill's trigger
-phrase fires.
-
-**The one manual step, before or after that command:** fill every remaining `{{...}}` value
-in the copied `PROJECT_CONFIG.md`. Every downstream stage reads it; an unfilled placeholder
-makes the agent stop and ask rather than guess a path. Nothing else here is done by hand —
-not the folders, not the per-folder `README.md`s, not the registry when phase output
-exists, not the `CLAUDE.md`/`AGENTS.md` pointer.
-
-If Stage 0 (the six-phase analysis) hasn't run yet, that is a separate command, documented
-in `ak`'s own top-level `README.md` — `$ak run <APP_ID>` — not part of this one. Bootstrap
-still works without it (`AK_RUN_DIR: n/a`); the registry then stays the template's empty
-skeleton, and rows are added by hand or via Agent-Assisted Registration per screen.
-
-## The Pipeline In Detail
-
-What `modernize-screen` runs for one screen — the "At A Glance" diagram's `M` box, expanded:
-
-```mermaid
-flowchart LR
-    S0["Stage 0<br/>Legacy Analysis<br/>(external, optional)"] --> S1["Stage 1<br/>Business flow"]
-    S1 --> G1{{"G1<br/>Evidence"}}
-    G1 --> S2["Stage 2<br/>Screen plan<br/>(BE + FE contract)"]
-    S2 --> G2{{"G2<br/>Rules"}}
-    G2 --> S3a["Stage 3a<br/>Backend coding"]
-    S3a --> S3b["Stage 3b<br/>Frontend coding"]
-    S3b --> G3{{"G3<br/>API + UI"}}
-    G3 --> S4a["Stage 4a<br/>Backend test"]
-    S4a --> S4b["Stage 4b<br/>Frontend test"]
-    S4b --> S5["Stage 5<br/>Review"]
-    S5 -->|blocker| S3a
-    S5 -->|approved| S6["Stage 6<br/>Final Acceptance"]
-    S6 -->|accepted| DONE["Ready to merge"]
-```
-
-Full stage definitions, gates, run modes, and failure handling are in `docs/MASTER_WORKFLOW.md`. Read that file before running the pipeline.
-
-## Common Commands
-
-These apply once a project is bootstrapped (`PROJECT_CONFIG.md` filled, `Screens_Registry.md`
-seeded). They are also documented, verbatim, in the target repo's own `{{DOCS_DIR}}/README.md`
-once bootstrap copies `templates/DOCS_README.md` there — this copy exists so you don't have to
-bootstrap a project just to see what running it looks like.
-
-### Single screen, end-to-end
-
-Invoke the `modernize-screen` skill, or describe the goal directly:
-
-```text
-Implement screen 受注一覧
-```
-
-The agent reads `MASTER_WORKFLOW.md`, runs Pre-Flight, resolves `doc_mode`/`be_mode`/`fe_mode`,
-and executes whichever stages each mode calls for.
-
-### Single stage
-
-| Command | Stages | Refuses without |
-|---|---|---|
-| `/plan-screen {screen}` | 1–2, documents only | (nothing upstream to check beyond evidence) |
-| `/code-screen {screen} [--backend-only\|--frontend-only]` | 3a–3b | a two-contract screen plan with a populated gap matrix |
-| `/test-screen {screen} [--backend-only\|--frontend-only]` | 4a–4b | a coding record for the track being tested |
-| `/review-screen {screen}` | 5 | (reviews whatever upstream artifacts exist, and says what's missing) |
-| `/screen-status {screen\|all}` | none — read-only | nothing; always safe to run |
-
-### Multiple screens in parallel
-
-```text
-Implement 受注一覧 and 出荷実績表 in parallel
-```
-
-The agent partitions by `module` (`orchestration/parallelism.json`), dispatches one group
-agent per module group with an envelope from `templates/group-task-envelope.json`, and
-aggregates the per-screen handoffs. See `MASTER_WORKFLOW.md` §"Multi-Screen Batch".
-
-### Adding a new screen mid-pipeline
-
-You do not need to edit `Screens_Registry.md` by hand for a screen that already has phase
-output. Ask the agent to work on it directly and it runs **Agent-Assisted Registration** —
-detects `screen_key`/`module`/priority/status from evidence and code, proposes a row, and
-waits for `ok`, `edit field=value`, or `cancel`. Full flow: `MASTER_WORKFLOW.md`
-§"Agent-Assisted Registration". This is the per-screen counterpart to what
-`bootstrap-project` does once, in bulk, for every screen Phase 2 already lists.
-
-## Stage 0 — Legacy Analysis Integration
-
-Stage 0 is **outside this plugin**. It is the seam where a legacy-analysis tool (Access extraction, screen inventory, dependency mapping) hands off to this pipeline.
-
-The pipeline consumes whatever Stage 0 produces, as long as it satisfies the **input contract** in `docs/LEGACY_EVIDENCE.md` §"Stage 0 Handoff Contract". If you have no analysis tooling yet, export evidence manually — the contract is the same either way, so swapping in tooling later requires no pipeline change.
-
-If Stage 0 was `ak`'s own six-phase analysis and you haven't read that kind of output before,
-start with `docs/PHASE_OUTPUT_GUIDE.md` — a quick-reference for what each phase document
-answers and the order worth reading them in — before opening `LEGACY_EVIDENCE.md` §6.1–6.4
-for the exact mechanics of what this pipeline consumes.
 
 ## Scope Boundaries
 

@@ -8,13 +8,22 @@ investigation (`ak/`) plus four modernization skills (`bootstrap-project/`,
 `agents/{skill}/SKILL.md` and its own `agents/openai.yaml` — the metadata file is per skill,
 not one file describing the whole package.
 
-| Runtime | Discovery location | Adapter behavior |
-|---|---|---|
-| Codex | `%USERPROFILE%\.codex\skills\ak` | Copy or link the complete package (all five skills); each skill's own `agents/openai.yaml` supplies its UI metadata. |
-| Claude | Project or user skill directory supported by the active Claude runtime, using `ak` as the skill directory | Copy or link the complete package and use each skill's own `SKILL.md`. |
-| Generic agent | Any readable tools/skills directory, using `ak` as the skill directory | Point the agent to the specific skill's `SKILL.md` and preserve relative resource paths. |
+**On Codex and Claude Code, the marketplace installer does this automatically** —
+`codex plugin add ak@access-modernization-kit` / `/plugin install ak@access-modernization-kit`
+(see the repository root README) copies (Codex, into its plugin cache) or registers (Claude
+Code) the package and reads `.codex-plugin/plugin.json` / `.claude-plugin/plugin.json` for you.
+Verified against a real cached Codex install — see `plugins/ak/modernize/BACKLOG.md` entry G8.
+Nothing below is a step to perform on those two runtimes; it is the fallback for anything else.
 
-Do not maintain separate copies of the canonical instruction. Prefer a directory link when the runtime supports it; otherwise copy the whole package and record its source version.
+| Runtime | Discovery location | Manual fallback, when there is no marketplace installer |
+|---|---|---|
+| Codex | `~/.codex/plugins/cache/access-modernization-kit/ak/{version}/` | Not needed — `codex plugin add` does this |
+| Claude Code | Wherever the active Claude runtime resolves an installed plugin | Not needed — `/plugin install` does this |
+| Generic agent, no marketplace support | Any readable tools/skills directory, using `ak` as the skill directory | Copy or link the complete package; each skill's `agents/openai.yaml` supplies UI metadata where the runtime reads one |
+
+Do not maintain separate copies of the canonical instruction. For a generic agent, prefer a
+directory link over a copy when the runtime supports it, and record the source version either
+way.
 
 Discovery compatibility is not orchestration compatibility. Before a multi-agent run, map every required operation in `orchestration/runtime-adapters.json`, enforce the write scopes in `orchestration/roles.json`, and preserve the same task, handoff, conflict, and evidence schemas across runtimes. Provider-specific agents may schedule work differently, but they must not change the six-phase gates or coordinator-only merge rule.
 
