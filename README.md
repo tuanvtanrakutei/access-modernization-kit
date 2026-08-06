@@ -8,28 +8,11 @@ An agent skill for investigating legacy Microsoft Access, VBA, and SQL Server ap
 **Merged 2026-08-04:** this package also ships a second, independently invokable pipeline —
 `plugins/ak/modernize/` — that carries a project from those Phase outputs through to a working
 Django REST + React implementation, one screen at a time, with coverage gates tracing every
-legacy artifact to implemented code. Running the six phases never auto-triggers modernization,
-and modernization never auto-triggers the six phases. See
-[`plugins/ak/modernize/README.md`](plugins/ak/modernize/README.md).
-
-**Every skill works on both Claude Code and Codex CLI, one install, no extra steps.**
-`bootstrap-project`, `modernize-screen`, `validate-docs`, and `triage-suite` live at
-`plugins/ak/skills/` — the same folder the six-phase skill sits in, not nested under
-`modernize/` — because that is the one path both CLIs' discovery conventions already look
-at: Claude Code's default scan, and Codex CLI's single fixed `./skills/`
-(`plugins/ak/.codex-plugin/plugin.json`, validated by
-`plugins/ak/scripts/validate_structure.py`). This is confirmed against a real installed
-Codex cache, not just the manifest contract: `codex plugin add` copies the whole `plugins/ak/`
-package verbatim to `~/.codex/plugins/cache/access-modernization-kit/ak/{version}/` and reads
-`skills` as a path relative to that copy — a cached 2.7.3 install on this machine shows
-exactly the bug this fixes, `./skills/` containing only the six-phase skill with all four
-modernize skills stranded under `modernize/skills/`, outside the declared path.
-
-`plugins/ak/.codex-plugin/plugin.json` also now declares `"commands": "./commands/"` and
-`"hooks": "./hooks/hooks.json"`, mirroring `plugins/ak/.claude-plugin/plugin.json` exactly.
-**Unlike `skills`, this is unconfirmed** — nothing here establishes that Codex's plugin
-runtime reads a `commands` or `hooks` field at all; `ak` never declared either before this
-merge; added because the cost of an unread field is nothing.
+legacy artifact to implemented code. Running one pipeline never auto-triggers the other. Every
+skill from both pipelines works on Claude Code and Codex CLI, one install. See
+[`plugins/ak/modernize/README.md`](plugins/ak/modernize/README.md) for the modernization
+pipeline, and [`plugins/ak/references/agent-compatibility.md`](plugins/ak/references/agent-compatibility.md)
+for how skill discovery works across runtimes.
 
 ---
 
