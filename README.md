@@ -12,13 +12,18 @@ legacy artifact to implemented code. Running the six phases never auto-triggers 
 and modernization never auto-triggers the six phases. See
 [`plugins/ak/modernize/README.md`](plugins/ak/modernize/README.md).
 
-**Claude Code gets both pipelines from one install.** `plugins/ak/.claude-plugin/plugin.json`
-declares `modernize/skills`, `modernize/commands`, and `modernize/hooks` additively alongside
-the six-phase skill. **Codex CLI currently gets six-phase investigation only** —
-`plugins/ak/.codex-plugin/plugin.json`'s `skills` field is a single static path
-(`./skills/`, validated by `plugins/ak/scripts/validate_structure.py`), with no confirmed
-multi-path mechanism to add `modernize/skills` alongside it. If Codex's plugin manifest gains
-that capability, this line — and the validator's own assertion — should be revisited together.
+**Every skill works on both Claude Code and Codex CLI, one install, no extra steps.**
+`bootstrap-project`, `modernize-screen`, `validate-docs`, and `triage-suite` live at
+`plugins/ak/skills/` — the same folder the six-phase skill sits in, not nested under
+`modernize/` — because that is the one path both CLIs' discovery conventions already look
+at: Claude Code's default scan, and Codex CLI's single fixed `./skills/`
+(`plugins/ak/.codex-plugin/plugin.json`, validated by
+`plugins/ak/scripts/validate_structure.py`). **The five per-stage commands and the
+scope-sensor hook are Claude Code only, for now** — they live at `plugins/ak/commands/` and
+`plugins/ak/hooks/`, declared in `plugins/ak/.claude-plugin/plugin.json`, with no equivalent
+field in the Codex manifest today. They sit at that same plugin-root convention so that if
+Codex's manifest schema adds a comparable field later, exposing them is a one-line addition
+there, not another file move here.
 
 ---
 

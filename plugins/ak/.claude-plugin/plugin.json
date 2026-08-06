@@ -17,7 +17,7 @@
     "legacy-modernization",
     "multi-agent"
   ],
-  "skills": ["./modernize/skills/"],
-  "commands": ["./modernize/commands/"],
-  "hooks": "./modernize/hooks/hooks.json"
+  "skills": "./skills/",
+  "commands": "./commands/",
+  "hooks": "./hooks/hooks.json"
 }

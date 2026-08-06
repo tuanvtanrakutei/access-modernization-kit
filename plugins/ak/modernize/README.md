@@ -74,12 +74,21 @@ never auto-triggers Stage 1, and Stage 1 never auto-triggers the six phases: eac
 explicit user action. See the repository root `README.md` for how to install `ak`; there is
 nothing to install from this subdirectory on its own.
 
-The three component-path fields that make this subtree discoverable to **Claude Code** live in
-`plugins/ak/.claude-plugin/plugin.json`: `"skills": ["./modernize/skills/"]`,
-`"commands": ["./modernize/commands/"]`, `"hooks": "./modernize/hooks/hooks.json"`. **Codex CLI
-does not get this pipeline yet** — `plugins/ak/.codex-plugin/plugin.json`'s `skills` field is a
-single static path validated by `plugins/ak/scripts/validate_structure.py`, with no confirmed way
-to add a second path alongside it. Installing `ak` installs both pipelines only on Claude Code.
+**Skills work on both Claude Code and Codex CLI.** `bootstrap-project`, `modernize-screen`,
+`validate-docs`, and `triage-suite` live at `plugins/ak/skills/`, the same folder the six-phase
+`ak` skill already sits in — not nested under `modernize/`. Claude Code finds them there by
+default; Codex CLI's manifest (`plugins/ak/.codex-plugin/plugin.json`) already points at that
+exact path (`"skills": "./skills/"`, enforced by `plugins/ak/scripts/validate_structure.py`), so
+no manifest change was needed to expose them.
+
+**Commands and hooks are Claude Code only, for now.** The five per-stage commands and the
+scope-sensor hook live at `plugins/ak/commands/` and `plugins/ak/hooks/` — declared in
+`plugins/ak/.claude-plugin/plugin.json`, with no equivalent field in the Codex manifest today.
+They sit at that same plugin-root convention rather than nested under `modernize/` specifically
+so that if Codex's manifest schema adds a comparable field later, it is a one-line addition
+there, not another file move here. Until then, a Codex user reaches the same stage-by-stage
+control through `modernize-screen`'s own instructions in natural language — "just run Stage 1
+and 2 for {screen}" — rather than a dedicated slash command.
 
 Installing `ak` is not the same as setting up a project to modernize. `ak` and this pipeline
 give you the method and the tooling; a target repository still needs the bootstrap below.
@@ -87,52 +96,62 @@ give you the method and the tooling; a target repository still needs the bootstr
 ## What This Pipeline Ships
 
 ```
-plugins/ak/modernize/
-├── docs/                          ← L1 + L2 reference documents, no project values
-│   ├── MASTER_WORKFLOW.md         ← the orchestrator
-│   ├── TRACEBACK_GATES.md         ← coverage gate specification
-│   ├── LEGACY_EVIDENCE.md         ← Access variant evidence taxonomy, Stage 0 handoff contract
-│   ├── PHASE_OUTPUT_GUIDE.md      ← how to read a six-phase run's output, oriented for humans
-│   ├── BACKEND_CODING.md          ← Stage 3a rules
-│   ├── FRONTEND_CODING.md         ← Stage 3b rules, incl. legacy UI parity
-│   ├── BACKEND_TESTING.md         ← Stage 4a method
-│   ├── FRONTEND_TESTING.md        ← Stage 4b method
-│   └── CONVENTIONS.md             ← language-level style
-├── orchestration/                 ← how a multi-screen run is dispatched
-│   ├── roles.json                 ← who may write what, and who may prompt the user
-│   └── parallelism.json           ← the parallelism rules as data, not prose
-├── templates/                     ← copied into the target repo at bootstrap
-│   ├── PROJECT_CONFIG.md          ← the only file you must author by hand
-│   ├── ARCHITECTURE.md
-│   ├── Screens_Registry.md
-│   ├── Known_Issues.md
-│   ├── Known_Issues_Archive.md    ← starts empty; Known_Issues.md's Archive Policy fills it
-│   ├── DOCS_README.md             ← becomes the target repo's {{DOCS_DIR}}/README.md
-│   ├── {Business_flows,Screen_plans,Coding_Records}_README.md
-│   ├── {Test_Instruction,Code_Review,Final_Acceptance}_README.md
-│   ├── FRONTEND_API_PATTERNS_TEMPLATE.md   ← starting point for {{FE_PATTERN_DOCS}}, not auto-copied
-│   ├── FRONTEND_UI_PATTERNS_TEMPLATE.md    ← same; both fill-in-the-blank, generalized from a real project
-│   ├── group-task-envelope.json   ← one per module group; write_paths is the agent's scope
-│   └── group-agent-prompt.md      ← the group agent's standing instructions
-├── commands/                      ← per-stage entry points for mid-pipeline work
-│   ├── plan-screen.md             ← Stages 1–2, documents only
-│   ├── code-screen.md             ← Stages 3a–3b
-│   ├── test-screen.md             ← Stages 4a–4b
-│   ├── review-screen.md           ← Stage 5
-│   └── screen-status.md           ← read-only, writes nothing
-├── hooks/                         ← a sensor, never an actor
+plugins/ak/
+├── skills/                         ← shared with the six-phase side; every skill discoverable by both CLIs
+│   ├── ak/                         ← the six-phase investigation skill, unchanged
+│   ├── bootstrap-project/          ← one-time project setup, seeds the registry when phase output exists
+│   ├── modernize-screen/           ← the full pipeline, the usual entry point
+│   ├── validate-docs/              ← check a bootstrapped project's documents
+│   └── triage-suite/               ← work out why a suite is red
+├── commands/                       ← per-stage entry points for mid-pipeline work (Claude Code only)
+│   ├── plan-screen.md              ← Stages 1–2, documents only
+│   ├── code-screen.md              ← Stages 3a–3b
+│   ├── test-screen.md              ← Stages 4a–4b
+│   ├── review-screen.md            ← Stage 5
+│   └── screen-status.md            ← read-only, writes nothing
+├── hooks/                          ← a sensor, never an actor (Claude Code only)
 │   ├── hooks.json
-│   └── scope_sensor.py            ← warns on parent-owned files and over-long lines
-├── scripts/
-│   ├── validate_docs.py           ← reports documentation defects, never repairs
-│   ├── triage_suite.py            ← groups failing tests by cause, runs nothing
-│   └── scan_phase2_inventory.py   ← detects Screens_Registry rows from a Phase 2 doc, never writes them
-└── skills/
-    ├── modernize-screen/          ← the full pipeline, the usual entry point
-    ├── validate-docs/             ← check a bootstrapped project's documents
-    ├── triage-suite/              ← work out why a suite is red
-    └── bootstrap-project/         ← one-time project setup, seeds the registry when phase output exists
+│   └── scope_sensor.py             ← warns on parent-owned files and over-long lines
+└── modernize/
+    ├── docs/                       ← L1 + L2 reference documents, no project values
+    │   ├── MASTER_WORKFLOW.md      ← the orchestrator
+    │   ├── TRACEBACK_GATES.md      ← coverage gate specification
+    │   ├── LEGACY_EVIDENCE.md      ← Access variant evidence taxonomy, Stage 0 handoff contract
+    │   ├── PHASE_OUTPUT_GUIDE.md   ← how to read a six-phase run's output, oriented for humans
+    │   ├── BACKEND_CODING.md       ← Stage 3a rules
+    │   ├── FRONTEND_CODING.md      ← Stage 3b rules, incl. legacy UI parity
+    │   ├── BACKEND_TESTING.md      ← Stage 4a method
+    │   ├── FRONTEND_TESTING.md     ← Stage 4b method
+    │   └── CONVENTIONS.md          ← language-level style
+    ├── orchestration/              ← how a multi-screen run is dispatched
+    │   ├── roles.json               ← who may write what, and who may prompt the user
+    │   └── parallelism.json         ← the parallelism rules as data, not prose
+    ├── templates/                  ← copied into the target repo at bootstrap
+    │   ├── PROJECT_CONFIG.md        ← the only file you must author by hand
+    │   ├── ARCHITECTURE.md
+    │   ├── Screens_Registry.md
+    │   ├── Known_Issues.md
+    │   ├── Known_Issues_Archive.md  ← starts empty; Known_Issues.md's Archive Policy fills it
+    │   ├── DOCS_README.md           ← becomes the target repo's {{DOCS_DIR}}/README.md
+    │   ├── {Business_flows,Screen_plans,Coding_Records}_README.md
+    │   ├── {Test_Instruction,Code_Review,Final_Acceptance}_README.md
+    │   ├── FRONTEND_API_PATTERNS_TEMPLATE.md   ← starting point for {{FE_PATTERN_DOCS}}, not auto-copied
+    │   ├── FRONTEND_UI_PATTERNS_TEMPLATE.md    ← same; both fill-in-the-blank, generalized from a real project
+    │   ├── group-task-envelope.json ← one per module group; write_paths is the agent's scope
+    │   └── group-agent-prompt.md    ← the group agent's standing instructions
+    └── scripts/
+        ├── validate_docs.py         ← reports documentation defects, never repairs
+        ├── triage_suite.py          ← groups failing tests by cause, runs nothing
+        └── scan_phase2_inventory.py ← detects Screens_Registry rows from a Phase 2 doc, never writes them
 ```
+
+Skills, commands, and hooks sit at the plugin root rather than nested under `modernize/`
+because that is where both CLIs' discovery conventions already look — Claude Code's default
+folder scan, and Codex CLI's single fixed `./skills/` path (`plugins/ak/.codex-plugin/plugin.json`,
+enforced by `plugins/ak/scripts/validate_structure.py`). Everything a skill's own instructions
+reference — templates, scripts, the coding-rule documents — stays under `modernize/`, addressed
+by the skill via `${CLAUDE_PLUGIN_ROOT}/modernize/...`, an absolute-from-plugin-root path that
+does not care where the skill file referencing it physically sits.
 
 `bootstrap-project` copies each `*_README.md` template to its matching per-screen folder as
 `README.md` — `templates/Screen_plans_README.md` becomes `{{DOCS_DIR}}/Screen_plans/README.md`,
