@@ -67,27 +67,24 @@ One command:
 Bootstrap a new project for {app}
 ```
 
-(or invoke the `bootstrap-project` skill directly). It asks for five values up front
-(`{{DOCS_DIR}}`, `AK_RUN_DIR`, `PROJECT_NAME`, `SUBSYSTEM_CODE`, `LEGACY_VARIANT`), copies
-every template, creates every per-screen folder, and — when a six-phase `ak` run exists and
-its Phase 2 gate reads `PUBLISHED` — detects `Screens_Registry.md` rows from Phase 2's
-"Screen, Form, and Report Inventory" and writes them after a single `ok`/`cancel` over the
-whole table. It then does the same — one preview, one accept — for a small pointer block in
-the project's `CLAUDE.md` and `AGENTS.md` (created if missing, appended or updated in place
-if not, never touching anything outside its own marked block), so a fresh session in the
-project has standing awareness of where the pipeline lives even before any skill's trigger
-phrase fires.
+(or invoke the `bootstrap-project` skill directly). What it does, in order:
 
-**The one manual step, before or after that command:** fill every remaining `{{...}}` value
-in the copied `PROJECT_CONFIG.md`. Every downstream stage reads it; an unfilled placeholder
-makes the agent stop and ask rather than guess a path. Nothing else here is done by hand —
-not the folders, not the per-folder `README.md`s, not the registry when phase output
-exists, not the `CLAUDE.md`/`AGENTS.md` pointer.
+| Step | What happens |
+|---|---|
+| 1. Collect inputs | Asks for `{{DOCS_DIR}}`, `AK_RUN_DIR`, `PROJECT_NAME`, `SUBSYSTEM_CODE`, `LEGACY_VARIANT` |
+| 2. Copy templates | Every template, every per-screen folder |
+| 3. Seed the registry | If Phase 2 is `PUBLISHED`: detects `Screens_Registry.md` rows, one `ok`/`cancel` for the whole table |
+| 4. Wire `CLAUDE.md` / `AGENTS.md` | Created if missing, or updated in place — one more `ok`/`cancel`, so a fresh session already knows where the pipeline lives |
 
-If Stage 0 (the six-phase analysis) hasn't run yet, that is a separate command, documented
-in `ak`'s own top-level `README.md` — `$ak run <APP_ID>` — not part of this one. Bootstrap
-still works without it (`AK_RUN_DIR: n/a`); the registry then stays the template's empty
-skeleton, and rows are added by hand or via Agent-Assisted Registration per screen.
+**The one manual step:** fill every remaining `{{...}}` value in `PROJECT_CONFIG.md`. An
+unfilled placeholder makes the agent stop and ask, rather than guess a path. Nothing else
+here is done by hand — not the folders, not the per-folder `README.md`s, not the registry,
+not the `CLAUDE.md`/`AGENTS.md` pointer.
+
+**No `AK_RUN_DIR` yet?** Run `$ak run <APP_ID>` first — documented in `ak`'s own top-level
+`README.md`, a separate command, not part of this one. Or skip it: bootstrap still works
+with `AK_RUN_DIR: n/a`. The registry then stays the template's empty skeleton, and rows get
+added by hand or via Agent-Assisted Registration, per screen, later.
 
 ## Common Commands
 
@@ -130,11 +127,16 @@ aggregates the per-screen handoffs. See `MASTER_WORKFLOW.md` §"Multi-Screen Bat
 ### Adding a new screen mid-pipeline
 
 You do not need to edit `Screens_Registry.md` by hand for a screen that already has phase
-output. Ask the agent to work on it directly and it runs **Agent-Assisted Registration** —
-detects `screen_key`/`module`/priority/status from evidence and code, proposes a row, and
-waits for `ok`, `edit field=value`, or `cancel`. Full flow: `MASTER_WORKFLOW.md`
-§"Agent-Assisted Registration". This is the per-screen counterpart to what
-`bootstrap-project` does once, in bulk, for every screen Phase 2 already lists.
+output. Just ask the agent to work on it directly, and it runs **Agent-Assisted
+Registration**: detects `screen_key`, `module`, priority, and status from evidence and code,
+then proposes a row and waits for one of:
+
+- `ok` — write it as proposed
+- `edit field=value` — apply, re-propose, wait again
+- `cancel` — write nothing
+
+Full flow: `MASTER_WORKFLOW.md` §"Agent-Assisted Registration". Think of it as the per-screen
+counterpart to `bootstrap-project` — same ritual, run once in bulk there, on demand here.
 
 ## Stage 0 — Legacy Analysis Integration
 
@@ -157,8 +159,8 @@ This plugin makes that failure mode visible **between stages**, while the contex
 
 | | Files | Read these when ... |
 |---|---|---|
-| **You read** | This `README.md`, `docs/PHASE_OUTPUT_GUIDE.md`, the target repo's own `{{DOCS_DIR}}/README.md` | you want to understand what's happening, or find where something lives |
-| **The agent reads** | `docs/MASTER_WORKFLOW.md`, `TRACEBACK_GATES.md`, `LEGACY_EVIDENCE.md`, `*_CODING.md`, `*_TESTING.md`, `CONVENTIONS.md`, every `skills/*/SKILL.md` and `commands/*.md`, `orchestration/*.json` | you're debugging *why* the agent stopped or what a gate checked — not for a first read |
+| **You read** | This `README.md`<br>`docs/PHASE_OUTPUT_GUIDE.md`<br>Target repo's `{{DOCS_DIR}}/README.md` | You want to understand what's happening, or find where something lives |
+| **The agent reads** | `docs/MASTER_WORKFLOW.md`<br>`TRACEBACK_GATES.md`<br>`LEGACY_EVIDENCE.md`<br>`*_CODING.md`, `*_TESTING.md`<br>`CONVENTIONS.md`<br>every `skills/*/SKILL.md`, `commands/*.md`<br>`orchestration/*.json` | You're debugging *why* the agent stopped or what a gate checked — not for a first read |
 
 The agent-facing set is exhaustive and rule-precise on purpose — that precision is what the
 coverage gates depend on. It reads like a spec because it is one. Start with the files in the
@@ -238,13 +240,14 @@ plugins/ak/
         └── scan_phase2_inventory.py ← detects Screens_Registry rows from a Phase 2 doc, never writes them
 ```
 
-Skills, commands, and hooks sit at the plugin root rather than nested under `modernize/`
-because that is where both CLIs' discovery conventions already look — Claude Code's default
-folder scan, and Codex CLI's single fixed `./skills/` path (`plugins/ak/.codex-plugin/plugin.json`,
-enforced by `plugins/ak/scripts/validate_structure.py`). Everything a skill's own instructions
-reference — templates, scripts, the coding-rule documents — stays under `modernize/`, addressed
-by the skill via `${CLAUDE_PLUGIN_ROOT}/modernize/...`, an absolute-from-plugin-root path that
-does not care where the skill file referencing it physically sits.
+Skills, commands, and hooks sit at the plugin root, not nested under `modernize/`. That is
+where both CLIs already look: Claude Code's default folder scan, and Codex CLI's single fixed
+`./skills/` path (`plugins/ak/.codex-plugin/plugin.json`, enforced by
+`plugins/ak/scripts/validate_structure.py`).
+
+Everything else a skill references — templates, scripts, coding-rule documents — stays under
+`modernize/`. Each skill addresses it via `${CLAUDE_PLUGIN_ROOT}/modernize/...`, a path
+anchored to the plugin root, not to wherever the skill file itself happens to sit.
 
 `bootstrap-project` copies each `*_README.md` template to its matching per-screen folder as
 `README.md` — `templates/Screen_plans_README.md` becomes `{{DOCS_DIR}}/Screen_plans/README.md`,
