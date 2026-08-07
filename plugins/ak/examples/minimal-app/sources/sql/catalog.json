@@ -1,0 +1,26 @@
+{
+  "version": "1.0",
+  "database": "SyntheticOrderDemo",
+  "objects": [
+    {
+      "schema": "dbo",
+      "name": "DemoOrders",
+      "type": "table",
+      "columns": [
+        {
+          "name": "OrderId",
+          "data_type": "int",
+          "nullable": false,
+          "primary_key": true
+        },
+        {
+          "name": "Status",
+          "data_type": "varchar(20)",
+          "nullable": false,
+          "primary_key": false
+        }
+      ],
+      "definition": "CREATE TABLE dbo.DemoOrders (OrderId int NOT NULL PRIMARY KEY, Status varchar(20) NOT NULL);"
+    }
+  ]
+}

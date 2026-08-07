@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -92,6 +93,57 @@ def test_multi_adapter_run_contains_vba_and_sql_catalog(tmp_path: Path) -> None:
     bundle = Path(result["bundle_dir"])
     assert json.loads((bundle / "code" / "vba" / "inventory.json").read_text(encoding="utf-8"))
     assert json.loads((bundle / "databases" / "tables.json").read_text(encoding="utf-8"))
+
+
+def _copy_minimal_app(tmp_path: Path) -> Path:
+    target = tmp_path / "DEMO"
+    shutil.copytree(PACKAGE / "examples" / "minimal-app", target)
+    return target
+
+
+def test_minimal_app_preflight_and_acquisition_contract(tmp_path: Path) -> None:
+    app = _copy_minimal_app(tmp_path)
+    preflight = _run([
+        "preflight", "--app-root", str(app), "--runtime", "generic",
+    ], app)
+    assert preflight["status"] == "PASS"
+    assert preflight["input_preconditions"]["mode"] == "export"
+    assert preflight["input_preconditions"]["present"]["vba"] is True
+    assert preflight["input_preconditions"]["present"]["sql"] is True
+
+    manifest = app / "manifest.yaml"
+    plan = _run(["acquire", "plan", "--manifest", str(manifest)], app)
+    assert plan["adapters"] == {
+        "imported_sources": ["DEMO_VBA_FORM"],
+        "sql_server": ["DEMO_SQL_SCHEMA", "DEMO_SQL_CATALOG"],
+    }
+
+    result = _run([
+        "acquire", "run", "--manifest", str(manifest),
+        "--output-root", str(app / "acquired"),
+    ], app)
+    assert result["status"] == "VALID"
+    bundle = Path(result["bundle_dir"])
+    validated = _run(["bundle", "validate", "--bundle-dir", str(bundle)], app)
+    assert validated["bundle_id"] == result["bundle_id"]
+    assert not list((app / "acquired").rglob("bundle-approval.json"))
+
+    assert json.loads((bundle / "code" / "vba" / "inventory.json").read_text(encoding="utf-8"))
+    assert json.loads((bundle / "code" / "sql-server" / "inventory.json").read_text(encoding="utf-8"))
+    tables = json.loads((bundle / "databases" / "tables.json").read_text(encoding="utf-8"))
+    assert [(table["schema"], table["name"]) for table in tables] == [("dbo", "DemoOrders")]
+
+    readiness = json.loads((bundle / "phase-readiness.json").read_text(encoding="utf-8"))
+    assert {phase: readiness[phase]["status"] for phase in (
+        "phase1", "phase2", "phase3", "phase4", "phase5", "phase6",
+    )} == {
+        "phase1": "BLOCKED",
+        "phase2": "BLOCKED",
+        "phase3": "BLOCKED",
+        "phase4": "BLOCKED",
+        "phase5": "LIMITED",
+        "phase6": "BLOCKED",
+    }
 
 
 def test_invalid_package_does_not_create_bundle(tmp_path: Path) -> None:

@@ -175,6 +175,25 @@ def manifest_source_paths(manifest: Path | None) -> dict[str, list[str]]:
         import yaml  # type: ignore[import-not-found]
 
         data = yaml.safe_load(manifest.read_text(encoding="utf-8")) or {}
+        if str(data.get("version")) == "2.2":
+            values: dict[str, list[str]] = {
+                "vba": [], "sql": [], "documents": [], "japanese_documents": [],
+            }
+            for artifact in data.get("artifacts", []) or []:
+                if not isinstance(artifact, dict):
+                    continue
+                source_ref = artifact.get("source_ref", {}) or {}
+                value = source_ref.get("value")
+                if not isinstance(value, str) or not value.strip():
+                    continue
+                kind = str(artifact.get("kind", ""))
+                if kind == "source_export" and artifact.get("format") == "vba":
+                    values["vba"].append(value)
+                elif kind.startswith("sql_server"):
+                    values["sql"].append(value)
+                elif kind == "document":
+                    values["documents"].append(value)
+            return values
         sources = data.get("sources", {})
         sql_server = sources.get("sql_server", {}) or {}
         japanese = sources.get("japanese_documents", {}) or {}

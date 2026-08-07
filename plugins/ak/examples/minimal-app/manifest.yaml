@@ -1,26 +1,49 @@
-version: "2.1"
+version: "2.2"
 app:
   id: "DEMO"
   name_en: "Synthetic Order Demo"
   name_ja: ""
   name_vi: ""
+project:
+  classification:
+    topology: "client_server"
+    frontend_format: "exported"
+    source_availability: "exported_only"
+    backend_kinds: ["sql_server"]
+artifacts:
+  - id: "DEMO_VBA_FORM"
+    kind: "source_export"
+    role: "frontend"
+    format: "vba"
+    acquisition: "imported"
+    required: true
+    source_ref:
+      type: "workspace_path"
+      value: "sources/vba/DemoOrderForm.bas"
+  - id: "DEMO_SQL_SCHEMA"
+    kind: "sql_server_schema"
+    role: "backend"
+    format: "sql"
+    backend_kind: "sql_server"
+    acquisition: "imported"
+    required: true
+    source_ref:
+      type: "workspace_path"
+      value: "sources/sql/demo_orders.sql"
+  - id: "DEMO_SQL_CATALOG"
+    kind: "sql_server_catalog"
+    role: "backend"
+    format: "json"
+    backend_kind: "sql_server"
+    acquisition: "imported"
+    required: true
+    source_ref:
+      type: "workspace_path"
+      value: "sources/sql/catalog.json"
 scope:
   legacy_only: true
   current_implementation: "excluded"
   notes: "Synthetic public example only."
-sources:
-  access_databases: []
-  vba_exports: ["sources/vba"]
-  sql_server:
-    exported_paths: ["sources/sql"]
-    live:
-      enabled: false
-      connection_ref: ""
-  screenshots: []
-  reports: []
-  sample_files: []
-  app_documents: []
-  japanese_documents: {}
 analysis:
   source_policy:
     ignore_file: ".investigationignore"

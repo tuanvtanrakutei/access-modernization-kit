@@ -60,6 +60,30 @@ def test_v22_reads_classification_and_artifacts(tmp_path: Path) -> None:
     assert manifest.artifacts[0].source_ref.type == "local_path"
 
 
+def test_minimal_app_is_classified_v22_acquisition_fixture() -> None:
+    manifest = load_manifest(PACKAGE / "examples" / "minimal-app" / "manifest.yaml")
+    assert manifest.version == "2.2"
+    assert manifest.app["id"] == "DEMO"
+    assert manifest.classification is not None
+    assert manifest.classification.as_dict() == {
+        "topology": "client_server",
+        "frontend_format": "exported",
+        "source_availability": "exported_only",
+        "backend_kinds": ["sql_server"],
+    }
+    assert [artifact.id for artifact in manifest.artifacts] == [
+        "DEMO_VBA_FORM",
+        "DEMO_SQL_SCHEMA",
+        "DEMO_SQL_CATALOG",
+    ]
+    assert [artifact.source_ref.value for artifact in manifest.artifacts] == [
+        "sources/vba/DemoOrderForm.bas",
+        "sources/sql/demo_orders.sql",
+        "sources/sql/catalog.json",
+    ]
+    assert all(artifact.source_ref.type == "workspace_path" for artifact in manifest.artifacts)
+
+
 def test_alias_disagreement_fails(tmp_path: Path) -> None:
     path = tmp_path / "manifest.yaml"
     path.write_text(V22.replace("access-file-split", "access-adp-sqlserver"), encoding="utf-8")

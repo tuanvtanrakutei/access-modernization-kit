@@ -48,7 +48,8 @@ REQUIRED_FILES = (
     "fixtures/collaboration/two-contributor/contract-fixture/work-package.json", "fixtures/collaboration/two-contributor/contract-fixture/contract-impact.json",
     "fixtures/collaboration/two-contributor/run/candidate-tasks/WP_SYN_SQL.json", "fixtures/collaboration/two-contributor/run/candidate-tasks/WP_SYN_UI.json",
     "tests/test_package_smoke.py", "examples/minimal-app/README.md", "examples/minimal-app/manifest.yaml",
-    "examples/minimal-app/.investigationignore", "examples/minimal-app/sources/vba/DemoOrderForm.bas", "examples/minimal-app/sources/sql/demo_orders.sql",
+    "examples/minimal-app/.investigationignore", "examples/minimal-app/sources/vba/DemoOrderForm.bas",
+    "examples/minimal-app/sources/sql/demo_orders.sql", "examples/minimal-app/sources/sql/catalog.json",
 )
 JSON_FILES = tuple(path for path in REQUIRED_FILES if path.endswith(".json"))
 REPOSITORY_FILES = (
@@ -348,7 +349,17 @@ def main() -> int:
         validate_manifest_yaml(manifest_path, root / "schemas/manifest.schema.json", errors, warnings)
     example_manifest = root / "examples/minimal-app/manifest.yaml"
     if example_manifest.is_file():
-        validate_manifest_yaml(example_manifest, root / "schemas/manifest.schema.json", errors, warnings)
+        try:
+            import sys
+
+            sys.path.insert(0, str(root / "contracts"))
+            from manifest_v22 import load_manifest  # type: ignore[import-not-found]
+
+            example = load_manifest(example_manifest)
+            if example.version != "2.2" or example.classification is None:
+                errors.append("examples/minimal-app must be a classified V2.2 acquisition fixture")
+        except Exception as exc:  # noqa: BLE001
+            errors.append(f"Minimal app manifest validation failed: {exc}")
     fixture_manifests = sorted((root / "fixtures").glob("*/*/manifest.yaml"))
     if len(fixture_manifests) != 6:
         errors.append(f"Expected 6 V2.2 profile fixture manifests, found {len(fixture_manifests)}")

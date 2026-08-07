@@ -57,8 +57,15 @@ python D:/Anrakutei/access-modernization-kit/plugins/ak/scripts/ak.py preflight 
   --app-root <scratch>/DEMO \
   --runtime generic
 
-python D:/Anrakutei/access-modernization-kit/plugins/ak/scripts/ak.py acquire \
-  <scratch>/DEMO
+python D:/Anrakutei/access-modernization-kit/plugins/ak/scripts/ak.py acquire plan \
+  --manifest <scratch>/DEMO/manifest.yaml
+
+python D:/Anrakutei/access-modernization-kit/plugins/ak/scripts/ak.py acquire run \
+  --manifest <scratch>/DEMO/manifest.yaml \
+  --output-root <scratch>/DEMO/acquired
+
+python D:/Anrakutei/access-modernization-kit/plugins/ak/scripts/ak.py bundle validate \
+  --bundle-dir <bundle-dir-from-acquire>
 ```
 
 `preflight` is the direct CLI capability check; `$ak assess DEMO` is the broader agent-level
@@ -68,25 +75,17 @@ not guess flags. If the fixture ever stops shipping `manifest.yaml`, only then i
 with the full flag-based `ak.py init` contract shown by `ak.py init --help`; do not add a
 second initialization path here while the fixture remains pre-initialized.
 
-**Stop at the contract gate, do not repair the fixture ad hoc:** the current public fixture
-ships a V2.1 manifest, while `ak.py acquire` requires a V2.2 classified manifest. If acquire
-fails with `Acquisition requires a V2.2 classified manifest`, run these read-only diagnostics
-and record their exact output:
+The V2.2 fixture must route `DEMO_VBA_FORM` to `imported_sources` and
+`DEMO_SQL_SCHEMA`/`DEMO_SQL_CATALOG` to `sql_server`. Acquisition and bundle validation must
+pass, but `phase-readiness.json` is expected to remain honest: Phases 1, 2, 3, 4, and 6 are
+`BLOCKED`; Phase 5 is `LIMITED`. If any blocked phase becomes `READY`, investigate which new
+capability caused it — do not accept a greener result without matching evidence.
 
-```bash
-python D:/Anrakutei/access-modernization-kit/plugins/ak/scripts/ak.py manifest migrate \
-  --manifest <scratch>/DEMO/manifest.yaml
-
-python D:/Anrakutei/access-modernization-kit/plugins/ak/scripts/ak.py profile detect \
-  --manifest <scratch>/DEMO/manifest.yaml
-```
-
-Do **not** invent a non-null topology or silently rewrite the scratch manifest just to make
-acquisition pass. The migration proposal is authoritative for this check. If it reports
-`status: LIMITED`, `topology: null`, or a missing mandatory input, Step 3 is blocked: there is
-no approved canonical bundle and no honest basis for publishing Phase gates. Record this as a
-fixture/contract-seam finding, skip Steps 3–4, and continue to Step 5. The smoke is doing its
-job when it stops at a real gate.
+**Stop here for the current fixture.** It proves the acquisition seam, not the six-phase
+publication seam. Current deterministic scripts do not execute agent analysis or validate the
+canonical Phase documents, so they cannot produce a valid `AK_RUN_DIR` from this fixture by
+themselves. Record the readiness statuses, skip Steps 3–4, and continue to Step 5. Never add
+capability declarations or `PUBLISHED` states solely to force the smoke forward.
 
 ## Step 3 — Run the six phases for real, yourself, as the `investigate` skill
 
