@@ -58,11 +58,12 @@ skill (registered as `investigate`) also appears in the `/` slash-command picker
 message (e.g. `$ak init MYAPP`). Only the skill's own name changed for clarity; the `$ak`
 phrasing itself is unchanged, since it is the plugin's own brand, not this one skill's name.
 
+**Typical flow for one app, in order:** `init` → `assess` → `acquire` → `phase`/`run` →
+`status` → `render`. Each later step depends on the one before it. `help` and `install ...`
+are one-time housekeeping, not part of this per-app sequence.
+
 | Command | Action |
 | :--- | :--- |
-| `$ak help` | Show this command guide; no workspace change. |
-| `$ak install codex` | N/A — already installed as a Codex plugin. |
-| `$ak install claude <PROJECT_PATH>` | Install as a Claude Code skill at the given project path. |
 | `$ak init <APP_ID> [--source <PATH>]` | Scaffold app workspace. If `--source` is provided (folder or .zip), auto-discovers artifacts into `manifest.yaml`. |
 | `$ak assess <APP_ID>` | Report bundle/phase readiness, gaps, and required approvals (includes host capability checks) before running a phase. |
 | `$ak acquire <APP_ID>` | Plan and assemble the canonical bundle in 1 step. |
@@ -70,6 +71,9 @@ phrasing itself is unchanged, since it is the plugin's own brand, not this one s
 | `$ak run <APP_ID>` | Run all permitted phases sequentially. |
 | `$ak status <APP_ID>` | View investigation status and QA reports. |
 | `$ak render <APP_ID> [LANG]` | Generate final approved deliverables (English, Japanese, or Vietnamese). |
+| `$ak help` | Show this command guide; no workspace change. |
+| `$ak install codex` | One-time; skip if already installed via `codex plugin add`. N/A — already installed as a Codex plugin. |
+| `$ak install claude <PROJECT_PATH>` | One-time; skip if already installed via `/plugin install`. Pins this package into one project without the marketplace. |
 
 ---
 
