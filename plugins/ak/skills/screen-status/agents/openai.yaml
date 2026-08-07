@@ -1,0 +1,4 @@
+interface:
+  display_name: "Screen Status (Read-Only)"
+  short_description: "Read-only status for one screen or the whole registry, safe to run any time"
+  default_prompt: "Report read-only status for one screen or the whole registry: artifacts present, track status, open findings. Write nothing."

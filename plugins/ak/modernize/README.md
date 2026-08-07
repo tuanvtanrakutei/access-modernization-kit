@@ -42,11 +42,17 @@ one manual step named under "Bootstrapping A New Project" below.
 Not covered by the repository root README — that one documents `$ak`'s own six-phase
 commands only, a separate, optional upstream step (see "At A Glance" above).
 
-Confirmed against a real Claude Code install: all nine entries below appear in the `/`
-slash-command picker as `/ak:<name>`. Pick one there, or, for the four skills, describe the
-same request in plain language instead — both trigger the same skill.
+All nine entries below are skills, all using one mechanism: pick one from the `/ak:<name>`
+slash-command picker, or describe the same request in plain language — both trigger the same
+skill. The first four have been skills since 2.8.0 and are confirmed working this way on both
+Claude Code and Codex. The five single-stage ones below were shipped as Claude-Code-only
+`commands/` files through most of 2.8.0, then converted to this same skill shape after real
+testing found Codex's separate `commands` manifest field unreliable — only 2 of 5 ever
+surfaced (`plugins/ak/modernize/BACKLOG.md` entry G10). The conversion is expected to resolve
+that on a fresh Codex install, using the exact mechanism already proven for the first four,
+but has not yet been re-verified against a real Codex cache.
 
-**The four skills — slash command, or natural language:**
+**The four whole-project / whole-screen skills:**
 
 | Skill | Slash (Claude Code) | Or say something like ... |
 | :--- | :--- | :--- |
@@ -55,12 +61,19 @@ same request in plain language instead — both trigger the same skill.
 | `validate-docs` | `/ak:validate-docs` | "Validate the docs" / "check the docs set" |
 | `triage-suite` | `/ak:triage-suite` | "Why are 48 tests failing" / "triage the test suite" |
 
-**The five per-stage commands — slash only, no natural-language shortcut:**
-`/ak:plan-screen`, `/ak:code-screen`, `/ak:test-screen`, `/ak:review-screen`,
-`/ak:screen-status` (Claude Code only for now — see [Installation](#installation)).
-Example: `/ak:plan-screen OrderEntry` runs Stages 1–2 for the `OrderEntry` screen. What
-each stops on, and what it refuses without: [Single stage](#single-stage) below — not
-repeated here to avoid two copies going stale against each other.
+**The five single-stage skills** — for entering the pipeline mid-way, one stage at a time:
+
+| Skill | Slash (Claude Code) | Or say something like ... |
+| :--- | :--- | :--- |
+| `plan-screen` | `/ak:plan-screen` | "Just plan out screen {screen}, don't code it yet" |
+| `code-screen` | `/ak:code-screen` | "Code screen {screen} from its existing plan" |
+| `test-screen` | `/ak:test-screen` | "Write and run tests for screen {screen}" |
+| `review-screen` | `/ak:review-screen` | "Review screen {screen} against its artifacts" |
+| `screen-status` | `/ak:screen-status` | "Where does screen {screen} stand" |
+
+Example: `/ak:plan-screen OrderEntry` runs Stages 1–2 for the `OrderEntry` screen. What each
+stops on, and what it refuses without: [Single stage](#single-stage) below — not repeated
+here to avoid two copies going stale against each other.
 
 ## The Pipeline In Detail
 
@@ -132,13 +145,13 @@ and executes whichever stages each mode calls for.
 
 ### Single stage
 
-| Command | Stages | Refuses without |
+| Skill | Stages | Refuses without |
 |---|---|---|
-| `/plan-screen {screen}` | 1–2, documents only | (nothing upstream to check beyond evidence) |
-| `/code-screen {screen} [--backend-only\|--frontend-only]` | 3a–3b | a two-contract screen plan with a populated gap matrix |
-| `/test-screen {screen} [--backend-only\|--frontend-only]` | 4a–4b | a coding record for the track being tested |
-| `/review-screen {screen}` | 5 | (reviews whatever upstream artifacts exist, and says what's missing) |
-| `/screen-status {screen\|all}` | none — read-only | nothing; always safe to run |
+| `/ak:plan-screen {screen}` | 1–2, documents only | (nothing upstream to check beyond evidence) |
+| `/ak:code-screen {screen} [--backend-only\|--frontend-only]` | 3a–3b | a two-contract screen plan with a populated gap matrix |
+| `/ak:test-screen {screen} [--backend-only\|--frontend-only]` | 4a–4b | a coding record for the track being tested |
+| `/ak:review-screen {screen}` | 5 | (reviews whatever upstream artifacts exist, and says what's missing) |
+| `/ak:screen-status {screen\|all}` | none — read-only | nothing; always safe to run |
 
 ### Multiple screens in parallel
 
@@ -186,7 +199,7 @@ This plugin makes that failure mode visible **between stages**, while the contex
 | | Files | Read these when ... |
 |---|---|---|
 | **You read** | This `README.md`, `docs/PHASE_OUTPUT_GUIDE.md`, the target repo's own `{{DOCS_DIR}}/README.md` | you want to understand what's happening, or find where something lives |
-| **The agent reads** | `docs/MASTER_WORKFLOW.md`, `TRACEBACK_GATES.md`, `LEGACY_EVIDENCE.md`, `*_CODING.md`, `*_TESTING.md`, `CONVENTIONS.md`, every `skills/*/SKILL.md` and `commands/*.md`, `orchestration/*.json` | you're debugging *why* the agent stopped or what a gate checked — not for a first read |
+| **The agent reads** | `docs/MASTER_WORKFLOW.md`, `TRACEBACK_GATES.md`, `LEGACY_EVIDENCE.md`, `*_CODING.md`, `*_TESTING.md`, `CONVENTIONS.md`, every `skills/*/SKILL.md`, `orchestration/*.json` | you're debugging *why* the agent stopped or what a gate checked — not for a first read |
 
 The agent-facing set is exhaustive and rule-precise on purpose — that precision is what the
 coverage gates depend on. It reads like a spec because it is one. Start with the files in the
@@ -223,13 +236,12 @@ plugins/ak/
 │   ├── bootstrap-project/          ← one-time project setup, seeds the registry when phase output exists
 │   ├── modernize-screen/           ← the full pipeline, the usual entry point
 │   ├── validate-docs/              ← check a bootstrapped project's documents
-│   └── triage-suite/               ← work out why a suite is red
-├── commands/                       ← per-stage entry points for mid-pipeline work (Codex support declared, unconfirmed)
-│   ├── plan-screen.md              ← Stages 1–2, documents only
-│   ├── code-screen.md              ← Stages 3a–3b
-│   ├── test-screen.md              ← Stages 4a–4b
-│   ├── review-screen.md            ← Stage 5
-│   └── screen-status.md            ← read-only, writes nothing
+│   ├── triage-suite/               ← work out why a suite is red
+│   ├── plan-screen/                ← Stages 1–2 only, documents, no code
+│   ├── code-screen/                ← Stages 3a–3b only, against an already-frozen plan
+│   ├── test-screen/                ← Stages 4a–4b only, against an already-coded screen
+│   ├── review-screen/              ← Stage 5 only, a verdict against whatever upstream exists
+│   └── screen-status/              ← read-only, writes nothing
 ├── hooks/                          ← a sensor, never an actor (Codex support declared, unconfirmed)
 │   ├── hooks.json
 │   └── scope_sensor.py             ← warns on parent-owned files and over-long lines

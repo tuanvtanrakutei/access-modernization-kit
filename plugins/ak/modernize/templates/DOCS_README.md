@@ -16,8 +16,8 @@ the operational manual, not the introduction.
 | I want to ... | Go to |
 |---|---|
 | Implement a screen end-to-end | The `modernize-screen` skill, or follow `MASTER_WORKFLOW.md` directly |
-| Run just one stage | `/plan-screen`, `/code-screen`, `/test-screen`, or `/review-screen` |
-| Check where a screen stands without starting anything | `/screen-status` |
+| Run just one stage | The `plan-screen`, `code-screen`, `test-screen`, or `review-screen` skill |
+| Check where a screen stands without starting anything | The `screen-status` skill |
 | See which screens exist and their status | `Screens_Registry.md` |
 | Check open bugs / decisions / Q&A | `Known_Issues.md` |
 | Look up backend coding rules | `{{BACKEND_RULES_DOC}}` |
@@ -133,13 +133,16 @@ Pre-Flight, resolves all three modes, and executes the stages each mode calls fo
 
 ### Single stage
 
-| Command | Stages | Refuses without |
+Each row is a skill — invoke it by name, by its `/ak:<name>` slash form in Claude Code, or
+by describing the request in plain language.
+
+| Skill | Stages | Refuses without |
 |---|---|---|
-| `/plan-screen {screen}` | 1–2 | (nothing upstream to check beyond evidence) |
-| `/code-screen {screen}` | 3a–3b | a two-contract screen plan with a populated gap matrix |
-| `/test-screen {screen}` | 4a–4b | a coding record for the track being tested |
-| `/review-screen {screen}` | 5 | (reviews whatever upstream artifacts exist, and says what's missing) |
-| `/screen-status {screen\|all}` | none — read-only | nothing; always safe to run |
+| `plan-screen` | 1–2 | (nothing upstream to check beyond evidence) |
+| `code-screen` | 3a–3b | a two-contract screen plan with a populated gap matrix |
+| `test-screen` | 4a–4b | a coding record for the track being tested |
+| `review-screen` | 5 | (reviews whatever upstream artifacts exist, and says what's missing) |
+| `screen-status` | none — read-only | nothing; always safe to run |
 
 ### Multiple screens in parallel
 

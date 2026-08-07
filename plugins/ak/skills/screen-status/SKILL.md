@@ -1,10 +1,12 @@
 ---
-description: Read-only status for one screen or the whole registry — artifacts present, track status, open findings
-argument-hint: "[screen|all]"
+name: screen-status
+description: "Read-only status for one screen or the whole registry - artifacts present, track status, open findings. Writes nothing, always safe to run. Trigger when the user wants to check where a screen or the whole project stands without starting any work. Examples: \"/ak:screen-status OrderEntry\", \"screen-status all\", \"where does screen X stand\", \"what's the status of the registry\"."
 ---
 
+# Screen Status
+
 Report status. **Write nothing** — not an artifact, not a registry row, not an issue row. This
-command exists so a user can ask "where is this" without a run starting as a side effect.
+skill exists so a user can ask "where is this" without a run starting as a side effect.
 
 ## Gather, in one batch
 
@@ -30,9 +32,9 @@ Two distinctions matter more than the words themselves, and a status table hides
 - **`implemented` is not `verified`.** The first means code exists; the second means Stage 5
   approved it. A screen sitting at `implemented` has never been reviewed.
 - **An artifact existing is not an artifact being current.** A screen plan written before the
-  code changed is present and stale. Presence is all this command checks; if the user needs
-  currency, point them at `/review-screen` or the `validate-docs` skill.
+  code changed is present and stale. Presence is all this skill checks; if the user needs
+  currency, point them at the `review-screen` or `validate-docs` skill.
 
 If a registry row is absent for a screen the user named, say so plainly and stop. Do not
-detect and register it here — registration is a scope decision, and this command does not
+detect and register it here — registration is a scope decision, and this skill does not
 write.

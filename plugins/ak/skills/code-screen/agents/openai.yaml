@@ -1,0 +1,4 @@
+interface:
+  display_name: "Code One Screen (Stages 3a-3b)"
+  short_description: "Implement one screen's backend then frontend from its existing frozen screen plan"
+  default_prompt: "Implement one screen from its existing screen plan: Stage 3a backend then Stage 3b frontend, refusing to start unless a two-contract screen plan with a populated gap matrix already exists."

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Test One Screen (Stages 4a-4b)"
+  short_description: "Write and run one screen's backend suite then frontend end-to-end tests"
+  default_prompt: "Write and run the tests for one screen: Stage 4a backend suite then Stage 4b frontend end-to-end, refusing to start unless a coding record already exists for the track being tested."

@@ -1,9 +1,11 @@
 ---
-description: Review one screen against every upstream artifact and record a verdict
-argument-hint: "[screen]"
+name: review-screen
+description: "Review one screen against every upstream artifact and record a verdict (Stage 5). Reviews whatever upstream artifacts exist and says what's missing, rather than refusing outright. Trigger when the user explicitly wants a review or a verdict for one screen. Examples: \"/ak:review-screen OrderEntry\", \"review screen X against its artifacts\", \"give a verdict for screen Y\"."
 ---
 
-Run **Stage 5** for the screen named in the argument, following `Code_Review/README.md`.
+# Review One Screen
+
+Run **Stage 5** for the screen named in the request, following `Code_Review/README.md`.
 `TRACEBACK_GATES.md` governs how a gate finding is classified and whether it may be upgraded
 or downgraded here.
 

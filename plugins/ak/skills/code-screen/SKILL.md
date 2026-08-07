@@ -1,9 +1,11 @@
 ---
-description: Implement one screen from its existing screen plan — backend then frontend
-argument-hint: "[screen] [--backend-only|--frontend-only]"
+name: code-screen
+description: "Implement one screen from its existing, already-frozen screen plan - backend then frontend (Stages 3a-3b). Refuses to start unless Stages 1-2 already produced a two-contract screen plan with a populated gap matrix. Trigger when the user explicitly wants just the coding stage for a screen that already has a plan, not the full pipeline - modernize-screen already runs planning first automatically. Examples: \"/ak:code-screen OrderEntry\", \"code screen X from its existing plan\", \"implement just the backend for screen Y\"."
 ---
 
-Run **Stages 3a and 3b** for the screen named in the argument, against the contract its
+# Code One Screen
+
+Run **Stages 3a and 3b** for the screen named in the request, against the contract its
 screen plan already froze. `MASTER_WORKFLOW.md` is the authority on both stages.
 
 ## Refuse to start unless the upstream artifact exists
@@ -13,7 +15,7 @@ for you.
 
 1. `Screen_plans/{screen}.md` must exist and contain **both** contracts — backend and
    frontend. If it is missing, or has only one contract, stop and tell the user to run
-   `/plan-screen` first. Do not infer a contract from the legacy evidence here; that is
+   `plan-screen` first. Do not infer a contract from the legacy evidence here; that is
    Stage 2's job and skipping it is how a screen ends up implemented against nobody's
    agreement.
 2. Its gap matrix must be populated. An empty gap matrix means Stage 2 never closed G2.
@@ -32,7 +34,7 @@ for you.
 Run 3a and 3b concurrently **only** if the screen plan marks the backend contract frozen.
 Otherwise 3b waits: the frontend needs the contract to be real, not provisional.
 
-`--backend-only` and `--frontend-only` restrict to one track. Say which you ran.
+A backend-only or frontend-only request restricts to one track. Say which you ran.
 
 ## Lint discipline
 

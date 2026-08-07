@@ -74,23 +74,21 @@ skill, then type the verb phrase below as your message (e.g. `$ak init MYAPP`).
 ## IV. Command Guide — Modernization Pipeline
 
 Full detail: [`plugins/ak/modernize/README.md`](plugins/ak/modernize/README.md#command-guide).
-Confirmed against a real Claude Code install: every row below also appears in the `/`
-slash-command picker as `/ak:<name>` — pick it there, or, for the four skills, describe
-the same request in plain language instead. The five per-stage commands are slash-only,
-with no natural-language shortcut. Example: `/ak:plan-screen OrderEntry` runs Stages 1–2
-for the `OrderEntry` screen.
+All nine rows below are skills — pick one from the `/` slash-command picker as `/ak:<name>`,
+or describe the same request in plain language instead; both trigger the same skill.
+Example: `/ak:plan-screen OrderEntry` runs Stages 1–2 for the `OrderEntry` screen.
 
-| Skill / Command | Or say something like ... | Action |
+| Skill | Or say something like ... | Action |
 | :--- | :--- | :--- |
 | `/ak:bootstrap-project` | "Bootstrap a new project for {app}" | One-time setup: templates, folders, registry seed, `CLAUDE.md`/`AGENTS.md` pointer |
 | `/ak:modernize-screen` | "Implement screen {screen}" | Full pipeline, Stages 1–6, for one screen |
 | `/ak:validate-docs` | "Validate the docs" / "check the docs set" | Check a bootstrapped project's documentation set for defects |
 | `/ak:triage-suite` | "Why are 48 tests failing" / "triage the test suite" | Group test failures by cause instead of by file |
-| `/ak:plan-screen {screen}` | — slash only | Stages 1–2 only — documents, no code |
-| `/ak:code-screen {screen}` | — slash only | Stages 3a–3b — backend and frontend coding |
+| `/ak:plan-screen {screen}` | "Just plan out screen {screen}, don't code it yet" | Stages 1–2 only — documents, no code |
+| `/ak:code-screen {screen}` | "Code screen {screen} from its existing plan" | Stages 3a–3b — backend and frontend coding |
 | `/ak:test-screen {screen}` | — slash only | Stages 4a–4b — write and run tests |
-| `/ak:review-screen {screen}` | — slash only | Stage 5 — review verdict |
-| `/ak:screen-status {screen\|all}` | — slash only | Read-only status — always safe to run |
+| `/ak:review-screen {screen}` | "Review screen {screen} against its artifacts" | Stage 5 — review verdict |
+| `/ak:screen-status {screen\|all}` | "Where does screen {screen} stand" | Read-only status — always safe to run |
 
 ---
 

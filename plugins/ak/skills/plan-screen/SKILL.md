@@ -1,9 +1,11 @@
 ---
-description: Run the document stages for one screen — business flow and screen plan — without touching code
-argument-hint: "[screen]"
+name: plan-screen
+description: "Run Stages 1 and 2 only for one screen - business flow and screen plan - without touching code. Trigger when the user explicitly wants just the planning and documentation stages for a screen, not full implementation - modernize-screen already covers straight through implementation, so use this only when the user asks to plan a screen, or to stop after documents. Examples: \"/ak:plan-screen OrderEntry\", \"just plan out screen X, don't code it yet\", \"write the business flow and screen plan for Y\"."
 ---
 
-Run **Stages 1 and 2 only** for the screen named in the argument. Produce documents; write
+# Plan One Screen
+
+Run **Stages 1 and 2 only** for the screen named in the request. Produce documents; write
 no code.
 
 Do not restate the method here. `MASTER_WORKFLOW.md` in the project's docs directory is the
@@ -28,9 +30,9 @@ authority for what each stage does and what closes it.
 
 Mark the backend contract frozen only if the user says 3a and 3b will run concurrently.
 
-## Entering here is the risk this command carries
+## Entering here is the risk this skill carries
 
-This command starts mid-pipeline by design, so nothing upstream has been verified for you.
+This skill starts mid-pipeline by design, so nothing upstream has been verified for you.
 If Stage 1's evidence is missing, stop at G1 and report which objects are absent rather than
 writing a plan on top of a gap — a screen plan built over missing evidence is worse than no
 plan, because it looks finished.

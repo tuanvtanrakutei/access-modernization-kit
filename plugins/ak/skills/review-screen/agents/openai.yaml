@@ -1,0 +1,4 @@
+interface:
+  display_name: "Review One Screen (Stage 5)"
+  short_description: "Review one screen against every upstream artifact and record a verdict"
+  default_prompt: "Review one screen against every upstream artifact it should trace to - business flow, screen plan, coding record, tests, open issues - and record one verdict."

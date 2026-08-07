@@ -17,6 +17,5 @@
     "legacy-modernization",
     "multi-agent"
   ],
-  "skills": "./skills/",
-  "commands": "./commands/"
+  "skills": "./skills/"
 }

@@ -1,9 +1,11 @@
 ---
-description: Write and run the tests for one screen — backend suite then frontend end-to-end
-argument-hint: "[screen] [--backend-only|--frontend-only]"
+name: test-screen
+description: "Write and run the tests for one screen - backend suite then frontend end-to-end (Stages 4a-4b). Refuses to start unless a coding record already exists for the track being tested. Trigger when the user explicitly wants just the testing stage for a screen that is already coded, not the full pipeline. Examples: \"/ak:test-screen OrderEntry\", \"write and run tests for screen X\", \"test the backend for screen Y\"."
 ---
 
-Run **Stages 4a and 4b** for the screen named in the argument. `MASTER_WORKFLOW.md` is the
+# Test One Screen
+
+Run **Stages 4a and 4b** for the screen named in the request. `MASTER_WORKFLOW.md` is the
 authority; `{{TEST_METHOD_DOC}}` and the frontend testing document define how to choose test
 cases.
 
