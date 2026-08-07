@@ -8,6 +8,21 @@ investigation (`ak/`) plus four modernization skills (`bootstrap-project/`,
 `agents/{skill}/SKILL.md` and its own `agents/openai.yaml` — the metadata file is per skill,
 not one file describing the whole package.
 
+The five per-stage commands (`plan-screen`, `code-screen`, `test-screen`, `review-screen`,
+`screen-status`) are a separate manifest field (`commands`) with no per-item metadata
+mechanism equivalent to skills' `agents/openai.yaml` — Codex falls back to an auto-generated
+label for each (`Ak: Source Command <Name>`). Real-machine testing against a Codex 2.8.0
+install found only **2 of the 5** command files ever surface in the picker (`review-screen`,
+`screen-status`) — `plan-screen`, `code-screen`, and `test-screen` did not appear even when
+searched for by exact name, and the gap persisted across two different picker views and a
+session restart. Byte-level comparison of all 5 files (frontmatter, YAML parse result, body
+structure) found no difference between the two that surface and the three that do not,
+ruling out a file- or manifest-side cause on this repository's end. Treat Codex support for
+the 5 commands as **unreliable, not confirmed** until Codex's own behavior changes — Claude
+Code remains the reliable runtime for all 5. The four modernization skills (as opposed to
+commands) are fully confirmed working on Codex, each displaying its own name via
+`agents/openai.yaml`.
+
 **On Codex and Claude Code, the marketplace installer does this automatically** —
 `codex plugin add ak@access-modernization-kit` / `/plugin install ak@access-modernization-kit`
 (see the repository root README) copies (Codex, into its plugin cache) or registers (Claude
