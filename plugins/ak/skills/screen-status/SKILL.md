@@ -8,6 +8,9 @@ description: "Read-only status for one screen or the whole registry - artifacts 
 Report status. **Write nothing** — not an artifact, not a registry row, not an issue row. This
 skill exists so a user can ask "where is this" without a run starting as a side effect.
 
+If the request named neither a specific screen nor `all`, stop and ask which one — do not
+default to `all` silently, and do not guess a screen from recent conversation context.
+
 ## Gather, in one batch
 
 1. `PROJECT_CONFIG.md`, to resolve the docs directory and roots.

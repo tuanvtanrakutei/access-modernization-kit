@@ -11,6 +11,8 @@ cases.
 
 ## Refuse to start unless the code exists
 
+0. If no screen was named in the request, stop and ask which screen before checking
+   anything else — do not guess a screen from recent conversation context.
 1. `Coding_Records/{screen}.md` must exist with the section for each track you intend to
    test. No coding record means Stage 3 did not run — stop and say so.
 2. Read `PROJECT_CONFIG.md` and respect `{{REFERENCE_DB_POLICY}}` for reference data. Never

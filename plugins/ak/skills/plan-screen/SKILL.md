@@ -13,6 +13,8 @@ authority for what each stage does and what closes it.
 
 ## Before starting
 
+0. If no screen was named in the request, stop and ask which screen before reading anything
+   else — do not guess a screen from recent conversation context.
 1. Read `PROJECT_CONFIG.md`. An unfilled `{{...}}` stops the run — ask, do not substitute a
    plausible default.
 2. Resolve the screen in `Screens_Registry.md`. If absent, run Agent-Assisted Registration:

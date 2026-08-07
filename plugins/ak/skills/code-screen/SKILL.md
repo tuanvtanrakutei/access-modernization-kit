@@ -13,6 +13,8 @@ screen plan already froze. `MASTER_WORKFLOW.md` is the authority on both stages.
 This is the whole point of the check. Entering at coding means Stages 1 and 2 were not run
 for you.
 
+0. If no screen was named in the request, stop and ask which screen before checking
+   anything else — do not guess a screen from recent conversation context.
 1. `Screen_plans/{screen}.md` must exist and contain **both** contracts — backend and
    frontend. If it is missing, or has only one contract, stop and tell the user to run
    `plan-screen` first. Do not infer a contract from the legacy evidence here; that is
