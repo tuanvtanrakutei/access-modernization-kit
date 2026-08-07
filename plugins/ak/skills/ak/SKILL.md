@@ -13,11 +13,14 @@ Treat `scripts/`, `references/`, `specifications/`, `schemas/`, `templates/`, an
 
 Treat these short forms as explicit user requests. They are agent commands, not shell commands.
 
+**Typical flow for one app, in order:** `init` → `assess` → `acquire` → `phase`/`run` →
+`status` → `render`. Each later step depends on the one before it — `acquire` needs a
+workspace from `init`; `phase`/`run` need an approved bundle from `acquire`; `render` needs
+Phase 6 and QA gates already passed. `help` and `install ...` are one-time housekeeping, not
+part of this per-app sequence — most users only ever need them once, if at all.
+
 | User input | Required action |
 |---|---|
-| `$ak help` | Return the command guide below and do not modify an app workspace. |
-| `$ak install codex` | Explain that `$ak` is already installed as a Codex plugin; do not create a manual skill link. |
-| `$ak install claude <PROJECT_PATH>` | Run `scripts/ak.py install --runtime claude --project <PROJECT_PATH>`; report the discovery path and restart requirement. |
 | `$ak init <APP_ID> [--source <PATH>]` | Scaffold or adopt an app workspace. If `--source` is provided (folder or .zip), automatically copy/extract sources and auto-generate `manifest.yaml`. For non-empty workspaces without `--source`, require `--adopt-existing`. |
 | `$ak assess <APP_ID>` | Resolve or propose the project classification, inspect authorized artifacts/staging, report bundle and phase readiness, gaps, required approvals, and recommended optional evidence without analyzing a phase. |
 | `$ak acquire <APP_ID>` | Automatically plan and run acquisition to create a canonical bundle for analysis. For imported sources (exported VBA/SQL or zip packages), no Access runtime is required. For managed Access MDB files, requires host Access/ACE runtime and explicit `access_snapshot_extract` authorization. |
@@ -25,13 +28,16 @@ Treat these short forms as explicit user requests. They are agent commands, not 
 | `$ak run <APP_ID>` | Run technically permitted phases in order, stopping on `BLOCKED`; this never authorizes live Access, ADP, SQL Server, backup restore, or network access. |
 | `$ak status <APP_ID>` | Report app/run/phase/QA status without changing evidence or outputs. |
 | `$ak render <APP_ID> [LANGUAGE]` | Render declared outputs only after the required Phase 6, traceability, and QA gates pass. |
+| `$ak help` | Show this guide again; does not modify an app workspace. |
+| `$ak install codex` | One-time, and only if you did **not** already use `codex plugin add` to install this package — explains that `$ak` is already installed as a Codex plugin, and does not create a manual skill link. Skip this if you installed from the marketplace. |
+| `$ak install claude <PROJECT_PATH>` | One-time, and only for pinning this package into one specific project **without** going through `/plugin install` — runs `scripts/ak.py install --runtime claude --project <PROJECT_PATH>`, reports the discovery path and restart requirement. Skip this if you installed from the marketplace. |
 
 This table covers six-phase investigation only — `$ak help` does not describe or run the
 separate modernization pipeline this package also ships (`bootstrap-project`,
-`modernize-screen`, `validate-docs`, `triage-suite` skills; `/plan-screen`, `/code-screen`,
-`/test-screen`, `/review-screen`, `/screen-status` commands). Invoke those directly by name
-or natural-language request; see the repository root README's modernization Command Guide
-for the full list.
+`modernize-screen`, `validate-docs`, `triage-suite`, `plan-screen`, `code-screen`,
+`test-screen`, `review-screen`, `screen-status` skills). Invoke those directly by name or
+natural-language request; see the repository root README's modernization Command Guide for
+the full list.
 
 Accept the equivalent Vietnamese or plain-language request. If an app ID is omitted, ask for it before any app-specific action. Never interpret `run` as approval for live Access/ADP or SQL Server access; require that approval separately.
 
