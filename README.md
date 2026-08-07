@@ -49,12 +49,14 @@ codex plugin add ak@access-modernization-kit
 
 ## III. Command Guide — Six-Phase Investigation
 
-Not literal CLI syntax — `$ak ...` is the `ak` skill's own recognized phrasing, matched by
+Not literal CLI syntax — `$ak ...` is this skill's own recognized phrasing, matched by
 the agent from your chat message, the same as any natural-language request. Typing the
 exact form below always works; describing the same intent in plain English (e.g.
 "initialize a workspace for MYAPP") is understood the same way. In Claude Code, this whole
-skill also appears in the `/` slash-command picker as `/ak:ak` — selecting it opens the
-skill, then type the verb phrase below as your message (e.g. `$ak init MYAPP`).
+skill (registered as `investigate`) also appears in the `/` slash-command picker as
+`/ak:investigate` — selecting it opens the skill, then type the verb phrase below as your
+message (e.g. `$ak init MYAPP`). Only the skill's own name changed for clarity; the `$ak`
+phrasing itself is unchanged, since it is the plugin's own brand, not this one skill's name.
 
 | Command | Action |
 | :--- | :--- |

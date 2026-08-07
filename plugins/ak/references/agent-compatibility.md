@@ -3,12 +3,22 @@
 The root `SKILL.md` and bundled contracts are canonical. Agent-specific metadata must remain thin and must not duplicate the six-phase instruction.
 
 Since the 2.8.0 merge, `plugins/ak/skills/` holds ten skills, not one: the six-phase
-investigation (`ak/`), four whole-project/whole-screen modernization skills
+investigation (`investigate/`), four whole-project/whole-screen modernization skills
 (`bootstrap-project/`, `modernize-screen/`, `validate-docs/`, `triage-suite/`), and five
 single-stage modernization skills (`plan-screen/`, `code-screen/`, `test-screen/`,
 `review-screen/`, `screen-status/`). Each has its own `agents/{skill}/SKILL.md` and its own
 `agents/openai.yaml` — the metadata file is per skill, not one file describing the whole
 package.
+
+The six-phase skill's directory was renamed from `ak/` to `investigate/` (user feedback: the
+plugin is named `ak`, so the old `/ak:ak` slash form in Claude Code's picker was two copies
+of the same word telling the user nothing about what it does, unlike the self-describing
+`/ak:bootstrap-project` etc.). The rename only changes what registers this skill with a
+runtime — the `$ak init`, `$ak assess`, ... chat-trigger vocabulary documented in the skill's
+own command guide is unchanged, since those phrases are matched from the skill's
+`description:` and body content, not from its folder or frontmatter name. `ak` remains the
+plugin's own name everywhere else (`access-modernization-kit`, the `$ak` phrasing, the Codex
+cache path) — only this one skill's identity changed.
 
 The five single-stage skills shipped as a separate `commands/*.md` manifest field through
 most of 2.8.0, not as skills. Real-machine testing against a Codex 2.8.0 install found that
@@ -34,7 +44,7 @@ Nothing below is a step to perform on those two runtimes; it is the fallback for
 |---|---|---|
 | Codex | `~/.codex/plugins/cache/access-modernization-kit/ak/{version}/` | Not needed — `codex plugin add` does this |
 | Claude Code | Wherever the active Claude runtime resolves an installed plugin | Not needed — `/plugin install` does this |
-| Generic agent, no marketplace support | Any readable tools/skills directory, using `ak` as the skill directory | Copy or link the complete package; each skill's `agents/openai.yaml` supplies UI metadata where the runtime reads one |
+| Generic agent, no marketplace support | Any readable tools/skills directory, using `investigate` as the six-phase skill's directory (see `adapters/adapter-map.json` for the other nine) | Copy or link the complete package; each skill's `agents/openai.yaml` supplies UI metadata where the runtime reads one |
 
 Do not maintain separate copies of the canonical instruction. For a generic agent, prefer a
 directory link over a copy when the runtime supports it, and record the source version either

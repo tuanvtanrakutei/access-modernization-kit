@@ -5,15 +5,15 @@
   "resource_paths_are_relative": true,
   "runtimes": {
     "codex": {
-      "suggested_destination": "%USERPROFILE%\\.codex\\skills\\ak",
+      "suggested_destination": "%USERPROFILE%\\.codex\\skills\\investigate",
       "metadata": "agents/openai.yaml"
     },
     "claude": {
-      "suggested_destination": ".claude/skills/ak",
+      "suggested_destination": ".claude/skills/investigate",
       "metadata": null
     },
     "generic": {
-      "suggested_destination": "agent-skills/ak",
+      "suggested_destination": "agent-skills/investigate",
       "metadata": null
     }
   }

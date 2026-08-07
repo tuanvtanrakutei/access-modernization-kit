@@ -167,11 +167,11 @@ def classification_result(classification: object, profile: str | None = None) ->
 
 def install_destination(args: argparse.Namespace) -> Path:
     if args.runtime == "codex":
-        return Path(os.environ.get("USERPROFILE", str(Path.home()))) / ".codex" / "skills" / "ak"
+        return Path(os.environ.get("USERPROFILE", str(Path.home()))) / ".codex" / "skills" / "investigate"
     if args.runtime == "claude":
         if not args.project:
             raise ValueError("--project is required for --runtime claude")
-        return Path(args.project).expanduser().resolve() / ".claude" / "skills" / "ak"
+        return Path(args.project).expanduser().resolve() / ".claude" / "skills" / "investigate"
     if not args.destination:
         raise ValueError("--destination is required for --runtime generic")
     return Path(args.destination).expanduser().resolve()
@@ -208,7 +208,7 @@ def install_skill(args: argparse.Namespace) -> int:
     source = PACKAGE.resolve()
     if args.runtime == "claude":
         runtime_root = destination.parents[1] / "ak-runtime"
-        skill_source = runtime_root / "skills" / "ak"
+        skill_source = runtime_root / "skills" / "investigate"
         if args.dry_run:
             print(f"Would install package runtime for Claude: {runtime_root} -> {source}")
             print(f"Would install Claude skill: {destination} -> {skill_source}")
@@ -225,7 +225,7 @@ def install_skill(args: argparse.Namespace) -> int:
         print(f"Installed ak for Claude: {destination}")
         print("Restart or open a new Claude session so it discovers the skill.")
         return 0
-    source = PACKAGE / "skills" / "ak"
+    source = PACKAGE / "skills" / "investigate"
     if args.dry_run:
         print(f"Would install ak for {args.runtime}: {destination} -> {source}")
         return 0

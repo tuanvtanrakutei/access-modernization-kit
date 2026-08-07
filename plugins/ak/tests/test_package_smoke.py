@@ -101,7 +101,7 @@ def test_friendly_cli_entrypoint(tmp_path: Path) -> None:
     claude_project = tmp_path / "claude-project"
     run_script("ak.py", "install", "--runtime", "claude", "--project", str(claude_project))
     assert (claude_project / ".claude" / "ak-runtime").resolve() == PACKAGE.resolve()
-    assert (claude_project / ".claude" / "skills" / "ak").resolve() == (PACKAGE / "skills" / "ak").resolve()
+    assert (claude_project / ".claude" / "skills" / "investigate").resolve() == (PACKAGE / "skills" / "investigate").resolve()
     run_script(
         "ak.py", "init",
         "--root", str(tmp_path),

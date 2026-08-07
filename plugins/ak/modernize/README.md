@@ -232,7 +232,7 @@ and tooling, but a target repository still needs the bootstrap above.
 ```
 plugins/ak/
 ├── skills/                         ← shared with the six-phase side; every skill discoverable by both CLIs
-│   ├── ak/                         ← the six-phase investigation skill, unchanged
+│   ├── investigate/                ← the six-phase investigation skill (named `ak` before 2.8.0's naming cleanup)
 │   ├── bootstrap-project/          ← one-time project setup, seeds the registry when phase output exists
 │   ├── modernize-screen/           ← the full pipeline, the usual entry point
 │   ├── validate-docs/              ← check a bootstrapped project's documents

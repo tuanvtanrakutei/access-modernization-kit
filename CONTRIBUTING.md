@@ -34,7 +34,7 @@ If a change touches Access automation, also parse `plugins/ak/scripts/extract_ac
 
 - Update schemas, examples, scripts, references, and validators together when changing a contract.
 - Update `plugins/ak/specifications/package.json` and `CHANGELOG.md` for a release-worthy change.
-- Keep `plugins/ak/skills/ak/SKILL.md` under 500 lines and move detailed conditional guidance to `plugins/ak/references/`.
+- Keep `plugins/ak/skills/investigate/SKILL.md` under 500 lines and move detailed conditional guidance to `plugins/ak/references/`.
 - Use source-backed evidence for legacy-system behavior and label assumptions clearly.
 - Preserve backward compatibility when practical; document deliberate breaks.
 

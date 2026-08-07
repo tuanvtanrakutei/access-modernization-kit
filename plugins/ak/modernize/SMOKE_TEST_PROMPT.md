@@ -52,10 +52,10 @@ python D:/Anrakutei/access-modernization-kit/plugins/ak/scripts/ak.py acquire DE
 
 (Consult `python .../ak.py <subcommand> --help` for exact flags — do not guess syntax.)
 
-## Step 3 — Run the six phases for real, yourself, as the `ak` skill
+## Step 3 — Run the six phases for real, yourself, as the `investigate` skill
 
 `ak.py` has no `run`/`phase` subcommand on purpose — analyzing legacy VBA/SQL and writing
-Phase documents is agent work, not a deterministic script. Read `plugins/ak/skills/ak/SKILL.md`
+Phase documents is agent work, not a deterministic script. Read `plugins/ak/skills/investigate/SKILL.md`
 and `plugins/ak/specifications/senior-system-analyst-instruction.md`, then produce, for real,
 for app `DEMO`:
 

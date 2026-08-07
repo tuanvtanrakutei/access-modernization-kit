@@ -10,7 +10,7 @@ from pathlib import Path
 
 
 REQUIRED_FILES = (
-    "requirements-dev.txt", ".codex-plugin/plugin.json", "skills/ak/SKILL.md", "skills/ak/agents/openai.yaml", "adapters/adapter-map.json",
+    "requirements-dev.txt", ".codex-plugin/plugin.json", "skills/investigate/SKILL.md", "skills/investigate/agents/openai.yaml", "adapters/adapter-map.json",
     "specifications/package.json", "specifications/graphify-runtime.json", "specifications/runtime-capabilities.yaml", "specifications/language-support.yaml",
     "specifications/senior-system-analyst-instruction.md", "specifications/evidence-policy.yaml", "specifications/output-contract.yaml",
     "specifications/input-preconditions.md",
@@ -222,10 +222,10 @@ def main() -> int:
 
     validate_json_schemas(root, errors)
 
-    skill_path = root / "skills/ak/SKILL.md"
+    skill_path = root / "skills/investigate/SKILL.md"
     if skill_path.is_file():
         skill = skill_path.read_text(encoding="utf-8")
-        if not skill.startswith("---\nname: ak\n") or "description:" not in skill.split("---", 2)[1]:
+        if not skill.startswith("---\nname: investigate\n") or "description:" not in skill.split("---", 2)[1]:
             errors.append("SKILL.md frontmatter is missing or incorrect")
         if len(skill.splitlines()) > 500:
             errors.append("SKILL.md exceeds 500 lines")

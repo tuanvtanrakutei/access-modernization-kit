@@ -99,7 +99,7 @@ def main() -> int:
             f"  git commit -am 'release {new}'\n"
             f"  git tag v{new} && git push && git push --tags\n"
             "  Then create a GitHub Release for the tag so the README badge updates.\n"
-            "  Note: the 'V2.x' heading in skills/ak/SKILL.md is brand text; "
+            "  Note: the 'V2.x' heading in skills/investigate/SKILL.md is brand text; "
             "update it by hand only on a major/minor change."
         )
     return 0
