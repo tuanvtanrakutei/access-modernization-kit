@@ -25,6 +25,7 @@ to produce a publishable Phase document.
 ## Step 1 — Use the existing light fixture, don't create new sample data
 
 `plugins/ak/examples/minimal-app/` already exists for exactly this purpose:
+
 - `manifest.yaml` — `app.id: "DEMO"`, Graphify and multi-agent both enabled, 8 human
   checkpoints declared.
 - `sources/vba/DemoOrderForm.bas` — one tiny synthetic form.
@@ -32,6 +33,7 @@ to produce a publishable Phase document.
 
 Copy this directory into your scratch workspace as `DEMO/`. Edit **your copy** of
 `manifest.yaml` only, not the one in the repo:
+
 - Set `multi_agent.human_checkpoints: []` and `multi_agent.max_parallel: 1` — a real smoke
   run should not stop and wait for input at 8 points.
 - Leave `graphify.enabled: true` — it is the mandatory phase gate; do not fake around it.
@@ -41,16 +43,50 @@ Copy this directory into your scratch workspace as `DEMO/`. Edit **your copy** o
 
 ## Step 2 — Run the deterministic setup steps for real
 
-These are real CLI commands (`plugins/ak/scripts/ak.py`), not chat-trigger phrases — run
-them directly:
+These are real CLI commands (`plugins/ak/scripts/ak.py`), not `$ak ...` chat-trigger
+phrases. The CLI has its own flag-based contract — run the exact commands below, not the
+shorter `$ak` examples from the command guide:
+
+The copied fixture is already an initialized workspace: it contains both `manifest.yaml`
+and `.investigationignore`. **Do not run `ak.py init` against it** — even
+`--adopt-existing` correctly refuses to overwrite kit-owned files and reports "use preflight
+instead." Start with `preflight`:
 
 ```bash
-python D:/Anrakutei/access-modernization-kit/plugins/ak/scripts/ak.py init DEMO --source <scratch>/DEMO
-python D:/Anrakutei/access-modernization-kit/plugins/ak/scripts/ak.py preflight DEMO
-python D:/Anrakutei/access-modernization-kit/plugins/ak/scripts/ak.py acquire DEMO
+python D:/Anrakutei/access-modernization-kit/plugins/ak/scripts/ak.py preflight \
+  --app-root <scratch>/DEMO \
+  --runtime generic
+
+python D:/Anrakutei/access-modernization-kit/plugins/ak/scripts/ak.py acquire \
+  <scratch>/DEMO
 ```
 
-(Consult `python .../ak.py <subcommand> --help` for exact flags — do not guess syntax.)
+`preflight` is the direct CLI capability check; `$ak assess DEMO` is the broader agent-level
+readiness request and is not a CLI subcommand. Before running, consult
+`python .../ak.py <subcommand> --help` and stop if the installed CLI's contract differs — do
+not guess flags. If the fixture ever stops shipping `manifest.yaml`, only then initialize it
+with the full flag-based `ak.py init` contract shown by `ak.py init --help`; do not add a
+second initialization path here while the fixture remains pre-initialized.
+
+**Stop at the contract gate, do not repair the fixture ad hoc:** the current public fixture
+ships a V2.1 manifest, while `ak.py acquire` requires a V2.2 classified manifest. If acquire
+fails with `Acquisition requires a V2.2 classified manifest`, run these read-only diagnostics
+and record their exact output:
+
+```bash
+python D:/Anrakutei/access-modernization-kit/plugins/ak/scripts/ak.py manifest migrate \
+  --manifest <scratch>/DEMO/manifest.yaml
+
+python D:/Anrakutei/access-modernization-kit/plugins/ak/scripts/ak.py profile detect \
+  --manifest <scratch>/DEMO/manifest.yaml
+```
+
+Do **not** invent a non-null topology or silently rewrite the scratch manifest just to make
+acquisition pass. The migration proposal is authoritative for this check. If it reports
+`status: LIMITED`, `topology: null`, or a missing mandatory input, Step 3 is blocked: there is
+no approved canonical bundle and no honest basis for publishing Phase gates. Record this as a
+fixture/contract-seam finding, skip Steps 3–4, and continue to Step 5. The smoke is doing its
+job when it stops at a real gate.
 
 ## Step 3 — Run the six phases for real, yourself, as the `investigate` skill
 
@@ -76,6 +112,7 @@ Note the exact directory this output lands in — that is your `AK_RUN_DIR` for 
 
 In a **separate** scratch directory (e.g. `<scratch>/modernize-target/`), invoke the
 `bootstrap-project` skill (`plugins/ak/skills/bootstrap-project/SKILL.md`) with:
+
 - `DOCS_DIR` = e.g. `<scratch>/modernize-target/demo_docs`
 - `AK_RUN_DIR` = the directory from Step 3
 - `PROJECT_NAME` = `Synthetic Order Demo`, `SUBSYSTEM_CODE` = `DEMO`, `LEGACY_VARIANT` = `split-mdb` or whatever matches the fixture's actual shape (check `manifest.yaml` / the source files — do not guess this either)
