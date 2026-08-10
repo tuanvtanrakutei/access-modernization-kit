@@ -27,7 +27,13 @@ TABULAR_SUFFIXES = {".csv", ".tsv"}
 DOCUMENT_SUFFIXES = {".pdf", ".xlsx", ".xls", ".docx", ".pptx"}
 IMAGE_SUFFIXES = {".png", ".jpg", ".jpeg", ".tif", ".tiff", ".bmp"}
 UNSUPPORTED_LEGACY = {".doc", ".ppt"}
-FORBIDDEN_PARTS = {".git", "runs", "outputs", "evidence", "decisions", "secrets", "credentials"}
+FORBIDDEN_PARTS = {
+    ".git", "runs", "outputs", "evidence", "decisions", "secrets", "credentials",
+    # acquisition output: staging receipts, the canonical bundle, and any bundle backup
+    # the operator keeps in the workspace. Graphify builds from the component index and
+    # declared sources - never from a serialised bundle.
+    "acquired",
+}
 FORBIDDEN_NAMES = {".env", ".dsn"}
 NORMALIZER_VERSION = "2.6.2"
 MAX_ROWS = 10_000
@@ -71,6 +77,8 @@ def output_dir_from(manifest: dict, app_root: Path) -> Path:
 
 
 def declared_paths(manifest: dict) -> tuple[list[str], list[str]]:
+    if str(manifest.get("version")) == "2.2":
+        return _v22_declared_paths(manifest)
     sources = manifest.get("sources", {}) or {}
     sql = sources.get("sql_server", {}) or {}
     japanese = sources.get("japanese_documents", {}) or {}
@@ -81,6 +89,35 @@ def declared_paths(manifest: dict) -> tuple[list[str], list[str]]:
     if isinstance(japanese, dict):
         values.extend(str(value) for value in japanese.values() if isinstance(value, str) and value.strip())
     access = [str(item.get("path")) for item in sources.get("access_databases", []) or [] if isinstance(item, dict) and item.get("path")]
+    return values, access
+
+
+def _v22_declared_paths(manifest: dict) -> tuple[list[str], list[str]]:
+    """Declared corpus inputs from a V2.2 manifest's artifacts.
+
+    ``declared_paths`` read only the V2.1 ``sources.*`` keys, so on a V2.2 manifest every
+    one of them was empty and no manifest-declared artifact reached the corpus at all -
+    the graph was built from the component index alone. That covers text objects, because
+    the index enumerates them, and silently drops every artifact class the index does not:
+    documents, screenshots and samples. On a project whose only document is the one that
+    makes Phase 5 READY, the mandatory pre-phase graph never saw it.
+
+    Access binaries are returned separately so they stay excluded and reported rather than
+    normalized; that exclusion previously survived only through the sources/access
+    directory fallback further down.
+    """
+    values: list[str] = []
+    access: list[str] = []
+    for artifact in manifest.get("artifacts") or []:
+        if not isinstance(artifact, dict):
+            continue
+        value = (artifact.get("source_ref") or {}).get("value")
+        if not isinstance(value, str) or not value.strip():
+            continue
+        if str(artifact.get("kind", "")) == "access_database":
+            access.append(value)
+        else:
+            values.append(value)
     return values, access
 
 
@@ -101,7 +138,7 @@ def component_paths(app_root: Path) -> list[str]:
     ]
 
 
-def collect_sources(app_root: Path, manifest: dict) -> tuple[list[Path], list[Path], list[dict[str, str]]]:
+def collect_sources(app_root: Path, manifest: dict) -> tuple[list[Path], list[Path], list[dict[str, str]], list[str]]:
     declared, access_declared = declared_paths(manifest)
     declared.extend(component_paths(app_root))
     declared.extend(["manifest.yaml", "extracted/component-index.json", "extracted/module-plan"])
@@ -133,6 +170,7 @@ def collect_sources(app_root: Path, manifest: dict) -> tuple[list[Path], list[Pa
 
     output = output_dir_from(manifest, app_root)
     safe_files: list[Path] = []
+    access_definitions: list[str] = []
     for path in sorted(files):
         relative = path.relative_to(app_root)
         if output in path.parents:
@@ -142,9 +180,53 @@ def collect_sources(app_root: Path, manifest: dict) -> tuple[list[Path], list[Pa
             continue
         if path.suffix.lower() in BINARY_ACCESS:
             excluded_access.add(path)
+        elif _is_access_definition_text(path):
+            # Structural definition text exported by SaveAsText has no graph-semantic
+            # value: a knowledge graph cannot usefully encode "this form contains a
+            # TextBox with Top=1410". These are canonical investigation evidence and
+            # their SHA-256 is in the audit, but sending them through graph extraction
+            # consumes tokens for zero meaningful nodes or edges.
+            access_definitions.append(relative.as_posix())
         else:
             safe_files.append(path)
-    return safe_files, sorted(excluded_access), gaps
+    return safe_files, sorted(excluded_access), gaps, sorted(access_definitions)
+
+
+def _is_access_definition_text(path: Path) -> bool:
+    """Detect a SaveAsText object-definition export that a graph cannot usefully encode.
+
+    Access exports every form, report and macro as a deterministic enumeration of
+    controls (TextBox, SubForm, CommandButton...) with absolute coordinates - structural
+    evidence valuable for an investigation but pointless as a knowledge-graph node: no
+    semantic relationship, no call, no dependency, and no concept survives extraction.
+    Including them in the corpus consumes graph extraction tokens for zero meaningful
+    output. Their SHA-256 is recorded in the corpus audit, so renunciation is explicit.
+
+    Only scans the first 200 bytes, so an unusually large header section is still
+    recognized; a `.txt` that is NOT a definition passes through to the corpus.
+    """
+    if path.suffix.lower() != ".txt":
+        return False
+    try:
+        head = path.read_bytes()[:200]
+    except OSError:
+        return False
+    # A BOM (`\xef\xbb\xbf`) is not a whitespace byte, so `lstrip()` does not remove
+    # it. Every `SaveAsText` export from `extract_access.ps1` is written with a BOM,
+    # and without stripping it first, `b"Version ="` matched nothing.
+    if head.startswith(b"\xef\xbb\xbf"):
+        head = head[3:]
+    markers = (
+        b"Version =",       # form/report header (Access 2003)
+        b"Begin Form",      # form definition section
+        b"Begin Report",    # report definition section
+        b"Begin Macro",     # macro definition
+        b"BeginObjectMode", # module export header
+    )
+    for marker in markers:
+        if head.lstrip().startswith(marker):
+            return True
+    return False
 
 
 def markdown_table(rows: list[list[object]]) -> str:
@@ -349,7 +431,7 @@ def main() -> int:
     manifest = load_manifest(manifest_path)
     graph_root = output_dir_from(manifest, app_root)
     corpus = graph_root / "corpus"
-    sources, excluded_access, initial_gaps = collect_sources(app_root, manifest)
+    sources, excluded_access, initial_gaps, access_definitions = collect_sources(app_root, manifest)
 
     if args.dry_run:
         report = {
@@ -421,6 +503,7 @@ def main() -> int:
         "corpus_file_count": len(normalized),
         "total_words": total_words,
         "excluded_access_binary_count": len(excluded_access),
+        "excluded_access_definition_count": len(access_definitions),
         "binary_files_ingested": 0,
         "gap_count": len(gaps),
         "entries": entries,
