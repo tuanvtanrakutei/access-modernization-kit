@@ -1,0 +1,34 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(ls \"C:/Users/USER/.claude/projects/d--Anrakutei-access-modernization-kit/memory/\" 2>/dev/null && echo \"---MEMORY.md---\" && cat \"C:/Users/USER/.claude/projects/d--Anrakutei-access-modernization-kit/memory/MEMORY.md\" 2>/dev/null)",
+      "Read(//c/Users/USER/.claude/projects/d--Anrakutei-access-modernization-kit/memory/**)",
+      "Bash(ls -d /d/Anrakutei/*/ 2>/dev/null)",
+      "Read(//d/Anrakutei/**)",
+      "Read(//d/Anrakutei/a05//**)",
+      "Read(//d/Anrakutei/a05/**)",
+      "Bash(ls /d/Anrakutei/1144_picking_support/ 2>/dev/null | head -30)",
+      "Read(//d/Anrakutei/1144_picking_support//**)",
+      "Bash(cd /d/Anrakutei/a05 && echo \"=== manifest.yaml ===\" && head -60 manifest.yaml && echo \"=== manifest.v22.candidate.yaml ===\" && cat manifest.v22.candidate.yaml)",
+      "Bash(cd /d/Anrakutei/a05 && echo \"=== runs ===\" && ls -R runs | head -60 && echo \"=== outputs ===\" && find outputs -type f | head -40 && echo \"=== decisions ===\" && ls decisions)",
+      "Bash(cd /d/Anrakutei/a05 && find . -iname \"*Phase2*\" -o -iname \"*Phase[3-6]*\" | grep -v graphify-out | head -20; echo \"--- outputs dirs ---\"; ls outputs; echo \"--- extracted ---\"; ls extracted extracted/access | head -30)",
+      "Bash(python -c ' *)",
+      "Bash(cd /d/Anrakutei/a05 && ls extracted/access/A05_FRONTEND extracted/access/A05_DATA | head -30 && echo \"=== sources/A05_FRONTEND/vba count ===\" && ls sources/A05_FRONTEND/vba 2>/dev/null | wc -l && ls sources/A05_DATA/vba 2>/dev/null | wc -l && echo \"=== decisions/recommended ===\" && head -30 decisions/recommended-optional-evidence.md)",
+      "Bash(cd \"d:/Anrakutei/a05\" && cat manifest.yaml)",
+      "Bash(cd \"d:/Anrakutei/a05\" && ls -la *.bak 2>/dev/null; echo \"--- MDB mtimes ---\"; find . -iname \"*.mdb\" -printf \"%T+ %s %p\\\\n\" 2>/dev/null; echo \"--- export sample mtimes ---\"; find sources -name \"*.txt\" -printf \"%T+ %p\\\\n\" 2>/dev/null | head -3)",
+      "Read(//d/Anrakutei/a05/sources/A05_DATA/**)",
+      "Bash(iconv -f cp932 -t utf-8)",
+      "Bash(python -m pytest -q)",
+      "Bash(python -)",
+      "Bash(python -m pytest plugins/ak/tests/test_acquisition_orchestrator.py plugins/ak/tests/test_build_import_manifest.py -q)",
+      "Bash(python plugins/ak/scripts/ak.py acquire run --app-root /d/Anrakutei/a05 --acquisition-id a05-prov-01 --grant access_snapshot_extract)",
+      "Bash(python plugins/ak/scripts/ak.py acquire run --help)",
+      "Bash(python plugins/ak/scripts/ak.py acquire run /d/Anrakutei/a05 --acquisition-id a05-prov-01 --authorize access_snapshot_extract)",
+      "Bash(python plugins/ak/scripts/ak.py acquire run /d/Anrakutei/a05 --acquisition-id a05-prov-02 --authorize access_snapshot_extract)",
+      "Read(//d/Anrakutei/a05/acquired/**)",
+      "Bash(mv bundle-9531503db76f78a188b1b1e7d8a2ec363eb0374bc3a0f9685f0363bd7de72219 *)",
+      "Bash(python plugins/ak/scripts/ak.py preflight --app-root /d/Anrakutei/a05)",
+      "Bash(python -m pytest plugins/ak/tests/test_preflight.py -q)"
+    ]
+  }
+}
