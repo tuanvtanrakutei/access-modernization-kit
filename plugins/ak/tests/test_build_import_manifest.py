@@ -18,7 +18,7 @@ def _args(**overrides) -> argparse.Namespace:
     defaults = {
         "producer_id": "ExportAccessObjects.bas", "producer_version": "2026-07",
         "logical_id_prefix": "A05_FRONTEND", "output": None,
-        "allow_unclassified": False, "dry_run": False,
+        "allow_unclassified": False, "dry_run": False, "source_database": None,
     }
     return argparse.Namespace(**{**defaults, **overrides})
 
@@ -82,6 +82,47 @@ def test_logical_ids_are_stable_across_runs(tmp_path: Path) -> None:
 
 # The whole point of the generator: what it writes must satisfy the adapter that
 # refused the bare directory. Asserting the shape in isolation would not prove that.
+def test_declared_producer_reaches_the_records_not_the_adapter_version(tmp_path: Path) -> None:
+    """Regression: the producer manifest's whole purpose is to say what made the export.
+
+    The bundle recorded the literal string ``declared_import`` and the *schema* version
+    ``1.0.0``, so a bundle could not distinguish text exported months earlier from text
+    read out of the database in this run.
+    """
+    root = _export(tmp_path / "PKG")
+    manifest, _ = bim.build_manifest(root, _args())
+    (root / bim.MANIFEST_NAME).write_text(
+        yaml.safe_dump(manifest, sort_keys=False, allow_unicode=True), encoding="utf-8"
+    )
+    artifact = {
+        "id": "PKG", "kind": "source_export", "role": "frontend", "acquisition": "imported",
+        "required": True, "format": "directory",
+        "source_ref": {"type": "local_path", "value": "PKG"},
+    }
+    adapter = ImportedSourcesAdapter()
+    result = adapter.acquire(adapter.plan(AcquisitionRequest("SYN", CLASSIFICATION, (artifact,), tmp_path)))
+    producers = adapter.normalize(result)["provenance"]["source_producers"]
+    assert len(producers) == 3
+    assert set(map(tuple, (sorted(value.items()) for value in producers.values()))) == {
+        (("producer", "ExportAccessObjects.bas"), ("producer_version", "2026-07")),
+    }
+
+
+def test_source_database_digest_is_recorded_for_drift_detection(tmp_path: Path) -> None:
+    database = tmp_path / "app.mdb"
+    database.write_bytes(b"not really an mdb, but a real digest")
+    root = _export(tmp_path / "PKG")
+    manifest, _ = bim.build_manifest(root, _args(source_database=str(database)))
+    import hashlib
+    assert manifest["source_database"] == {
+        "path": str(database.resolve()),
+        "sha256": hashlib.sha256(database.read_bytes()).hexdigest(),
+    }
+    # Absent the flag nothing is claimed either way - silence must not read as a match.
+    without, _ = bim.build_manifest(root, _args())
+    assert "source_database" not in without
+
+
 def test_generated_manifest_is_accepted_by_the_imported_adapter(tmp_path: Path) -> None:
     root = _export(tmp_path / "A05_FRONTEND")
     manifest, unclassified = bim.build_manifest(root, _args())

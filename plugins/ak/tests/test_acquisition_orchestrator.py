@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from adapters.base import empty_sections
-from acquisition_orchestrator import _capabilities
+from acquisition_orchestrator import _capabilities, _flag_export_drift
 
 
 def _contribution(adapter_id: str, capabilities: list[str]) -> dict:
@@ -28,3 +28,66 @@ def test_only_declared_capabilities_are_aggregated() -> None:
     assert _capabilities([first, second]) == {
         "vba_query_inventory", "access_object_inventory", "ui_object_inventory"
     }
+
+
+def _drift_contribution(adapter_id: str, provenance: dict) -> dict:
+    return {"adapter_id": adapter_id, "adapter_version": "1.0.0", "failures": [], "provenance": provenance}
+
+
+# A hybrid run takes schema from the live database and definition text from an earlier
+# export. That is legitimate; doing it silently is not. If the database has changed since
+# the export, the bundle mixes current schema with stale definitions and says nothing.
+def test_export_from_a_different_database_is_reported() -> None:
+    managed = _drift_contribution("managed_access", {"producer": "ak-managed-access", "source_hashes": {"A05_FRONTEND": "a" * 64}})
+    imported = _drift_contribution("imported_sources", {
+        "producer": "declared_import", "source_hashes": {"PKG:form:forms/F.txt": "c" * 64},
+        "exported_from": {"PKG:form:forms/F.txt": {"sha256": "b" * 64, "path": "old.mdb"}},
+    })
+    _flag_export_drift([managed, imported])
+    assert [failure["reason"] for failure in imported["failures"]] == ["EXPORT_SOURCE_DRIFT"]
+    assert "A05_FRONTEND" in imported["failures"][0]["detail"]
+
+
+def test_export_from_the_acquired_database_is_not_reported() -> None:
+    managed = _drift_contribution("managed_access", {"producer": "ak-managed-access", "source_hashes": {"A05_FRONTEND": "a" * 64}})
+    imported = _drift_contribution("imported_sources", {
+        "producer": "declared_import", "source_hashes": {"PKG:form:forms/F.txt": "c" * 64},
+        "exported_from": {"PKG:form:forms/F.txt": {"sha256": "a" * 64}},
+    })
+    _flag_export_drift([managed, imported])
+    assert imported["failures"] == []
+
+
+# Silence is not evidence of a match. An export that never declared its source database
+# must not be reported as drifted, and must not be reported as current either.
+def test_export_without_a_declared_source_is_not_reported() -> None:
+    managed = _drift_contribution("managed_access", {"producer": "ak-managed-access", "source_hashes": {"A05_FRONTEND": "a" * 64}})
+    imported = _drift_contribution("imported_sources", {
+        "producer": "declared_import", "source_hashes": {"PKG:form:forms/F.txt": "c" * 64},
+    })
+    _flag_export_drift([managed, imported])
+    assert imported["failures"] == []
+
+
+# An import-only run has no database to compare against, so there is nothing to claim.
+def test_import_only_run_reports_no_drift() -> None:
+    imported = _drift_contribution("imported_sources", {
+        "producer": "declared_import", "source_hashes": {"PKG:form:forms/F.txt": "c" * 64},
+        "exported_from": {"PKG:form:forms/F.txt": {"sha256": "b" * 64}},
+    })
+    _flag_export_drift([imported])
+    assert imported["failures"] == []
+
+
+# One entry per drifted database, not one per file: a 200-file export would otherwise
+# bury every other failure in the bundle under 200 copies of the same finding.
+def test_drift_is_reported_once_per_database_not_once_per_file() -> None:
+    managed = _drift_contribution("managed_access", {"producer": "ak-managed-access", "source_hashes": {"A05": "a" * 64}})
+    stale = {"sha256": "b" * 64}
+    imported = _drift_contribution("imported_sources", {
+        "producer": "declared_import",
+        "source_hashes": {f"PKG:form:forms/F{index}.txt": "c" * 64 for index in range(50)},
+        "exported_from": {f"PKG:form:forms/F{index}.txt": stale for index in range(50)},
+    })
+    _flag_export_drift([managed, imported])
+    assert len(imported["failures"]) == 1

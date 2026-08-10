@@ -110,6 +110,10 @@ def parse_args() -> argparse.Namespace:
     import_sources.add_argument("--producer-id", required=True, help="What produced the export.")
     import_sources.add_argument("--producer-version", required=True, help="Version of that producer.")
     import_sources.add_argument("--logical-id-prefix", required=True, help="Prefix for each file's logical id, normally the artifact id.")
+    import_sources.add_argument(
+        "--source-database",
+        help="The .mdb/.accdb this export was produced from. Recorded so a run can detect an export gone stale.",
+    )
     import_sources.add_argument("--allow-unclassified", action="store_true", help="Declare files in unrecognized directories as metadata instead of failing.")
     import_sources.add_argument("--dry-run", action="store_true", help="Report the plan without writing the manifest.")
 
@@ -323,6 +327,8 @@ def main() -> int:
             "--producer-version", args.producer_version,
             "--logical-id-prefix", args.logical_id_prefix,
         ]
+        if args.source_database:
+            import_args += ["--source-database", args.source_database]
         if args.allow_unclassified:
             import_args.append("--allow-unclassified")
         if args.dry_run:

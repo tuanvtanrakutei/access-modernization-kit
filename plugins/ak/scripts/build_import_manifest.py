@@ -54,6 +54,12 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--logical-id-prefix", required=True, help="Prefix for each file's logical id, normally the artifact id")
     parser.add_argument("--output", help=f"Manifest path (default: <source>/{MANIFEST_NAME})")
     parser.add_argument(
+        "--source-database",
+        help="The .mdb/.accdb this export was produced from. Its digest is recorded so a later "
+             "run can tell whether the export is still current for that database. Strongly "
+             "recommended: without it nothing can detect an export that has gone stale.",
+    )
+    parser.add_argument(
         "--allow-unclassified", action="store_true",
         help="Declare files in unrecognized directories as metadata instead of failing. Off by default: a mislabelled file is worse than a refused import.",
     )
@@ -123,11 +129,21 @@ def build_manifest(source: Path, args: argparse.Namespace) -> tuple[dict[str, An
         if encoding is not None and kind in TEXT_KINDS:
             item["encoding"] = encoding
         files.append(item)
-    manifest = {
+    manifest: dict[str, Any] = {
         "version": "1.0",
         "producer": {"id": args.producer_id, "version": args.producer_version},
-        "files": files,
     }
+    database = getattr(args, "source_database", None)
+    if database:
+        path = Path(database).expanduser().resolve()
+        if not path.is_file():
+            raise SystemExit(f"Source database not found: {path}")
+        digest = hashlib.sha256()
+        with path.open("rb") as handle:
+            for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+                digest.update(chunk)
+        manifest["source_database"] = {"path": str(path), "sha256": digest.hexdigest()}
+    manifest["files"] = files
     return manifest, unclassified
 
 
@@ -157,7 +173,13 @@ def main() -> int:
         "declared_files": len(manifest["files"]),
         "kinds": {kind: sum(1 for item in manifest["files"] if item["kind"] == kind)
                   for kind in sorted({item["kind"] for item in manifest["files"]})},
+        "source_database": manifest.get("source_database", None),
     }
+    if "source_database" not in manifest:
+        summary["advisory"] = (
+            "No --source-database was declared, so nothing can detect this export going stale "
+            "against the database it came from. Pass it if the .mdb is available."
+        )
     if not args.dry_run:
         manifest_path.write_text(
             yaml.safe_dump(manifest, sort_keys=False, allow_unicode=True), encoding="utf-8"

@@ -205,12 +205,24 @@ def _provenance(
     for contribution in sorted(contributions, key=lambda item: item["adapter_id"]):
         producer = contribution["provenance"]["producer"]
         producer_version = contribution["provenance"].get("producer_version", contribution["adapter_version"])
+        # An adapter may name a producer per source. One run can import several export
+        # packages made by different tools at different times, and recording only the
+        # adapter-level producer made the bundle claim they all came from one place -
+        # with the adapter's own version standing in for the producer's.
+        per_source = contribution["provenance"].get("source_producers") or {}
+        exported_from = contribution["provenance"].get("exported_from") or {}
         for logical_id, digest in sorted(contribution["provenance"]["source_hashes"].items()):
-            sources.append({
+            declared = per_source.get(logical_id) or {}
+            source = {
                 "logical_artifact_id": logical_id, "sha256": digest,
-                "producer": producer, "producer_version": producer_version,
+                "producer": declared.get("producer", producer),
+                "producer_version": declared.get("producer_version", producer_version),
                 "transformation": contribution["adapter_id"],
-            })
+            }
+            origin = exported_from.get(logical_id)
+            if origin:
+                source["exported_from"] = origin
+            sources.append(source)
     return {"schema_version": schema_version, "bundle_id": bundle_id, "sources": sources}
 
 def _validate_json(path: Path, schema_name: str) -> None:

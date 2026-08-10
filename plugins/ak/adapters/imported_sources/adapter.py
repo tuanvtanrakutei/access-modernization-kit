@@ -205,6 +205,8 @@ class ImportedSourcesAdapter:
         records: list[dict[str, Any]] = []
         failures: list[dict[str, Any]] = []
         hashes: dict[str, str] = {}
+        producers: dict[str, dict[str, str]] = {}
+        exported_from: dict[str, dict[str, str]] = {}
         for operation in plan.operations:
             # Conflicts are detected within one package, never across packages. A split
             # application legitimately holds a same-named query in its frontend and its
@@ -221,6 +223,14 @@ class ImportedSourcesAdapter:
                     reason = str(exc) if str(exc).isupper() else "INVALID_IMPORT_PACKAGE"
                     failures.append({"logical_id": artifact["id"], "reason": reason})
                     continue
+                # The producer manifest exists to say what made this export and when.
+                # Dropping that on the floor made a bundle unable to distinguish text
+                # exported months ago from text read out of the database in this run.
+                producer = {
+                    "producer": str(manifest["producer"]["id"]),
+                    "producer_version": str(manifest["producer"]["version"]),
+                }
+                declared_source = manifest.get("source_database") or {}
                 for item in manifest["files"]:
                     name = _normalized_member_name(item["path"])
                     raw = payloads[name]
@@ -229,6 +239,14 @@ class ImportedSourcesAdapter:
                         continue
                     package_records.append(_record(item, raw))
                     hashes[item["logical_id"]] = item["sha256"]
+                    producers[item["logical_id"]] = producer
+                    if declared_source.get("sha256"):
+                        # Digest only, deliberately. The bundle forbids any reference to a
+                        # raw database binary, including its filename, and the digest is
+                        # the whole of the evidence: it is what a drift check compares.
+                        # The declared path stays in the producer manifest in the app
+                        # workspace, which is outside the bundle.
+                        exported_from[item["logical_id"]] = {"sha256": str(declared_source["sha256"])}
                 failures.extend(detect_record_conflicts(package_records))
                 records.extend(package_records)
                 continue
@@ -247,7 +265,11 @@ class ImportedSourcesAdapter:
             failures.extend(detect_record_conflicts(package_records))
             records.extend(package_records)
         status = "INVALID" if failures else "VALID"
-        return AcquisitionResult(plan.app_id, self.adapter_id, self.adapter_version, status, tuple(records), tuple(failures), hashes)
+        return AcquisitionResult(
+            plan.app_id, self.adapter_id, self.adapter_version, status,
+            tuple(records), tuple(failures), hashes,
+            metadata={"source_producers": producers, "exported_from": exported_from},
+        )
 
     def normalize(self, result: AcquisitionResult) -> BundleContribution:
         sections = empty_sections()
@@ -259,6 +281,15 @@ class ImportedSourcesAdapter:
             "status": result.status, **sections, "failures": list(result.failures),
             "provenance": {
                 "producer": "declared_import",
+                # Per-source producers, because one run can import several packages
+                # produced by different tools at different times. The contribution-level
+                # producer above is only the fallback for a file declared directly in the
+                # app manifest, where no producer manifest exists to name one.
+                "source_producers": dict(sorted(result.metadata.get("source_producers", {}).items())),
+                # The database each package was exported from, when its producer manifest
+                # declares one. This is what lets a later run notice that the export is
+                # stale relative to the database being acquired alongside it.
+                "exported_from": dict(sorted(result.metadata.get("exported_from", {}).items())),
                 "source_hashes": dict(sorted(result.source_hashes.items())),
                 "capabilities": _content_capabilities(sections),
             },

@@ -120,6 +120,7 @@ def run_acquisition(
             runtime_output_root=str(Path(output_root) / "staging"),
         )
         contributions.append(adapter.normalize(adapter.acquire(plan)))
+    _flag_export_drift(contributions)
     capabilities = _capabilities(contributions) | _declaration_capabilities(manifest.artifacts)
     readiness = phase_readiness_contract.compute_readiness(
         classification, PROFILES, capabilities
@@ -141,6 +142,51 @@ def run_acquisition(
         phase_readiness=readiness,
         output_root=Path(output_root),
     )
+
+
+def _flag_export_drift(contributions: list[dict[str, Any]]) -> None:
+    """Record when an imported export was produced from a different database file.
+
+    A hybrid run reads schema from the live database while taking form, report and
+    module definitions from an export made earlier. That is legitimate, and it is how
+    an application whose VBA project cannot be loaded unattended gets acquired at all.
+    What is not legitimate is doing it silently: if the database has changed since the
+    export, the bundle mixes current schema with stale definitions and nothing in it
+    says so. This compares the digest each export declares it came from against the
+    databases actually acquired in this run.
+
+    Recorded as a failure rather than raised: the operator may knowingly be using an
+    older export, and the existing contract is that failures are carried honestly into
+    the bundle instead of aborting a run that produced real evidence. Absent a declared
+    ``source_database`` nothing is claimed either way - silence is not evidence of a
+    match, so no drift is reported and none is denied.
+    """
+    acquired: dict[str, set[str]] = {}
+    for contribution in contributions:
+        if contribution["adapter_id"] == "imported_sources":
+            continue
+        for logical_id, digest in contribution["provenance"].get("source_hashes", {}).items():
+            acquired.setdefault(digest, set()).add(logical_id)
+    if not acquired:
+        return
+    for contribution in contributions:
+        origins = contribution["provenance"].get("exported_from") or {}
+        seen: set[str] = set()
+        for logical_id, origin in sorted(origins.items()):
+            digest = origin.get("sha256")
+            if not digest or digest in acquired or digest in seen:
+                continue
+            seen.add(digest)
+            contribution["failures"].append({
+                "logical_id": logical_id,
+                "reason": "EXPORT_SOURCE_DRIFT",
+                "detail": (
+                    f"This export declares it was produced from a database with digest "
+                    f"{digest[:16]}..., which is not one of the databases acquired in this run "
+                    f"({', '.join(sorted(name for names in acquired.values() for name in names))}). "
+                    "Its definition text may be stale relative to the schema."
+                ),
+            })
 
 
 def _contribution_failures(contributions: list[dict[str, Any]]) -> list[dict[str, Any]]:
