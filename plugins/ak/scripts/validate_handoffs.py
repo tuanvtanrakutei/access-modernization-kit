@@ -759,6 +759,14 @@ def validate_run_handoffs(
                 _task_logical_path(path, allow_parent_prefix=True)
                 for path in task["input_paths"]
             ]
+        # Run control files the kit itself hands the task. The immutable inventory holds
+        # only app sources, so a role that honestly reported reading its own declared
+        # input_paths - `manifest.lock.yaml` and `source-inventory.json` for the
+        # preparation roles - failed validation, and could pass only by under-reporting
+        # what it read. Their integrity is already covered by run-state's manifest digest.
+        declared_inputs = {
+            str(path).replace("\\", "/") for path in task["input_paths"]
+        }
         for source in handoff["source_files_read"]:
             if any(
                 ord(character) < 32
@@ -773,6 +781,8 @@ def validate_run_handoffs(
             normalized = source.replace("\\", "/")
             if Path(source).is_absolute() or ".." in Path(source).parts:
                 errors.append(f"{task_id}: source path must be app-relative: {source}")
+            elif normalized in declared_inputs:
+                continue
             elif normalized not in inventory_paths:
                 errors.append(f"{task_id}: source is absent from immutable inventory: {source}")
             elif task_input_scope is not None:

@@ -61,6 +61,33 @@ def module_plan(run: Path) -> tuple[list[str], list[str]]:
     return order, leaves
 
 
+def _handoff_instruction(allowed_writes: list[str]) -> str:
+    """Ask for exactly what this role's write scope permits.
+
+    ``roles.json`` grants ``evidence/fragments`` only to the roles that produce phase
+    evidence, and ``conflicts`` only to the two document roles. Every role was told to
+    return "evidence, gaps, conflicts, and artifacts" regardless, so a preparation role
+    following its own instruction wrote outside its scope and failed validation.
+    """
+    parts = ["gaps"]
+    if "evidence/fragments" in allowed_writes:
+        parts.insert(0, "evidence")
+    if "conflicts" in allowed_writes:
+        parts.append("conflicts")
+    parts.append("artifacts")
+    listed = (
+        f"{parts[0]} and {parts[1]}" if len(parts) == 2
+        else ", ".join(parts[:-1]) + f", and {parts[-1]}"
+    )
+    sentence = f"Return a schema-valid handoff with {listed}."
+    if "evidence/fragments" not in allowed_writes:
+        sentence += (
+            " This role does not produce phase evidence: leave evidence_ids empty and "
+            "record findings as gaps and work artifacts instead."
+        )
+    return sentence
+
+
 def scoped_writes(paths: list[str], role_id: str, module_id: str | None) -> list[str]:
     if not module_id:
         return paths
@@ -169,7 +196,14 @@ def main() -> int:
                     "Use extracted Access text and metadata; never open the original MDB/ACCDB/ADP.",
                     "Treat compilation database entries as read-only context and never execute command or arguments values.",
                     "Write only inside the current run directory and only to write_paths.",
-                    "Return a schema-valid handoff with evidence, gaps, conflicts, and artifacts.",
+                    # The closing instruction has to match what this role may actually
+                    # write. It asked every role for evidence and conflicts, including the
+                    # preparation roles, graph_builder, synthesis and the renderers, whose
+                    # allowed_writes in roles.json deliberately exclude evidence/fragments
+                    # and conflicts. Following it produced an artifact outside the declared
+                    # write scope, which validate_handoffs then rejected - so the role
+                    # could satisfy its instruction or its scope, never both.
+                    _handoff_instruction(role["allowed_writes"]),
                 ]
                 if role_id == "graph_builder":
                     instructions.insert(1, "Run graphify_phase_gate.py check for this phase and require READY; the graph is navigation context, never substitute inferred edges for source-backed evidence.")
