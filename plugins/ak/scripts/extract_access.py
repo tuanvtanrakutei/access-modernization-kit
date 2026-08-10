@@ -34,9 +34,40 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--execute", action="store_true", help="Create a snapshot and run Access COM automation")
     parser.add_argument("--dry-run", action="store_true", help="Report the plan without copying or opening the database")
     parser.add_argument("--powershell", help="Override the PowerShell host used to drive the Access COM adapter")
-    parser.add_argument("--allow-run-as-invoker", action="store_true", help="Set __COMPAT_LAYER=RunAsInvoker so an elevated Access install activates without a UAC prompt")
+    parser.add_argument("--allow-run-as-invoker", action="store_true", help="Set __COMPAT_LAYER=RunAsInvoker for the PowerShell host. Note this does not reach an out-of-process COM server: a RUNASADMIN-flagged Access still fails with 0x800702E4")
     parser.add_argument("--skip-runtime-check", action="store_true", help="Skip Access runtime discovery and use the default PowerShell host (restores pre-2.3 behavior)")
+    parser.add_argument("--timeout", type=int, default=1800, help="Seconds to wait for the Access adapter before treating the run as hung (default: 1800)")
+    parser.add_argument("--access-progid", default="Access.Application", help="COM ProgId for the Access host; version-qualify it (Access.Application.11) to pin one install")
+    parser.add_argument("--dao-progid", default="DAO.DBEngine.36", help="COM ProgId for the DAO engine that reads schema without starting Access")
+    parser.add_argument("--access-path", help="Declare the Access executable this run expects; a mismatch with the registered COM server is reported instead of silently using another install")
+    parser.add_argument("--skip-object-export", action="store_true", help="Run only the DAO tier: full schema and object inventory, no exported definition text")
+    parser.add_argument("--skip-object-inventory", action="store_true", help="Do not register forms, reports, macros or modules; use when an imported export of the same database supplies them")
+    parser.add_argument("--visible-host", action="store_true", help="Show the Access host so an operator can dismiss dialogs a broken VBA reference raises. Marks the run attended")
     return parser.parse_args()
+
+
+def terminate_recorded_hosts(output: Path) -> list[int]:
+    """Kill only the Access processes this run started, listed by the adapter.
+
+    A hung host keeps the snapshot locked, which makes the next run fail on a
+    directory it cannot remove. Killing by recorded PID never touches an Access
+    instance the operator opened themselves.
+    """
+    record = output / "access-host.json"
+    if not record.is_file():
+        return []
+    try:
+        pids = [int(pid) for pid in json.loads(record.read_text(encoding="utf-8-sig")).get("pids", [])]
+    except (ValueError, OSError):
+        return []
+    killed: list[int] = []
+    for pid in pids:
+        try:
+            subprocess.run(["taskkill", "/PID", str(pid), "/T", "/F"], check=False, capture_output=True)
+            killed.append(pid)
+        except OSError:
+            continue
+    return killed
 
 
 def build_runtime_block(args: argparse.Namespace) -> tuple[dict, dict | None]:
@@ -63,6 +94,22 @@ def build_runtime_block(args: argparse.Namespace) -> tuple[dict, dict | None]:
         "host": {"path": host.get("path"), "bitness": host.get("bitness"), "status": host.get("status"), "reason": host.get("reason")},
         "runasadmin_detected": report["runasadmin_detected"],
         "activation": activation,
+    }
+    # A declared runtime is checked against the one COM would actually activate.
+    # Windows resolves a bare ProgId per machine, so on a host carrying more than one
+    # Office the caller could silently get an install they did not mean.
+    registered = [
+        entry.get("executable") for view in report.get("registry", {}).get("views", {}).values()
+        for entry in [view.get("access", {})] if entry.get("executable")
+    ]
+    runtime["declared_runtime"] = {
+        "requested_path": args.access_path,
+        "requested_prog_id": args.access_progid,
+        "registered_paths": registered,
+        "matches": None if not args.access_path else any(
+            Path(str(found)).resolve() == Path(args.access_path).expanduser().resolve()
+            for found in registered
+        ),
     }
     return runtime, host
 
@@ -105,10 +152,18 @@ def main() -> int:
         effective = runtime.get("status")
         activation = runtime.get("activation", {})
         if effective == "REGISTERED_BUT_ACTIVATION_FAILED":
+            # --allow-run-as-invoker was advised here for years and cannot work:
+            # __COMPAT_LAYER is set on the PowerShell host, while the Access COM server
+            # is launched by the service and does not inherit the parent environment.
+            # Verified against a RUNASADMIN-flagged Access 2003: run_as_invoker true,
+            # activation still 0x800702E4.
             plan["warnings"].append(
-                "Access is registered but COM activation failed. If the Access executable requires elevation "
-                "(RunAsAdmin), run this command from an elevated (Administrator) terminal, or pass "
-                "--allow-run-as-invoker. To skip runtime discovery entirely, pass --skip-runtime-check."
+                "Access is registered but COM activation failed. If the executable carries a RUNASADMIN "
+                "compatibility flag, remove RUNASADMIN from its AppCompatFlags\\Layers value or run from an "
+                "elevated (Administrator) terminal - --allow-run-as-invoker cannot help, because the COM server "
+                "is launched out of process and does not inherit __COMPAT_LAYER. To read schema and the object "
+                "inventory without any Access host, pass --skip-object-export; to skip runtime discovery entirely, "
+                "pass --skip-runtime-check."
             )
         elif effective in {"INSTALLED_BUT_BITNESS_MISMATCH", "NOT_FOUND"}:
             plan["warnings"].append(
@@ -137,14 +192,44 @@ def main() -> int:
     command = [powershell, "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", str(script), "-Snapshot", str(snapshot), "-DatabaseId", args.database_id, "-SessionId", session_id, "-OutputDir", str(output)]
     if args.password_env:
         command += ["-PasswordEnvironment", args.password_env]
+    command += ["-AccessProgId", args.access_progid, "-DaoProgId", args.dao_progid]
+    if args.skip_object_export:
+        command.append("-SkipObjectExport")
+    if args.skip_object_inventory:
+        command.append("-SkipObjectInventory")
+    if args.visible_host:
+        command.append("-VisibleHost")
     env = os.environ.copy()
     if args.allow_run_as_invoker:
         env["__COMPAT_LAYER"] = "RunAsInvoker"
-    completed = subprocess.run(command, check=False, env=env)
+    try:
+        completed = subprocess.run(command, check=False, env=env, timeout=args.timeout)
+    except subprocess.TimeoutExpired:
+        # Without this the run waited forever. A real application's startup VBA can
+        # drop into the debugger's break mode, and because the host is hidden there
+        # is nothing to click and no output to read.
+        killed = terminate_recorded_hosts(output)
+        plan["status"] = "BLOCKED"
+        plan["warnings"].append(
+            f"Access adapter did not finish within {args.timeout}s and was treated as hung. "
+            "Startup VBA or a modal dialog can stall a hidden Access host; raise --timeout "
+            "if the database is genuinely large."
+        )
+        if killed:
+            plan["warnings"].append(f"Terminated the Access host started by this run: {killed}.")
+        result_path = output / "access-extraction.json"
+        if not result_path.is_file():
+            result_path.write_text(json.dumps(plan, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+        return 4
     if completed.returncode != 0:
         plan["status"] = "BLOCKED"
         plan["warnings"].append(f"Access automation adapter exited with code {completed.returncode}")
-        (output / "access-extraction.json").write_text(json.dumps(plan, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+        # Only write the thin plan when the adapter produced nothing. It records
+        # the collected warnings and component index, and overwriting that with
+        # this stub erased the only account of what actually went wrong.
+        result_path = output / "access-extraction.json"
+        if not result_path.is_file():
+            result_path.write_text(json.dumps(plan, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
         return completed.returncode
     print(f"Access extraction completed from snapshot: {output}")
     return 0

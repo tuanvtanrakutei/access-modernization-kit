@@ -33,6 +33,10 @@ class Artifact:
     source_ref: SourceRef
     format: str | None = None
     backend_kind: str | None = None
+    # Per-artifact runtime declarations, passed through to the adapter that acquires
+    # it. The manifest schema allows extra artifact keys, but this model dropped them,
+    # so a declared runtime silently had no effect on the run.
+    runtime: dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass(frozen=True)
@@ -62,7 +66,7 @@ def _build_artifact(raw: dict[str, Any]) -> Artifact:
     return Artifact(
         id=raw["id"], kind=raw["kind"], role=raw["role"], acquisition=raw["acquisition"],
         required=bool(raw["required"]), source_ref=source_ref, format=raw.get("format"),
-        backend_kind=raw.get("backend_kind"),
+        backend_kind=raw.get("backend_kind"), runtime=dict(raw.get("runtime") or {}),
     )
 
 

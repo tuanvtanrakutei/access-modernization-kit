@@ -237,7 +237,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--powershell", help="Override the PowerShell host path used to activate the Access runtime.")
     parser.add_argument("--smoke-test", action="store_true", help="Attempt a real Access.Application COM activation and immediately release it.")
-    parser.add_argument("--allow-run-as-invoker", action="store_true", help="Set __COMPAT_LAYER=RunAsInvoker during the smoke test to avoid elevation prompts.")
+    parser.add_argument("--allow-run-as-invoker", action="store_true", help="Set __COMPAT_LAYER=RunAsInvoker for the smoke-test host. It cannot suppress elevation for the Access COM server itself, which is launched out of process and does not inherit the variable.")
     parser.add_argument("--output", help="Optional path for the JSON report; the report is always printed to stdout.")
     parser.add_argument("--require-ready", action="store_true", help="Exit non-zero unless a compatible Access runtime host is READY.")
     return parser.parse_args(argv)

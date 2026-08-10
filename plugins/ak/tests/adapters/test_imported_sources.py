@@ -79,12 +79,63 @@ def test_duplicate_logical_id_with_different_hash_is_rejected() -> None:
     ])
     assert failures == [{"logical_id": "MOD_ORDER", "reason": "DUPLICATE_MISMATCH"}]
 
-def test_safe_name_collision_is_rejected() -> None:
+def test_one_object_declared_under_two_logical_ids_is_rejected() -> None:
+    """Access object names are case-insensitive and NFKC-equivalent.
+
+    ``ｵｰﾀﾞｰ`` and ``オーダー`` are one form, so two logical ids claiming both with
+    different content is a real conflict the operator has to resolve.
+    """
     failures = detect_record_conflicts([
-        {"logical_id": "FORM_A", "kind": "form", "object_name": "Order/Form", "sha256": "a" * 64},
-        {"logical_id": "FORM_B", "kind": "form", "object_name": "Order:Form", "sha256": "b" * 64},
+        {"logical_id": "FORM_A", "kind": "form", "object_name": "ｵｰﾀﾞｰ", "sha256": "a" * 64},
+        {"logical_id": "FORM_B", "kind": "form", "object_name": "オーダー", "sha256": "b" * 64},
     ])
     assert failures == [{"logical_id": "FORM_B", "reason": "ARTIFACT_CONFLICT"}]
+
+def test_distinct_japanese_names_do_not_conflict() -> None:
+    """Regression: an earlier key collapsed every non-ASCII name onto one value.
+
+    Two unrelated forms were then reported as ARTIFACT_CONFLICT, which blocked
+    imported acquisition for exactly the Japanese applications this kit targets.
+    """
+    assert detect_record_conflicts([
+        {"logical_id": "FORM_A", "kind": "form", "object_name": "受注入力", "sha256": "a" * 64},
+        {"logical_id": "FORM_B", "kind": "form", "object_name": "在庫照会", "sha256": "b" * 64},
+    ]) == []
+
+
+def test_same_object_name_in_two_packages_does_not_conflict(tmp_path: Path) -> None:
+    """Regression: conflicts are scoped to one package, never pooled across them.
+
+    A split application legitimately holds a same-named query in its frontend and
+    its backend export, each with its own content. Pooling every artifact's records
+    reported ARTIFACT_CONFLICT and failed the whole import.
+    """
+    artifacts = []
+    for package, body in (("FRONTEND", "SELECT 1;\n"), ("DATA", "SELECT 2;\n")):
+        root = tmp_path / package
+        (root / "queries").mkdir(parents=True)
+        raw = body.encode("utf-8")
+        (root / "queries" / "q受注データ.sql").write_bytes(raw)
+        (root / "import-source-manifest.yaml").write_text(yaml.safe_dump({
+            "version": "1.0",
+            "producer": {"id": "synthetic", "version": "1.0.0"},
+            "files": [{
+                "logical_id": f"{package}_Q_JUCHU", "path": "queries/q受注データ.sql",
+                "kind": "access_sql", "role": "frontend" if package == "FRONTEND" else "backend",
+                "sha256": sha256_bytes(raw), "encoding": "utf-8", "object_name": "q受注データ",
+            }],
+        }, allow_unicode=True), encoding="utf-8")
+        artifacts.append({
+            "id": package, "kind": "source_export", "role": "frontend", "acquisition": "imported",
+            "required": True, "source_ref": {"type": "local_path", "value": package},
+            "format": "directory",
+        })
+    adapter = ImportedSourcesAdapter()
+    plan = adapter.plan(AcquisitionRequest("SYN", CLASSIFICATION, tuple(artifacts), tmp_path))
+    result = adapter.acquire(plan)
+    assert result.failures == ()
+    assert result.status == "VALID"
+    assert len(result.records) == 2
 
 
 def _package_manifest(path: str, raw: bytes) -> dict:

@@ -338,8 +338,16 @@ def test_extract_ps1_declares_unique_safe_names() -> None:
     assert "ComputeHash" in ps1
 
 
-def test_extract_ps1_safe_names_are_unique_on_collide() -> None:
-    import re
+def test_extract_ps1_safe_names_keep_the_original_object_name() -> None:
+    """Export filenames must carry the object's real name.
+
+    An earlier version replaced every non-``[A-Za-z0-9_.-]`` character with an
+    underscore, which turned a whole Japanese application into unreadable
+    ``_______-84e869a1.txt`` files - and then needed a hash suffix to undo the
+    collisions that sanitize had just created. This asserts the opposite policy,
+    matching ``tools/ExportAccessObjects.bas``: keep the name, alter only what the
+    filesystem forbids, and suffix a digest only when something had to change.
+    """
     import shutil
 
     powershell = shutil.which("powershell") or shutil.which("pwsh")
@@ -352,10 +360,10 @@ def test_extract_ps1_safe_names_are_unique_on_collide() -> None:
     command = (
         "$ErrorActionPreference='Stop';"
         f"$c = Get-Content -Raw -LiteralPath '{script}';"
-        "$m = [regex]::Match($c, '(?ms)^function Get-SafeName\\(.*?^\\}');"
-        "if (-not $m.Success) { throw 'Get-SafeName not found' };"
-        "Invoke-Expression $m.Value;"
-        "$names = @('***','///','@@@','Form1','');"
+        "$m = [regex]::Matches($c, '(?ms)^function Get-(SafeName|NameDigest)\\(.*?^\\}');"
+        "if ($m.Count -lt 2) { throw 'Get-SafeName/Get-NameDigest not found' };"
+        "$m | ForEach-Object { Invoke-Expression $_.Value };"
+        "$names = @('共通ルーチン','q受注データ','Form1','a/b','c:d','');"
         "($names | ForEach-Object { Get-SafeName $_ }) -join [char]10"
     )
     result = subprocess.run(
@@ -366,10 +374,17 @@ def test_extract_ps1_safe_names_are_unique_on_collide() -> None:
     )
     assert result.returncode == 0, result.stderr
     safe = [line.strip() for line in result.stdout.splitlines() if line.strip()]
-    assert len(safe) == 5, safe
-    assert len(set(safe)) == 5, f"safe names collide: {safe}"
-    for name in safe:
-        assert re.fullmatch(r"[A-Za-z0-9_.-]+", name), name
+    assert len(safe) == 6, safe
+    assert len(set(safe)) == 6, f"safe names collide: {safe}"
+    japanese, query, ascii_name, slash, colon, empty = safe
+    # A name the filesystem accepts is used verbatim - no sanitize, no digest.
+    assert japanese == "共通ルーチン", japanese
+    assert query == "q受注データ", query
+    assert ascii_name == "Form1", ascii_name
+    # Only genuinely illegal characters are replaced, and then the digest keeps the
+    # altered name distinct from any other name that sanitized to the same string.
+    assert slash.startswith("a_b-") and colon.startswith("c_d-"), (slash, colon)
+    assert empty.startswith("object-"), empty
 
 
 def test_vba_export_tool_present() -> None:

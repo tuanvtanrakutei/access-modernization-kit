@@ -69,6 +69,8 @@ def _artifact_dict(artifact: Any) -> dict[str, Any]:
         data["format"] = artifact.format
     if artifact.backend_kind:
         data["backend_kind"] = artifact.backend_kind
+    if artifact.runtime:
+        data["runtime"] = dict(artifact.runtime)
     return data
 
 
@@ -118,7 +120,7 @@ def run_acquisition(
             runtime_output_root=str(Path(output_root) / "staging"),
         )
         contributions.append(adapter.normalize(adapter.acquire(plan)))
-    capabilities = _capabilities(contributions)
+    capabilities = _capabilities(contributions) | _declaration_capabilities(manifest.artifacts)
     readiness = phase_readiness_contract.compute_readiness(
         classification, PROFILES, capabilities
     )
@@ -146,6 +148,24 @@ def _contribution_failures(contributions: list[dict[str, Any]]) -> list[dict[str
         [failure for contribution in contributions for failure in contribution["failures"]],
         key=lambda item: (item.get("logical_id", ""), item.get("reason", "")),
     )
+
+
+def _declaration_capabilities(artifacts: tuple[Any, ...]) -> set[str]:
+    """Capabilities the manifest itself establishes, not the extracted evidence.
+
+    ``backend_authority_declared`` is required by the backend and split-topology
+    profile rules, but no adapter could ever report it - adapters describe what they
+    extracted, and this one is a statement about which store the project treats as
+    authoritative. Only the manifest can make it, and until it was read here Phase 1
+    stayed BLOCKED on a capability nothing in the package produced.
+    """
+    capabilities: set[str] = set()
+    if any(
+        artifact.role == "backend" and artifact.required and artifact.backend_kind
+        for artifact in artifacts
+    ):
+        capabilities.add("backend_authority_declared")
+    return capabilities
 
 
 def _capabilities(contributions: list[dict[str, Any]]) -> set[str]:

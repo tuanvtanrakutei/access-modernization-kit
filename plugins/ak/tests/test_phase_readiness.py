@@ -82,3 +82,30 @@ def test_fixture_matrix_matches_expected_readiness() -> None:
         actual = compute_readiness(classification, PROFILES, set(spec["present_capabilities"]))
         for phase, expected in spec["expected"].items():
             assert actual[phase]["status"] == expected, (case, phase)
+
+
+# backend_authority_declared is required by the backend and split-topology profile
+# rules, but no adapter can report it: adapters describe extracted evidence, while
+# this is the project's statement about which store is authoritative. Nothing in the
+# package produced it, so Phase 1 stayed BLOCKED on an unreachable capability.
+def test_a_declared_required_backend_supplies_backend_authority(tmp_path) -> None:
+    import sys
+    from pathlib import Path
+
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "contracts"))
+    from acquisition_orchestrator import _declaration_capabilities
+    from manifest_v22 import Artifact, SourceRef
+
+    def artifact(role: str, required: bool, backend_kind: str | None) -> Artifact:
+        return Artifact(
+            id="DATA", kind="access_database", role=role, acquisition="managed",
+            required=required, source_ref=SourceRef("local_path", "sources/access/data.mdb"),
+            format="mdb", backend_kind=backend_kind,
+        )
+
+    declared = artifact("backend", True, "access_file")
+    assert _declaration_capabilities((declared,)) == {"backend_authority_declared"}
+    # An optional backend, or one whose kind is left unstated, is not a declaration.
+    assert _declaration_capabilities((artifact("backend", False, "access_file"),)) == set()
+    assert _declaration_capabilities((artifact("backend", True, None),)) == set()
+    assert _declaration_capabilities((artifact("frontend", True, "access_file"),)) == set()

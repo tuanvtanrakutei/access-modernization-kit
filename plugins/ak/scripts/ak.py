@@ -102,9 +102,24 @@ def parse_args() -> argparse.Namespace:
     init.add_argument("--source", help="Path to source directory or ZIP archive to auto-import and scan.")
     init.add_argument("--runtime", default="generic", help="Agent runtime label (default: generic).")
 
+    import_sources = commands.add_parser(
+        "import-sources",
+        help="Write the producer manifest an already-exported source tree needs to be imported.",
+    )
+    import_sources.add_argument("--source", required=True, help="Export directory that becomes the import package.")
+    import_sources.add_argument("--producer-id", required=True, help="What produced the export.")
+    import_sources.add_argument("--producer-version", required=True, help="Version of that producer.")
+    import_sources.add_argument("--logical-id-prefix", required=True, help="Prefix for each file's logical id, normally the artifact id.")
+    import_sources.add_argument("--allow-unclassified", action="store_true", help="Declare files in unrecognized directories as metadata instead of failing.")
+    import_sources.add_argument("--dry-run", action="store_true", help="Report the plan without writing the manifest.")
+
     preflight = commands.add_parser("preflight", help="Check capabilities and manifest before any analysis.")
     preflight.add_argument("--app-root", required=True, help="Initialized app workspace directory.")
     preflight.add_argument("--runtime", default="generic", help="Agent runtime label (default: generic).")
+    preflight.add_argument(
+        "--verify-access-activation", action="store_true",
+        help="Actually activate and release Access so a READY status predicts whether extraction can run.",
+    )
 
     graphify = commands.add_parser("graphify", help="Prepare or validate the mandatory Graphify phase gate.")
     graphify.add_argument("action", choices=("prepare", "check", "finalize"))
@@ -148,6 +163,16 @@ def parse_args() -> argparse.Namespace:
 
 
 def print_json(value: object) -> None:
+    # Two separate problems. A console codepage such as cp932 cannot encode every
+    # character a real report carries, and an encode error here threw away the whole
+    # result after the work was done. And when stdout is redirected, the locale
+    # encoding would write a JSON file that is not UTF-8 and has lost characters to
+    # replacement. Emitting UTF-8 keeps redirected reports machine-readable and
+    # lossless; a legacy console renders non-ASCII as mojibake either way.
+    try:
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    except (AttributeError, ValueError):
+        pass
     print(json.dumps(value, ensure_ascii=False, indent=2, sort_keys=True))
 
 
@@ -291,6 +316,18 @@ def main() -> int:
         else:
             print_json(classification_result(manifest_data.classification, manifest_data.profile))
         return 0
+    if args.command == "import-sources":
+        import_args = [
+            "--source", args.source,
+            "--producer-id", args.producer_id,
+            "--producer-version", args.producer_version,
+            "--logical-id-prefix", args.logical_id_prefix,
+        ]
+        if args.allow_unclassified:
+            import_args.append("--allow-unclassified")
+        if args.dry_run:
+            import_args.append("--dry-run")
+        return run("build_import_manifest.py", *import_args)
     if args.command == "manifest":
         from migration import propose_migration
 
@@ -432,12 +469,14 @@ def main() -> int:
     if not manifest.is_file():
         print(f"ERROR: manifest not found: {manifest}")
         return 2
-    return run(
-        "preflight.py",
+    preflight_args = [
         "--package", str(PACKAGE),
         "--runtime", args.runtime,
         "--manifest", str(manifest),
-    )
+    ]
+    if args.verify_access_activation:
+        preflight_args.append("--verify-access-activation")
+    return run("preflight.py", *preflight_args)
 
 
 if __name__ == "__main__":

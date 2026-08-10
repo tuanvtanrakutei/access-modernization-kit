@@ -56,6 +56,11 @@ class ManagedAccessAdapter:
                 "--output-dir", plan.runtime_output_root, "--session-id", plan.acquisition_id,
                 "--execute",
             ]
+            # Runtime choices declared per artifact in the manifest. Without this the
+            # extractor's own remedies - pinning an Access install, skipping the host
+            # that a broken VBA project would stall, raising the timeout, supplying a
+            # password - were unreachable through acquisition.
+            command += _runtime_flags(artifact.get("runtime") or {})
             extraction = _find_extraction(
                 Path(plan.runtime_output_root), artifact["id"], plan.acquisition_id
             )
@@ -64,11 +69,19 @@ class ManagedAccessAdapter:
                     "logical_id": artifact["id"], "reason": "STALE_EXTRACTION_RESULT"
                 })
                 continue
-            completed = subprocess.run(command, check=False, capture_output=True, text=True, encoding="utf-8")
+            # PowerShell writes diagnostics in the console codepage, not UTF-8. On a
+            # Japanese Windows host a strict utf-8 decode raised UnicodeDecodeError
+            # inside subprocess's reader threads, so the extractor's own explanation
+            # of the failure never reached the caller - only a bare returncode did.
+            completed = subprocess.run(
+                command, check=False, capture_output=True, text=True,
+                encoding="utf-8", errors="replace",
+            )
             if completed.returncode != 0:
                 failures.append({
                     "logical_id": artifact["id"], "reason": "EXTRACTOR_FAILED",
                     "returncode": completed.returncode,
+                    "detail": _tail(completed.stderr) or _tail(completed.stdout),
                 })
                 continue
             if not extraction.is_file():
@@ -77,7 +90,10 @@ class ManagedAccessAdapter:
                     "returncode": completed.returncode,
                 })
                 continue
-            data = json.loads(extraction.read_text(encoding="utf-8"))
+            # utf-8-sig, not utf-8: the PowerShell extractor writes this file with a
+            # BOM, which json.loads rejects. Every real extraction failed here while
+            # the tests passed, because a Python-written fixture has no BOM.
+            data = json.loads(extraction.read_text(encoding="utf-8-sig"))
             records.append(data)
             hashes[artifact["id"]] = data["source"]["sha256"]
         status = "BLOCKED" if failures and not records else ("PARTIAL" if failures or any(r["status"] == "PARTIAL" for r in records) else "VALID")
@@ -93,6 +109,7 @@ class ManagedAccessAdapter:
         for extraction in result.records:
             for component in extraction.get("components", []):
                 _route_component(sections, extraction["database_id"], component)
+            _route_table_detail(sections, extraction["database_id"], extraction.get("tables", []))
             failures.extend({"logical_id": extraction["database_id"], "reason": warning} for warning in extraction.get("warnings", []))
         contribution = {
             "adapter_id": self.adapter_id, "adapter_version": self.adapter_version, "app_id": result.app_id,
@@ -124,16 +141,86 @@ def _access_capabilities(sections: dict[str, Any]) -> list[str]:
         capabilities.add("boundary_inventory")
     return sorted(capabilities)
 
+_RUNTIME_VALUE_FLAGS = {
+    "access_progid": "--access-progid",
+    "dao_progid": "--dao-progid",
+    "access_path": "--access-path",
+    "powershell": "--powershell",
+    "password_env": "--password-env",
+    "timeout": "--timeout",
+}
+_RUNTIME_SWITCH_FLAGS = {
+    "skip_object_export": "--skip-object-export",
+    "skip_object_inventory": "--skip-object-inventory",
+    "visible_host": "--visible-host",
+    "allow_run_as_invoker": "--allow-run-as-invoker",
+    "skip_runtime_check": "--skip-runtime-check",
+}
+
+
+def _runtime_flags(runtime: dict[str, Any]) -> list[str]:
+    """Translate an artifact's declared runtime block into extractor flags.
+
+    Unknown keys are ignored rather than passed through, so a manifest can never
+    inject arbitrary arguments into the extractor's command line.
+    """
+    flags: list[str] = []
+    for key, flag in _RUNTIME_VALUE_FLAGS.items():
+        value = runtime.get(key)
+        if value not in (None, ""):
+            flags += [flag, str(value)]
+    for key, flag in _RUNTIME_SWITCH_FLAGS.items():
+        if runtime.get(key):
+            flags.append(flag)
+    return flags
+
+
+def _route_table_detail(sections: dict[str, Any], database_id: str, tables: list[dict[str, Any]]) -> None:
+    """Flatten per-table field and index detail into the bundle's own sections.
+
+    The extractor collects both, but they arrive nested under each table rather
+    than as the flat inventories the contribution declares. Without this the
+    fields and indexes lists stayed empty no matter how complete the extraction
+    was, and field_inventory / key_index_inventory - two of the three
+    capabilities Phase 1 requires - could never be reported.
+    """
+    for table in tables:
+        table_name = table.get("name", "")
+        for field in table.get("fields", []) or []:
+            sections["databases"]["fields"].append({"database_id": database_id, "table": table_name, **field})
+        for index in table.get("indexes", []) or []:
+            sections["databases"]["indexes"].append({"database_id": database_id, "table": table_name, **index})
+
+
+def _tail(stream: str | None, limit: int = 800) -> str:
+    text = (stream or "").strip()
+    return text[-limit:] if text else ""
+
+
 def _find_extraction(root: Path, database_id: str, acquisition_id: str) -> Path:
     return root / database_id / acquisition_id / "access-extraction.json"
 
 def _route_component(sections: dict[str, Any], database_id: str, component: dict[str, Any]) -> None:
     record = {"database_id": database_id, **{k: v for k, v in component.items() if k not in {"path", "source_path", "snapshot_path"}}}
-    kind = str(component.get("type", component.get("object_type", "object"))).lower()
+    # The bundle keys and sorts code records by logical_id. The extractor calls its
+    # own key "id", so assembly raised KeyError on every managed-access contribution.
+    record.setdefault("logical_id", record.get("id") or record.get("name", ""))
+    # extract_access.ps1 emits its object class under "kind"; this router only ever
+    # read "type"/"object_type", so every component - forms, reports, queries,
+    # modules alike - fell through to databases.objects. The UI, code and interface
+    # sections stayed empty, and with them the capabilities that unblock phases 1-3.
+    kind = str(component.get("kind", component.get("type", component.get("object_type", "object")))).lower()
+    metadata = component.get("metadata") or {}
     if "vba" in kind or kind == "module": sections["code"]["vba"].append(record)
     elif "query" in kind: sections["code"]["access_sql"].append(record)
     elif kind == "form": sections["ui"]["forms"].append(record)
     elif kind == "report": sections["ui"]["reports"].append(record)
     elif kind == "macro": sections["ui"]["macros"].append(record)
     elif "linked" in kind: sections["interfaces"]["linked_tables"].append(record)
+    elif kind == "table":
+        sections["databases"]["tables"].append(record)
+        # A linked table is both schema and a boundary. It is declared by the
+        # extractor as a table carrying metadata.linked, never as its own kind.
+        if metadata.get("linked"):
+            sections["interfaces"]["linked_tables"].append(record)
     else: sections["databases"]["objects"].append(record)

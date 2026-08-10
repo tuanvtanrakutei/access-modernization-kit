@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import hashlib
 import json
-import re
 import stat
 import unicodedata
 import zipfile
@@ -75,10 +74,20 @@ def confined(root: Path, declared: str) -> Path:
         raise ValueError("PATH_ESCAPE") from exc
     return candidate
 
-def _safe_name(record: dict[str, Any]) -> str:
+def _comparable_name(record: dict[str, Any]) -> str:
+    """A name key for detecting two records that are really the same object.
+
+    NFKC and casefold are the point: Access object names are case-insensitive, and
+    half-width and full-width forms of the same name refer to one object. Non-ASCII
+    characters are kept. An earlier version also replaced every non-``[a-z0-9._-]``
+    run with an underscore, which collapsed every Japanese name onto the same key and
+    made the adapter report ARTIFACT_CONFLICT between completely unrelated objects -
+    blocking imported acquisition for exactly the applications this kit targets.
+    Bundle files are named from a hash of the logical id, not from this value, so
+    there is no filesystem collision to defend against here.
+    """
     raw = str(record.get("object_name") or Path(record["logical_id"]).stem)
-    normalized = unicodedata.normalize("NFKC", raw).casefold()
-    return re.sub(r"[^a-z0-9._-]+", "_", normalized).strip("._")
+    return unicodedata.normalize("NFKC", raw).casefold()
 
 def detect_record_conflicts(records: list[dict[str, Any]]) -> list[dict[str, str]]:
     failures: list[dict[str, str]] = []
@@ -90,7 +99,7 @@ def detect_record_conflicts(records: list[dict[str, Any]]) -> list[dict[str, str
         if logical_id in logical_ids and logical_ids[logical_id] != digest:
             failures.append({"logical_id": logical_id, "reason": "DUPLICATE_MISMATCH"})
         logical_ids.setdefault(logical_id, digest)
-        name_key = (record["kind"], _safe_name(record))
+        name_key = (record["kind"], _comparable_name(record))
         previous = safe_names.get(name_key)
         if previous and previous[0] != logical_id and previous[1] != digest:
             failures.append({"logical_id": logical_id, "reason": "ARTIFACT_CONFLICT"})
@@ -197,6 +206,12 @@ class ImportedSourcesAdapter:
         failures: list[dict[str, Any]] = []
         hashes: dict[str, str] = {}
         for operation in plan.operations:
+            # Conflicts are detected within one package, never across packages. A split
+            # application legitimately holds a same-named query in its frontend and its
+            # backend, and each export carries its own schema and manifest summary;
+            # pooling every artifact's records made those normal duplicates fail the
+            # whole import.
+            package_records: list[dict[str, Any]] = []
             artifact = operation["artifact"]
             source = Path(operation["source"])
             if operation["is_package"]:
@@ -212,8 +227,10 @@ class ImportedSourcesAdapter:
                     if sha256_bytes(raw) != item["sha256"]:
                         failures.append({"logical_id": item["logical_id"], "reason": "HASH_MISMATCH"})
                         continue
-                    records.append(_record(item, raw))
+                    package_records.append(_record(item, raw))
                     hashes[item["logical_id"]] = item["sha256"]
+                failures.extend(detect_record_conflicts(package_records))
+                records.extend(package_records)
                 continue
             raw = source.read_bytes()
             digest = sha256_bytes(raw)
@@ -222,9 +239,13 @@ class ImportedSourcesAdapter:
                 "kind": _declared_kind(artifact), "role": artifact["role"],
                 "sha256": digest, "encoding": artifact.get("encoding"),
             }
-            records.append(_record(item, raw))
+            package_records.append(_record(item, raw))
             hashes[artifact["id"]] = digest
-        failures.extend(detect_record_conflicts(records))
+            # A single declared file is its own package for conflict purposes: the
+            # DUPLICATE_MISMATCH check still applies if the same logical id is declared
+            # twice with different content.
+            failures.extend(detect_record_conflicts(package_records))
+            records.extend(package_records)
         status = "INVALID" if failures else "VALID"
         return AcquisitionResult(plan.app_id, self.adapter_id, self.adapter_version, status, tuple(records), tuple(failures), hashes)
 

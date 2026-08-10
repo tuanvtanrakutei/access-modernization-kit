@@ -37,6 +37,10 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--manifest", help="Optional app manifest")
     parser.add_argument("--output", help="Optional JSON report path")
     parser.add_argument("--skip-skill-scan", action="store_true")
+    parser.add_argument(
+        "--verify-access-activation", action="store_true",
+        help="Actually activate and release Access.Application, so a READY status predicts whether extraction can run. Off by default because it starts Access.",
+    )
     return parser.parse_args()
 
 
@@ -81,9 +85,23 @@ def manifest_needs(path: Path | None) -> dict[str, bool]:
         needs["pdf"] = ".pdf" in text
         needs["html"] = bool(derived.get("e2e_html") or derived.get("boundary_html"))
         needs["pptx"] = bool(derived.get("presentation_pptx") or data.get("outputs", {}).get("presentation_template"))
-        needs["live_sql"] = bool(sql_live.get("enabled"))
-        needs["access"] = bool(access_sources)
-        needs["adp"] = any(isinstance(item, dict) and item.get("format") == "adp" for item in access_sources)
+        # A V2.2 manifest declares its inputs as `artifacts`, not under `sources`, so
+        # reading only the V2.1 shape reported every capability as unneeded - including
+        # Access itself on an Access-only project.
+        artifacts = data.get("artifacts") or []
+        access_artifacts = [
+            item for item in artifacts
+            if isinstance(item, dict) and item.get("kind") == "access_database"
+        ]
+        needs["live_sql"] = bool(sql_live.get("enabled")) or any(
+            isinstance(item, dict) and str(item.get("kind", "")).startswith("sql_server")
+            for item in artifacts
+        )
+        needs["access"] = bool(access_sources) or bool(access_artifacts)
+        needs["adp"] = any(
+            isinstance(item, dict) and item.get("format") == "adp"
+            for item in list(access_sources) + access_artifacts
+        )
         needs["compdb"] = bool(build.get("compilation_databases") or build.get("compile_flags"))
     except (ImportError, AttributeError, TypeError, ValueError):
         needs["graphify"] = "graphify:" in text
@@ -100,20 +118,26 @@ def manifest_needs(path: Path | None) -> dict[str, bool]:
     return needs
 
 
-def windows_access_capabilities() -> dict[str, object]:
+def windows_access_capabilities(verify_activation: bool = False) -> dict[str, object]:
     """Report Access automation capability, delegating to the shared runtime probe.
 
     The richer discovery in access_runtime.py adds bitness-matched PowerShell
     host selection on top of the registry checks. Backward-compatible keys are
     preserved so existing report consumers keep working; a lightweight
     registry-only fallback runs if the shared module cannot be imported.
+
+    Discovery alone is not predictive: a registered, bitness-matched Access can still
+    fail to activate (an elevation-flagged install returns 0x800702E4), so a READY
+    status here was reported for a runtime extraction could not actually use.
+    ``activation_verified`` states plainly whether a real activation was attempted.
     """
     try:
         from access_runtime import inspect_access_runtime
     except ImportError:
         return _legacy_windows_access_capabilities()
-    report = inspect_access_runtime(smoke_test=False)
+    report = inspect_access_runtime(smoke_test=verify_activation)
     views = report.get("registry", {}).get("views", {})
+    activation = report.get("activation", {})
     return {
         "windows": report["platform"] == "Windows",
         "process_bitness": report["python_process_bitness"],
@@ -124,6 +148,9 @@ def windows_access_capabilities() -> dict[str, object]:
         "selected_host": report["selected_host"],
         "runtime_status": report["status"],
         "runasadmin_detected": report["runasadmin_detected"],
+        "activation_verified": bool(activation.get("tested")),
+        "activation": activation,
+        "appcompat_flags": report.get("appcompat_flags", []),
     }
 
 
@@ -314,7 +341,7 @@ def main() -> int:
     }
     modules = {name: importlib.util.find_spec(name) is not None for name in MODULES}
     executables = {name: shutil.which(name) is not None for name in EXECUTABLES}
-    access = windows_access_capabilities()
+    access = windows_access_capabilities(verify_activation=args.verify_access_activation)
     graphify_runtime = managed_graphify_capabilities()
     skills = [] if args.skip_skill_scan else discover_skills()
 
@@ -335,6 +362,24 @@ def main() -> int:
         recommendations.append("Install pyodbc and Microsoft ODBC Driver only after live SQL access is authorized.")
     if needs["access"] and not access["access_com_registered"]:
         recommendations.append("Access automation is not registered; keep existing exports or run snapshot extraction on a compatible Windows host with Microsoft Access/ACE.")
+    if needs["access"] and access["access_com_registered"] and not access.get("activation_verified"):
+        recommendations.append(
+            "Access is registered but no activation was attempted, so this status does not predict whether extraction can run. "
+            "Re-run with --verify-access-activation, or use the DAO-only tier (runtime.skip_object_export) which needs no Access host."
+        )
+    # An elevation-flagged Access cannot be worked around from inside the process:
+    # __COMPAT_LAYER=RunAsInvoker is set on the PowerShell host, while the COM server
+    # is launched by the service and does not inherit it. Name the remedy that works.
+    if needs["access"] and access.get("runasadmin_detected"):
+        flags = ", ".join(
+            f"{flag.get('hive')}:{flag.get('value')}" for flag in access.get("appcompat_flags", []) or []
+        )
+        recommendations.append(
+            "The registered Access executable carries a RUNASADMIN compatibility flag, so COM activation fails with 0x800702E4. "
+            "--allow-run-as-invoker cannot fix this: it sets __COMPAT_LAYER on the PowerShell host, but the COM server is launched "
+            "by the service and does not inherit it. Remove RUNASADMIN from the AppCompatFlags\\Layers value for that executable, "
+            f"or run from an elevated terminal. Detected: {flags or 'no value read'}"
+        )
     if needs["adp"]:
         recommendations.append("ADP extraction requires a compatible legacy Access environment; do not assume modern Access can open the project.")
     if needs["compdb"]:

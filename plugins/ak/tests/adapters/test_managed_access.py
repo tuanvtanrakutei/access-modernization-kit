@@ -113,3 +113,171 @@ def test_acquire_rejects_nonzero_extractor_without_receipt(monkeypatch, tmp_path
     result = ManagedAccessAdapter().acquire(plan)
     assert result.status == "BLOCKED"
     assert result.failures[0]["reason"] == "EXTRACTOR_FAILED"
+
+
+def _extraction(**overrides: object) -> dict:
+    data = {
+        "schema_version": "2.1", "database_id": "DATA", "session_id": "s1",
+        "source": {"path": "<ORIGINAL_REDACTED_BY_ADAPTER>", "format": "mdb", "sha256": "a" * 64},
+        "snapshot": {"path": "s", "sha256": "a" * 64},
+        "status": "EXTRACTED",
+        "runtime": {}, "project_context": {}, "components": [], "warnings": [],
+    }
+    data.update(overrides)
+    return data
+
+
+# extract_access.ps1 labels every object with "kind"; the router used to read only
+# "type"/"object_type", so a real extraction landed entirely in databases.objects
+# and the ui/code sections stayed empty no matter how complete it was.
+def test_normalize_routes_the_kind_key_the_extractor_actually_emits() -> None:
+    data = _extraction(components=[
+        {"kind": "table", "name": "T", "metadata": {"linked": False}},
+        {"kind": "query", "name": "q", "metadata": {}},
+        {"kind": "form", "name": "F", "metadata": {}},
+        {"kind": "report", "name": "R", "metadata": {}},
+        {"kind": "macro", "name": "M", "metadata": {}},
+        {"kind": "module", "name": "Mod", "metadata": {}},
+    ])
+    adapter = ManagedAccessAdapter()
+    contribution = adapter.normalize(adapter.result_from_extraction("SYN", data))
+    assert contribution["databases"]["objects"] == []
+    assert len(contribution["databases"]["tables"]) == 1
+    assert len(contribution["code"]["access_sql"]) == 1
+    assert len(contribution["code"]["vba"]) == 1
+    assert len(contribution["ui"]["forms"]) == 1
+    assert len(contribution["ui"]["reports"]) == 1
+    assert len(contribution["ui"]["macros"]) == 1
+
+
+# A linked table is declared as a table carrying metadata.linked, never as its own
+# kind, so routing on kind alone lost every boundary the application depends on.
+def test_normalize_records_a_linked_table_as_both_schema_and_boundary() -> None:
+    data = _extraction(components=[
+        {"kind": "table", "name": "Orders", "metadata": {"linked": True, "source_table_name": "order.txt"}},
+    ])
+    adapter = ManagedAccessAdapter()
+    contribution = adapter.normalize(adapter.result_from_extraction("SYN", data))
+    assert len(contribution["databases"]["tables"]) == 1
+    assert len(contribution["interfaces"]["linked_tables"]) == 1
+    assert "boundary_inventory" in contribution["provenance"]["capabilities"]
+
+
+# Field and index detail used to stop at schema/tables.json, which normalize never
+# reads, so field_inventory and key_index_inventory could not be reported at all.
+def test_normalize_flattens_table_detail_into_field_and_index_inventories() -> None:
+    data = _extraction(
+        components=[{"kind": "table", "name": "Orders", "metadata": {"linked": False}}],
+        tables=[{
+            "name": "Orders",
+            "fields": [{"name": "id", "type": 4, "size": 4, "required": True},
+                       {"name": "code", "type": 10, "size": 20, "required": False}],
+            "indexes": [{"name": "PrimaryKey", "primary": True, "unique": True, "fields": ["id"]}],
+        }],
+    )
+    adapter = ManagedAccessAdapter()
+    contribution = adapter.normalize(adapter.result_from_extraction("SYN", data))
+    assert len(contribution["databases"]["fields"]) == 2
+    assert len(contribution["databases"]["indexes"]) == 1
+    assert contribution["databases"]["fields"][0]["table"] == "Orders"
+    capabilities = contribution["provenance"]["capabilities"]
+    assert "field_inventory" in capabilities
+    assert "key_index_inventory" in capabilities
+
+
+# The whole point of the three capabilities above: without them Phase 1 is blocked
+# by its own baseline, however clean the database is. Phase 1 can still be held by
+# a profile rule (backend authority) - that is a separate, manifest-level gap, so
+# this asserts the baseline is satisfied rather than that the phase turns READY.
+def test_a_complete_access_extraction_satisfies_the_phase1_baseline() -> None:
+    from classification import Classification
+    from phase_readiness import compute_readiness
+
+    data = _extraction(
+        components=[
+            {"kind": "table", "name": "Orders", "metadata": {"linked": False}},
+            {"kind": "table", "name": "Feed", "metadata": {"linked": True}},
+            {"kind": "query", "name": "q", "metadata": {}},
+            {"kind": "form", "name": "F", "metadata": {}},
+        ],
+        tables=[{
+            "name": "Orders",
+            "fields": [{"name": "id", "type": 4, "size": 4, "required": True}],
+            "indexes": [{"name": "PrimaryKey", "primary": True, "unique": True, "fields": ["id"]}],
+        }],
+    )
+    adapter = ManagedAccessAdapter()
+    contribution = adapter.normalize(adapter.result_from_extraction("SYN", data))
+    profiles = Path(__file__).resolve().parents[2] / "profiles"
+    readiness = compute_readiness(
+        Classification("split_file", "mdb", "full", ("access_file",)),
+        profiles,
+        set(contribution["provenance"]["capabilities"]),
+    )
+    assert "baseline.phase1" not in readiness["phase1"]["rule_ids"]
+    assert readiness["phase2"]["status"] == "READY"
+    assert readiness["phase3"]["status"] == "READY"
+
+
+# PowerShell writes diagnostics in the console codepage. A strict utf-8 decode blew
+# up subprocess's reader threads, so the extractor's own explanation never reached
+# the caller and every failure looked like a bare returncode.
+def test_extractor_failure_keeps_its_diagnostic_and_tolerates_console_codepage(monkeypatch, tmp_path: Path) -> None:
+    plan = _managed_plan(tmp_path)
+    seen: dict[str, object] = {}
+
+    def fake_run(command, **kwargs):
+        seen.update(kwargs)
+        return subprocess.CompletedProcess(command, 3, "", "Access is registered but COM activation failed.")
+
+    monkeypatch.setattr(subprocess, "run", fake_run)
+    result = ManagedAccessAdapter().acquire(plan)
+    assert seen["errors"] == "replace"
+    assert result.failures[0]["reason"] == "EXTRACTOR_FAILED"
+    assert "COM activation failed" in result.failures[0]["detail"]
+
+
+# The manifest schema allows extra artifact keys, and a declared runtime block is the
+# only way to reach the extractor's own remedies - pinning an install, skipping a
+# host a broken VBA project would stall, raising the timeout.
+def test_declared_runtime_reaches_the_extractor_command(monkeypatch, tmp_path: Path) -> None:
+    plan = _managed_plan(tmp_path)
+    plan.operations[0]["artifact"]["runtime"] = {
+        "access_progid": "Access.Application.11",
+        "skip_object_export": True,
+        "timeout": 900,
+        "unknown_key": "ignored",
+    }
+    seen: list[str] = []
+
+    def fake_run(command, **kwargs):
+        seen.extend(command)
+        return subprocess.CompletedProcess(command, 1, "", "no")
+
+    monkeypatch.setattr(subprocess, "run", fake_run)
+    ManagedAccessAdapter().acquire(plan)
+    assert "--access-progid" in seen and "Access.Application.11" in seen
+    assert "--skip-object-export" in seen
+    assert seen[seen.index("--timeout") + 1] == "900"
+    # An unrecognized key must never become a command-line argument.
+    assert "ignored" not in seen and "--unknown-key" not in seen
+
+
+# The extractor writes its receipt with a BOM. Reading it as plain utf-8 raised on
+# every real extraction while a Python-written test fixture passed.
+def test_receipt_is_read_even_with_a_byte_order_mark(monkeypatch, tmp_path: Path) -> None:
+    plan = _managed_plan(tmp_path)
+    receipt = Path(plan.runtime_output_root) / "FRONTEND" / plan.acquisition_id / "access-extraction.json"
+
+    def fake_run(command, **kwargs):
+        receipt.parent.mkdir(parents=True, exist_ok=True)
+        receipt.write_text(
+            json.dumps(_extraction(database_id="FRONTEND", status="EXTRACTED")),
+            encoding="utf-8-sig",
+        )
+        return subprocess.CompletedProcess(command, 0, "", "")
+
+    monkeypatch.setattr(subprocess, "run", fake_run)
+    result = ManagedAccessAdapter().acquire(plan)
+    assert result.status == "VALID"
+    assert result.source_hashes["FRONTEND"] == "a" * 64

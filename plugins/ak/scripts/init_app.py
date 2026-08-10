@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import re
 import shutil
@@ -15,6 +16,18 @@ import yaml
 
 
 APP_ID_RE = re.compile(r"^[A-Z][A-Z0-9_-]{1,15}$")
+# Folder names this kit's own extractor writes object definitions into.
+_EXPORT_CONTAINERS = {"forms": "form", "reports": "report", "macros": "macro", "vba": "vba"}
+
+
+def graphify_runtime_version() -> str:
+    """The pinned Graphify version, read from the package's own specification.
+
+    Taken from `specifications/graphify-runtime.json` rather than repeated here, so a
+    generated manifest cannot drift from the runtime the kit actually installs.
+    """
+    spec = Path(__file__).resolve().parent.parent / "specifications" / "graphify-runtime.json"
+    return str(json.loads(spec.read_text(encoding="utf-8"))["version"])
 SOURCE_DIRS = (
     "sources/vba",
     "sources/sql",
@@ -86,11 +99,23 @@ def discover_sources(app_root: Path) -> tuple[dict[str, Any], list[dict[str, Any
         suffix = file_path.suffix.lower()
         stem = file_path.stem
 
-        if suffix in (".bas", ".cls", ".vba"):
+        # This kit's own extractor writes object definitions as .txt under forms/,
+        # reports/, macros/ and vba/, and query SQL under queries/. Classifying by
+        # extension alone dropped all of it into the catch-all "sample" bucket, so the
+        # package did not recognize the output it had produced itself.
+        container = file_path.parent.name.lower()
+        if suffix == ".txt" and container in _EXPORT_CONTAINERS:
+            kind, fmt, role, acq = "source_export", _EXPORT_CONTAINERS[container], "frontend", "imported"
+        elif suffix == ".txt" and container == "schema":
+            kind, fmt, role, acq = "source_export", "table_schema", "backend", "imported"
+        elif suffix in (".bas", ".cls", ".vba"):
             kind, fmt, role, acq = "source_export", "vba", "frontend", "imported"
         elif suffix == ".sql":
             kind, fmt, role, acq = "source_export", "access_sql", "backend", "imported"
-            found_sql = True
+            # Query SQL exported out of an Access database is not evidence of a SQL
+            # Server backend. Only .sql outside a queries/ folder - the V2.1 layout's
+            # sources/sql/ - implies a server.
+            found_sql = found_sql or container != "queries"
         elif suffix in (".form", ".fmt", ".frm"):
             kind, fmt, role, acq = "source_export", "form", "frontend", "imported"
         elif suffix in (".report", ".rpt"):
@@ -108,7 +133,16 @@ def discover_sources(app_root: Path) -> tuple[dict[str, Any], list[dict[str, Any
         else:
             kind, fmt, role, acq = "sample", suffix[1:] if suffix else "text", "interface", "imported"
 
-        base_id = re.sub(r"[^A-Z0-9_]+", "_", stem.upper()).strip("_") or "ART"
+        # A Japanese name - the norm in this kit's target systems - loses every
+        # character to this sanitize, so distinct objects collapsed onto the same
+        # base and were then separated by an arrival-order counter: ART, ART_1,
+        # ART_2, unstable between runs whenever the file order changed. A short
+        # digest of the original name keeps the id unique and reproducible, the same
+        # technique extract_access.ps1 already uses for its filenames.
+        base_id = re.sub(r"[^A-Z0-9_]+", "_", stem.upper()).strip("_")
+        if not stem.isascii() or not base_id:
+            digest = hashlib.sha1(stem.encode("utf-8")).hexdigest()[:8].upper()
+            base_id = f"{base_id}_{digest}" if base_id else f"ART_{digest}"
         art_id = base_id
         idx = 1
         while art_id in seen_ids:
@@ -129,10 +163,29 @@ def discover_sources(app_root: Path) -> tuple[dict[str, Any], list[dict[str, Any
             },
         })
 
-    backend_kinds = ["sql_server"] if (found_sql or frontend_fmt == "adp") else ["embedded_access"]
+    # More than one Access database is a split application: a frontend holding the UI
+    # and code, and a separate file holding the data. Declaring it a monolith with two
+    # frontends - which is what this returned for every such app - is wrong three
+    # times over, and the wrong role is the costly one: nothing then declares an
+    # authoritative backend, so Phase 1 can never leave BLOCKED.
+    access_ids = [item["id"] for item in artifacts if item["kind"] == "access_database"]
+    split = len(access_ids) > 1
+    if split:
+        # Which file is authoritative cannot be read off the filesystem, and guessing
+        # wrong carries real rework, so the role is left explicitly unknown for a
+        # human to resolve rather than assigned by filename.
+        for item in artifacts:
+            if item["kind"] == "access_database":
+                item["role"] = "unknown"
+    if found_sql or frontend_fmt == "adp":
+        backend_kinds = ["sql_server"]
+    elif split:
+        backend_kinds = ["access_file"]
+    else:
+        backend_kinds = ["embedded_access"]
     source_avail = "full" if found_db else "exported_only"
     classification = {
-        "topology": "monolith",
+        "topology": "split_file" if split else "monolith",
         "frontend_format": frontend_fmt,
         "source_availability": source_avail,
         "backend_kinds": backend_kinds,
@@ -158,6 +211,22 @@ def manifest_v22_text(
             "classification": classification,
         },
         "artifacts": artifacts,
+        # Graphify is a mandatory phase gate, and a V2.2 manifest that omitted the
+        # block read as "not needed": preflight then skipped its runtime check and
+        # never warned that the gate could not run.
+        "graphify": {
+            "enabled": True,
+            "mode": "standard",
+            "output_dir": "graphify-out",
+            "link_shared_nodes": True,
+            "input_policy": "extracted_text_and_supported_sources",
+            "required_before_phases": True,
+            "install_policy": "auto_managed",
+            "runtime_version": graphify_runtime_version(),
+            "extras": ["pdf", "office"],
+            "refresh_policy": "before_each_phase",
+            "corpus_policy": "binary_free_normalized",
+        },
     }
     return yaml.safe_dump(data, sort_keys=False, allow_unicode=True)
 
@@ -350,6 +419,15 @@ def main() -> int:
         shutil.copy2(package_root / "templates" / source_name, app_root / target_name)
     verb = "Adopted existing workspace" if existing_nonempty else "Initialized"
     print(f"{verb} {app_root}")
+    # A role left unknown blocks Phase 1 by design, so say so here rather than letting
+    # it surface much later as an unexplained readiness failure.
+    undeclared = [item["id"] for item in discovered_artifacts if item.get("role") == "unknown"]
+    if undeclared:
+        print(
+            f"Split application detected ({classification['topology']}). Set role: backend and "
+            f"backend_kind on the authoritative database in manifest.yaml - Phase 1 stays BLOCKED "
+            f"until one is declared. Undeclared: {', '.join(undeclared)}"
+        )
     return 0
 
 
