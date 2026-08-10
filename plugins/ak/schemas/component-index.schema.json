@@ -5,6 +5,10 @@
   "required": ["schema_version", "app_id", "generated_at", "components"],
   "properties": {
     "schema_version": {"const": "2.1"}, "app_id": {"type": "string"}, "generated_at": {"type": "string", "format": "date-time"},
+    "extraction_indexes": {
+      "description": "Workspace-relative paths of the per-artifact extraction indexes this index was built from. Optional, so an index written before this field existed still validates. Without it there is no way to tell whether the schema half of the index came from the current acquisition or an older session left in the workspace.",
+      "type": "array", "items": {"type": "string"}
+    },
     "components": {"type": "array", "items": {"type": "object", "required": ["id", "kind", "name", "source_paths"], "properties": {
       "id": {"type": "string"}, "kind": {"type": "string"}, "name": {"type": "string"}, "container": {"type": "string"},
       "module_hint": {"type": "string"}, "source_paths": {"type": "array", "items": {"type": "string"}},

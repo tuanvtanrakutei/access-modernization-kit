@@ -179,3 +179,91 @@ def test_empty_bucket_falls_back_to_the_conventional_path() -> None:
 def test_every_extraction_consuming_role_can_see_the_acquisition_output() -> None:
     for role in ("access_extractor", "module_decomposer", "sql_data", "vba_ui", "file_interfaces"):
         assert create_tasks.ACQUISITION_INPUT in create_tasks.ROLE_INPUTS[role], role
+
+
+# --- the component index must see the real acquisition output ----------------------
+
+import build_component_index  # noqa: E402
+
+
+def _staging_index(app: Path, artifact: str, session: str, components: list[dict]) -> None:
+    path = app / "acquired" / "staging" / artifact / session / "component-index.json"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps({
+        "schema_version": "2.1", "app_id": "SYN",
+        "generated_at": "2026-08-10T00:00:00+00:00", "components": components,
+    }), encoding="utf-8")
+
+
+def _table(name: str, connect: str = "") -> dict:
+    metadata = {"linked": bool(connect), "source_table_name": name}
+    if connect:
+        metadata["connect"] = connect
+    return {
+        "id": f"SYN:table:{name}", "kind": "table", "name": name, "container": "data",
+        "module_hint": "data", "source_paths": ["schema/tables.json"], "depends_on": [],
+        "metadata": metadata,
+    }
+
+
+def _app(tmp_path: Path) -> Path:
+    app = tmp_path / "SYN"
+    (app / "sources").mkdir(parents=True)
+    (app / "manifest.yaml").write_text("version: '2.2'\napp:\n  id: SYN\n", encoding="utf-8")
+    return app
+
+
+# Acquisition writes the per-artifact index under acquired/staging; nothing ever writes
+# extracted/access. Reading only the legacy root produced an index with zero table
+# components on every real project, so module decomposition - and the leaf-first
+# processing order the whole pipeline follows - was computed with no schema at all.
+def test_index_reads_the_acquisition_staging_output(tmp_path: Path, monkeypatch) -> None:
+    app = _app(tmp_path)
+    _staging_index(app, "SYN_DB", "acq-01", [_table("受注データ")])
+    monkeypatch.setattr("sys.argv", ["build_component_index", "--app-root", str(app)])
+    build_component_index.main()
+    index = json.loads((app / "extracted" / "component-index.json").read_text(encoding="utf-8"))
+    kinds = [c["kind"] for c in index["components"]]
+    assert kinds.count("table") == 1
+    assert index["extraction_indexes"] == ["acquired/staging/SYN_DB/acq-01/component-index.json"]
+
+
+# Acquisition ids are operator-chosen and need not sort chronologically. Selecting the
+# last name alphabetically indexed an older extraction on a workspace holding both.
+def test_newest_session_wins_over_alphabetical_order(tmp_path: Path, monkeypatch) -> None:
+    app = _app(tmp_path)
+    _staging_index(app, "SYN_DB", "acq-prov-02", [_table("STALE")])
+    _staging_index(app, "SYN_DB", "acq-evid-01", [_table("CURRENT")])
+    stale = app / "acquired/staging/SYN_DB/acq-prov-02/component-index.json"
+    current = app / "acquired/staging/SYN_DB/acq-evid-01/component-index.json"
+    import os
+    os.utime(stale, (1_000_000, 1_000_000))
+    os.utime(current, (2_000_000, 2_000_000))
+    monkeypatch.setattr("sys.argv", ["build_component_index", "--app-root", str(app)])
+    build_component_index.main()
+    index = json.loads((app / "extracted" / "component-index.json").read_text(encoding="utf-8"))
+    assert [c["name"] for c in index["components"]] == ["CURRENT"]
+
+
+# The bundle builds its linked-table records from components, so a connect string that
+# reaches only the tables array leaves every boundary record without a target.
+def test_linked_table_connect_survives_into_the_index(tmp_path: Path, monkeypatch) -> None:
+    app = _app(tmp_path)
+    _staging_index(app, "SYN_DB", "acq-01", [_table("操作履歴", r";DATABASE=L:\share\data.mdb")])
+    monkeypatch.setattr("sys.argv", ["build_component_index", "--app-root", str(app)])
+    build_component_index.main()
+    index = json.loads((app / "extracted" / "component-index.json").read_text(encoding="utf-8"))
+    assert index["components"][0]["metadata"]["connect"] == r";DATABASE=L:\share\data.mdb"
+
+
+# The extractor captures connect for every table; both Add-Component call sites - the
+# readable path and the read-error path - must pass it on.
+def test_extractor_passes_connect_on_both_component_paths() -> None:
+    script = (Path(build_component_index.__file__).resolve().parent / "extract_access.ps1")
+    calls = [
+        line for line in script.read_text(encoding="utf-8").splitlines()
+        if "Add-Component $components 'table'" in line
+    ]
+    assert len(calls) == 2
+    for line in calls:
+        assert "connect = $connect" in line

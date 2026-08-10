@@ -50,11 +50,25 @@ def main() -> int:
     app_id = app_id_from_manifest(app_root)
     components: dict[str, dict] = {}
     referenced: set[str] = set()
-    access_root = app_root / "extracted" / "access"
+    # Acquisition writes its per-artifact component index under
+    # acquired/staging/<artifact>/<acquisition-id>/, and nothing ever writes
+    # extracted/access. Reading only the legacy root produced an index with zero table
+    # components on every real project, so module decomposition - and the leaf-first
+    # processing order the whole pipeline follows - was computed with no schema at all.
+    access_roots = [app_root / "acquired" / "staging", app_root / "extracted" / "access"]
     selected_indexes: list[Path] = []
-    for database_dir in sorted(path for path in access_root.glob("*") if path.is_dir()):
+    for database_dir in sorted(
+        path for root in access_roots if root.is_dir()
+        for path in root.glob("*") if path.is_dir()
+    ):
         direct = database_dir / "component-index.json"
-        candidates = sorted(database_dir.glob("*/component-index.json"))
+        # Newest session, not last alphabetically. Acquisition ids are operator-chosen
+        # and need not sort chronologically - on a workspace holding a05-evid-01 beside
+        # a05-prov-02, name order selected the older run and indexed a stale extraction.
+        candidates = sorted(
+            database_dir.glob("*/component-index.json"),
+            key=lambda path: (path.stat().st_mtime, path.as_posix()),
+        )
         if direct.is_file():
             selected_indexes.append(direct)
         elif candidates:
@@ -87,7 +101,15 @@ def main() -> int:
         if existing is not None and existing != item:
             raise SystemExit(f"Hash-based component collision: {component_id}")
         components[component_id] = item
-    result = {"schema_version": "2.1", "app_id": app_id, "generated_at": datetime.now(timezone.utc).isoformat(), "components": [components[key] for key in sorted(components)]}
+    result = {
+        "schema_version": "2.1", "app_id": app_id,
+        "generated_at": datetime.now(timezone.utc).isoformat(),
+        # Which extraction sessions this index was built from. Without it there is no way
+        # to tell whether the schema half of the index came from the current acquisition
+        # or an older one left in the workspace.
+        "extraction_indexes": [path.relative_to(app_root).as_posix() for path in selected_indexes],
+        "components": [components[key] for key in sorted(components)],
+    }
     rendered = json.dumps(result, ensure_ascii=False, indent=2) + "\n"
     if args.dry_run:
         print(rendered, end="")
