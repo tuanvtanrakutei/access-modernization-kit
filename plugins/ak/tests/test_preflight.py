@@ -136,3 +136,102 @@ def test_access_report_states_whether_activation_was_attempted(monkeypatch) -> N
     verified = preflight.windows_access_capabilities(verify_activation=True)
     assert verified["activation_verified"] is True
     assert calls == [False, True]
+
+
+_HYBRID = """
+version: '2.2'
+app:
+  id: A05
+  name_en: Product Assortment Support
+project:
+  classification:
+    topology: split_file
+    frontend_format: mdb
+    source_availability: full
+    backend_kinds:
+    - access_file
+artifacts:
+- id: A05_FRONTEND
+  kind: access_database
+  role: frontend
+  acquisition: managed
+  required: true
+  format: mdb
+  source_ref:
+    type: local_path
+    value: sources/access/app.mdb
+- id: A05_FRONTEND_EXPORT
+  kind: source_export
+  role: frontend
+  acquisition: imported
+  required: true
+  format: directory
+  source_ref:
+    type: local_path
+    value: sources/A05_FRONTEND
+"""
+
+
+def _hybrid_workspace(tmp_path: Path) -> Path:
+    manifest = _manifest(tmp_path, _HYBRID)
+    (tmp_path / "sources" / "access").mkdir(parents=True)
+    (tmp_path / "sources" / "access" / "app.mdb").write_bytes(b"stub")
+    (tmp_path / "sources" / "A05_FRONTEND" / "forms").mkdir(parents=True)
+    (tmp_path / "sources" / "A05_FRONTEND" / "forms" / "F受注入力.txt").write_text("Version =20\n", encoding="utf-8")
+    return manifest
+
+
+# Only a single-file export declares format: vba. A directory or zip package - the shape
+# the imported adapter requires - was recognized as neither VBA nor SQL, so an application
+# whose forms, reports and modules all arrived that way reported no exported sources at
+# all, and a hybrid project was labelled pure extract mode.
+def test_directory_export_package_counts_as_an_exported_source(tmp_path: Path) -> None:
+    manifest = _hybrid_workspace(tmp_path)
+    declared = preflight.manifest_source_paths(manifest)
+    assert declared["source_packages"] == ["sources/A05_FRONTEND"]
+    block, _ = preflight.input_preconditions(manifest, {"access": True}, {})
+    assert block["present"]["source_packages"] is True
+    assert block["mode"] == "mixed"
+
+
+# The mode describes which inputs were provided, nothing else. It used to be derived from
+# whether extraction was pending, so the same inputs read "mixed" before acquisition and
+# "export" afterwards.
+def test_mode_does_not_change_once_a_bundle_exists(tmp_path: Path) -> None:
+    manifest = _hybrid_workspace(tmp_path)
+    before, _ = preflight.input_preconditions(manifest, {"access": True}, {})
+    assert before["mode"] == "mixed"
+    assert before["needs_extraction"] is True
+    (tmp_path / "acquired" / "bundle-abc123").mkdir(parents=True)
+    after, _ = preflight.input_preconditions(manifest, {"access": True}, {})
+    assert after["mode"] == "mixed"
+    assert after["needs_extraction"] is False
+    assert after["present"]["acquisition_bundle"] is True
+
+
+# A published bundle is stronger evidence that acquisition ran than the legacy
+# extracted/access path, which current acquisition never writes.
+def test_published_bundle_satisfies_extracted_access(tmp_path: Path) -> None:
+    manifest = _hybrid_workspace(tmp_path)
+    assert preflight.input_preconditions(manifest, {"access": True}, {})[0]["present"]["extracted_access"] is False
+    (tmp_path / "acquired" / "bundle-abc123").mkdir(parents=True)
+    assert preflight.input_preconditions(manifest, {"access": True}, {})[0]["present"]["extracted_access"] is True
+
+
+# An export-only project must not be pushed toward the Access runtime it does not need.
+def test_export_only_project_is_not_reported_as_extract(tmp_path: Path) -> None:
+    manifest = _manifest(tmp_path, _HYBRID.replace("""- id: A05_FRONTEND
+  kind: access_database
+  role: frontend
+  acquisition: managed
+  required: true
+  format: mdb
+  source_ref:
+    type: local_path
+    value: sources/access/app.mdb
+""", ""))
+    (tmp_path / "sources" / "A05_FRONTEND" / "forms").mkdir(parents=True)
+    (tmp_path / "sources" / "A05_FRONTEND" / "forms" / "F.txt").write_text("x\n", encoding="utf-8")
+    block, _ = preflight.input_preconditions(manifest, {"access": False}, {})
+    assert block["mode"] == "export"
+    assert block["needs_extraction"] is False

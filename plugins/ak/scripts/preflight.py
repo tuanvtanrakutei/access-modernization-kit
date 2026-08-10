@@ -195,6 +195,10 @@ def manifest_source_paths(manifest: Path | None) -> dict[str, list[str]]:
         "sql": ["sources/sql"],
         "documents": ["sources/documents"],
         "japanese_documents": ["shared-docs"],
+        # Export packages: a directory or .zip carrying forms, reports, macros, modules
+        # and query SQL together, declared through their own producer manifest. There is
+        # no conventional default location for these - they are always declared.
+        "source_packages": [],
     }
     if not manifest or not manifest.is_file():
         return defaults
@@ -205,6 +209,7 @@ def manifest_source_paths(manifest: Path | None) -> dict[str, list[str]]:
         if str(data.get("version")) == "2.2":
             values: dict[str, list[str]] = {
                 "vba": [], "sql": [], "documents": [], "japanese_documents": [],
+                "source_packages": [],
             }
             for artifact in data.get("artifacts", []) or []:
                 if not isinstance(artifact, dict):
@@ -214,8 +219,17 @@ def manifest_source_paths(manifest: Path | None) -> dict[str, list[str]]:
                 if not isinstance(value, str) or not value.strip():
                     continue
                 kind = str(artifact.get("kind", ""))
-                if kind == "source_export" and artifact.get("format") == "vba":
+                fmt = str(artifact.get("format", ""))
+                if kind == "source_export" and fmt == "vba":
                     values["vba"].append(value)
+                # Only a single-file export declares format: vba. A directory or zip
+                # package - the shape the imported adapter requires, and the shape
+                # scripts/build_import_manifest.py produces - was recognized as neither
+                # VBA nor SQL, so an application whose forms, reports and modules all
+                # arrived that way was reported as having no exported sources at all,
+                # and a hybrid project was labelled pure extract mode.
+                elif kind == "source_export":
+                    values["source_packages"].append(value)
                 elif kind.startswith("sql_server"):
                     values["sql"].append(value)
                 elif kind == "document":
@@ -253,26 +267,38 @@ def scan_app_sources(app_root: Path, declared: dict[str, list[str]]) -> dict[str
         item.is_file() and item.suffix.lower() in {".mdb", ".accdb", ".adp"} for item in access_dir.rglob("*")
     )
     extracted = app_root / "extracted" / "access"
+    # A published acquisition bundle is stronger evidence that extraction already
+    # happened than the legacy extracted/access path, which current acquisition does
+    # not write - it stages under acquired/. Without this an app with a valid bundle
+    # still reported extracted_access false and was told to run extraction again.
+    acquired = app_root / "acquired"
+    bundled = acquired.is_dir() and any(
+        item.is_dir() and item.name.startswith("bundle-") for item in acquired.iterdir()
+    )
     vba_present = existing(declared["vba"])
     sql_present = existing(declared["sql"])
     document_present = existing(declared["documents"])
     japanese_present = existing(declared["japanese_documents"])
+    package_present = existing(declared.get("source_packages", []))
     return {
         "vba": bool(vba_present),
         "sql": bool(sql_present),
+        "source_packages": bool(package_present),
         "access_db": access_db,
         "screenshots": nonempty("sources/screenshots"),
         "reports": nonempty("sources/reports"),
         "documents": bool(document_present),
         "samples": nonempty("sources/samples"),
         "shared_docs": bool(japanese_present),
-        "extracted_access": extracted.is_dir() and any(item.is_file() for item in extracted.rglob("*")),
+        "extracted_access": (extracted.is_dir() and any(item.is_file() for item in extracted.rglob("*"))) or bundled,
+        "acquisition_bundle": bundled,
         "declared_paths": declared,
         "present_paths": {
             "vba": vba_present,
             "sql": sql_present,
             "documents": document_present,
             "japanese_documents": japanese_present,
+            "source_packages": package_present,
         },
     }
 
@@ -285,11 +311,25 @@ def input_preconditions(manifest: Path | None, needs: dict[str, bool], access: d
     declared = manifest_source_paths(manifest)
     present = scan_app_sources(app_root, declared)
     warnings: list[str] = []
-    has_export = present["vba"] or present["sql"] or present["extracted_access"]
+    has_export = (
+        present["vba"] or present["sql"] or present["extracted_access"]
+        or present["source_packages"]
+    )
     has_binary = bool(present["access_db"] or needs.get("access"))
     needs_extraction = has_binary and not present["extracted_access"]
-    if needs_extraction:
-        mode = "mixed" if has_export else "extract"
+    # The mode describes which inputs the operator provided, and nothing else. It used
+    # to be derived from whether extraction was still pending, so an application holding
+    # both a database and export packages reported "mixed" before acquisition and
+    # "export" afterwards - the same inputs described two different ways depending on
+    # work already done. What remains to be done is `needs_extraction`, reported
+    # separately below.
+    declared_export = has_export or bool(
+        declared["vba"] or declared["sql"] or declared.get("source_packages")
+    )
+    if has_binary and declared_export:
+        mode = "mixed"
+    elif has_binary:
+        mode = "extract"
     elif has_export:
         mode = "export"
     else:
@@ -313,6 +353,7 @@ def input_preconditions(manifest: Path | None, needs: dict[str, bool], access: d
     block: dict[str, object] = {
         "app_root": str(app_root),
         "mode": mode,
+        "needs_extraction": needs_extraction,
         "present": present,
         "recommended_missing": recommended_missing,
     }
