@@ -140,3 +140,59 @@ def test_reassembly_rejects_stale_extra_file_without_deleting_it(tmp_path: Path)
         assert stale.read_text(encoding="utf-8") == "stale"
         return
     raise AssertionError("stale target content must not be overwritten")
+
+
+def _assemble_one(tmp_path: Path, contribution: dict):
+    return assemble_bundle(
+        app_id="SYN", classification=_classification(), rule_versions={"topology": "1.0.0"},
+        contributions=[contribution], normalization_config={"text": "utf-8-lf"},
+        profile_validation={"status": "VALID"}, phase_readiness={"phase1": {"status": "LIMITED"}},
+        output_root=tmp_path,
+    )
+
+
+# A linked Access table records its target as two facts: Connect says where the data
+# lives, SourceTableName says what inside it. For a split Access application that target
+# is very often another .mdb, and naming it is the investigation's purpose. The suffix
+# rule rejected the structured field while letting the identical path through inside a
+# read_error sentence, so the guard blocked the machine-readable form of a fact the
+# bundle already carried as prose.
+def test_linked_table_boundary_target_may_name_an_external_database(tmp_path: Path) -> None:
+    contribution = _contribution("managed_access")
+    contribution["interfaces"]["linked_tables"].append({
+        "logical_id": "SYN:table:操作履歴", "name": "操作履歴", "database_id": "SYN",
+        "metadata": {
+            "linked": True,
+            "connect": r";DATABASE=L:\新品揃支援\XP\品揃支援data.mdb",
+            "source_table_name": "操作履歴",
+        },
+    })
+    result = _assemble_one(tmp_path, contribution)
+    assert result["bundle_id"]
+
+
+# The allowance is scoped to those two keys and nothing wider.
+def test_raw_binary_elsewhere_is_still_rejected(tmp_path: Path) -> None:
+    contribution = _contribution("managed_access")
+    contribution["databases"]["objects"].append({
+        "logical_id": "SYN:table:x", "source_paths": ["snapshot/legacy.mdb"],
+    })
+    try:
+        _assemble_one(tmp_path, contribution)
+    except ValueError as exc:
+        assert "forbidden raw binary" in str(exc)
+        return
+    raise AssertionError("a source path pointing at a raw database must still be rejected")
+
+
+def test_raw_binary_flag_is_still_rejected_inside_metadata(tmp_path: Path) -> None:
+    contribution = _contribution("managed_access")
+    contribution["interfaces"]["linked_tables"].append({
+        "logical_id": "SYN:table:y", "metadata": {"raw_path": "legacy.mdb", "raw_binary": True},
+    })
+    try:
+        _assemble_one(tmp_path, contribution)
+    except ValueError as exc:
+        assert "carries a raw database binary" in str(exc)
+        return
+    raise AssertionError("a raw_binary marker must still be rejected")

@@ -200,7 +200,12 @@ function Read-JetLayer($Database) {
                 $script:skippedTables++
             } else {
                 [void]$tables.Add([ordered]@{ name = $tableName; source_table_name = $sourceTableName; connect = $connect; attributes = [int]$table.Attributes; fields = $fields; indexes = $indexes; read_error = '' })
-                Add-Component $components 'table' $tableName 'schema/tables.json' 'data' @{ linked = $linked; source_table_name = $sourceTableName }
+                # connect belongs on the component too. The bundle builds its linked-table
+                # records from components, not from the tables array, so omitting it left the
+                # boundary half-recorded: source_table_name gave the file or table name while
+                # the location it lives in - here a mapped L: drive every linked table in the
+                # application depends on - reached the bundle only inside an error sentence.
+                Add-Component $components 'table' $tableName 'schema/tables.json' 'data' @{ linked = $linked; source_table_name = $sourceTableName; connect = $connect }
             }
         } catch {
             $script:status = 'PARTIAL'
@@ -210,7 +215,7 @@ function Read-JetLayer($Database) {
             # so an unreachable interface is recorded as a known boundary rather than
             # vanishing from the inventory.
             [void]$tables.Add([ordered]@{ name = $tableName; source_table_name = $sourceTableName; connect = $connect; attributes = 0; fields = @(); indexes = @(); read_error = $reason })
-            Add-Component $components 'table' $tableName 'schema/tables.json' 'data' @{ linked = $linked; source_table_name = $sourceTableName; read_error = $reason }
+            Add-Component $components 'table' $tableName 'schema/tables.json' 'data' @{ linked = $linked; source_table_name = $sourceTableName; connect = $connect; read_error = $reason }
         }
     }
     foreach ($relation in $Database.Relations) {

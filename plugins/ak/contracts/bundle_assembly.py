@@ -11,23 +11,34 @@ import jsonschema
 
 import bundle as bundle_contract
 
+# Where a legacy system's own external dependency is recorded. A linked Access table
+# keeps its target as two facts - Connect says where, SourceTableName says what - and for
+# a split Access application that target is very often another .mdb. Naming it is the
+# investigation's purpose, not a leak: the bundle still never carries a database and never
+# reads one. The suffix rule stays in force everywhere else, so a source_path or an
+# artifact reference to a raw binary is rejected exactly as before.
+BOUNDARY_TARGET_KEYS = frozenset({"connect", "source_table_name"})
+
+
 def _guard_no_binaries(contributions: list[dict[str, Any]]) -> None:
     for contribution in contributions:
-        for value in _walk(contribution):
-            if isinstance(value, dict) and (value.get("raw_binary") is True or "raw_path" in value):
-                raise ValueError("Contribution carries a raw database binary")
-            if isinstance(value, str) and Path(value).suffix.lower() in bundle_contract.FORBIDDEN_SUFFIXES:
-                raise ValueError("Contribution references a forbidden raw binary")
+        _guard_value(contribution, None)
 
-def _walk(value: Any) -> list[Any]:
-    found = [value]
+
+def _guard_value(value: Any, key: str | None) -> None:
     if isinstance(value, dict):
-        for item in value.values():
-            found.extend(_walk(item))
+        if value.get("raw_binary") is True or "raw_path" in value:
+            raise ValueError("Contribution carries a raw database binary")
+        for item_key, item in value.items():
+            _guard_value(item, item_key)
     elif isinstance(value, list):
         for item in value:
-            found.extend(_walk(item))
-    return found
+            _guard_value(item, key)
+    elif isinstance(value, str):
+        if key in BOUNDARY_TARGET_KEYS:
+            return
+        if Path(value).suffix.lower() in bundle_contract.FORBIDDEN_SUFFIXES:
+            raise ValueError("Contribution references a forbidden raw binary")
 
 def _logical_artifacts(contributions: list[dict[str, Any]]) -> list[dict[str, str]]:
     artifacts: dict[str, str] = {}
