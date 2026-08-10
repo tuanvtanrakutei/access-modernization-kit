@@ -121,3 +121,61 @@ def test_undeclared_path_absent_from_inventory_is_still_rejected(tmp_path: Path)
     errors, _, _ = validate_run_handoffs(run, wave="wave0_inventory", require_complete=True)
     assert any("absent from immutable inventory: sources/not-inventoried.sql" in e for e in errors)
     assert not any("manifest.lock.yaml" in e for e in errors)
+
+
+# --- V2.2 manifests must reach the evidence roles ----------------------------------
+
+_DEFAULTS = {
+    "vba": ["../../sources/vba"], "sql": ["../../sources/sql"],
+    "documents": ["../../sources/documents"], "japanese_documents": ["../../shared-docs"],
+}
+
+
+# manifest_source_inputs read only the V2.1 `sources.*` keys, so on a V2.2 manifest -
+# the only shape acquisition accepts - every bucket came back empty and each evidence
+# role was handed no source path at all. sql_data was left pointing only at
+# extracted/access, a directory init creates and nothing ever writes.
+def test_v22_export_package_feeds_both_vba_and_sql() -> None:
+    data = {"version": "2.2", "artifacts": [
+        {"id": "FE", "kind": "source_export", "format": "directory",
+         "source_ref": {"type": "local_path", "value": "sources/A05_FRONTEND"}},
+    ]}
+    buckets = create_tasks._v22_source_inputs(data, _DEFAULTS)
+    assert buckets["vba"] == ["../../sources/A05_FRONTEND"]
+    assert buckets["sql"] == ["../../sources/A05_FRONTEND"]
+
+
+def test_v22_document_artifact_reaches_the_document_bucket() -> None:
+    data = {"version": "2.2", "artifacts": [
+        {"id": "DOC", "kind": "document", "format": "xlsx",
+         "source_ref": {"type": "local_path", "value": "sources/documents/一覧.xlsx"}},
+    ]}
+    assert create_tasks._v22_source_inputs(data, _DEFAULTS)["documents"] == ["../../sources/documents"]
+
+
+# `init --source` declares one artifact per exported object, so a real application yields
+# dozens. Listing each would bury the role's guidance under a path list it cannot use.
+def test_per_file_artifacts_collapse_to_their_directory() -> None:
+    data = {"version": "2.2", "artifacts": [
+        {"id": f"Q{n}", "kind": "source_export", "format": "access_sql",
+         "source_ref": {"type": "local_path", "value": f"sources/queries/q{n}.sql"}}
+        for n in range(40)
+    ]}
+    assert create_tasks._v22_source_inputs(data, _DEFAULTS)["sql"] == ["../../sources/queries"]
+
+
+def test_empty_bucket_falls_back_to_the_conventional_path() -> None:
+    data = {"version": "2.2", "artifacts": [
+        {"id": "SHOT", "kind": "screenshot", "format": "png",
+         "source_ref": {"type": "local_path", "value": "sources/screenshots/a.png"}},
+    ]}
+    buckets = create_tasks._v22_source_inputs(data, _DEFAULTS)
+    assert buckets["sql"] == ["../../sources/sql"]
+    assert buckets["documents"] == ["../../sources/documents"]
+
+
+# Acquisition writes receipts under acquired/staging and the bundle under
+# acquired/bundle-<id>; nothing writes extracted/access.
+def test_every_extraction_consuming_role_can_see_the_acquisition_output() -> None:
+    for role in ("access_extractor", "module_decomposer", "sql_data", "vba_ui", "file_interfaces"):
+        assert create_tasks.ACQUISITION_INPUT in create_tasks.ROLE_INPUTS[role], role

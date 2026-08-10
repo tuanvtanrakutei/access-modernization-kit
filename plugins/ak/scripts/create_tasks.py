@@ -10,15 +10,21 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 
+# `../../acquired` is where acquisition actually writes: per-artifact extraction
+# receipts under acquired/staging/<artifact>/<acquisition-id>/ and the canonical bundle
+# under acquired/bundle-<id>/. The legacy `extracted/access` path is created by init and
+# then never written by anything, so every role pointed only there was reading an empty
+# directory - including sql_data, which had no other source of schema at all.
+ACQUISITION_INPUT = "../../acquired"
 ROLE_INPUTS = {
     "source_inventory": ["manifest.lock.yaml", "source-inventory.json"],
-    "access_extractor": ["manifest.lock.yaml", "source-inventory.json", "../../sources/access", "../../extracted/access"],
-    "build_context_analyzer": ["manifest.lock.yaml", "source-inventory.json", "../../extracted/build-context"],
-    "module_decomposer": ["manifest.lock.yaml", "source-inventory.json", "../../extracted/access", "../../extracted/module-plan"],
-    "sql_data": ["manifest.lock.yaml", "source-inventory.json", "../../extracted/access", "../../extracted/module-plan"],
-    "vba_ui": ["manifest.lock.yaml", "source-inventory.json", "../../sources/screenshots", "../../sources/reports", "../../extracted/access", "../../extracted/module-plan"],
-    "japanese_documents": ["manifest.lock.yaml", "source-inventory.json"],
-    "file_interfaces": ["manifest.lock.yaml", "source-inventory.json", "../../sources/samples", "../../sources/reports", "../../sources/screenshots", "../../extracted/module-plan"],
+    "access_extractor": ["manifest.lock.yaml", "source-inventory.json", "../../sources/access", ACQUISITION_INPUT, "../../extracted/access"],
+    "build_context_analyzer": ["manifest.lock.yaml", "source-inventory.json", ACQUISITION_INPUT, "../../extracted/build-context"],
+    "module_decomposer": ["manifest.lock.yaml", "source-inventory.json", ACQUISITION_INPUT, "../../extracted/access", "../../extracted/module-plan"],
+    "sql_data": ["manifest.lock.yaml", "source-inventory.json", ACQUISITION_INPUT, "../../extracted/access", "../../extracted/module-plan"],
+    "vba_ui": ["manifest.lock.yaml", "source-inventory.json", "../../sources/screenshots", "../../sources/reports", ACQUISITION_INPUT, "../../extracted/access", "../../extracted/module-plan"],
+    "japanese_documents": ["manifest.lock.yaml", "source-inventory.json", ACQUISITION_INPUT, "../../shared-docs"],
+    "file_interfaces": ["manifest.lock.yaml", "source-inventory.json", "../../sources/samples", "../../sources/reports", "../../sources/screenshots", ACQUISITION_INPUT, "../../extracted/module-plan"],
     "graph_builder": ["manifest.lock.yaml", "source-inventory.json", "../../extracted/component-index.json", "../../extracted/module-plan", "../../graphify-out"],
 }
 MODULE_FANOUT_ROLES = {"sql_data", "vba_ui", "file_interfaces", "logic_processing"}
@@ -109,6 +115,62 @@ def _task_path(value: object) -> str | None:
     return "../../" + path.as_posix()
 
 
+def _v22_source_inputs(data: dict, defaults: dict[str, list[str]]) -> dict[str, list[str]]:
+    """Map a V2.2 manifest's artifacts onto the source buckets the roles consume.
+
+    This function read only the V2.1 ``sources.*`` keys, so on a V2.2 manifest - the only
+    shape acquisition accepts - every bucket came back empty and the evidence roles were
+    handed no source paths at all: sql_data had no SQL, japanese_documents had no
+    document. A directory or zip export package feeds both the VBA and the SQL bucket,
+    because one package carries modules and query SQL together.
+    """
+    # A per-file artifact contributes its containing directory, not the file. `init
+    # --source` declares one artifact per exported object, so a real application yields
+    # dozens or hundreds; listing each one would bury the role's own guidance under a
+    # path list it cannot read as a whole. A directory or zip package is already the
+    # right granularity and is kept as declared.
+    PACKAGE_FORMATS = {"directory", "zip"}
+    UI_FORMATS = {"form", "report", "macro"}
+    SQL_FORMATS = {"access_sql", "table_schema"}
+    buckets: dict[str, list[str]] = {key: [] for key in defaults}
+
+    def add(bucket: str, path: str, collapse: bool) -> None:
+        value = path.rsplit("/", 1)[0] if collapse and "/" in path else path
+        if value not in buckets[bucket]:
+            buckets[bucket].append(value)
+
+    for artifact in data.get("artifacts") or []:
+        if not isinstance(artifact, dict):
+            continue
+        value = (artifact.get("source_ref") or {}).get("value")
+        path = _task_path(value) if isinstance(value, str) else None
+        if not path:
+            continue
+        kind = str(artifact.get("kind", ""))
+        fmt = str(artifact.get("format", ""))
+        package = fmt in PACKAGE_FORMATS
+        if kind == "source_export" and package:
+            # One package carries modules and query SQL together.
+            add("vba", path, False)
+            add("sql", path, False)
+        elif kind == "source_export" and fmt in SQL_FORMATS:
+            add("sql", path, True)
+        elif kind == "source_export" and (fmt == "vba" or fmt in UI_FORMATS):
+            add("vba", path, True)
+        elif kind == "source_export":
+            add("vba", path, True)
+        elif kind.startswith("sql_server"):
+            add("sql", path, not package)
+        elif kind == "document":
+            add("documents", path, True)
+    for key, fallback in defaults.items():
+        if not buckets[key]:
+            buckets[key] = list(fallback)
+        else:
+            buckets[key] = list(dict.fromkeys(buckets[key]))
+    return buckets
+
+
 def manifest_source_inputs(run: Path) -> dict[str, list[str]]:
     """Return task-safe source paths declared in the locked app manifest."""
     defaults = {
@@ -124,6 +186,8 @@ def manifest_source_inputs(run: Path) -> dict[str, list[str]]:
         import yaml  # type: ignore[import-not-found]
 
         data = yaml.safe_load(manifest.read_text(encoding="utf-8")) or {}
+        if str(data.get("version")) == "2.2":
+            return _v22_source_inputs(data, defaults)
         sources = data.get("sources", {})
         sql_server = sources.get("sql_server", {}) or {}
         japanese = sources.get("japanese_documents", {}) or {}
