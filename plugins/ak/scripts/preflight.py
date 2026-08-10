@@ -67,13 +67,18 @@ def discover_skills() -> list[str]:
 
 
 def manifest_needs(path: Path | None) -> dict[str, bool]:
-    needs = {"graphify": False, "xlsx": False, "pdf": False, "html": False, "pptx": False, "live_sql": False, "access": False, "adp": False, "compdb": False}
+    # yaml_parsed records whether the manifest was really parsed or only pattern-matched.
+    # Without it a missing PyYAML silently downgraded every answer below to a text scan
+    # and reported the guesses as facts, with nothing anywhere saying a package was
+    # absent - the same class of defect as a failure that erases its own evidence.
+    needs = {"graphify": False, "xlsx": False, "pdf": False, "html": False, "pptx": False, "live_sql": False, "access": False, "adp": False, "compdb": False, "yaml_parsed": False}
     if not path or not path.is_file():
         return needs
     text = path.read_text(encoding="utf-8", errors="ignore").lower()
     try:
         import yaml  # type: ignore[import-not-found]
         data = yaml.safe_load(text) or {}
+        needs["yaml_parsed"] = True
         sources = data.get("sources", {})
         access_sources = sources.get("access_databases", []) or []
         sql_live = sources.get("sql_server", {}).get("live", {})
@@ -111,8 +116,16 @@ def manifest_needs(path: Path | None) -> dict[str, bool]:
         template_value = template_match.group(1).strip().strip('"\'') if template_match else ""
         needs["html"] = "e2e_html: true" in text or "boundary_html: true" in text
         needs["pptx"] = "presentation_pptx: true" in text or bool(template_value)
-        needs["live_sql"] = bool(re.search(r"(?m)^\s{6}enabled:\s*true\s*$", text))
-        needs["access"] = bool(re.search(r"(?m)^\s*access_databases:\s*$", text))
+        # The V2.2 shape has to be recognized here too. This branch only ever matched
+        # V2.1 keys, so without PyYAML a V2.2 Access-only project reported access:false
+        # - the same defect already fixed in the parsed branch above, left standing in
+        # the fallback where it is harder to notice.
+        needs["live_sql"] = bool(re.search(r"(?m)^\s{6}enabled:\s*true\s*$", text)) or bool(
+            re.search(r"(?m)^\s*-?\s*kind:\s*[\"']?sql_server", text)
+        )
+        needs["access"] = bool(re.search(r"(?m)^\s*access_databases:\s*$", text)) or bool(
+            re.search(r"(?m)^\s*-?\s*kind:\s*[\"']?access_database", text)
+        )
         needs["adp"] = bool(re.search(r"(?m)^\s*format:\s*[\"']?adp", text))
         needs["compdb"] = "compile_commands.json" in text
     return needs
@@ -375,6 +388,13 @@ def main() -> int:
 
     required = {
         "python_3_10_plus": sys.version_info >= (3, 10),
+        # Nothing installs these: neither plugin manifest declares a dependency and
+        # there is no install hook. `init` is stdlib-only and works without them, so a
+        # PASS here used to promise a working workspace right up to `acquire`, which
+        # imports both at module level and dies with ModuleNotFoundError. Required, so
+        # the failure lands at preflight where it can be explained.
+        "python_package_pyyaml": importlib.util.find_spec("yaml") is not None,
+        "python_package_jsonschema": importlib.util.find_spec("jsonschema") is not None,
         "package_version": package_version_path.is_file(),
         "roles_contract": (package / "orchestration/roles.json").is_file(),
         "waves_contract": (package / "orchestration/waves.json").is_file(),
@@ -387,6 +407,22 @@ def main() -> int:
     skills = [] if args.skip_skill_scan else discover_skills()
 
     recommendations: list[str] = []
+    if not modules["yaml"] or not modules["jsonschema"]:
+        missing = [
+            name for name, present in (("PyYAML", modules["yaml"]), ("jsonschema", modules["jsonschema"]))
+            if not present
+        ]
+        recommendations.append(
+            f"Required Python package(s) not installed: {', '.join(missing)}. "
+            "Installing this package as a plugin does not install them. Run "
+            "`pip install -r plugins/ak/requirements.txt`. Until then `init` still works, "
+            "but `acquire` and everything after it cannot run."
+        )
+    if manifest and not needs["yaml_parsed"]:
+        recommendations.append(
+            "The manifest was pattern-matched rather than parsed, so the capability needs "
+            "below are guesses. Install PyYAML for an accurate read."
+        )
     if needs["graphify"] and graphify_runtime.get("status") != "READY":
         recommendations.append(
             "The isolated Graphify runtime is not installed yet. The first Phase/run gate must bootstrap the pinned managed runtime, normalize a binary-free corpus, build or refresh the graph, and complete a phase query before analysis starts."

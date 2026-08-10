@@ -5,6 +5,27 @@ needs before the six-phase investigation runs. It is advisory: `preflight.py`
 reports gaps as warnings and the investigation records missing inputs as
 assumptions or open questions. It never silently invents evidence.
 
+## Host prerequisites
+
+Installing this package as a plugin installs no Python dependency: neither plugin
+manifest declares one and there is no install hook. Two packages are required and
+must be installed separately:
+
+```
+pip install -r requirements.txt
+```
+
+`init` is deliberately stdlib-only and runs without them. Everything from `acquire`
+onward imports `yaml` and `jsonschema` at module level, so `preflight` reports both as
+required and fails when either is absent, rather than passing and letting acquisition
+die on `ModuleNotFoundError`. When PyYAML is missing, `preflight` falls back to
+pattern-matching the manifest and marks the result `yaml_parsed: false` so the guesses
+are not mistaken for a parse.
+
+`requirements-documents.txt` is optional: local readers for spreadsheets, PDF, Word and
+PowerPoint, needed only when Phase 5 has to read document evidence locally and the agent
+runtime does not already provide readers.
+
 ## Input modes
 
 Every artifact declared in the manifest is routed to one of four acquisition

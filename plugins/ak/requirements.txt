@@ -1,0 +1,12 @@
+# Runtime requirements: the minimum needed to run this package's own commands.
+#
+# Installing the plugin does NOT install these. Neither plugin manifest declares a
+# dependency and there is no install hook, so `pip install -r` is a real step a user
+# has to take. `preflight` reports them as required and fails without them.
+#
+#   pip install -r plugins/ak/requirements.txt
+#
+# `init` is deliberately stdlib-only and works without either package. Everything from
+# `acquire` onward imports both at module level.
+PyYAML>=6.0.3,<7
+jsonschema>=4.26.0,<5

@@ -235,3 +235,69 @@ def test_export_only_project_is_not_reported_as_extract(tmp_path: Path) -> None:
     block, _ = preflight.input_preconditions(manifest, {"access": False}, {})
     assert block["mode"] == "export"
     assert block["needs_extraction"] is False
+
+
+def _run_preflight(monkeypatch, package: Path, manifest: Path | None = None) -> dict:
+    import io
+    import json as _json
+    import sys as _sys
+
+    argv = ["preflight", "--package", str(package), "--skip-skill-scan"]
+    if manifest:
+        argv += ["--manifest", str(manifest)]
+    monkeypatch.setattr(_sys, "argv", argv)
+    captured = io.StringIO()
+    monkeypatch.setattr(_sys, "stdout", captured)
+    preflight.main()
+    monkeypatch.undo()
+    return _json.loads(captured.getvalue())
+
+
+_PACKAGE = Path(preflight.__file__).resolve().parent.parent
+
+
+# Installing this package as a plugin installs no Python dependency: neither plugin
+# manifest declares one and there is no install hook. `init` is stdlib-only and works
+# without them, so preflight used to PASS right up to `acquire`, which imports both at
+# module level and dies with ModuleNotFoundError, with no document saying to pip install.
+def test_missing_runtime_package_fails_preflight(monkeypatch) -> None:
+    real = preflight.importlib.util.find_spec
+
+    def absent_yaml(name: str, *args, **kwargs):
+        return None if name == "yaml" else real(name, *args, **kwargs)
+
+    monkeypatch.setattr(preflight.importlib.util, "find_spec", absent_yaml)
+    report = _run_preflight(monkeypatch, _PACKAGE)
+    assert report["required"]["python_package_pyyaml"] is False
+    assert report["status"] == "FAIL"
+    assert any("PyYAML" in line and "requirements.txt" in line for line in report["recommendations"])
+
+
+def test_runtime_packages_present_keeps_preflight_passing(monkeypatch) -> None:
+    report = _run_preflight(monkeypatch, _PACKAGE)
+    assert report["required"]["python_package_pyyaml"] is True
+    assert report["required"]["python_package_jsonschema"] is True
+    assert report["status"] == "PASS"
+    assert not any("requirements.txt" in line for line in report["recommendations"])
+
+
+# Without PyYAML, manifest_needs falls back to a text scan. It used to report those
+# guesses as facts with nothing recording that no parse happened.
+def test_manifest_read_without_yaml_is_marked_as_unparsed(tmp_path: Path, monkeypatch) -> None:
+    manifest = _manifest(tmp_path, _HYBRID)
+    assert preflight.manifest_needs(manifest)["yaml_parsed"] is True
+
+    real_import = __builtins__["__import__"] if isinstance(__builtins__, dict) else __builtins__.__import__
+
+    def no_yaml(name, *args, **kwargs):
+        if name == "yaml":
+            raise ImportError("simulated missing PyYAML")
+        return real_import(name, *args, **kwargs)
+
+    monkeypatch.setattr("builtins.__import__", no_yaml)
+    needs = preflight.manifest_needs(manifest)
+    monkeypatch.undo()
+    assert needs["yaml_parsed"] is False
+    # The text-scan fallback still answers, so the flag is the only thing that
+    # distinguishes a guess from a parse.
+    assert needs["access"] is True

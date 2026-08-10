@@ -22,6 +22,21 @@ codex plugin add ak@access-modernization-kit
 
 *(For **Claude Code**, run `/plugin marketplace add tuanvtanrakutei/access-modernization-kit` and `/plugin install ak@access-modernization-kit`).*
 
+Then install the two Python packages the commands need. **Installing the plugin does not
+install them** — there is no dependency declaration or install hook, so this is a real
+step:
+
+```powershell
+pip install -r plugins/ak/requirements.txt
+```
+
+`$ak init` is deliberately stdlib-only and works without them; everything from
+`$ak acquire` onward does not. `$ak assess` reports them as required and fails when
+either is missing, so run it before anything else if you are unsure. Optional local
+document readers (spreadsheets, PDF, Word, PowerPoint for Phase 5) live in
+`plugins/ak/requirements-documents.txt` and are only needed when your agent runtime does
+not already provide them.
+
 ---
 
 ## II. Streamlined Workflow

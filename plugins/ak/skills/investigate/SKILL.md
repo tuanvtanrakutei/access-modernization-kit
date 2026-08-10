@@ -22,7 +22,7 @@ part of this per-app sequence — most users only ever need them once, if at all
 | User input | Required action |
 |---|---|
 | `$ak init <APP_ID> [--source <PATH>]` | Scaffold or adopt an app workspace. If `--source` is provided (folder or .zip), automatically copy/extract sources and auto-generate `manifest.yaml`. For non-empty workspaces without `--source`, require `--adopt-existing`. |
-| `$ak assess <APP_ID>` | Resolve or propose the project classification, inspect authorized artifacts/staging, report bundle and phase readiness, gaps, required approvals, and recommended optional evidence without analyzing a phase. |
+| `$ak assess <APP_ID>` | Resolve or propose the project classification, inspect authorized artifacts/staging, report bundle and phase readiness, gaps, required approvals, and recommended optional evidence without analyzing a phase. Also reports the two required Python packages (`PyYAML`, `jsonschema`) and fails when either is missing — installing this plugin does not install them. |
 | `$ak acquire <APP_ID>` | Automatically plan and run acquisition to create a canonical bundle for analysis. For imported sources (exported VBA/SQL or zip packages), no Access runtime is required. For managed Access MDB files, requires host Access/ACE runtime and explicit `access_snapshot_extract` authorization. |
 | `$ak phase <1-6> <APP_ID>` | For V2.2 require an approved bundle and non-blocked phase readiness before Graphify; for V2.1 warn that migration is pending, preserve the legacy gate, then run only the named phase. |
 | `$ak run <APP_ID>` | Run technically permitted phases in order, stopping on `BLOCKED`; this never authorizes live Access, ADP, SQL Server, backup restore, or network access. |
