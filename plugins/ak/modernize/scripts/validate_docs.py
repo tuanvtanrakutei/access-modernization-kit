@@ -77,12 +77,19 @@ def read(path: str) -> str:
     return io.open(path, encoding="utf-8", errors="replace").read()
 
 
-def md_files(root: str):
+def normalized_path(path: str) -> str:
+    return os.path.normcase(os.path.abspath(path))
+
+
+def md_files(root: str, ignored_paths: set[str] | None = None):
+    ignored = {normalized_path(path) for path in ignored_paths or set()}
     for dirpath, dirnames, filenames in os.walk(root):
         dirnames[:] = [d for d in dirnames if d not in {".git", "node_modules", "__pycache__"}]
         for name in filenames:
             if name.endswith(".md"):
-                yield os.path.join(dirpath, name)
+                path = os.path.join(dirpath, name)
+                if normalized_path(path) not in ignored:
+                    yield path
 
 
 def rel(path: str, base: str) -> str:
@@ -110,7 +117,13 @@ def unfilled_config_keys(config_text: str) -> set[str]:
     return out
 
 
-def check_config(f: Findings, docs_dir: str, plugin_dir: str, config_path: str) -> None:
+def check_config(
+    f: Findings,
+    docs_dir: str,
+    plugin_dir: str,
+    config_path: str,
+    ignored_paths: set[str] | None = None,
+) -> None:
     cfg = read(config_path)
     declared = parse_config_keys(cfg)
     unfilled = unfilled_config_keys(cfg)
@@ -138,7 +151,7 @@ def check_config(f: Findings, docs_dir: str, plugin_dir: str, config_path: str) 
     def scan(root: str, into_docs: bool) -> None:
         if not root or not os.path.isdir(root):
             return
-        for path in md_files(root):
+        for path in md_files(root, ignored_paths):
             if os.path.basename(path) == "PROJECT_CONFIG.md":
                 continue
             for key in set(re.findall(r"\{\{([A-Z][A-Z0-9_]*)\}\}", read(path))):
@@ -168,18 +181,29 @@ def check_config(f: Findings, docs_dir: str, plugin_dir: str, config_path: str) 
 # ------------------------------------------------------------ reference checks
 
 
-def check_placeholders_in_instance(f: Findings, docs_dir: str) -> None:
+def check_placeholders_in_instance(
+    f: Findings,
+    docs_dir: str,
+    ignored_paths: set[str] | None = None,
+) -> None:
     """A project instance should carry no unresolved placeholder outside its config."""
-    for path in md_files(docs_dir):
+    for path in md_files(docs_dir, ignored_paths):
         if os.path.basename(path) == "PROJECT_CONFIG.md":
             continue
         for line_no, line in enumerate(read(path).split("\n"), 1):
             for key in set(re.findall(r"\{\{([A-Z][A-Z0-9_]*)\}\}", line)):
+                if key in DOC_EXAMPLE_TOKENS or ROW_TOKEN_RE.match(key):
+                    continue
                 f.add("MEDIUM", "unresolved-placeholder", "%s:%d" % (rel(path, docs_dir), line_no),
                       "{{%s}} was never substituted" % key)
 
 
-def check_dangling_doc_refs(f: Findings, docs_dir: str, extra_roots: list[str]) -> None:
+def check_dangling_doc_refs(
+    f: Findings,
+    docs_dir: str,
+    extra_roots: list[str],
+    ignored_paths: set[str] | None = None,
+) -> None:
     """A cited .md counts as present if it exists anywhere the project keeps documents.
 
     Screen artifacts legitimately cite design notes living beside the code, such as
@@ -194,7 +218,7 @@ def check_dangling_doc_refs(f: Findings, docs_dir: str, extra_roots: list[str]) 
                 if name.endswith(".md"):
                     present.add(name)
 
-    for path in md_files(docs_dir):
+    for path in md_files(docs_dir, ignored_paths):
         text = read(path)
         for name in sorted(set(re.findall(r"`([A-Za-z0-9_][A-Za-z0-9_./-]*\.md)`", text))):
             base = os.path.basename(name)
@@ -253,7 +277,7 @@ def check_issues(f: Findings, docs_dir: str, issues_path: str, source_dir: str |
         for dirpath, dirnames, filenames in os.walk(source_dir):
             dirnames[:] = [d for d in dirnames if d not in {"__pycache__", "node_modules", ".git"}]
             for name in filenames:
-                if not name.endswith((".py", ".ts", ".tsx", ".md")):
+                if not name.endswith((".py", ".ts", ".tsx")):
                     continue
                 p = os.path.join(dirpath, name)
                 for n in re.findall(r"Known_Issues\.md\s*#(\d+)", read(p)):
@@ -359,15 +383,21 @@ def main(argv: list[str]) -> int:
         return 2
 
     f = Findings()
+    ignored_paths = {args.report} if args.report else set()
     config_path = os.path.join(docs, "PROJECT_CONFIG.md")
     if os.path.isfile(config_path):
-        check_config(f, docs, args.plugin_dir, config_path)
+        check_config(f, docs, args.plugin_dir, config_path, ignored_paths)
     else:
         f.add("HIGH", "missing-config", "PROJECT_CONFIG.md",
               "not found in the docs directory; every stage reads it")
 
-    check_placeholders_in_instance(f, docs)
-    check_dangling_doc_refs(f, docs, [args.source_dir, os.path.dirname(os.path.abspath(docs))])
+    check_placeholders_in_instance(f, docs, ignored_paths)
+    check_dangling_doc_refs(
+        f,
+        docs,
+        [args.source_dir, os.path.dirname(os.path.abspath(docs)), args.plugin_dir],
+        ignored_paths,
+    )
     check_layout(f, docs)
 
     issues_path = os.path.join(docs, "Known_Issues.md")

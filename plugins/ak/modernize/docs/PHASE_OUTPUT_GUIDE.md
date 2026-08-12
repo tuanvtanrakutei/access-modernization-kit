@@ -94,5 +94,5 @@ agent doing Stage 1's actual business-flow writing — it is just not parsed by 
 4. **Phase 3 / Phase 4** for the specific screen or workflow you're about to work on — not
    the whole document, the section that covers it.
 5. **Phase 5** only if a business rule's legacy-vs-documented behavior is in question.
-6. **`QuestionList.md` / `QA_Report.md`** last — what's still open, and what QA already
+6. **`{APP_ID}_QuestionList.md` / `{APP_ID}_QA_Report.md`** last — what's still open, and what QA already
    caught, so you don't re-discover either by hand.
