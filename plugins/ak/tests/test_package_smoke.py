@@ -5,6 +5,7 @@ import subprocess
 import sys
 from pathlib import Path
 
+import pytest
 import yaml
 
 
@@ -570,6 +571,32 @@ def test_graphify_phase_gate_requires_fresh_graph_and_phase_receipt(tmp_path: Pa
     (app / "sources" / "vba" / "Form1.bas").write_text('Attribute VB_Name = "Form1"\nSub Changed(): End Sub\n', encoding="utf-8")
     run_script("normalize_graphify_corpus.py", "--app-root", str(app))
     assert gate_status(app, 1, runtime)["reason"] == "GRAPH_UPDATE_REQUIRED"
+
+
+# Graphify writes the NetworkX node-link shape, whose edge list is named "links".
+# The gate read only "edges", so every real graph was pinned as having none.
+def test_graph_shape_counts_node_link_links_as_edges(tmp_path: Path) -> None:
+    from graphify_phase_gate import graph_shape
+
+    node_link = tmp_path / "graph.json"
+    node_link.write_text(json.dumps({
+        "directed": False, "multigraph": False, "graph": {},
+        "nodes": [{"id": "a"}, {"id": "b"}],
+        "links": [{"source": "a", "target": "b"}],
+    }), encoding="utf-8")
+    assert graph_shape(node_link) == (2, 1)
+
+    explicit = tmp_path / "explicit.json"
+    explicit.write_text(json.dumps({
+        "nodes": [{"id": "a"}, {"id": "b"}],
+        "edges": [{"source": "a", "target": "b"}, {"source": "b", "target": "a"}],
+    }), encoding="utf-8")
+    assert graph_shape(explicit) == (2, 2)
+
+    empty = tmp_path / "empty.json"
+    empty.write_text(json.dumps({"nodes": [], "links": []}), encoding="utf-8")
+    with pytest.raises(RuntimeError):
+        graph_shape(empty)
 
 
 def test_graphify_document_normalizers_cover_office_and_report_scanned_pdf(tmp_path: Path) -> None:

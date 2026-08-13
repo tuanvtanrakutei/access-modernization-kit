@@ -57,7 +57,13 @@ def read_json(path: Path) -> dict:
 def graph_shape(path: Path) -> tuple[int, int]:
     data = read_json(path)
     nodes = data.get("nodes", [])
-    edges = data.get("edges", [])
+    # Graphify writes the NetworkX node-link shape, which names the edge list
+    # "links". Reading only "edges" reported every real graph as having none, so
+    # the receipt pinned edges: 0 no matter how connected the graph was. The gate
+    # only blocks on node count, which is why the wrong number went unnoticed.
+    edges = data.get("edges")
+    if not isinstance(edges, (list, dict)):
+        edges = data.get("links", [])
     node_count = len(nodes) if isinstance(nodes, (list, dict)) else 0
     edge_count = len(edges) if isinstance(edges, (list, dict)) else 0
     if node_count == 0:
