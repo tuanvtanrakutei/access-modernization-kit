@@ -169,6 +169,16 @@ def parse_args() -> argparse.Namespace:
     bundle_approve.add_argument("--approved-at")
     bundle_approve.add_argument("--distribution-policy", choices=("local_only", "shared_path", "artifact_store", "git_allowed"), default="artifact_store")
     bundle_approve.add_argument("--output", required=True)
+    phase = commands.add_parser("phase", help="Report what evidence a phase still needs, and how to supply it.")
+    phase_commands = phase.add_subparsers(dest="phase_action", required=True)
+    phase_req = phase_commands.add_parser("requirements")
+    phase_req.add_argument("--app-root", required=True)
+    phase_req.add_argument("--phase", type=int, choices=range(1, 7), required=True)
+    phase_req.add_argument(
+        "--waive", action="append", default=[],
+        help="Proceed without a capability. Requires --reason and is recorded in the receipt.",
+    )
+    phase_req.add_argument("--reason", help="Why the waived evidence cannot be supplied.")
     configure_acquire_parser(commands)
     configure_collaboration_parser(commands)
     return parser.parse_args()
@@ -352,6 +362,22 @@ def main() -> int:
             )
         print_json(report)
         return 0
+    if args.command == "phase":
+        package_path = str(PACKAGE)
+        if package_path not in sys.path:
+            sys.path.insert(0, package_path)
+        from phase_evidence import phase_report
+
+        if args.waive and not args.reason:
+            print("ERROR: --waive requires --reason; an undocumented waiver is worse than a blocked phase")
+            return 2
+        report = phase_report(
+            Path(args.app_root).expanduser().resolve(), args.phase,
+            tuple(args.waive), args.reason,
+        )
+        print_json(report)
+        return 0 if report["status"] != "BLOCKED" else 2
+
     if args.command == "acquire":
         package_path = str(PACKAGE)
         if package_path not in sys.path:

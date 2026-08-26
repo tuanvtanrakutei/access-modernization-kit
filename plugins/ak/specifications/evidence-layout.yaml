@@ -1,0 +1,120 @@
+version: "1.0"
+
+# One layout, two ways to fill it. Runtime extraction and the shipped VBA exporter
+# must write the same container names and the same formats, so evidence produced on
+# a machine that has Access is interchangeable with evidence extracted here. Where
+# the two disagreed, field and index detail reached the bundle from one route only,
+# which silently made Phase 1 depend on runtime access.
+#
+# Consumers: scripts/extract_access.ps1, tools/ExportAccessObjects.bas,
+# scripts/build_import_manifest.py, adapters/imported_sources/adapter.py.
+
+containers:
+  forms:
+    kind: form
+    role: frontend
+    format: access-saveastext
+    extension: .txt
+    encoding: utf-8
+    description: One file per form, as Access SaveAsText writes it.
+  reports:
+    kind: report
+    role: frontend
+    format: access-saveastext
+    extension: .txt
+    encoding: utf-8
+    description: One file per report.
+  macros:
+    kind: macro
+    role: frontend
+    format: access-saveastext
+    extension: .txt
+    encoding: utf-8
+    description: One file per macro.
+  vba:
+    kind: vba
+    role: frontend
+    format: access-saveastext
+    extension: .txt
+    encoding: utf-8
+    description: One file per standalone module. Form and report code-behind travels
+      inside that object's own file, not here.
+  queries:
+    kind: access_sql
+    role: backend
+    format: sql-text
+    extension: .sql
+    encoding: utf-8
+    description: One file per saved query, the QueryDef SQL verbatim.
+  documents:
+    kind: document
+    role: documentation
+    description: Business documents. No runtime route exists; a person supplies these.
+  screenshots:
+    kind: screenshot
+    role: interface
+    description: Captured screens. No runtime route exists.
+  samples:
+    kind: sample
+    role: interface
+    description: Sample input files the application reads.
+  reports-out:
+    kind: report_output
+    role: interface
+    description: Sample outputs the application produces - printed reports, exports.
+
+# Container names other producers use for the same thing. Declared rather than
+# quietly accepted, so it is visible which tool a layout belongs to. msaccess-vcs
+# writes modules/ where this kit's exporter writes vba/; dropping the alias made a
+# perfectly good msaccess-vcs export fail to classify.
+container_aliases:
+  modules: vba
+
+# Structured schema detail. tables.json is the contract for BOTH routes: it is the
+# only shape carrying fields and indexes, and therefore the only one that can yield
+# field_inventory and key_index_inventory.
+schema_files:
+  tables:
+    path: schema/tables.json
+    format: json
+    required: true
+    supplies: [access_schema_inventory, field_inventory, key_index_inventory, boundary_inventory]
+    record:
+      name: string
+      source_table_name: string
+      connect: string
+      attributes: integer
+      fields: "[{name, type, size, required}]"
+      indexes: "[{name, primary, unique, fields[]}]"
+      read_error: string
+  relations:
+    path: schema/relations.json
+    format: json
+    required: false
+    supplies: [declared_relationship_inventory]
+
+# Legacy shape. Accepted so an export made before tables.json existed still imports,
+# but it carries no field or index detail, so it cannot supply what Phase 1 needs.
+deprecated_schema_files:
+  tables_text:
+    path: schema/tables.txt
+    format: text
+    supplies: []
+    warning: >-
+      schema/tables.txt carries no field or index detail, so field_inventory and
+      key_index_inventory cannot be derived from it. Re-export with a version of
+      ExportAccessObjects.bas that writes schema/tables.json.
+
+package_files:
+  producer_manifest:
+    path: import-source-manifest.yaml
+    generated_by: scripts/build_import_manifest.py
+    required: true
+    description: Declares every member so a truncated or altered package is refused
+      rather than imported as complete.
+  export_summary:
+    path: export-manifest.txt
+    kind: metadata
+    required: false
+    description: Object counts and skipped objects, written by the VBA exporter at the
+      package root. Recognized by name; it is not a misfiled member.

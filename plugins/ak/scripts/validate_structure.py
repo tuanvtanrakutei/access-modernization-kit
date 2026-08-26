@@ -13,7 +13,7 @@ REQUIRED_FILES = (
     "requirements-dev.txt", ".codex-plugin/plugin.json", "skills/investigate/SKILL.md", "skills/investigate/agents/openai.yaml", "adapters/adapter-map.json",
     "specifications/package.json", "specifications/graphify-runtime.json", "specifications/runtime-capabilities.yaml", "specifications/language-support.yaml",
     "specifications/senior-system-analyst-instruction.md", "specifications/evidence-policy.yaml", "specifications/output-contract.yaml",
-    "specifications/input-preconditions.md",
+    "specifications/input-preconditions.md", "specifications/evidence-layout.yaml",
     "schemas/manifest.schema.json", "schemas/evidence.schema.json", "schemas/traceability-row.schema.json", "schemas/task.schema.json",
     "schemas/handoff.schema.json", "schemas/conflict.schema.json", "schemas/run-state.schema.json", "schemas/source-inventory.schema.json", "schemas/work-package.schema.json", "schemas/review-receipt.schema.json", "schemas/contract-impact.schema.json",
     "schemas/access-extraction.schema.json", "schemas/component-index.schema.json", "schemas/module-tree.schema.json",

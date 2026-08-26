@@ -159,7 +159,8 @@ def run_acquisition(
         )
         contributions.append(adapter.normalize(adapter.acquire(plan)))
     _flag_export_drift(contributions)
-    capabilities = _capabilities(contributions) | _declaration_capabilities(manifest.artifacts)
+    declared = _declaration_capabilities(manifest.artifacts)
+    capabilities = _capabilities(contributions) | declared
     readiness = phase_readiness_contract.compute_readiness(
         classification, PROFILES, capabilities
     )
@@ -195,6 +196,9 @@ def run_acquisition(
         profile_validation=profile_validation,
         phase_readiness=readiness,
         output_root=Path(output_root),
+        # Attributed to the manifest, because no adapter extracted it: it is a
+        # statement the project makes about which store is authoritative.
+        declared_capabilities={name: ["manifest"] for name in sorted(declared)},
     )
 
 

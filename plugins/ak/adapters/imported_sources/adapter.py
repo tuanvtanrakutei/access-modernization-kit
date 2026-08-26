@@ -299,6 +299,14 @@ class ImportedSourcesAdapter:
 
 def _content_capabilities(sections: dict[str, Any]) -> list[str]:
     capabilities: set[str] = set()
+    # An export carrying schema/tables.json supplies the same schema evidence a
+    # runtime extraction does, which is what makes the two routes interchangeable.
+    if sections["databases"]["tables"]:
+        capabilities.add("access_schema_inventory")
+    if sections["databases"]["fields"]:
+        capabilities.add("field_inventory")
+    if sections["databases"]["indexes"]:
+        capabilities.add("key_index_inventory")
     if sections["code"]["vba"] or sections["code"]["access_sql"]:
         capabilities.add("vba_query_inventory")
     if any(sections["ui"].values()):
@@ -324,8 +332,44 @@ def _record(item: dict[str, Any], raw: bytes) -> dict[str, Any]:
         record["external_only"] = True
     return record
 
+def _route_schema_tables(sections: dict[str, Any], record: dict[str, Any]) -> bool:
+    """Expand an imported schema/tables.json into the flat schema inventories.
+
+    Declared by specifications/evidence-layout.yaml as the contract for both supply
+    routes. Until this was read, field and index detail existed only in a runtime
+    extraction, so Phase 1 could not be reached from an export no matter how complete
+    the export was - the constraint looked like a property of exports and was in fact
+    a consumer that never opened the file.
+    """
+    path = str(record.get("path") or record.get("logical_id") or "")
+    if not path.replace("\\", "/").endswith("schema/tables.json"):
+        return False
+    try:
+        tables = json.loads(record.get("text") or "[]")
+    except (TypeError, ValueError):
+        return False
+    if not isinstance(tables, list):
+        return False
+    database_id = str(record.get("logical_id", "")).split(":", 1)[0]
+    for table in tables:
+        if not isinstance(table, dict):
+            continue
+        name = table.get("name", "")
+        entry = {"database_id": database_id, **{k: v for k, v in table.items() if k not in {"fields", "indexes"}}}
+        sections["databases"]["tables"].append(entry)
+        if table.get("connect"):
+            sections["interfaces"]["linked_tables"].append(entry)
+        for field in table.get("fields") or []:
+            sections["databases"]["fields"].append({"database_id": database_id, "table": name, **field})
+        for index in table.get("indexes") or []:
+            sections["databases"]["indexes"].append({"database_id": database_id, "table": name, **index})
+    return True
+
+
 def _route_record(sections: dict[str, Any], record: dict[str, Any]) -> None:
     kind = record["kind"]
+    if kind == "metadata" and _route_schema_tables(sections, record):
+        return
     if kind == "vba": sections["code"]["vba"].append(record)
     elif kind == "access_sql": sections["code"]["access_sql"].append(record)
     elif kind == "sql_server": sections["code"]["sql_server"].append(record)

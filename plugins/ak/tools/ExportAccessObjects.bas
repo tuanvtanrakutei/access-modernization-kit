@@ -89,11 +89,12 @@ Public Sub ExportAccessObjects(ByVal OutRoot As String)
             nExcluded = nExcluded + 1
             excludedNames = excludedNames & "  " & td.Name & vbCrLf
         Else
-            sb = sb & TableSchemaLine(td)
+            If nTable > 0 Then sb = sb & "," & vbCrLf
+            sb = sb & TableSchemaJson(td)
             nTable = nTable + 1
         End If
     Next
-    WriteUtf8 OutRoot & "\schema\tables.txt", sb
+    WriteUtf8 OutRoot & "\schema\tables.json", "[" & vbCrLf & sb & vbCrLf & "]" & vbCrLf
 
     Dim summary As String
     summary = "forms=" & nForm & vbCrLf & _
@@ -192,23 +193,102 @@ Private Function IsSystemOrJunkTable(ByVal td As Object) As Boolean
     On Error GoTo 0
 End Function
 
-Private Function TableSchemaLine(ByVal td As Object) As String
+Private Function JsonEscape(ByVal s As String) As String
+    Dim r As String
+    r = Replace$(s, "\", "\\")
+    r = Replace$(r, """", "\""")
+    r = Replace$(r, vbCr, "")
+    r = Replace$(r, vbLf, "
+")
+    r = Replace$(r, vbTab, "	")
+    JsonEscape = r
+End Function
+
+' Emits one record of schema/tables.json, the shape specifications/evidence-layout.yaml
+' declares for both routes. The tab-delimited tables.txt this replaced carried no index
+' detail and no field flags, so an export could never supply field_inventory or
+' key_index_inventory and Phase 1 was reachable only by extracting here.
+Private Function TableSchemaJson(ByVal td As Object) As String
     On Error Resume Next
-    Dim s As String, fld As Object
-    s = "TABLE" & vbTab & td.name & vbTab
-    If Len(td.Connect) > 0 Then
-        s = s & "LINKED" & vbTab & td.SourceTableName
-    Else
-        s = s & "LOCAL"
-    End If
-    s = s & vbCrLf
+    Dim s As String, fld As Object, idx As Object, ixf As Object
+    Dim parts As String, first As Boolean, readErr As String
+
+    s = "  {" & vbCrLf
+    s = s & "    ""name"": """ & JsonEscape(td.name) & """," & vbCrLf
+    s = s & "    ""source_table_name"": """ & JsonEscape(td.SourceTableName) & """," & vbCrLf
+    s = s & "    ""connect"": """ & JsonEscape(RedactConnect(td.Connect)) & """," & vbCrLf
+    s = s & "    ""attributes"": " & CStr(td.Attributes) & "," & vbCrLf
+
+    parts = ""
+    first = True
     For Each fld In td.Fields
-        s = s & vbTab & "FIELD" & vbTab & fld.name & vbTab & "type=" & fld.Type & vbTab & "size=" & fld.Size & vbCrLf
+        If Not first Then parts = parts & "," & vbCrLf
+        parts = parts & "      {""name"": """ & JsonEscape(fld.name) & """, ""type"": " & CStr(fld.Type) & _
+                ", ""size"": " & CStr(fld.Size) & ", ""required"": " & LCase$(CStr(fld.Required)) & "}"
+        first = False
     Next
-    If Err.Number <> 0 Then AddSkip "table", td.name, Err.Description
+    s = s & "    ""fields"": [" & vbCrLf & parts & vbCrLf & "    ]," & vbCrLf
+
+    parts = ""
+    first = True
+    For Each idx In td.Indexes
+        Dim ixFields As String, ixFirst As Boolean
+        ixFields = ""
+        ixFirst = True
+        For Each ixf In idx.Fields
+            If Not ixFirst Then ixFields = ixFields & ", "
+            ixFields = ixFields & """" & JsonEscape(ixf.name) & """"
+            ixFirst = False
+        Next
+        If Not first Then parts = parts & "," & vbCrLf
+        parts = parts & "      {""name"": """ & JsonEscape(idx.name) & """, ""primary"": " & LCase$(CStr(idx.Primary)) & _
+                ", ""unique"": " & LCase$(CStr(idx.Unique)) & ", ""fields"": [" & ixFields & "]}"
+        first = False
+    Next
+    s = s & "    ""indexes"": [" & vbCrLf & parts & vbCrLf & "    ]," & vbCrLf
+
+    ' A table linked to a missing external file throws when its fields are read. Keep
+    ' the identity and the link target: an unreachable interface is boundary evidence,
+    ' and dropping it would hide the very thing Phase 1 needs.
+    If Err.Number <> 0 Then
+        readErr = Err.Description
+        AddSkip "table", td.name, Err.Description
+    End If
     Err.Clear
+    s = s & "    ""read_error"": """ & JsonEscape(readErr) & """" & vbCrLf
+    s = s & "  }"
     On Error GoTo 0
-    TableSchemaLine = s
+    TableSchemaJson = s
+End Function
+
+' Connection strings can carry credentials. The runtime extractor redacts the same
+' keys; an export that did not would put them in a file someone copies around.
+Private Function RedactConnect(ByVal value As String) As String
+    Dim r As String
+    r = value
+    If Len(r) = 0 Then
+        RedactConnect = ""
+        Exit Function
+    End If
+    r = RedactKey(r, "PWD")
+    r = RedactKey(r, "PASSWORD")
+    r = RedactKey(r, "UID")
+    RedactConnect = r
+End Function
+
+Private Function RedactKey(ByVal value As String, ByVal key As String) As String
+    Dim upper As String, pos As Long, tail As Long, result As String
+    result = value
+    upper = UCase$(result)
+    pos = InStr(upper, key & "=")
+    Do While pos > 0
+        tail = InStr(pos, result, ";")
+        If tail = 0 Then tail = Len(result) + 1
+        result = Left$(result, pos + Len(key)) & "<REDACTED>" & Mid$(result, tail)
+        upper = UCase$(result)
+        pos = InStr(pos + Len(key) + 10, upper, key & "=")
+    Loop
+    RedactKey = result
 End Function
 
 Private Sub AddSkip(ByVal kind As String, ByVal name As String, ByVal errText As String)

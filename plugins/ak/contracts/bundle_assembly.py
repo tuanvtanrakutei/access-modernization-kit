@@ -105,6 +105,7 @@ def assemble_bundle(
     profile_validation: dict[str, Any],
     phase_readiness: dict[str, Any],
     output_root: Path,
+    declared_capabilities: dict[str, list[str]] | None = None,
     schema_version: str = "2.7.3",
 ) -> dict[str, Any]:
     from adapters.base import validate_contribution
@@ -138,7 +139,7 @@ def assemble_bundle(
             "samples": {"inventory": "evidence-sources/samples/inventory.json"},
         },
     }
-    provenance = _provenance(bundle_id, schema_version, contributions)
+    provenance = _provenance(bundle_id, schema_version, contributions, declared_capabilities)
     output = Path(output_root).expanduser().resolve()
     output.mkdir(parents=True, exist_ok=True)
     bundle_dir = output / bundle_id
@@ -209,8 +210,24 @@ def _coverage(
         },
     }
 
+def _capability_origins(contributions: list[dict[str, Any]]) -> dict[str, list[str]]:
+    """Which adapter established each capability.
+
+    The readiness verdict was persisted while the capabilities behind it were not, so
+    a later phase could read that Phase 1 was READY and still not know what had been
+    supplied - and would ask for it again.
+    """
+    origins: dict[str, set[str]] = {}
+    for contribution in contributions:
+        adapter = str(contribution.get("adapter_id", "unknown"))
+        for capability in contribution.get("provenance", {}).get("capabilities", []) or []:
+            origins.setdefault(str(capability), set()).add(adapter)
+    return {name: sorted(adapters) for name, adapters in sorted(origins.items())}
+
+
 def _provenance(
     bundle_id: str, schema_version: str, contributions: list[dict[str, Any]],
+    declared_capabilities: dict[str, list[str]] | None = None,
 ) -> dict[str, Any]:
     sources: list[dict[str, str]] = []
     for contribution in sorted(contributions, key=lambda item: item["adapter_id"]):
@@ -234,7 +251,10 @@ def _provenance(
             if origin:
                 source["exported_from"] = origin
             sources.append(source)
-    return {"schema_version": schema_version, "bundle_id": bundle_id, "sources": sources}
+    return {
+        "schema_version": schema_version, "bundle_id": bundle_id, "sources": sources,
+        "capabilities": {**_capability_origins(contributions), **(declared_capabilities or {})},
+    }
 
 def _validate_json(path: Path, schema_name: str) -> None:
     schema_path = Path(__file__).resolve().parents[1] / "schemas" / schema_name
