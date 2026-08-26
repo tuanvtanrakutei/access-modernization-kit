@@ -12,6 +12,66 @@ that it should now work.
 
 ## Open
 
+### A9 - snapshot isolation breaks an app that resolves its backend as a sibling
+
+**Observed 2026-08-26, A05 frontend.** Opening the frontend snapshot raises
+`Run-time error '3024': Could not find file '...\staging\WINDOWS11_45D0FDDD\品揃支援DATA.MDB'`.
+The cause is in the application, and it is a common Access pattern.
+`メインメニュー.Form_Open` derives the backend path from its own location:
+
+```vba
+FWパス名 = SCRTDB.name                    ' the frontend's own full path
+For FWI = Len(FWパス名) To 3 Step -1      ' scan back for the last "\"
+    If Mid(FWパス名, FWI, 1) = "\" Then
+        Sパス名 = Left(FWパス名, FWI)
+        Exit For
+    End If
+Next FWI
+Sパス名 = Sパス名 & FWデータ名             ' & "品揃支援DATA.MDB"
+Set SCDB = OpenDatabase(Sパス名)
+```
+
+Four more forms do it directly:
+`OpenDatabase(Application.CurrentProject.path & "\品揃支援data.mdb")` -
+`アイス確認表2`, `酒アイテム別確認表`, `雑貨Ⅱアイテム別確認表`, `青果アイテム別確認表`.
+
+In production both databases sit in one folder, so the sibling resolves. The
+extractor snapshots one file into a directory of its own, so it never can. Every
+symptom chased before this - elevation, write permission, Compact & Repair,
+AutomationSecurity - was downstream of it.
+
+**Fix direction:** the manifest already declares both databases. Snapshot the
+artifacts of one application into a shared directory, preserving the sibling
+layout, rather than one directory per artifact. A frontend that cannot open its
+backend cannot export a form that binds to it, so this bounds what the Access host
+tier can ever produce for a split application.
+
+### A10 - forcing macros off disables the app's own repair step
+
+**Observed 2026-08-26, A05.** `AutomationSecurity = 3` was added so a startup that
+drops into the VBA debugger cannot hang an unattended run. On this application it
+also disables the code that makes the application work:
+
+```vba
+Public Function AutoExec2()
+    DoCmd.DeleteObject acTable, "商品情報"
+    DoCmd.TransferDatabase acImport, "Microsoft Access", _
+        "L:\sms\新品揃支援\XP\品揃支援data.mdb", acTable, "商品情報", "商品情報"
+    DoCmd.TransferSpreadsheet acExport, acSpreadsheetTypeExcel9, _
+        "商品情報", "L:\user\物流部\商品情報.xls", True, "出力結果"
+End Function
+```
+
+The path it imports from carries `sms`, while the stored linked-table `Connect` for
+the same database does not - so startup code is what reconciles a stale link, and
+suppressing it leaves the stale one in force. That is also why the extraction
+reported those tables unreadable.
+
+The setting is right for an unattended inventory and wrong for a faithful run, and
+it is currently unconditional. It belongs behind `runtime.automation_security` so a
+run can choose: suppressed for hands-off extraction, enabled when the trace has to
+reflect what the application actually does.
+
 ### A1 - Graphify's AST pass yields no edges for a query-only corpus
 
 **Observed 2026-08-26, A05.** A corpus of 79 exported `.sql` files plus 15
