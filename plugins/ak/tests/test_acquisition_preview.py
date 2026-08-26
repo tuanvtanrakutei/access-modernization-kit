@@ -136,23 +136,45 @@ def test_init_and_acquisition_agree_on_how_mode_is_derived() -> None:
         assert init_app.acquisition_mode(artifacts) == acquisition_preview.observed_mode(artifacts)
 
 
-def test_acquisition_refuses_a_manifest_that_contradicts_itself(tmp_path: Path) -> None:
+def _manifest(tmp_path: Path, artifacts: list[dict], mode: str | None = None) -> Path:
     import yaml
-    from acquisition_orchestrator import run_acquisition
 
-    manifest = {
+    project: dict = {
+        "classification": {
+            "topology": "split_file", "frontend_format": "mdb",
+            "source_availability": "full", "backend_kinds": ["access_file"],
+        },
+    }
+    if mode:
+        project["acquisition_mode"] = mode
+    path = tmp_path / "manifest.yaml"
+    path.write_text(yaml.safe_dump({
         "version": "2.2",
         "app": {"id": "A99", "name_en": "Contract Test"},
-        "project": {
-            "acquisition_mode": "export",
-            "classification": {
-                "topology": "split_file", "frontend_format": "mdb",
-                "source_availability": "full", "backend_kinds": ["access_file"],
-            },
-        },
-        "artifacts": [mdb("FE", role="frontend")],
-    }
-    path = tmp_path / "manifest.yaml"
-    path.write_text(yaml.safe_dump(manifest, sort_keys=False), encoding="utf-8")
-    with pytest.raises(ValueError, match="acquisition_mode: export"):
+        "project": project,
+        "artifacts": artifacts,
+    }, sort_keys=False), encoding="utf-8")
+    return path
+
+
+# A contradiction cannot be honoured either way, so it stops the run.
+def test_acquisition_refuses_a_contradictory_artifact(tmp_path: Path) -> None:
+    from acquisition_orchestrator import run_acquisition
+
+    path = _manifest(tmp_path, [mdb("FE", role="frontend", acquisition="imported")])
+    with pytest.raises(ValueError, match="ACQUISITION_IGNORED"):
         run_acquisition(path, tmp_path / "out", ("access_snapshot_extract",), "run-1")
+
+
+# A stale mode label describes the artifacts wrongly, but the artifacts are the truth
+# and the run they describe was going to be correct, so it is corrected, not refused.
+def test_a_stale_mode_label_does_not_stop_the_run(tmp_path: Path) -> None:
+    from acquisition_orchestrator import run_acquisition
+
+    path = _manifest(tmp_path, [mdb("FE", role="frontend")], mode="export")
+    # Without authorization the managed adapter reports BLOCKED, which is enough to see
+    # that the mode label was not what stopped it, and that it was reported.
+    result = run_acquisition(path, tmp_path / "out", (), "run-1")
+    assert result["status"] == "BLOCKED"
+    assert result["mode"]["declared"] == "export"
+    assert result["mode"]["observed"] == "extract"

@@ -36,6 +36,14 @@ def configure_acquire_parser(commands: argparse._SubParsersAction) -> None:
     acquire.add_argument("--output-root", help="Output directory for acquisition bundle")
     acquire.add_argument("--authorize", action="append", default=[])
     acquire.add_argument("--acquisition-id", default=None)
+    # The question an operator actually has is not "which mode is this" but "can this
+    # evidence carry the phases I came here for". Naming them makes acquisition answer
+    # it instead of leaving a blocked phase to be discovered in a file afterwards.
+    acquire.add_argument(
+        "--require-phases", default="",
+        help="Comma-separated phases this acquisition must reach, for example 1,2,3. "
+             "Reported by 'plan'; 'run' fails if the acquired evidence leaves one blocked.",
+    )
 
 def configure_collaboration_parser(commands: argparse._SubParsersAction) -> None:
     collaboration = commands.add_parser(
@@ -389,17 +397,37 @@ def main() -> int:
         )
         acquisition_id = getattr(args, "acquisition_id", None) or f"acquire-{uuid.uuid4().hex}"
         authorize = tuple(getattr(args, "authorize", []) or [])
+        required_phases = tuple(
+            item if item.startswith("phase") else f"phase{item}"
+            for item in (
+                part.strip() for part in str(getattr(args, "require_phases", "") or "").split(",")
+            )
+            if item
+        )
 
         if action == "plan":
-            print_json(plan_acquisition(manifest_path))
-            return 0
+            plan = plan_acquisition(manifest_path)
+            if required_phases:
+                plan["required_phases"] = {
+                    "requested": list(required_phases),
+                    "reachable": sorted(
+                        phase for phase in required_phases
+                        if plan["phase_outlook"]["if_content_present"].get(phase) != "BLOCKED"
+                    ),
+                    "unreachable": sorted(
+                        phase for phase in required_phases
+                        if plan["phase_outlook"]["if_content_present"].get(phase) == "BLOCKED"
+                    ),
+                }
+            print_json(plan)
+            return 0 if not plan.get("required_phases", {}).get("unreachable") else 2
         elif action == "run":
-            result = run_acquisition(manifest_path, output_root, authorize, acquisition_id)
+            result = run_acquisition(manifest_path, output_root, authorize, acquisition_id, required_phases)
             print_json(result)
             return 0 if result.get("bundle_id") else 2
 
         plan = plan_acquisition(manifest_path)
-        result = run_acquisition(manifest_path, output_root, authorize, acquisition_id)
+        result = run_acquisition(manifest_path, output_root, authorize, acquisition_id, required_phases)
         result["plan"] = plan
         print_json(result)
         return 0 if result.get("bundle_id") else 2

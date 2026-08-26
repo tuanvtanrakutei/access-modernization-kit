@@ -114,6 +114,7 @@ def run_acquisition(
     output_root: Path,
     granted_authorization: tuple[str, ...],
     acquisition_id: str,
+    required_phases: tuple[str, ...] = (),
 ) -> dict[str, Any]:
     manifest = load_manifest(Path(manifest_path))
     source_root = Path(manifest_path).resolve().parent
@@ -126,15 +127,18 @@ def run_acquisition(
     )
     resolved = resolve_classification(classification, PROFILES)
     artifacts = [_artifact_dict(artifact) for artifact in manifest.artifacts]
-    # Refuse a manifest that disagrees with itself. Acquisition opens databases and
-    # writes an immutable bundle, so a mode the operator did not intend is expensive
-    # to discover afterwards and the declaration exists precisely to be checked.
+    # The mode is an observation of what the artifacts are, not a choice an operator
+    # makes, so a stale label is corrected and reported rather than treated as a
+    # failure: the artifacts are the truth, and refusing the run over a description of
+    # them only stops work that was going to be correct anyway. What does stop the run
+    # is a declaration that cannot be honoured at all - see contradictions below.
     observed = acquisition_preview.observed_mode(artifacts)
+    mode_note = None
     if manifest.acquisition_mode and manifest.acquisition_mode != observed:
-        raise ValueError(
-            f"Manifest declares acquisition_mode: {manifest.acquisition_mode}, but its artifacts "
-            f"route as {observed}. Fix the declaration or the artifacts before acquiring."
-        )
+        mode_note = {
+            "declared": manifest.acquisition_mode, "observed": observed,
+            "detail": "acquisition_mode did not match the artifacts and was ignored; the observed mode was used.",
+        }
     conflicts = acquisition_preview.contradictions(artifacts)
     if conflicts:
         detail = "; ".join(f"{item['artifact']}: {item['reason']}" for item in conflicts)
@@ -165,7 +169,23 @@ def run_acquisition(
         return {
             "bundle_id": None, "bundle_dir": None, "status": worst,
             "failures": _contribution_failures(contributions),
+            "mode": mode_note,
         }
+    # Say plainly which phases this evidence actually opened. The bundle records the
+    # readiness already, but an operator running one command should not have to open a
+    # file to learn that the phase they came here for is still blocked.
+    unreachable = sorted(
+        phase for phase, value in readiness.items()
+        if isinstance(value, dict) and value.get("status") == "BLOCKED"
+    )
+    if required_phases:
+        missing = sorted(set(required_phases) & set(unreachable))
+        if missing:
+            raise ValueError(
+                "Acquisition completed but the evidence does not reach the phases it was "
+                f"required to: {', '.join(missing)}. Reasons are in the bundle's "
+                "phase-readiness.json; add the missing sources and acquire again."
+            )
     return bundle_assembly.assemble_bundle(
         app_id=manifest.app["id"],
         classification=classification_dict,
