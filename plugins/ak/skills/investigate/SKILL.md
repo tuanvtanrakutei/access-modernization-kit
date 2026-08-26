@@ -155,6 +155,27 @@ User action -> screen/form -> VBA event -> processing/query -> table/file -> out
 - Graphify does not replace the six-phase contract.
 - CodeWiki is not a dependency. V2.1 independently implements component indexing, hierarchical decomposition, leaf-first ordering, session isolation, and affected-module refresh.
 
+## Check the evidence a phase needs before starting it
+
+- Before each Phase N, run `scripts/ak.py phase requirements --app-root <APP_ROOT> --phase N`.
+  It exits 0 when the evidence reaches that phase and 2 when it does not.
+- On exit 2, stop and show the operator the `missing` list verbatim, including the
+  commands under each `supply` route. A capability name alone is not something anyone
+  can act on; the command is the actionable part. Do not begin the phase, and do not
+  substitute assumptions for evidence that was never supplied.
+- Do not ask for evidence the report lists under `satisfied`. It names which adapter
+  established each capability, so evidence acquired for an earlier phase is already
+  accounted for and asking again wastes the operator's time.
+- The two supply routes are complementary, not alternatives. Extraction from an Access
+  database and an imported export package produce different evidence, and
+  `specifications/evidence-layout.yaml` declares the one layout both write. Neither is
+  a mode to choose: declare every source that exists and let the report say what is
+  still missing.
+- Proceeding without a capability requires `--waive <capability> --reason "<why>"`. The
+  waiver is recorded in the report so the phase document can state what was not proven.
+  `boundary_authority_resolved` is deliberately not waivable: an unresolved boundary
+  makes every later finding provisional.
+
 ## Apply phase gates and generate outputs
 
 Before completing each phase, verify required template sections, evidence status and locations, open questions, app isolation, and manifest language. Before HTML rendering, verify Phase 4 and traceability. Before PPTX, verify Phase 6, evidence, decisions, and presentation scope.

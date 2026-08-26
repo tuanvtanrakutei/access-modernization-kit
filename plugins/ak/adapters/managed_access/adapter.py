@@ -121,7 +121,14 @@ class ManagedAccessAdapter:
             for component in extraction.get("components", []):
                 _route_component(sections, extraction["database_id"], component)
             _route_table_detail(sections, extraction["database_id"], extraction.get("tables", []))
-            failures.extend({"logical_id": extraction["database_id"], "reason": warning} for warning in extraction.get("warnings", []))
+            # An exclusion the extractor made on purpose is not a failure to extract
+            # something. Reported through the same channel it made coverage overstate
+            # failure by more than a third, and a clean run look damaged.
+            for warning in extraction.get("warnings", []):
+                entry = {"logical_id": extraction["database_id"], "reason": warning}
+                if str(warning).startswith("EXCLUDED:"):
+                    entry["kind"] = "exclusion"
+                failures.append(entry)
         contribution = {
             "adapter_id": self.adapter_id, "adapter_version": self.adapter_version, "app_id": result.app_id,
             "status": result.status, **sections, "failures": failures,
@@ -159,6 +166,10 @@ _RUNTIME_VALUE_FLAGS = {
     "powershell": "--powershell",
     "password_env": "--password-env",
     "timeout": "--timeout",
+    # Suppressing macros keeps an unattended run out of the VBA debugger, and on an
+    # application whose startup code relinks stale table connections it also suppresses
+    # the repair the application depends on. A faithful run has to be able to choose.
+    "automation_security": "--automation-security",
 }
 _RUNTIME_SWITCH_FLAGS = {
     "skip_object_export": "--skip-object-export",

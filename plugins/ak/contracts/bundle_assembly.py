@@ -195,8 +195,14 @@ def _write_text_records(root: Path, records: list[dict[str, Any]]) -> None:
 def _coverage(
     bundle_id: str, schema_version: str, merged: dict[str, Any], failures: list[dict[str, Any]],
 ) -> dict[str, Any]:
-    def counts(extracted: int, failed: int = 0) -> dict[str, int]:
-        return {"extracted": extracted, "skipped": 0, "failed": failed, "unsupported": 0}
+    def counts(extracted: int, failed: int = 0, skipped: int = 0) -> dict[str, int]:
+        return {"extracted": extracted, "skipped": skipped, "failed": failed, "unsupported": 0}
+
+    # "This object could not be read" and "this object was excluded on purpose" are
+    # different facts. Sharing one channel made a clean run report failures it never
+    # had; "failed" has to keep meaning evidence that should exist and does not.
+    excluded = sum(1 for item in failures if item.get("kind") == "exclusion")
+    unreadable = len(failures) - excluded
 
     return {
         "schema_version": schema_version,
@@ -206,7 +212,7 @@ def _coverage(
             "code": counts(sum(len(values) for values in merged["code"].values())),
             "ui": counts(sum(len(values) for values in merged["ui"].values())),
             "interface": counts(sum(len(values) for values in merged["interfaces"].values())),
-            "unclassified": counts(0, len(failures)),
+            "unclassified": counts(0, unreadable, excluded),
         },
     }
 

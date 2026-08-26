@@ -43,6 +43,12 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--access-path", help="Declare the Access executable this run expects; a mismatch with the registered COM server is reported instead of silently using another install")
     parser.add_argument("--skip-object-export", action="store_true", help="Run only the DAO tier: full schema and object inventory, no exported definition text")
     parser.add_argument("--skip-object-inventory", action="store_true", help="Do not register forms, reports, macros or modules; use when an imported export of the same database supplies them")
+    parser.add_argument(
+        "--automation-security", choices=("force_disable", "allow"), default="force_disable",
+        help="force_disable suppresses macros so an unattended run cannot stall in the VBA "
+             "debugger. allow lets startup code run, which is required when that code relinks "
+             "stale table connections and the extraction has to reflect the working application",
+    )
     parser.add_argument("--visible-host", action="store_true", help="Show the Access host so an operator can dismiss dialogs a broken VBA reference raises. Marks the run attended")
     return parser.parse_args()
 
@@ -217,6 +223,7 @@ def main() -> int:
     if args.password_env:
         command += ["-PasswordEnvironment", args.password_env]
     command += ["-AccessProgId", args.access_progid, "-DaoProgId", args.dao_progid]
+    command += ["-AutomationSecurity", args.automation_security]
     if args.skip_object_export:
         command.append("-SkipObjectExport")
     if args.skip_object_inventory:

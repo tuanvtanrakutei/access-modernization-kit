@@ -12,6 +12,11 @@ param(
     [string]$DaoProgId = 'DAO.DBEngine.36',
     # Skip the Access host entirely and keep only the DAO tier.
     [switch]$SkipObjectExport,
+    # msoAutomationSecurityForceDisable by default. Suppressing macros keeps an
+    # unattended run from stalling in the VBA debugger, and on an application whose
+    # startup code relinks stale table connections it also suppresses the repair the
+    # application depends on - so a faithful run needs to be able to allow them.
+    [ValidateSet('force_disable', 'allow')][string]$AutomationSecurity = 'force_disable',
     # Do not register forms, reports, macros, modules or queries at all. Use this when an
     # imported export of the same database supplies them: without it both adapters
     # describe the same objects and the bundle counts every one of them twice.
@@ -357,10 +362,10 @@ if (-not $isAdp) {
 # A silent exclusion reads as "this is everything there was", so say what was
 # dropped and why.
 if ($skippedTables -gt 0) {
-    [void]$warnings.Add(('Excluded {0} non-model tables: Access temporary (~*) and auto-generated ImportErrors tables.' -f $skippedTables))
+    [void]$warnings.Add(('EXCLUDED: {0} non-model tables: Access temporary (~*) and auto-generated ImportErrors tables.' -f $skippedTables))
 }
 if ($skippedQueries -gt 0) {
-    [void]$warnings.Add(('Excluded {0} Access-generated hidden queries (~*) backing form and report record sources.' -f $skippedQueries))
+    [void]$warnings.Add(('EXCLUDED: {0} Access-generated hidden queries (~*) backing form and report record sources.' -f $skippedQueries))
 }
 
 # Persist what the DAO tier produced before starting a host that may hang. The
@@ -397,7 +402,11 @@ try {
     # opened by automation rather than Access's own startup path. The defences that
     # actually hold are the DAO tier (no host at all), the timeout, and -VisibleHost
     # for a database that genuinely needs an operator.
-    try { $application.AutomationSecurity = 3 } catch { [void]$warnings.Add(('Could not force-disable automation macros: {0}' -f $_.Exception.Message)) }
+    if ($AutomationSecurity -eq 'force_disable') {
+        try { $application.AutomationSecurity = 3 } catch { [void]$warnings.Add(('Could not force-disable automation macros: {0}' -f $_.Exception.Message)) }
+    } else {
+        [void]$warnings.Add('Automation macros were allowed to run: startup code executed, so this extraction reflects what the application does on open rather than the file as it sits at rest.')
+    }
     if ($isAdp) {
         $application.OpenAccessProject($snapshotPath, $false)
     } else {
