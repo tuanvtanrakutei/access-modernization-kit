@@ -18,6 +18,10 @@
       "type": "object",
       "properties": {
         "profile": {"type": "string"}, "profile_version": {"type": "string"},
+        "acquisition_mode": {
+          "description": "How this project supplies its sources, declared so it can be verified instead of inferred. 'extract' acquires from Access binaries, 'export' from already-exported source trees, 'mixed' from both. Acquisition checks the declaration against how the artifacts actually route and refuses a manifest that contradicts itself.",
+          "enum": ["extract", "export", "mixed"]
+        },
         "classification": {
           "type": "object",
           "required": ["topology", "frontend_format", "source_availability", "backend_kinds"],
@@ -47,6 +51,39 @@
             "properties": {
               "type": {"enum": ["local_path", "workspace_path", "external_path", "secret_ref", "bundle_ref", "generated_ref"]},
               "value": {"type": "string", "minLength": 1}
+            }
+          },
+          "runtime": {
+            "description": "Per-artifact runtime choices passed to the adapter that acquires it. Declared here because they were previously discoverable only by reading adapter source, while skip_object_export in particular decides whether the run needs an Access host at all.",
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "skip_object_export": {
+                "description": "Acquire through the DAO tier only. Schema, queries and the object-name inventory are still collected, but no Access host is started - so no AutoExec, no VBA project load, no modal dialog, and no elevation requirement. Object definition text is not exported.",
+                "type": "boolean"
+              },
+              "skip_object_inventory": {
+                "description": "Do not register objects the extractor sees. Use when the same objects already arrive through an imported export package and would otherwise be counted twice.",
+                "type": "boolean"
+              },
+              "visible_host": {
+                "description": "Run the Access host visibly so an operator can dismiss dialogs. Makes the run attended and therefore not reproducible unattended; the extractor records a warning saying so.",
+                "type": "boolean"
+              },
+              "allow_run_as_invoker": {
+                "description": "Set __COMPAT_LAYER=RunAsInvoker on the PowerShell host. It cannot suppress elevation for the Access COM server, which is launched out of process and does not inherit the variable.",
+                "type": "boolean"
+              },
+              "skip_runtime_check": {
+                "description": "Skip Access runtime discovery and use the default PowerShell host.",
+                "type": "boolean"
+              },
+              "access_progid": {"description": "Override the Access Application ProgID.", "type": "string"},
+              "dao_progid": {"description": "Override the DAO engine ProgID (default DAO.DBEngine.36).", "type": "string"},
+              "access_path": {"description": "Pin a specific Access executable.", "type": "string"},
+              "powershell": {"description": "Pin the PowerShell host that drives the Access COM adapter.", "type": "string"},
+              "password_env": {"description": "Environment variable holding the database password. The password is never written to the command line.", "type": "string"},
+              "timeout": {"description": "Seconds before the adapter treats the run as hung and terminates the Access host it started.", "type": "integer", "minimum": 1}
             }
           }
         }

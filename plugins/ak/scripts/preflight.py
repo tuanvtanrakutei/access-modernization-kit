@@ -71,7 +71,11 @@ def manifest_needs(path: Path | None) -> dict[str, bool]:
     # Without it a missing PyYAML silently downgraded every answer below to a text scan
     # and reported the guesses as facts, with nothing anywhere saying a package was
     # absent - the same class of defect as a failure that erases its own evidence.
-    needs = {"graphify": False, "xlsx": False, "pdf": False, "html": False, "pptx": False, "live_sql": False, "access": False, "adp": False, "compdb": False, "yaml_parsed": False}
+    # access_host is deliberately separate from access. Only the Access Application
+    # tier can require elevation; the DAO tier activates in-process and never does. An
+    # Access-only project that skips object export needs no host at all, and warning it
+    # about administrator rights trains operators to elevate runs that never needed it.
+    needs = {"graphify": False, "xlsx": False, "pdf": False, "html": False, "pptx": False, "live_sql": False, "access": False, "access_host": False, "adp": False, "compdb": False, "yaml_parsed": False}
     if not path or not path.is_file():
         return needs
     text = path.read_text(encoding="utf-8", errors="ignore").lower()
@@ -103,6 +107,10 @@ def manifest_needs(path: Path | None) -> dict[str, bool]:
             for item in artifacts
         )
         needs["access"] = bool(access_sources) or bool(access_artifacts)
+        # A V2.1 manifest has no per-artifact runtime, so it is assumed to start a host.
+        needs["access_host"] = bool(access_sources) or any(
+            not (item.get("runtime") or {}).get("skip_object_export") for item in access_artifacts
+        )
         needs["adp"] = any(
             isinstance(item, dict) and item.get("format") == "adp"
             for item in list(access_sources) + access_artifacts
@@ -127,6 +135,12 @@ def manifest_needs(path: Path | None) -> dict[str, bool]:
             re.search(r"(?m)^\s*-?\s*kind:\s*[\"']?access_database", text)
         )
         needs["adp"] = bool(re.search(r"(?m)^\s*format:\s*[\"']?adp", text))
+        # Without a parser the per-artifact pairing cannot be established, so a host is
+        # assumed unless the text carries no enabled skip_object_export at all. Erring
+        # toward "a host may start" keeps the elevation warning rather than losing it.
+        needs["access_host"] = needs["access"] and not bool(
+            re.search(r"(?m)^\s*skip_object_export:\s*true\s*$", text)
+        )
         needs["compdb"] = "compile_commands.json" in text
     return needs
 
@@ -439,7 +453,13 @@ def main() -> int:
         recommendations.append("Install pyodbc and Microsoft ODBC Driver only after live SQL access is authorized.")
     if needs["access"] and not access["access_com_registered"]:
         recommendations.append("Access automation is not registered; keep existing exports or run snapshot extraction on a compatible Windows host with Microsoft Access/ACE.")
-    if needs["access"] and access["access_com_registered"] and not access.get("activation_verified"):
+    if needs["access"] and not needs["access_host"]:
+        recommendations.append(
+            "Every managed artifact declares runtime.skip_object_export, so acquisition runs through the DAO tier only: "
+            "no Access host is started, and no administrator rights or COM activation are required. Object definition text "
+            "will not be exported; supply it as an imported export package if Phase 2 and Phase 3 need the definitions."
+        )
+    if needs["access_host"] and access["access_com_registered"] and not access.get("activation_verified"):
         recommendations.append(
             "Access is registered but no activation was attempted, so this status does not predict whether extraction can run. "
             "Re-run with --verify-access-activation, or use the DAO-only tier (runtime.skip_object_export) which needs no Access host."
@@ -447,7 +467,7 @@ def main() -> int:
     # An elevation-flagged Access cannot be worked around from inside the process:
     # __COMPAT_LAYER=RunAsInvoker is set on the PowerShell host, while the COM server
     # is launched by the service and does not inherit it. Name the remedy that works.
-    if needs["access"] and access.get("runasadmin_detected"):
+    if needs["access_host"] and access.get("runasadmin_detected"):
         flags = ", ".join(
             f"{flag.get('hive')}:{flag.get('value')}" for flag in access.get("appcompat_flags", []) or []
         )

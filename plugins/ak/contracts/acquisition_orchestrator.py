@@ -4,6 +4,7 @@ import dataclasses
 from pathlib import Path
 from typing import Any
 
+import acquisition_preview
 import bundle_assembly
 import phase_readiness as phase_readiness_contract
 from adapters.base import AcquisitionRequest
@@ -78,13 +79,33 @@ def plan_acquisition(manifest_path: Path) -> dict[str, Any]:
     manifest = load_manifest(Path(manifest_path))
     artifacts = [_artifact_dict(artifact) for artifact in manifest.artifacts]
     grouped = group_artifacts(artifacts)
+    classification_dict = _classification_dict(manifest)
+    classification = Classification(
+        classification_dict["topology"], classification_dict["frontend_format"],
+        classification_dict["source_availability"], tuple(classification_dict["backend_kinds"]),
+    )
+    # The plan is the last point before real work where a self-contradicting manifest
+    # can still be cheap to fix, so it answers what the run will be able to prove and
+    # whether the declared mode matches how the artifacts actually route.
+    outlook = acquisition_preview.preview(
+        manifest.acquisition_mode, artifacts, classification, PROFILES,
+    )
     return {
         "app_id": manifest.app["id"],
-        "classification": _classification_dict(manifest),
+        "classification": classification_dict,
         "adapters": {
             adapter: [artifact["id"] for artifact in items]
             for adapter, items in sorted(grouped.items())
         },
+        "mode": {
+            "declared": outlook["declared_mode"],
+            "observed": outlook["observed_mode"],
+            "agrees": outlook["mode_agrees"],
+        },
+        "capabilities": outlook["capabilities"],
+        "phase_outlook": outlook["phase_outlook"],
+        "access_host": outlook["access_host"],
+        "contradictions": outlook["contradictions"],
     }
 
 
@@ -105,6 +126,19 @@ def run_acquisition(
     )
     resolved = resolve_classification(classification, PROFILES)
     artifacts = [_artifact_dict(artifact) for artifact in manifest.artifacts]
+    # Refuse a manifest that disagrees with itself. Acquisition opens databases and
+    # writes an immutable bundle, so a mode the operator did not intend is expensive
+    # to discover afterwards and the declaration exists precisely to be checked.
+    observed = acquisition_preview.observed_mode(artifacts)
+    if manifest.acquisition_mode and manifest.acquisition_mode != observed:
+        raise ValueError(
+            f"Manifest declares acquisition_mode: {manifest.acquisition_mode}, but its artifacts "
+            f"route as {observed}. Fix the declaration or the artifacts before acquiring."
+        )
+    conflicts = acquisition_preview.contradictions(artifacts)
+    if conflicts:
+        detail = "; ".join(f"{item['artifact']}: {item['reason']}" for item in conflicts)
+        raise ValueError(f"Manifest contains contradictory artifact declarations: {detail}")
     contributions: list[dict[str, Any]] = []
     for adapter_id, items in sorted(group_artifacts(artifacts).items()):
         adapter = ADAPTERS[adapter_id]()

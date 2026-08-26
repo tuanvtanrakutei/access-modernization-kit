@@ -46,6 +46,10 @@ class Manifest:
     classification: Classification | None
     profile: str | None
     artifacts: tuple[Artifact, ...] = field(default_factory=tuple)
+    # How the project says it supplies its sources. Nothing used to state this, so the
+    # only way to know was to route every artifact by hand and hope the reader applied
+    # the same rules the orchestrator does. Declared here, acquisition can check it.
+    acquisition_mode: str | None = None
 
 
 def _validate_schema(data: dict[str, Any], schema_name: str) -> None:
@@ -92,4 +96,5 @@ def load_manifest(path: Path) -> Manifest:
     return Manifest(
         version, data.get("app", {}), classification, project.get("profile"),
         tuple(_build_artifact(item) for item in data.get("artifacts", [])),
+        project.get("acquisition_mode"),
     )
