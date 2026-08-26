@@ -36,6 +36,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--powershell", help="Override the PowerShell host used to drive the Access COM adapter")
     parser.add_argument("--allow-run-as-invoker", action="store_true", help="Set __COMPAT_LAYER=RunAsInvoker for the PowerShell host. Note this does not reach an out-of-process COM server: a RUNASADMIN-flagged Access still fails with 0x800702E4")
     parser.add_argument("--skip-runtime-check", action="store_true", help="Skip Access runtime discovery and use the default PowerShell host (restores pre-2.3 behavior)")
+    parser.add_argument("--snapshot-dir", help="Directory the snapshot copy is placed in. Defaults to a folder private to this extraction. A split Access application whose frontend opens its backend as a sibling needs both snapshots in one directory, which only the caller knows how to arrange.")
     parser.add_argument("--timeout", type=int, default=1800, help="Seconds to wait for the Access adapter before treating the run as hung (default: 1800)")
     parser.add_argument("--access-progid", default="Access.Application", help="COM ProgId for the Access host; version-qualify it (Access.Application.11) to pin one install")
     parser.add_argument("--dao-progid", default="DAO.DBEngine.36", help="COM ProgId for the DAO engine that reads schema without starting Access")
@@ -130,7 +131,15 @@ def main() -> int:
     if not re.fullmatch(r"[A-Za-z0-9_-]+", session_id):
         raise SystemExit("--session-id may contain only letters, digits, underscores, and hyphens")
     output = Path(args.output_dir).expanduser().resolve() / args.database_id / session_id
-    snapshot = output / "snapshot" / source.name
+    # A frontend that resolves its backend as a sibling - CurrentProject.Path plus a
+    # file name, the ordinary Access split pattern - cannot open it from a snapshot
+    # directory holding one database. The caller may point every database of one
+    # application at a shared directory so that layout survives.
+    snapshot_root = (
+        Path(args.snapshot_dir).expanduser().resolve() if args.snapshot_dir
+        else output / "snapshot"
+    )
+    snapshot = snapshot_root / source.name
     runtime, host = build_runtime_block(args)
     plan = {
         "schema_version": "2.1", "database_id": args.database_id, "session_id": session_id,

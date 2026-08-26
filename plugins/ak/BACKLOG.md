@@ -165,24 +165,35 @@ should exist and does not".
 
 Closed entries name the commit that closed them and the run that proved it.
 
-- **`Error in loading DLL` on the A05 frontend was not an elevation problem** -
-  the dialog appeared again in a **non-elevated** run, was dismissed, and the
-  extraction then completed both tiers: 51 forms, 63 reports, 43 queries, 7 modules,
-  1 macro, all with definition text. All six VBA references resolved with `broken:
-  false`. So the load failure is a dismissable one-time failure, not a permission
-  wall, and running as administrator is not required to acquire this application.
-  What the references do show is recorded as A6.
-- **`Error in loading DLL` was a VBIDE reference hijacked by a third-party Office** -
-  the frontend ships in two states on this machine. The 187MB `_Backup` carries six
-  VBA references including `VBIDE` pointing at
-  `C:\Program Files (x86)\Kingsoft\WPS Office\...\office6be6ext.olb`, and it
-  raises the dialog. The 17MB compacted copy carries five - no `VBIDE` - and opens
-  clean through automation in under 60s, non-elevated. Object inventories are
-  byte-for-byte equal in shape: 22 tables, 43 queries, 51 forms, 63 reports, 7
-  modules, 1 macro, no name differing. So Compact & Repair dropped the hijacked
-  reference, and neither elevation, snapshot location, write permission, nor
-  `AutomationSecurity` was involved. Prefer the compacted file: same evidence,
-  reproducible unattended.
+- **Two different failures wore the same name, and neither needed elevation** -
+  the A05 frontend produced `Run-time error '3024': Could not find file
+  ...\WINDOWS11_45D0FDDD\品揃支援DATA.MDB` and, separately, `Compile error: Error in
+  loading DLL`. They have different causes and different fixes.
+
+  3024 is the sibling-resolution problem recorded as A9: the frontend derives its
+  backend path from its own location, so a snapshot directory holding one database
+  cannot satisfy it. Fixed by snapshotting every database of one application into a
+  shared directory, backends first. Proven: the window that used to be a dialog is
+  now `【新受注システム連携】品揃支援システム - [メインメニュー]`, the application's
+  own main menu, and the run needs nobody to click anything.
+
+  `Error in loading DLL` is a **compile** error, raised when VBA compiles the project
+  and cannot load `VBIDE`, which on this machine resolves to
+  `C:\Program Files (x86)\Kingsoft\WPS Office\12.1.0.28032\office6\vbe6ext.olb` - a
+  third-party Office registered itself as the provider. Nothing in the application
+  uses VBIDE: zero hits for `VBIDE`, `VBProject`, `CodeModule`, `VBComponent` or
+  `Application.VBE` across all 166 exported files, so the reference is vestigial and
+  removing it is safe. Compact & Repair also drops it - the 17MB copy carries five
+  references and no VBIDE.
+
+  Extraction never meets this error because `SaveAsText` serializes without
+  compiling, which is why every automated run completed while an interactive session
+  hit it. That makes it harmless to the bundle and material to anything that has to
+  **run or modify** the legacy application on this host - a Phase 1 risk, not an
+  acquisition defect.
+
+  Elevation was not involved in either. `品揃支援data.mdb` acquires cleanly through
+  both tiers non-elevated, and so does the frontend once its backend sits beside it.
 - **A hung Access host destroyed the DAO tier's own results** - the extractor wrote
   `schema/tables.json`, `component-index.json` and its receipt only after both tiers
   finished, so the caller's timeout killed the process before any of it existed. A

@@ -29,11 +29,19 @@ class ManagedAccessAdapter:
         return CapabilityReport(self.adapter_id, self.adapter_version, not missing, missing, ("probe_is_read_only",))
 
     def plan(self, request: AcquisitionRequest) -> AcquisitionPlan:
+        # A frontend that opens its backend as a sibling needs the backend's snapshot
+        # to exist beside its own by the time it starts, so backends are acquired
+        # first. Without an order the frontend could run against a directory holding
+        # only itself, which is how a split application fails to open at all.
+        ordered = sorted(
+            request.artifacts,
+            key=lambda artifact: 0 if artifact.get("role") == "backend" else 1,
+        )
         operations = tuple({
             "artifact": artifact,
             "source": str((request.source_root / artifact["source_ref"]["value"]).resolve()),
             "output_subdir": artifact["id"],
-        } for artifact in request.artifacts)
+        } for artifact in ordered)
         return AcquisitionPlan(
             self.adapter_id, self.adapter_version,
             tuple(item["artifact"]["id"] for item in operations),
@@ -54,6 +62,9 @@ class ManagedAccessAdapter:
                 sys.executable, str(PACKAGE / "scripts" / "extract_access.py"),
                 "--database", operation["source"], "--database-id", artifact["id"],
                 "--output-dir", plan.runtime_output_root, "--session-id", plan.acquisition_id,
+                # One directory for every database of this application, so the sibling
+                # layout the app resolves against is reproduced inside the snapshot.
+                "--snapshot-dir", str(Path(plan.runtime_output_root) / "_snapshots" / plan.acquisition_id),
                 "--execute",
             ]
             # Runtime choices declared per artifact in the manifest. Without this the
