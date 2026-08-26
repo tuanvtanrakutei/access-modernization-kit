@@ -22,9 +22,9 @@ ROLE_INPUTS = {
     "build_context_analyzer": ["manifest.lock.yaml", "source-inventory.json", ACQUISITION_INPUT, "../../extracted/build-context"],
     "module_decomposer": ["manifest.lock.yaml", "source-inventory.json", ACQUISITION_INPUT, "../../extracted/access", "../../extracted/module-plan"],
     "sql_data": ["manifest.lock.yaml", "source-inventory.json", ACQUISITION_INPUT, "../../extracted/access", "../../extracted/module-plan"],
-    "vba_ui": ["manifest.lock.yaml", "source-inventory.json", "../../sources/screenshots", "../../sources/reports", ACQUISITION_INPUT, "../../extracted/access", "../../extracted/module-plan"],
+    "vba_ui": ["manifest.lock.yaml", "source-inventory.json", "../../sources/screenshots", "../../sources/reports-out", ACQUISITION_INPUT, "../../extracted/access", "../../extracted/module-plan"],
     "japanese_documents": ["manifest.lock.yaml", "source-inventory.json", ACQUISITION_INPUT, "../../shared-docs"],
-    "file_interfaces": ["manifest.lock.yaml", "source-inventory.json", "../../sources/samples", "../../sources/reports", "../../sources/screenshots", ACQUISITION_INPUT, "../../extracted/module-plan"],
+    "file_interfaces": ["manifest.lock.yaml", "source-inventory.json", "../../sources/samples", "../../sources/reports-out", "../../sources/screenshots", ACQUISITION_INPUT, "../../extracted/module-plan"],
     "graph_builder": ["manifest.lock.yaml", "source-inventory.json", "../../extracted/component-index.json", "../../extracted/module-plan", "../../graphify-out"],
 }
 MODULE_FANOUT_ROLES = {"sql_data", "vba_ui", "file_interfaces", "logic_processing"}

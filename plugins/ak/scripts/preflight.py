@@ -328,7 +328,7 @@ def scan_app_sources(app_root: Path, declared: dict[str, list[str]]) -> dict[str
         "source_packages": bool(package_present),
         "access_db": access_db,
         "screenshots": nonempty("sources/screenshots"),
-        "reports": nonempty("sources/reports"),
+        "reports": nonempty("sources/reports-out"),
         "documents": bool(document_present),
         "samples": nonempty("sources/samples"),
         "shared_docs": bool(japanese_present),

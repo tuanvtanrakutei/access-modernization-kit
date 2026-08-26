@@ -28,27 +28,34 @@ def graphify_runtime_version() -> str:
     """
     spec = Path(__file__).resolve().parent.parent / "specifications" / "graphify-runtime.json"
     return str(json.loads(spec.read_text(encoding="utf-8"))["version"])
+# Exactly the directories the pipeline uses, as declared by the workspace section of
+# specifications/evidence-layout.yaml. Three pairs were removed because each gave an
+# operator a second plausible place to look: a top-level outputs/ beside every run's
+# own outputs/, an evidence/evidence.json nothing ever read, and extracted/access/
+# from before acquisition wrote acquired/staging/. sources/vba and sources/sql were
+# from before acquisition wrote acquired/staging/. sources/reports became
+# sources/reports-out, because evidence-layout.yaml already uses reports/ for report
+# definitions inside an export package - one name meant two different things.
 SOURCE_DIRS = (
+    "sources/access",
+    # V2.1 declares exported sources at these two fixed paths. A V2.2 project receives
+    # them as a declared package under its own artifact id instead, but the legacy
+    # contract still names these, so they stay as input containers.
     "sources/vba",
     "sources/sql",
-    "sources/access",
-    "sources/screenshots",
-    "sources/reports",
-    "sources/samples",
     "sources/documents",
+    "sources/screenshots",
+    "sources/samples",
+    "sources/reports-out",
     "shared-docs",
-    "extracted/access",
     "extracted/build-context",
     "extracted/module-plan",
     "decisions",
-    "evidence",
-    "outputs",
     "graphify-out",
     "runs",
 )
 OWNED_FILES = (
     "manifest.yaml",
-    "evidence/evidence.json",
     ".gitignore",
     ".graphifyignore",
     ".investigationignore",
@@ -298,7 +305,7 @@ sources:
       enabled: false
       connection_ref: ""
   screenshots: ["sources/screenshots"]
-  reports: ["sources/reports"]
+  reports: ["sources/reports-out"]
   sample_files: ["sources/samples"]
   app_documents: ["sources/documents"]
   japanese_documents:
@@ -448,14 +455,6 @@ def main() -> int:
         manifest_content = manifest_text(app_id, args.name_en, languages, args.runtime, args.max_parallel)
 
     (app_root / "manifest.yaml").write_text(manifest_content, encoding="utf-8")
-    evidence = {
-        "app_id": app_id,
-        "generated_at": datetime.now(timezone.utc).isoformat(),
-        "items": [],
-    }
-    (app_root / "evidence/evidence.json").write_text(
-        json.dumps(evidence, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
-    )
     package_root = Path(__file__).resolve().parent.parent
     for source_name, target_name in (
         ("app.gitignore", ".gitignore"),

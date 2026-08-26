@@ -118,3 +118,45 @@ package_files:
     required: false
     description: Object counts and skipped objects, written by the VBA exporter at the
       package root. Recognized by name; it is not a misfiled member.
+
+# The workspace directories, declared here so init creates exactly what the pipeline
+# uses. Three duplicated pairs had grown up: a top-level outputs/ beside every run's
+# own outputs/, a top-level evidence/evidence.json nothing ever read, and
+# extracted/access/ from before acquisition wrote acquired/staging/. Each was created
+# on every init and each gave an operator a second plausible place to look.
+workspace:
+  inputs:
+    sources/access:
+      purpose: Access databases - .mdb, .accdb, .adp. The only binaries a human places.
+    sources/documents:
+      purpose: Business documents. Supplies document_inventory, which no runtime route can.
+    sources/screenshots:
+      purpose: Captured screens. No runtime route produces these.
+    sources/samples:
+      purpose: Sample input files the application reads, for the inbound boundary.
+    sources/reports-out:
+      purpose: Sample outputs the application produces, for the outbound boundary.
+    sources/<ARTIFACT_ID>:
+      purpose: >-
+        One imported export package per artifact, holding the containers declared
+        above - forms/, reports/, macros/, vba/, queries/, schema/ - plus its
+        import-source-manifest.yaml. Created by whoever supplies the export, not by init.
+    shared-docs:
+      purpose: Documents shared across the application estate rather than owned by this app.
+  machine_written:
+    acquired/staging:
+      purpose: Per-artifact extraction output and the shared snapshot directory.
+      warning: Never hand-edited. One directory per acquisition id, immutable once written.
+    acquired/bundle-<hash>:
+      purpose: The canonical bundle every later phase reads.
+    extracted:
+      purpose: Indexes derived from the bundle - component-index.json and module-plan/.
+    graphify-out:
+      purpose: The normalized corpus, the graph, and the per-phase query receipts.
+    runs/<run-id>:
+      purpose: >-
+        One investigation run. Phase documents, evidence register and traceability
+        matrix live in its outputs/ - there is no second copy at the workspace root.
+  human_written:
+    decisions:
+      purpose: Decisions a person made that the sources cannot state.
