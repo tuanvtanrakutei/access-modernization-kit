@@ -95,6 +95,11 @@ Closed entries name the commit that closed them and the run that proved it.
 - **`graph_shape` reported every graph as having no edges** - Graphify writes the
   node-link shape, whose edge list is named `links`; the gate read only `edges`.
   `94b4e5f`. Receipt went from `edges: 0` to `edges: 237` on the same graph.
+- **A declared Access runtime was recorded and never enforced** - `runtime.access_path`
+  wrote `matches: false` into the receipt and nothing read it, so a run proceeded
+  against an install the operator had explicitly said it was not. Preflight also never
+  reported which Access would open the database. Both closed by naming the registered
+  executable and version in preflight, and refusing the run on a mismatch.
 - **Acquisition mode was inferred twice, by two rules that could disagree** -
   `8616a8a` made it a declaration, `c0d4a47` demoted it to an observation and put
   the protection where it belongs: `--require-phases` fails when the evidence

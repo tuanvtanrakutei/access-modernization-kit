@@ -643,3 +643,33 @@ def test_graphify_document_normalizers_cover_office_and_report_scanned_pdf(tmp_p
     assert statuses["sources/documents/manual.docx"] == "NORMALIZED"
     assert statuses["sources/documents/flow.pptx"] == "NORMALIZED"
     assert statuses["sources/documents/scan.pdf"] in {"OCR_REQUIRED", "OCR_FAILED"}
+
+
+# A declared Access runtime that is not the one COM will activate used to be recorded
+# as matches: false inside the receipt and read by nobody, so a run proceeded against
+# an install the operator had explicitly said it was not.
+def test_a_declared_access_runtime_that_does_not_match_stops_the_run(tmp_path: Path) -> None:
+    database = tmp_path / "app.mdb"
+    database.write_bytes(b"synthetic-signature-only")
+    completed = subprocess.run(
+        [
+            sys.executable, str(SCRIPTS / "extract_access.py"),
+            "--database", str(database), "--database-id", "T99",
+            "--output-dir", str(tmp_path / "out"), "--session-id", "s1", "--execute",
+            "--access-path", str(tmp_path / "nowhere" / "MSACCESS.EXE"),
+        ],
+        check=False, capture_output=True, text=True, encoding="utf-8", errors="replace",
+    )
+    if "windows" not in sys.platform.lower():
+        return
+    report = json.loads(completed.stdout)
+    declared = report["runtime"]["declared_runtime"]
+    # Only meaningful where an Access COM server is registered to disagree with.
+    if declared["matches"] is None or not declared["registered_paths"]:
+        return
+    assert declared["matches"] is False
+    assert report["status"] == "BLOCKED"
+    assert completed.returncode == 3
+    assert any("Declared Access runtime" in warning for warning in report["warnings"])
+    # The snapshot must not have been taken: the run stopped before touching the file.
+    assert not (tmp_path / "out" / "T99" / "s1" / "snapshot").exists()

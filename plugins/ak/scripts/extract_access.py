@@ -140,6 +140,21 @@ def main() -> int:
         "project_context": {}, "components": [],
         "warnings": ["The original database will never be opened; execution uses a copied snapshot.", "ADP extraction requires a compatible legacy Access runtime." if fmt == "adp" else "Access/ACE automation is required for executable extraction."],
     }
+    # A declared runtime that does not match the one COM will activate used to be
+    # recorded as matches: false inside the receipt and read by nobody, so the run
+    # proceeded against an install the operator had explicitly said it was not. The
+    # declaration only means something if violating it stops the run.
+    declared = runtime.get("declared_runtime", {})
+    if declared.get("requested_path") and declared.get("matches") is False:
+        registered = ", ".join(str(item) for item in declared.get("registered_paths") or []) or "none registered"
+        plan["status"] = "BLOCKED"
+        plan["warnings"].append(
+            f"Declared Access runtime {declared['requested_path']} is not the registered COM server "
+            f"({registered}). Register the declared install, correct runtime.access_path, or remove "
+            "the declaration to accept whichever install Windows resolves."
+        )
+        print(json.dumps(plan, ensure_ascii=False, indent=2))
+        return 3
     if runtime.get("runasadmin_detected"):
         plan["warnings"].append("The registered Access executable has a RunAsAdmin compatibility flag; use --allow-run-as-invoker if COM activation prompts for elevation.")
     if args.dry_run or not args.execute:

@@ -173,6 +173,21 @@ def windows_access_capabilities(verify_activation: bool = False) -> dict[str, ob
             provider.get("registered") for view in views.values() for provider in view.get("ace_providers", {}).values()
         ),
         "selected_host": report["selected_host"],
+        # Which Access will actually open the database. A bare ProgId resolves per
+        # machine, so on a host carrying more than one Office an operator could not
+        # see which install a run was about to use - the registry knew, and nothing
+        # reported it. Naming the executable and its version makes an unintended
+        # engine visible before the run rather than after.
+        "registered_access": [
+            {
+                "view": view_name,
+                "executable": entry.get("executable"),
+                "version": entry.get("version"),
+            }
+            for view_name, view in views.items()
+            for entry in [view.get("access", {})]
+            if entry.get("registered")
+        ],
         "runtime_status": report["status"],
         "runasadmin_detected": report["runasadmin_detected"],
         "activation_verified": bool(activation.get("tested")),
