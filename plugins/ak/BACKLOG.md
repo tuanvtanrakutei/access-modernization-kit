@@ -59,29 +59,45 @@ Phase 2 asks the graph about screens and the graph has never seen one.
 property soup is noise, but control names and record sources are not), and whether
 OCR should be part of the corpus contract rather than an optional capability.
 
-### A4 - `Error in loading DLL` on the A05 frontend: cause unresolved
+### A5 - `build_import_manifest.py` refuses the exporter's own metadata file
 
-**Observed 2026-08-26.** After RUNASADMIN was removed from `MSACCESS.EXE`'s
-`AppCompatFlags\Layers` value, COM activation succeeded (`ok: true, version:
-11.0, bitness: 32`) and `品揃支援data.mdb` extracted completely through the Access
-host with no dialog: 104 tables, 39 queries, 4 reports, 1 module.
+**Observed 2026-08-26, A05.** `tools/ExportAccessObjects.bas` writes
+`export-manifest.txt` at the root of every package it produces. Building the
+producer manifest for that package fails:
 
-The frontend `品揃支援（windows11専用）.mdb` behaved differently in the same
-non-elevated configuration: the VBA project dropped into break mode, then raised
-`Error in loading DLL`, which needed a human click. `AutomationSecurity = 3`
-prevented the break but not the reference load, because references load when the
-project opens, before any macro runs.
+```
+unclassified: ["export-manifest.txt"]
+remedy: Move them into a recognized directory (...) or pass --allow-unclassified.
+```
 
-Two candidate causes, not yet distinguished:
+Classification keys on the containing directory, and a file at the package root
+has none, so the kit refuses the artifact its own exporter placed there. Passing
+`--allow-unclassified` declares it as `metadata` and the import succeeds - which
+is the right outcome, reached through a flag whose documented purpose is to
+tolerate files the kit does not recognize.
 
-1. a reference to a 32-bit library that is missing or unregistered on Windows 11
-2. a library that loads only with elevation
+The same round-trip class as the `.txt`-classified-as-`sample` defect that
+`init --source` had: producer and consumer inside one package disagreeing about a
+convention the package itself defines. A known producer's own manifest file should
+be recognized by name, not require an override that also lowers the bar for
+everything else in the tree.
 
-**Decisive test:** run the frontend extraction from an elevated terminal. If it
-completes, cause 2; if it still fails, `project_context.references` names the
-library whose `broken` flag is set. Either answer is actionable, and both are
-cheap now that `--timeout` bounds a hang and terminates only the host this run
-started.
+### A7 - deliberate exclusions are counted as extraction failures
+
+**Observed 2026-08-26, A05.** `coverage.json` reported `unclassified: failed=11`.
+Reading the eleven: eight are linked tables whose external file is genuinely
+unreadable, and three are exclusion tallies the extractor emits on purpose -
+`Excluded 5 non-model tables`, `Excluded 3 Access-generated hidden queries`,
+`Excluded 55 Access-generated hidden queries`.
+
+Filtering an ImportErrors table or a `~sq_*` query is the extractor working
+correctly, and the count is worth recording. Sending it down the same `failures`
+channel as "this object could not be read" makes coverage overstate failure by
+more than a third, and makes a clean run look damaged.
+
+Two different facts share one channel. An exclusion tally belongs in its own field
+- `exclusions`, counted separately - so `failed` keeps meaning "evidence that
+should exist and does not".
 
 ---
 
@@ -89,6 +105,32 @@ started.
 
 Closed entries name the commit that closed them and the run that proved it.
 
+- **`Error in loading DLL` on the A05 frontend was not an elevation problem** -
+  the dialog appeared again in a **non-elevated** run, was dismissed, and the
+  extraction then completed both tiers: 51 forms, 63 reports, 43 queries, 7 modules,
+  1 macro, all with definition text. All six VBA references resolved with `broken:
+  false`. So the load failure is a dismissable one-time failure, not a permission
+  wall, and running as administrator is not required to acquire this application.
+  What the references do show is recorded as A6.
+- **`Error in loading DLL` was a VBIDE reference hijacked by a third-party Office** -
+  the frontend ships in two states on this machine. The 187MB `_Backup` carries six
+  VBA references including `VBIDE` pointing at
+  `C:\Program Files (x86)\Kingsoft\WPS Office\...\office6be6ext.olb`, and it
+  raises the dialog. The 17MB compacted copy carries five - no `VBIDE` - and opens
+  clean through automation in under 60s, non-elevated. Object inventories are
+  byte-for-byte equal in shape: 22 tables, 43 queries, 51 forms, 63 reports, 7
+  modules, 1 macro, no name differing. So Compact & Repair dropped the hijacked
+  reference, and neither elevation, snapshot location, write permission, nor
+  `AutomationSecurity` was involved. Prefer the compacted file: same evidence,
+  reproducible unattended.
+- **A hung Access host destroyed the DAO tier's own results** - the extractor wrote
+  `schema/tables.json`, `component-index.json` and its receipt only after both tiers
+  finished, so the caller's timeout killed the process before any of it existed. A
+  real hang left 43 query files and nothing else: `dao_tier: null`, zero components.
+  The two-tier promise that tier 2 "is allowed to fail without costing the DAO tier's
+  results" held for an exception and never for a hang - the failure mode the timeout
+  itself introduces. The write block is now a function called as soon as tier 1
+  completes and again at the end. Verified by timing out tier 2 on purpose.
 - **Managed Access extraction never worked against a real database** - 31 defects
   found by running both adapters against a real split Access 2003 application.
   `692f25d`. Proven by acquiring `A05_DATA`: 18 of 116 tables before, 104 after.

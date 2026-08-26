@@ -296,6 +296,41 @@ function Read-JetLayer($Database) {
     $projectContext['autoexec_present'] = $macroNames.Contains('AutoExec')
 }
 
+function Write-Extraction {
+    $tables | ConvertTo-Json -Depth 12 | Set-Content -LiteralPath (Join-Path $root 'schema/tables.json') -Encoding UTF8
+    $relations | ConvertTo-Json -Depth 12 | Set-Content -LiteralPath (Join-Path $root 'schema/relations.json') -Encoding UTF8
+    $generatedAt = [DateTime]::UtcNow.ToString('o')
+    $componentIndex = [ordered]@{ schema_version = '2.1'; app_id = $DatabaseId; generated_at = $generatedAt; components = $components }
+    $componentIndex | ConvertTo-Json -Depth 15 | Set-Content -LiteralPath (Join-Path $root 'component-index.json') -Encoding UTF8
+    $hash = $snapshotHash
+    $result = [ordered]@{
+        schema_version = '2.1'
+        database_id = $DatabaseId
+        session_id = $SessionId
+        source = [ordered]@{ path = '<ORIGINAL_REDACTED_BY_ADAPTER>'; format = [System.IO.Path]::GetExtension($snapshotPath).TrimStart('.').ToLowerInvariant(); sha256 = $hash }
+        snapshot = [ordered]@{ path = $snapshotPath; sha256 = $hash }
+        status = $status
+        runtime = [ordered]@{
+            adapter = 'extract_access.ps1'
+            access_automation = $automationUsed
+            runtime_tested = $true
+            # Which tier produced what, so a consumer can tell a names-only inventory
+            # from one carrying exported definitions.
+            dao_tier = [ordered]@{ prog_id = $DaoProgId; used = $daoUsed }
+            object_export_tier = [ordered]@{ prog_id = $AccessProgId; used = $automationUsed; skipped = [bool]$SkipObjectExport }
+        }
+        project_context = $projectContext
+        components = $components
+        # Field and index detail travels with the result, not only in schema/tables.json.
+        # The bundle adapter normalizes from this record alone, so detail left behind in
+        # a sibling file could never reach databases.fields / databases.indexes, and the
+        # capabilities Phase 1 requires stayed permanently unreachable.
+        tables = $tables
+        warnings = $warnings
+    }
+    $result | ConvertTo-Json -Depth 15 | Set-Content -LiteralPath (Join-Path $root 'access-extraction.json') -Encoding UTF8
+}
+
 # ---- Tier 1: DAO, read-only. No Access host means no AutoExec, no VBA project
 # load, and therefore none of the modal dialogs that can stall an unattended run.
 $daoEngine = $null
@@ -318,6 +353,20 @@ if (-not $isAdp) {
         if ($null -ne $daoEngine) { try { [void][System.Runtime.InteropServices.Marshal]::FinalReleaseComObject($daoEngine) } catch {} ; $daoEngine = $null }
     }
 }
+
+# A silent exclusion reads as "this is everything there was", so say what was
+# dropped and why.
+if ($skippedTables -gt 0) {
+    [void]$warnings.Add(('Excluded {0} non-model tables: Access temporary (~*) and auto-generated ImportErrors tables.' -f $skippedTables))
+}
+if ($skippedQueries -gt 0) {
+    [void]$warnings.Add(('Excluded {0} Access-generated hidden queries (~*) backing form and report record sources.' -f $skippedQueries))
+}
+
+# Persist what the DAO tier produced before starting a host that may hang. The
+# caller's timeout kills this process outright, so anything written only at the end
+# would be lost along with a complete, usable schema inventory.
+Write-Extraction
 
 # ---- Tier 2: the Access host, needed only to export object definition text and to
 # read VBA references. It is allowed to fail without costing the DAO tier's results.
@@ -428,46 +477,6 @@ try {
     }
 }
 }
-
-# A silent exclusion reads as "this is everything there was", so say what was
-# dropped and why.
-if ($skippedTables -gt 0) {
-    [void]$warnings.Add(('Excluded {0} non-model tables: Access temporary (~*) and auto-generated ImportErrors tables.' -f $skippedTables))
-}
-if ($skippedQueries -gt 0) {
-    [void]$warnings.Add(('Excluded {0} Access-generated hidden queries (~*) backing form and report record sources.' -f $skippedQueries))
-}
-$tables | ConvertTo-Json -Depth 12 | Set-Content -LiteralPath (Join-Path $root 'schema/tables.json') -Encoding UTF8
-$relations | ConvertTo-Json -Depth 12 | Set-Content -LiteralPath (Join-Path $root 'schema/relations.json') -Encoding UTF8
-$generatedAt = [DateTime]::UtcNow.ToString('o')
-$componentIndex = [ordered]@{ schema_version = '2.1'; app_id = $DatabaseId; generated_at = $generatedAt; components = $components }
-$componentIndex | ConvertTo-Json -Depth 15 | Set-Content -LiteralPath (Join-Path $root 'component-index.json') -Encoding UTF8
-$hash = $snapshotHash
-$result = [ordered]@{
-    schema_version = '2.1'
-    database_id = $DatabaseId
-    session_id = $SessionId
-    source = [ordered]@{ path = '<ORIGINAL_REDACTED_BY_ADAPTER>'; format = [System.IO.Path]::GetExtension($snapshotPath).TrimStart('.').ToLowerInvariant(); sha256 = $hash }
-    snapshot = [ordered]@{ path = $snapshotPath; sha256 = $hash }
-    status = $status
-    runtime = [ordered]@{
-        adapter = 'extract_access.ps1'
-        access_automation = $automationUsed
-        runtime_tested = $true
-        # Which tier produced what, so a consumer can tell a names-only inventory
-        # from one carrying exported definitions.
-        dao_tier = [ordered]@{ prog_id = $DaoProgId; used = $daoUsed }
-        object_export_tier = [ordered]@{ prog_id = $AccessProgId; used = $automationUsed; skipped = [bool]$SkipObjectExport }
-    }
-    project_context = $projectContext
-    components = $components
-    # Field and index detail travels with the result, not only in schema/tables.json.
-    # The bundle adapter normalizes from this record alone, so detail left behind in
-    # a sibling file could never reach databases.fields / databases.indexes, and the
-    # capabilities Phase 1 requires stayed permanently unreachable.
-    tables = $tables
-    warnings = $warnings
-}
-$result | ConvertTo-Json -Depth 15 | Set-Content -LiteralPath (Join-Path $root 'access-extraction.json') -Encoding UTF8
+Write-Extraction
 if ($status -eq 'BLOCKED') { exit 2 }
 exit 0
