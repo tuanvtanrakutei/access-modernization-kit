@@ -190,7 +190,13 @@ Closed entries name the commit that closed them and the run that proved it.
   compiling, which is why every automated run completed while an interactive session
   hit it. That makes it harmless to the bundle and material to anything that has to
   **run or modify** the legacy application on this host - a Phase 1 risk, not an
-  acquisition defect.
+  acquisition defect. It matters for Phase 4 specifically: a behavioural trace has to
+  execute VBA, and executing it requires compiling it.
+
+  Confirmed on a working copy by removing the reference through
+  `Application.References.Remove` and then calling `acCmdCompileAllModules`: five
+  references remain, none broken, and the project compiles. So removal is both safe
+  and sufficient, and no elevation is involved.
 
   Elevation was not involved in either. `品揃支援data.mdb` acquires cleanly through
   both tiers non-elevated, and so does the frontend once its backend sits beside it.
