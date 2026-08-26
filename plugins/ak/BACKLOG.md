@@ -12,6 +12,39 @@ that it should now work.
 
 ## Open
 
+### A11 - a resolvable VBA reference does not mean an embedded control will load
+
+**Observed 2026-08-26, A05 frontend.** Eight reports embed
+`Class = "BARCODE.BarCodeCtrl.1"` - every ピッキングリスト, the application's main
+output. Opening one raises `Error in loading DLL`, while extraction reports
+`BARCODELib | broken=False` and the References dialog shows the control ticked.
+
+Both observations are correct, because the two go through different registry keys:
+
+| Key | 64-bit view | 32-bit view (WOW6432Node) |
+|---|:--:|:--:|
+| ProgID `BARCODE.BarCodeCtrl.1` | present | **missing** |
+| TypeLib `{D9347025-...}` | present | **missing** |
+| CLSID `{D9347033-...}` -> the OCX | - | present |
+
+Access 2003 is a 32-bit process, so every COM lookup it makes is redirected into
+WOW6432Node. A VBA reference resolves through the CLSID, which is there. Embedding
+a control resolves through the ProgID and TypeLib, which are not. The OCX was
+registered with the 64-bit regsvr32 against a 32-bit host.
+
+The remedy is one elevated command - `C:\Windows\SysWOW64\regsvr32.exe` on the OCX,
+writing the keys into the view the host actually reads - and it is the one place in
+this investigation where administrator rights were genuinely required, for the
+registration rather than for Access.
+
+**What the kit should add:** for every ActiveX class a form or report embeds, check
+that its ProgID is registered in the registry view matching the Access host's
+bitness. `project_context.references` cannot answer this, and reporting
+`broken: false` while the control cannot load is the kind of true-but-misleading
+result that sends an operator looking in the wrong place. The classes are already
+visible in the exported definitions - `Class = "..."` - so the check needs no new
+evidence, only a comparison the package does not currently make.
+
 ### A9 - snapshot isolation breaks an app that resolves its backend as a sibling
 
 **Observed 2026-08-26, A05 frontend.** Opening the frontend snapshot raises
