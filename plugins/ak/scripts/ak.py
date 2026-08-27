@@ -94,6 +94,13 @@ def parse_args() -> argparse.Namespace:
     commands = parser.add_subparsers(dest="command", required=True)
     commands.add_parser("validate", help="Validate this shared package without analyzing an app.")
 
+    citations = commands.add_parser(
+        "citations",
+        help="Check that every evidence id a phase document cites exists.",
+    )
+    citations.add_argument("--outputs", required=True, help="Directory holding the phase documents and evidence register.")
+    citations.add_argument("--json", action="store_true", help="Emit a machine-readable report.")
+
     install = commands.add_parser("install", help="Install the skill for a non-Codex runtime.")
     install.add_argument("--runtime", choices=("codex", "claude", "generic"), required=True)
     install.add_argument("--project", help="Claude project directory; required for --runtime claude.")
@@ -294,6 +301,11 @@ def main() -> int:
     args = parse_args()
     if args.command == "validate":
         return run("validate_structure.py", "--package", str(PACKAGE))
+    if args.command == "citations":
+        citation_args = ["--outputs", args.outputs]
+        if args.json:
+            citation_args.append("--json")
+        return run("validate_evidence_citations.py", *citation_args)
     if args.command == "install":
         return install_skill(args)
     if args.command == "init":

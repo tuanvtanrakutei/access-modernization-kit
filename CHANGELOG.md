@@ -4,6 +4,8 @@
 
 ### Added
 
+- `$ak citations --outputs <dir>` (`scripts/validate_evidence_citations.py`) — checks that every evidence id a phase document cites actually exists in the run's evidence register, reading every `*.md` in the outputs directory plus the traceability matrix's `evidence_ids` column. A phase document's authority rests on its citations: a reader who cannot follow `A05-P2-FLOW-020` back to a statement, a source file and a confidence cannot tell a measured figure from a remembered one, and the document reads identically either way. The A05 run produced 25 unresolvable citations across two phases — one phase's items numbered from the previous phase's item count while the document, written first, cited from 001; and a Phase 1 question citing the right task name at a sequence belonging to a different task. That second one survived a hand-rolled check whose pattern matched `[A-Z]+` for the task name and therefore never tested `TABLE_INVENTORY` or `DATA_TYPES` at all — a validator that silently skips an id format is worse than none, because it is believed. Uncited evidence items are reported but never fail: the register is allowed to hold more than the prose quotes. Five tests, one per real defect (`plugins/ak/tests/test_evidence_citations.py`).
+
 - Merged the `access-modernize` pipeline into this package as a second, independently invokable pipeline (`plugins/ak/modernize/`). Six stages carry a project from six-phase output through a working Django REST + React implementation, one screen at a time, with coverage gates tracing every legacy artifact to implemented code. Running one pipeline never auto-triggers the other. All nine modernization skills live at `plugins/ak/skills/` — the same folder as the six-phase skill, not nested under `modernize/` — so every skill works on **both Claude Code and Codex CLI**, one install, no extra steps: Codex's manifest already points at that exact path (`"skills": "./skills/"`, enforced by `validate_structure.py`), confirmed against a real 2.7.3 install cached on the author's own machine (`~/.codex/plugins/cache/access-modernization-kit/ak/2.7.3/`), which showed the exact fault this fixes.
 - `bootstrap-project` skill: one-time project setup that copies templates, seeds `Screens_Registry.md` from a six-phase run's Phase 2 inventory after a single accept over the whole table, and wires a pointer block into the target project's `CLAUDE.md`/`AGENTS.md` (created if missing, otherwise updated in place inside a marked block) so a fresh session has standing awareness of the pipeline before any skill's own trigger phrase fires.
 - `validate-docs`, `triage-suite`, and `modernize-screen` skills; five single-stage skills (`plan-screen`, `code-screen`, `test-screen`, `review-screen`, `screen-status`); an orchestration policy set (`write_paths` allowlist) for multi-screen batches; a non-writing scope-sensor hook.
@@ -130,6 +132,16 @@
 All notable changes to this project are documented in this file. The format follows Keep a Changelog principles and versions use semantic versioning.
 
 ## [Unreleased]
+
+### Added
+
+- `BACKEND_CODING.md` sections 8.4-8.5 and a matching `BACKEND_TESTING.md` coverage bullet: rules for
+  **import and upload** endpoints. Section 8 previously covered output only, so the first upload endpoint
+  in a project had to invent its own policy for extension and size limits, CSV decode order, header
+  matching, operator-visible row numbers, and the transaction boundary of a replace-all. Section 8.5
+  records why a structural failure and a per-row failure must not share a status code: the client has to
+  choose between showing a message and showing a table, and an error body is the wrong place to learn
+  which. Generalized from a real screen that imports a legacy CSV contract the same project exports.
 
 ### Planned
 

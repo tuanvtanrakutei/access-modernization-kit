@@ -15,9 +15,9 @@ that it should now work.
 ### A11 - nothing verified that an embedded ActiveX control can actually load
 
 **Observed 2026-08-26, A05 frontend.** Eight reports embed
-`Class = "BARCODE.BarCodeCtrl.1"` - every ピッキングリスト, the application's main
-output - and the extraction receipt said nothing about whether that control was
-usable. `project_context.references` reports the VBA reference list, and a reference
+`Class = "BARCODE.BarCodeCtrl.1"`, three of them reachable from the picking-list
+launchers that produce the application's main output, and the extraction receipt said
+nothing about whether that control was usable. `project_context.references` reports the VBA reference list, and a reference
 resolves through a different registry key than an embedded control does, so a clean
 reference list is not evidence that a form will open.
 
@@ -41,6 +41,14 @@ wrong place twice over: ProgID keys under HKCR are shared between views rather t
 redirected, and the redirected ones land under `HKLM\SOFTWARE\Classes\Wow6432Node`,
 not under `HKLM\SOFTWARE\WOW6432Node\Classes`.
 
+A third error, this one in the phase output rather than the check: Phase 1 and the
+first draft of Phase 2 both read the eight embeddings as "all eight are
+ピッキングリスト variants, so one control gates the entire printing path". Recounting
+by name found two `バーコード一覧` reports and a `レポート1` among them, only three of
+the eight reachable at all, and four of the seven reachable picking-list variants
+carrying no barcode control. The count was right and the description of what had been
+counted was invented. Both documents corrected; `A05-P2-INVENTORY-025` records it.
+
 The check also caught a defect in its own first implementation: SaveAsText writes
 `OLEClass ="<localized display name>"` beside the real `Class ="<ProgID>"`, and the
 pattern matched both, so a caption - `Microsoft ﾊﾞｰｺｰﾄﾞ ｺﾝﾄﾛｰﾙ` - was reported as an
@@ -59,6 +67,24 @@ against that one object rather than against the application as a whole.
 
 Closed entries name the commit that closed them and the run that proved it.
 
+- **Nothing checked that a document's evidence citations resolved** - a phase document
+  can cite `A05-P2-FLOW-020` and mean nothing by it, and the document reads exactly the
+  same whether the id names a measured statement or nothing at all. The A05 run
+  produced 25 such citations across two phases: an entire phase's items were generated
+  with a sequence continuing from the previous phase's item count, so the first was
+  numbered 021 while the document, written first, cited 001; and a Phase 1 question
+  cited the right task name at a sequence belonging to a different task. The first
+  batch was caught by a hand-rolled check, which then reported "pass" on the second
+  because its pattern matched `[A-Z]+` for the task name and so never tested
+  `TABLE_INVENTORY` or `DATA_TYPES` at all - a validator that skips an id format
+  silently is worse than no validator, because it is believed. Closed by
+  `scripts/validate_evidence_citations.py` and `$ak citations --outputs <dir>`, which
+  reads every `*.md` in an outputs directory plus the traceability matrix's
+  `evidence_ids` column, fails on any unresolvable id, and reports uncited items
+  without failing. Five tests, one per real defect. Fixing the Phase 1 citation also
+  exposed a wrong claim behind it: Q1 said the `店舗マスタ` pair doubled like the
+  product masters, and the pair had never been measured - it doubles in shape but both
+  halves declare a primary key.
 - **A split application could not open its backend from a snapshot** - the frontend
   derives the backend path from its own location, so a snapshot directory holding one
   database can never satisfy it. Databases of one application are now snapshotted side
