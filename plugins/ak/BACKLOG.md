@@ -12,38 +12,46 @@ that it should now work.
 
 ## Open
 
-### A11 - a resolvable VBA reference does not mean an embedded control will load
+### A11 - nothing verified that an embedded ActiveX control can actually load
 
 **Observed 2026-08-26, A05 frontend.** Eight reports embed
 `Class = "BARCODE.BarCodeCtrl.1"` - every ピッキングリスト, the application's main
-output. Opening one raises `Error in loading DLL`, while extraction reports
-`BARCODELib | broken=False` and the References dialog shows the control ticked.
+output - and the extraction receipt said nothing about whether that control was
+usable. `project_context.references` reports the VBA reference list, and a reference
+resolves through a different registry key than an embedded control does, so a clean
+reference list is not evidence that a form will open.
 
-Both observations are correct, because the two go through different registry keys:
+`extract_access.ps1` now collects every `Class = "<ProgID>"` its own exported
+definitions contain and resolves each one from the PowerShell host that drives
+Access. That host's bitness matches the registered Access, so its registry reads go
+through the same WOW64 redirection Access uses - which is the point: a control
+registered into the other view is invisible from here in exactly the way it is
+invisible to Access. The receipt records ProgID, CLSID, server path, whether the
+server file exists, and whether the type library is registered; an unresolvable
+class raises a warning naming the object that cannot load.
 
-| Key | 64-bit view | 32-bit view (WOW6432Node) |
-|---|:--:|:--:|
-| ProgID `BARCODE.BarCodeCtrl.1` | present | **missing** |
-| TypeLib `{D9347025-...}` | present | **missing** |
-| CLSID `{D9347033-...}` -> the OCX | - | present |
+**What running it established, against the hypothesis that motivated it.** The
+barcode control resolves completely from the 32-bit host - `registered: true`,
+`type_lib_registered: true`, `server_exists: true` - and
+`New-Object -ComObject BARCODE.BarCodeCtrl.1` in that host returns a live object. So
+the control is not the cause of the `Error in loading DLL` dialog an operator sees
+when opening a form, and the earlier reading of this entry was wrong. It was based
+on querying `HKLM\SOFTWARE\WOW6432Node\Classes` from a 64-bit shell, which is the
+wrong place twice over: ProgID keys under HKCR are shared between views rather than
+redirected, and the redirected ones land under `HKLM\SOFTWARE\Classes\Wow6432Node`,
+not under `HKLM\SOFTWARE\WOW6432Node\Classes`.
 
-Access 2003 is a 32-bit process, so every COM lookup it makes is redirected into
-WOW6432Node. A VBA reference resolves through the CLSID, which is there. Embedding
-a control resolves through the ProgID and TypeLib, which are not. The OCX was
-registered with the 64-bit regsvr32 against a 32-bit host.
+The check also caught a defect in its own first implementation: SaveAsText writes
+`OLEClass ="<localized display name>"` beside the real `Class ="<ProgID>"`, and the
+pattern matched both, so a caption - `Microsoft ﾊﾞｰｺｰﾄﾞ ｺﾝﾄﾛｰﾙ` - was reported as an
+unloadable control. Fixed with a preceding-letter guard.
 
-The remedy is one elevated command - `C:\Windows\SysWOW64\regsvr32.exe` on the OCX,
-writing the keys into the view the host actually reads - and it is the one place in
-this investigation where administrator rights were genuinely required, for the
-registration rather than for Access.
-
-**What the kit should add:** for every ActiveX class a form or report embeds, check
-that its ProgID is registered in the registry view matching the Access host's
-bitness. `project_context.references` cannot answer this, and reporting
-`broken: false` while the control cannot load is the kind of true-but-misleading
-result that sends an operator looking in the wrong place. The classes are already
-visible in the exported definitions - `Class = "..."` - so the check needs no new
-evidence, only a comparison the package does not currently make.
+**Still unexplained:** what raises `Error in loading DLL` when an operator opens a
+form. Disproved so far: elevation, snapshot location, write permission, Compact &
+Repair, the VBIDE reference on the compacted copy, and now the barcode control. The
+next datum that would settle it is which form was open when the dialog appeared -
+its definition names everything it loads, and every candidate above can be checked
+against that one object rather than against the application as a whole.
 
 ### A9 - snapshot isolation breaks an app that resolves its backend as a sibling
 

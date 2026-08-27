@@ -88,6 +88,45 @@ function Scrub-Export([string]$Path) {
     Set-Content -LiteralPath $Path -Value $text -Encoding UTF8
 }
 
+function Resolve-ActiveXClass([string]$ProgId) {
+    # A VBA reference resolves through the CLSID; embedding a control resolves through
+    # the ProgID and its TypeLib. Those can be registered into different registry
+    # views, so a reference reporting broken=false says nothing about whether the
+    # control will load. Read from this process, whose bitness matches the Access host.
+    $result = [ordered]@{ prog_id = $ProgId; registered = $false; clsid = ''; server = ''; server_exists = $false; type_lib = ''; type_lib_registered = $false }
+    $sep = [char]92
+    foreach ($classesRoot in @('HKLM:\SOFTWARE\Classes', 'HKCU:\SOFTWARE\Classes')) {
+        try {
+            $clsid = (Get-ItemProperty -Path ($classesRoot + $sep + $ProgId + $sep + 'CLSID') -ErrorAction Stop).'(default)'
+            if (-not [string]::IsNullOrWhiteSpace($clsid)) { break }
+        } catch { $clsid = '' }
+    }
+    if ([string]::IsNullOrWhiteSpace($clsid)) { return $result }
+    $result.registered = $true
+    $result.clsid = [string]$clsid
+    foreach ($hive in @('HKLM:\SOFTWARE\Classes\CLSID', 'HKCU:\SOFTWARE\Classes\CLSID')) {
+        $key = $hive + $sep + $clsid
+        try {
+            $server = (Get-ItemProperty -Path ($key + $sep + 'InprocServer32') -ErrorAction Stop).'(default)'
+            if (-not [string]::IsNullOrWhiteSpace($server)) {
+                $result.server = [string]$server
+                $result.server_exists = Test-Path -LiteralPath ([string]$server)
+            }
+        } catch {}
+        try {
+            $lib = (Get-ItemProperty -Path ($key + $sep + 'TypeLib') -ErrorAction Stop).'(default)'
+            if (-not [string]::IsNullOrWhiteSpace($lib)) { $result.type_lib = [string]$lib }
+        } catch {}
+        if ($result.server -ne '') { break }
+    }
+    if (-not [string]::IsNullOrWhiteSpace($result.type_lib)) {
+        # A control whose type library is registered only in the other view is exactly
+        # the defect this exists to catch, so the check has to read from here.
+        $result.type_lib_registered = (Test-Path -LiteralPath ('HKLM:\SOFTWARE\Classes\TypeLib' + $sep + $result.type_lib))
+    }
+    return $result
+}
+
 function Get-DbProperty($Database, [string]$Name) {
     try { return [string]$Database.Properties.Item($Name).Value } catch { return '' }
 }
@@ -460,6 +499,38 @@ try {
             }
         }
     }
+    # Every ActiveX class a form or report embeds, taken from the definitions just
+    # exported. A class that will not resolve here will not load for an operator
+    # either, and nothing else in the receipt would say so.
+    $activexClasses = [System.Collections.Generic.HashSet[string]]::new()
+    foreach ($folder in @('forms', 'reports')) {
+        $dir = Join-Path $root $folder
+        if (-not (Test-Path -LiteralPath $dir)) { continue }
+        foreach ($file in Get-ChildItem -LiteralPath $dir -Filter *.txt -ErrorAction SilentlyContinue) {
+            try {
+                # Not preceded by a letter, because SaveAsText also writes
+                # OLEClass ="<localized display name>" beside the real Class ="<ProgID>".
+                # Matching that too reported a caption as an unloadable control.
+                foreach ($match in [regex]::Matches([string](Get-Content -Raw -LiteralPath $file.FullName), '(?<![A-Za-z])Class\s*=\s*"([^"]+)"')) {
+                    [void]$activexClasses.Add($match.Groups[1].Value)
+                }
+            } catch {}
+        }
+    }
+    $activex = @()
+    foreach ($cls in ($activexClasses | Sort-Object)) {
+        $resolved = Resolve-ActiveXClass $cls
+        $activex += $resolved
+        if (-not $resolved.registered) {
+            $status = 'PARTIAL'
+            [void]$warnings.Add(('ActiveX class {0} is embedded in an object but is not registered in the view this Access host reads; the object cannot load.' -f $cls))
+        } elseif (-not $resolved.server_exists) {
+            $status = 'PARTIAL'
+            [void]$warnings.Add(('ActiveX class {0} is registered but its server {1} is missing.' -f $cls, $resolved.server))
+        }
+    }
+    $projectContext['activex_controls'] = $activex
+
     try {
         foreach ($reference in $application.References) {
             [void]$references.Add([ordered]@{ name = [string]$reference.Name; guid = [string]$reference.Guid; major = [int]$reference.Major; minor = [int]$reference.Minor; full_path = [string]$reference.FullPath; broken = [bool]$reference.IsBroken })
