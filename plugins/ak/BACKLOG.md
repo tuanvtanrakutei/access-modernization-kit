@@ -53,159 +53,62 @@ next datum that would settle it is which form was open when the dialog appeared 
 its definition names everything it loads, and every candidate above can be checked
 against that one object rather than against the application as a whole.
 
-### A9 - snapshot isolation breaks an app that resolves its backend as a sibling
-
-**Observed 2026-08-26, A05 frontend.** Opening the frontend snapshot raises
-`Run-time error '3024': Could not find file '...\staging\WINDOWS11_45D0FDDD\品揃支援DATA.MDB'`.
-The cause is in the application, and it is a common Access pattern.
-`メインメニュー.Form_Open` derives the backend path from its own location:
-
-```vba
-FWパス名 = SCRTDB.name                    ' the frontend's own full path
-For FWI = Len(FWパス名) To 3 Step -1      ' scan back for the last "\"
-    If Mid(FWパス名, FWI, 1) = "\" Then
-        Sパス名 = Left(FWパス名, FWI)
-        Exit For
-    End If
-Next FWI
-Sパス名 = Sパス名 & FWデータ名             ' & "品揃支援DATA.MDB"
-Set SCDB = OpenDatabase(Sパス名)
-```
-
-Four more forms do it directly:
-`OpenDatabase(Application.CurrentProject.path & "\品揃支援data.mdb")` -
-`アイス確認表2`, `酒アイテム別確認表`, `雑貨Ⅱアイテム別確認表`, `青果アイテム別確認表`.
-
-In production both databases sit in one folder, so the sibling resolves. The
-extractor snapshots one file into a directory of its own, so it never can. Every
-symptom chased before this - elevation, write permission, Compact & Repair,
-AutomationSecurity - was downstream of it.
-
-**Fix direction:** the manifest already declares both databases. Snapshot the
-artifacts of one application into a shared directory, preserving the sibling
-layout, rather than one directory per artifact. A frontend that cannot open its
-backend cannot export a form that binds to it, so this bounds what the Access host
-tier can ever produce for a split application.
-
-### A10 - forcing macros off disables the app's own repair step
-
-**Observed 2026-08-26, A05.** `AutomationSecurity = 3` was added so a startup that
-drops into the VBA debugger cannot hang an unattended run. On this application it
-also disables the code that makes the application work:
-
-```vba
-Public Function AutoExec2()
-    DoCmd.DeleteObject acTable, "商品情報"
-    DoCmd.TransferDatabase acImport, "Microsoft Access", _
-        "L:\sms\新品揃支援\XP\品揃支援data.mdb", acTable, "商品情報", "商品情報"
-    DoCmd.TransferSpreadsheet acExport, acSpreadsheetTypeExcel9, _
-        "商品情報", "L:\user\物流部\商品情報.xls", True, "出力結果"
-End Function
-```
-
-The path it imports from carries `sms`, while the stored linked-table `Connect` for
-the same database does not - so startup code is what reconciles a stale link, and
-suppressing it leaves the stale one in force. That is also why the extraction
-reported those tables unreadable.
-
-The setting is right for an unattended inventory and wrong for a faithful run, and
-it is currently unconditional. It belongs behind `runtime.automation_security` so a
-run can choose: suppressed for hands-off extraction, enabled when the trace has to
-reflect what the application actually does.
-
-### A1 - Graphify's AST pass yields no edges for a query-only corpus
-
-**Observed 2026-08-26, A05.** A corpus of 79 exported `.sql` files plus 15
-documents produced 79 nodes and **0 edges** from `graphify.extract`. One node per
-file, no relationships. Clustering over that graph is meaningless, and the phase
-gate accepts it because `graph_shape` only requires `node_count > 0`.
-
-The relationships exist and are unambiguous: every query names the tables it
-reads. Matching query text against the authoritative table inventory produced 238
-edges, all `EXTRACTED` with a real line number - no inference. That was done by
-hand for this run.
-
-**Not yet known:** whether this is better solved in the kit (derive the edges
-deterministically as part of corpus preparation, where the table inventory is
-already available) or left to the Graphify skill's semantic pass. The
-deterministic route is exact and free; the semantic pass costs tokens and can only
-guess at what the SQL states literally.
-
-### A2 - Japanese identifiers collapse under Graphify's node-ID rule
-
-**Observed 2026-08-26, A05.** The skill's ID rule normalizes to `[a-z0-9_]`, which
-erases every character of a Japanese name. `受注データ`, `商品マスタ` and
-`店舗マスタ` all reduce to the same underscore run, so distinct entities become
-one node. Worked around by appending a short sha1 of the original name - the same
-technique `extract_access.ps1` already uses for its filenames, and `init_app.py`
-for artifact ids.
-
-This kit targets Japanese legacy systems, so the collapse is the normal case here,
-not an edge case. Anyone following the skill's rule literally builds a graph whose
-Japanese nodes are silently merged.
-
-### A3 - UI evidence never reaches the graph
-
-**Observed 2026-08-26, A05.** `CORPUS_AUDIT.json` reported 132 gaps against 98
-ingested files:
-
-- 81 `EXCLUDED_POLICY` - SaveAsText definition text, excluded deliberately
-- 51 `OCR_REQUIRED` - every screenshot, because `tesseract` is absent
-
-Both exclusions are individually defensible. Together they mean no form or report
-evidence of any kind enters the graph: not the definitions, not the screenshots.
-Phase 2 asks the graph about screens and the graph has never seen one.
-
-**Not yet known:** whether the definition-text exclusion should be narrowed (the
-property soup is noise, but control names and record sources are not), and whether
-OCR should be part of the corpus contract rather than an optional capability.
-
-### A5 - `build_import_manifest.py` refuses the exporter's own metadata file
-
-**Observed 2026-08-26, A05.** `tools/ExportAccessObjects.bas` writes
-`export-manifest.txt` at the root of every package it produces. Building the
-producer manifest for that package fails:
-
-```
-unclassified: ["export-manifest.txt"]
-remedy: Move them into a recognized directory (...) or pass --allow-unclassified.
-```
-
-Classification keys on the containing directory, and a file at the package root
-has none, so the kit refuses the artifact its own exporter placed there. Passing
-`--allow-unclassified` declares it as `metadata` and the import succeeds - which
-is the right outcome, reached through a flag whose documented purpose is to
-tolerate files the kit does not recognize.
-
-The same round-trip class as the `.txt`-classified-as-`sample` defect that
-`init --source` had: producer and consumer inside one package disagreeing about a
-convention the package itself defines. A known producer's own manifest file should
-be recognized by name, not require an override that also lowers the bar for
-everything else in the tree.
-
-### A7 - deliberate exclusions are counted as extraction failures
-
-**Observed 2026-08-26, A05.** `coverage.json` reported `unclassified: failed=11`.
-Reading the eleven: eight are linked tables whose external file is genuinely
-unreadable, and three are exclusion tallies the extractor emits on purpose -
-`Excluded 5 non-model tables`, `Excluded 3 Access-generated hidden queries`,
-`Excluded 55 Access-generated hidden queries`.
-
-Filtering an ImportErrors table or a `~sq_*` query is the extractor working
-correctly, and the count is worth recording. Sending it down the same `failures`
-channel as "this object could not be read" makes coverage overstate failure by
-more than a third, and makes a clean run look damaged.
-
-Two different facts share one channel. An exclusion tally belongs in its own field
-- `exclusions`, counted separately - so `failed` keeps meaning "evidence that
-should exist and does not".
-
 ---
 
 ## Closed
 
 Closed entries name the commit that closed them and the run that proved it.
 
+- **A split application could not open its backend from a snapshot** - the frontend
+  derives the backend path from its own location, so a snapshot directory holding one
+  database can never satisfy it. Databases of one application are now snapshotted side
+  by side, backends first, because the backend's copy has to exist beside the frontend
+  by the time the frontend starts. Proven: the Access window that used to be an error
+  dialog became the application's own main menu, and the run needs nobody to click.
+- **Suppressing macros also suppressed the application's own repair step** - forcing
+  AutomationSecurity off keeps an unattended run out of the VBA debugger, and on A05 it
+  also disabled AutoExec2(), which relinks two tables whose stored Connect strings are
+  stale. Now `runtime.automation_security` chooses: suppressed for a hands-off
+  inventory, allowed when the run has to reflect the working application, with a
+  warning recorded either way.
+- **The importer refused the file its own exporter writes** - `export-manifest.txt`
+  sits at the root of every package `tools/ExportAccessObjects.bas` produces, and
+  building the producer manifest failed on it as unclassified unless the operator
+  passed a flag that also lowered the bar for everything else in the tree. Recognized
+  by name now, from the same layout declaration both sides read. Verified: a package
+  imports with `status: WRITTEN` and no override.
+- **Deliberate exclusions were counted as extraction failures** - filtering Access
+  temporary tables, auto-generated ImportErrors tables and ~sq_* queries is the
+  extractor working correctly, and reporting it through the same channel as "this
+  object could not be read" made coverage overstate failure by more than a third. The
+  extractor marks them, the adapter tags them, and coverage counts them under
+  `skipped`. On a real acquisition: failed 9, skipped 3, where it used to say failed 11.
+- **Graphify's AST pass produced no edges, Japanese ids collapsed, and no UI
+  evidence reached the graph** - one derivation answers all three. A query names the
+  tables it reads, in text, beside the authoritative table list the bundle already
+  holds; matching one against the other is exact and free, where a semantic pass
+  would spend tokens guessing at something the source states outright.
+  `scripts/derive_graph_facts.py` emits nodes and edges from that matching, minting
+  ids with the digest suffix `extract_access.ps1` and `init_app.py` already use - so
+  受注データ, 商品マスタ and 店舗マスタ stay three nodes instead of merging into one
+  underscore run. On A05: **325 nodes, all ids unique, 756 edges**, against 79 nodes
+  and zero edges from the AST pass, and the hubs are the business entities - 商品名
+  87, 商品マスタ 42, 受注データ 38.
+
+  The same pass distils the definition text the corpus renounces. Excluding it
+  wholesale was right about the geometry and wrong about the rest: the same file
+  carries RecordSource, ControlSource, each embedded control's ProgID and every event
+  procedure name, which is what Phase 2 asks the graph about. 113 screens now enter
+  the corpus as relationships rather than coordinates, and the corpus went from 1 file
+  to 114 on a workspace holding nothing but two databases.
+
+  OCR stays optional, as decided. What changed is the accounting: a policy exclusion
+  and an absent text layer are decisions already taken, not gaps in coverage, and
+  counting them as gaps made a corpus that had ingested everything it meant to look
+  two-thirds incomplete - 132 "gaps" that were 81 renounced definitions and 51
+  screenshots. `gap_count` now counts only evidence that should be present and is
+  not, with `excluded_by_policy_count` beside it. On the fresh workspace: gap_count 0,
+  status READY.
 - **Two different failures wore the same name, and neither needed elevation** -
   the A05 frontend produced `Run-time error '3024': Could not find file
   ...\WINDOWS11_45D0FDDD\品揃支援DATA.MDB` and, separately, `Compile error: Error in

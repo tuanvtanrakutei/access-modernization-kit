@@ -125,3 +125,63 @@ def test_a_waiver_is_reported_alongside_the_phase_it_unblocked(tmp_path: Path) -
     assert report["waived"] == [
         {"capability": "trigger_effect_output_trace", "reason": "no sample files exist"}
     ]
+
+
+# The derivation exists because Graphify's AST pass yields file-level nodes and no
+# edges for a query corpus, while the relationships are stated literally in the text.
+def test_derived_node_ids_survive_japanese_names() -> None:
+    import importlib.util
+
+    spec = importlib.util.spec_from_file_location(
+        "derive_graph_facts", PACKAGE / "scripts" / "derive_graph_facts.py")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+
+    # The skill's own id rule normalizes to [a-z0-9_], which erases every character of
+    # these three names and merges them into one node.
+    names = ["受注データ", "商品マスタ", "店舗マスタ"]
+    ids = {module.node_id("table_a05", name) for name in names}
+    assert len(ids) == 3, "distinct Japanese names must not collapse onto one id"
+    # Deterministic: the same name yields the same id on a later run.
+    assert module.node_id("table_a05", names[0]) == module.node_id("table_a05", names[0])
+    # Still shaped as Graphify expects, with the digest appended rather than replacing.
+    for identifier in ids:
+        assert identifier.replace("_", "").isalnum()
+
+
+def test_distilled_ui_facts_keep_relationships_and_drop_geometry() -> None:
+    import importlib.util
+
+    spec = importlib.util.spec_from_file_location(
+        "derive_graph_facts", PACKAGE / "scripts" / "derive_graph_facts.py")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+
+    definition = '\n'.join([
+        'Version =20',
+        'Begin Report',
+        '    RecordSource ="SELECT * FROM 店舗マスタ"',
+        '    Begin Section',
+        '        Name ="ページヘッダー"',
+        '        Begin TextBox',
+        '            Top =1410',
+        '            ControlSource ="店舗コード"',
+        '        End',
+        '        Begin OLEUnbound',
+        '            OLEClass ="Microsoft ﾊﾞｰｺｰﾄﾞ ｺﾝﾄﾛｰﾙ"',
+        '            Class ="BARCODE.BarCodeCtrl.1"',
+        '        End',
+        '    End',
+        'End',
+        'Private Sub Report_Open(Cancel As Integer)',
+        'End Sub',
+    ])
+    fact = module.distil_object(definition, "report")
+    assert fact["record_source"] == "SELECT * FROM 店舗マスタ"
+    assert fact["control_sources"] == ["店舗コード"]
+    # OLEClass is the localized caption, not a ProgID; matching it reported a caption
+    # as an embedded control.
+    assert fact["activex_classes"] == ["BARCODE.BarCodeCtrl.1"]
+    assert fact["event_procedures"] == ["Report_Open"]
+    # Geometry is what the corpus renounces, and it must not survive distillation.
+    assert "1410" not in json.dumps(fact, ensure_ascii=False)

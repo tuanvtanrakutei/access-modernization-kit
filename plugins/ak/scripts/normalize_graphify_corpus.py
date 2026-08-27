@@ -141,7 +141,14 @@ def component_paths(app_root: Path) -> list[str]:
 def collect_sources(app_root: Path, manifest: dict) -> tuple[list[Path], list[Path], list[dict[str, str]], list[str]]:
     declared, access_declared = declared_paths(manifest)
     declared.extend(component_paths(app_root))
-    declared.extend(["manifest.yaml", "extracted/component-index.json", "extracted/module-plan"])
+    # extracted/ui-facts holds the distilled screen facts - record source, bound fields,
+    # embedded controls, event procedures - derived from definition text this corpus
+    # deliberately renounces. Without it no form or report evidence of any kind reached
+    # the graph, and Phase 2 was asking the graph about screens it had never seen.
+    declared.extend([
+        "manifest.yaml", "extracted/component-index.json", "extracted/module-plan",
+        "extracted/ui-facts",
+    ])
     files: set[Path] = set()
     excluded_access: set[Path] = set()
     gaps: list[dict[str, str]] = []
@@ -157,7 +164,7 @@ def collect_sources(app_root: Path, manifest: dict) -> tuple[list[Path], list[Pa
             files.add(candidate)
         elif candidate.is_dir():
             files.update(path for path in candidate.rglob("*") if path.is_file())
-        elif relative not in {"extracted/component-index.json", "extracted/module-plan"}:
+        elif relative not in {"extracted/component-index.json", "extracted/module-plan", "extracted/ui-facts"}:
             gaps.append({"source_path": relative, "status": "MISSING", "detail": "Declared source does not exist"})
 
     for relative in access_declared:
@@ -492,11 +499,17 @@ def main() -> int:
     ]
     fingerprint = hashlib.sha256(json.dumps(fingerprint_input, ensure_ascii=False, sort_keys=True).encode("utf-8")).hexdigest()
     gaps = [entry for entry in entries if entry["status"] not in {"NORMALIZED", "EXCLUDED_BINARY"}]
+    # Two different facts, separated. A policy exclusion and an absent text layer are
+    # decisions already taken; a declared source that is missing or unreadable is
+    # evidence that should be here and is not. Only the second is a gap in coverage,
+    # and only the second should make the status say so.
+    RENOUNCED = {"EXCLUDED_POLICY", "OCR_REQUIRED"}
+    unmet = [entry for entry in gaps if entry["status"] not in RENOUNCED]
     report = {
         "schema_version": "2.1",
         "normalizer_version": NORMALIZER_VERSION,
         "generated_at": datetime.now(timezone.utc).isoformat(),
-        "status": "READY_WITH_GAPS" if normalized and gaps else ("READY" if normalized else "BLOCKED"),
+        "status": "READY_WITH_GAPS" if normalized and unmet else ("READY" if normalized else "BLOCKED"),
         "app_root": str(app_root),
         "corpus_root": corpus.relative_to(app_root).as_posix(),
         "corpus_fingerprint": fingerprint,
@@ -505,7 +518,13 @@ def main() -> int:
         "excluded_access_binary_count": len(excluded_access),
         "excluded_access_definition_count": len(access_definitions),
         "binary_files_ingested": 0,
-        "gap_count": len(gaps),
+        # A source excluded on purpose is not a gap in coverage. Counting both through
+        # one number made a corpus that had ingested everything it meant to look
+        # two-thirds incomplete: on a real application 132 "gaps" were 81 definition
+        # files renounced by policy and 51 screenshots with no text layer, neither of
+        # which is evidence that should be there and is not.
+        "gap_count": len(unmet),
+        "excluded_by_policy_count": len(gaps) - len(unmet),
         "entries": entries,
     }
     graph_root.mkdir(parents=True, exist_ok=True)
