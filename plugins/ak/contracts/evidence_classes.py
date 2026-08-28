@@ -45,12 +45,17 @@ CLASS_FROM_CAPABILITY: dict[str, str] = {
 # Where an operator puts each kind of input. A class is present when at least one
 # file sits under one of its locations - an empty directory is not evidence, and
 # scaffolding creates empty directories.
+# Both layouts, because a workspace acquired before 2.10.0 keeps sources/ and a
+# class present there is present.
 CLASS_LOCATIONS: dict[str, tuple[str, ...]] = {
-    "SCREENSHOT": ("sources/screenshots",),
-    "SAMPLE_DATA": ("sources/samples",),
-    "OUTPUT_SAMPLE": ("sources/reports-out",),
-    "DOCUMENT": ("sources/documents", "shared-docs", "extracted/documents/corpus"),
-    "INTERVIEW": ("sources/interviews", "decisions/interviews"),
+    "SCREENSHOT": ("input/screenshots", "sources/screenshots"),
+    "SAMPLE_DATA": ("input/samples", "sources/samples"),
+    "OUTPUT_SAMPLE": ("input/report-samples", "sources/reports-out"),
+    "DOCUMENT": (
+        "input/documents", "input/shared-docs", ".ak/extracted/documents/corpus",
+        "sources/documents", "shared-docs", "extracted/documents/corpus",
+    ),
+    "INTERVIEW": ("input/interviews", "sources/interviews", "decisions/interviews"),
 }
 
 
@@ -132,7 +137,12 @@ def how_to_supply(class_name: str, contract: dict[str, Any]) -> dict[str, Any]:
     return {
         "class": class_name,
         "means": entry.get("means", ""),
-        "put_it_in": list(CLASS_LOCATIONS.get(class_name, ())) or ["declared as a manifest artifact"],
+        # The first location is where this layout puts it. The rest are read as well,
+        # so a pre-2.10.0 workspace is not told to move anything, but an operator
+        # being told where to put a file needs one answer.
+        "put_it_in": (list(CLASS_LOCATIONS.get(class_name, ()))[:1]
+                      or ["declared as a manifest artifact"]),
+        "also_read": list(CLASS_LOCATIONS.get(class_name, ()))[1:],
         "supports": entry.get("supports") or [],
         "note": (entry.get("note") or "").strip(),
     }

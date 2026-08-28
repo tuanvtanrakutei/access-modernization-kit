@@ -20,30 +20,38 @@ APP_ID_RE = re.compile(r"^[A-Z][A-Z0-9_-]{1,15}$")
 _EXPORT_CONTAINERS = {"forms": "form", "reports": "report", "macros": "macro", "vba": "vba"}
 
 
-# Exactly the directories the pipeline uses, as declared by the workspace section of
-# specifications/evidence-layout.yaml. Three pairs were removed because each gave an
-# operator a second plausible place to look: a top-level outputs/ beside every run's
-# own outputs/, an evidence/evidence.json nothing ever read, and extracted/access/
-# from before acquisition wrote acquired/staging/. sources/vba and sources/sql were
-# from before acquisition wrote acquired/staging/. sources/reports became
-# sources/reports-out, because evidence-layout.yaml already uses reports/ for report
-# definitions inside an export package - one name meant two different things.
+# Organised by who owns it, not by which stage of the pipeline produced it. An
+# operator used to meet seven top-level directories, four of which they never open,
+# with the six phase documents two levels down inside runs/<run-id>/outputs/. There
+# are three things here now: the file you edit, what you supply, and what you read -
+# everything the kit owns is under .ak/ and is never opened by hand.
+#
+# Declared by the workspace section of specifications/evidence-layout.yaml, and
+# resolved for both layouts by contracts/workspace.py, which is the only place that
+# knows a pre-2.10.0 workspace calls these sources/, acquired/, extracted/ and runs/.
 SOURCE_DIRS = (
-    "sources/access",
-    # V2.1 declares exported sources at these two fixed paths. A V2.2 project receives
-    # them as a declared package under its own artifact id instead, but the legacy
-    # contract still names these, so they stay as input containers.
-    "sources/vba",
-    "sources/sql",
-    "sources/documents",
-    "sources/screenshots",
-    "sources/samples",
-    "sources/reports-out",
-    "shared-docs",
-    "extracted/build-context",
-    "extracted/module-plan",
-    "decisions",
-    "runs",
+    "input/access",
+    # V2.1 declares exported sources at two fixed paths. A V2.2 project receives them
+    # as a declared package under its own artifact id instead, but the legacy contract
+    # still names these, so they stay as input containers.
+    "input/vba",
+    "input/sql",
+    "input/documents",
+    "input/screenshots",
+    "input/samples",
+    # Samples of what the application produced. `reports/` inside an export package
+    # already means report definitions, and `reports-out` dodged that collision with
+    # a suffix that told a reader nothing.
+    "input/report-samples",
+    # A recorded answer from a named person carries findings nothing else in the
+    # corpus can. It had no home, so it had no shape either.
+    "input/interviews",
+    "input/shared-docs",
+    "input/decisions",
+    "output",
+    ".ak/extracted/build-context",
+    ".ak/extracted/module-plan",
+    ".ak/runs",
 )
 OWNED_FILES = (
     "manifest.yaml",
@@ -71,8 +79,18 @@ def safe_extract_zip(zip_path: Path, dest_dir: Path) -> None:
                     shutil.copyfileobj(src, dst)
 
 
+def _input_root(app_root: Path) -> Path:
+    """Where a person puts things: `input/`, or `sources/` in a pre-2.10.0 workspace.
+
+    Adopting an existing workspace must not create a second plausible place to look,
+    which is the defect this whole layout change is against.
+    """
+    legacy = app_root / "sources"
+    return legacy if legacy.is_dir() and not (app_root / "input").is_dir() else app_root / "input"
+
+
 def discover_sources(app_root: Path) -> tuple[dict[str, Any], list[dict[str, Any]]]:
-    sources_dir = app_root / "sources"
+    sources_dir = _input_root(app_root)
     if not sources_dir.exists():
         return {
             "topology": "monolith",
@@ -272,21 +290,21 @@ scope:
   notes: "Analyze legacy Access VBA and SQL Server behavior only."
 sources:
   access_databases: []
-  vba_exports: ["sources/vba"]
+  vba_exports: ["input/vba"]
   sql_server:
-    exported_paths: ["sources/sql"]
+    exported_paths: ["input/sql"]
     live:
       enabled: false
       connection_ref: ""
-  screenshots: ["sources/screenshots"]
-  reports: ["sources/reports-out"]
-  sample_files: ["sources/samples"]
-  app_documents: ["sources/documents"]
+  screenshots: ["input/screenshots"]
+  reports: ["input/report-samples"]
+  sample_files: ["input/samples"]
+  app_documents: ["input/documents"]
   japanese_documents:
-    operational_functions_xlsx: "shared-docs/Operational functions and report data list.xlsx"
-    training_manual_xlsx: "shared-docs/SMS Basic Training Manual (From the Perspective of the Order Processing Department).xlsx"
-    business_flow_pdf: "shared-docs/diagram sms_system_business_diagram.pdf"
-    architecture_pdf: "shared-docs/SMS System Replacement Project Overview Attached Diagram.pdf"
+    operational_functions_xlsx: "input/shared-docs/Operational functions and report data list.xlsx"
+    training_manual_xlsx: "input/shared-docs/SMS Basic Training Manual (From the Perspective of the Order Processing Department).xlsx"
+    business_flow_pdf: "input/shared-docs/diagram sms_system_business_diagram.pdf"
+    architecture_pdf: "input/shared-docs/SMS System Replacement Project Overview Attached Diagram.pdf"
 analysis:
   source_policy:
     ignore_file: ".investigationignore"
@@ -396,7 +414,7 @@ def main() -> int:
         src_path = Path(args.source).expanduser().resolve()
         if not src_path.exists():
             raise SystemExit(f"Source path does not exist: {src_path}")
-        sources_dest = app_root / "sources"
+        sources_dest = _input_root(app_root)
         sources_dest.mkdir(parents=True, exist_ok=True)
         if src_path.is_file() and (src_path.suffix.lower() == ".zip" or zipfile.is_zipfile(src_path)):
             safe_extract_zip(src_path, sources_dest)

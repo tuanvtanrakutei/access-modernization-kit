@@ -64,6 +64,11 @@ what was observed, from which file and location, and at what confidence:
 or an operator's declaration.** No volume of schema or code substitutes, and where a
 document is missing the phase says so by name rather than filling the gap.
 
+Everything named here is in this directory. What produced it - the acquisition
+bundle, the extraction output, the run's working state - is under `.ak/`, which
+you never need to open: an evidence item cites a full path when you want to follow
+one back.
+
 `{{APP_ID}}_TraceabilityMatrix.csv` maps workflow steps to the evidence behind them.
 `{{APP_ID}}_QuestionList.md` holds what is still open and who can settle it.
 `{{APP_ID}}_QA_Report.md` is the independent check, including the defects it found in

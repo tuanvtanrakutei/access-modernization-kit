@@ -10,14 +10,13 @@ tree nothing reads any more.
 Reports by default and deletes only when told to, because the whole point of the
 command is that a person should see what is about to go before it goes.
 
-What it will never touch, whatever is asked:
+What it will never touch, whatever is asked, in either layout:
 
-  sources/            what the operator supplied. The kit does not own it.
-  acquired/staging/   what extraction read out. This is the evidence.
-  acquired/bundles/   sealed bundles every phase reads from.
-  runs/               investigation output.
-  decisions/          written by a person.
-  shared-docs/        supplied by a person.
+  input/ (sources/)              what a person supplied. The kit does not own it.
+  output/                        the published documents.
+  .ak/staging/ (acquired/…)      what extraction read out. This is the evidence.
+  .ak/bundles/ (acquired/…)      sealed bundles every phase reads from.
+  .ak/runs/ (runs/)              run state and evidence registers.
 """
 from __future__ import annotations
 
@@ -44,13 +43,22 @@ RECLAIMABLE: tuple[tuple[str, str, str], ...] = (
         "beside them in staging is untouched.",
     ),
     (
+        ".ak/snapshots",
+        "Disposable copies of the declared databases",
+        "Nothing. The originals are in input/, and each receipt records the "
+        "snapshot's SHA-256.",
+    ),
+    (
         "graphify-out",
         "Corpus and graph for a component removed in 2.9.0",
         "Nothing. No code reads this path any more.",
     ),
 )
 
-PROTECTED = ("sources", "acquired/staging", "acquired/bundles", "runs", "decisions", "shared-docs")
+PROTECTED = (
+    "sources", "acquired/staging", "acquired/bundles", "runs", "decisions", "shared-docs",
+    "input", "output", ".ak/staging", ".ak/bundles", ".ak/runs",
+)
 
 
 def directory_size(path: Path) -> int:

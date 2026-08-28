@@ -131,15 +131,15 @@ def test_synthetic_module_aware_pipeline(tmp_path: Path) -> None:
     )
     app = tmp_path / "T21"
 
-    access_file = app / "sources" / "access" / "synthetic.accdb"
+    access_file = app / "input" / "access" / "synthetic.accdb"
     access_file.write_text("synthetic dry-run placeholder", encoding="utf-8")
-    (app / "sources" / "vba" / "DemoForm.bas").write_text(
+    (app / "input" / "vba" / "DemoForm.bas").write_text(
         'Attribute VB_Name = "DemoForm"\nSub Save_Click(): End Sub\n', encoding="utf-8"
     )
-    ignored = app / "sources" / "sql" / "ignored.tmp"
+    ignored = app / "input" / "sql" / "ignored.tmp"
     ignored.write_text("ignored", encoding="utf-8")
 
-    compile_commands = app / "sources" / "documents" / "compile_commands.json"
+    compile_commands = app / "input" / "documents" / "compile_commands.json"
     compile_commands.write_text(
         json.dumps([{
             "directory": "/synthetic/build",
@@ -189,11 +189,11 @@ def test_synthetic_module_aware_pipeline(tmp_path: Path) -> None:
     run_script("build_component_index.py", "--app-root", str(app))
     run_script(
         "build_module_plan.py",
-        "--component-index", str(app / "extracted" / "component-index.json"),
-        "--output-dir", str(app / "extracted" / "module-plan"),
+        "--component-index", str(app / ".ak" / "extracted" / "component-index.json"),
+        "--output-dir", str(app / ".ak" / "extracted" / "module-plan"),
     )
     run_script("create_run.py", "--app-root", str(app), "--runtime", "generic", "--run-id", "T21-PUBLIC-SMOKE")
-    run = app / "runs" / "T21-PUBLIC-SMOKE"
+    run = app / ".ak" / "runs" / "T21-PUBLIC-SMOKE"
     run_script("create_tasks.py", "--package", str(PACKAGE), "--run", str(run))
 
     inventory = json.loads((run / "source-inventory.json").read_text(encoding="utf-8"))
@@ -263,15 +263,15 @@ def test_preflight_input_preconditions(tmp_path: Path) -> None:
     empty = json.loads(run_script("preflight.py", "--package", str(PACKAGE), "--manifest", str(manifest)).stdout)
     precond = empty["input_preconditions"]
     assert precond["mode"] == "none"
-    assert set(precond["recommended_missing"]) == {"sources/vba", "sources/sql"}
+    assert set(precond["recommended_missing"]) == {"input/vba", "input/sql"}
 
-    (app / "sources" / "vba" / "Form1.bas").write_text('Attribute VB_Name = "Form1"\n', encoding="utf-8")
-    (app / "sources" / "sql" / "schema.sql").write_text("CREATE TABLE t(id int);\n", encoding="utf-8")
+    (app / "input" / "vba" / "Form1.bas").write_text('Attribute VB_Name = "Form1"\n', encoding="utf-8")
+    (app / "input" / "sql" / "schema.sql").write_text("CREATE TABLE t(id int);\n", encoding="utf-8")
     exported = json.loads(run_script("preflight.py", "--package", str(PACKAGE), "--manifest", str(manifest)).stdout)
     assert exported["input_preconditions"]["mode"] == "export"
     assert exported["input_preconditions"]["recommended_missing"] == []
 
-    access_db = app / "sources" / "access" / "T24.accdb"
+    access_db = app / "input" / "access" / "T24.accdb"
     access_db.write_text("synthetic placeholder", encoding="utf-8")
     extract = json.loads(run_script("preflight.py", "--package", str(PACKAGE), "--manifest", str(manifest)).stdout)
     # VBA/SQL exports already present, so an unextracted Access binary makes it mixed.
@@ -291,18 +291,18 @@ def test_nested_manifest_sources_drive_preflight_and_task_inputs(tmp_path: Path)
     manifest = app / "manifest.yaml"
     text = manifest.read_text(encoding="utf-8")
     text = text.replace(
-        'vba_exports: ["sources/vba"]',
-        'vba_exports:\n    - "sources/T25_FRONTEND/vba"\n    - "sources/T25_DATA/vba"',
+        'vba_exports: ["input/vba"]',
+        'vba_exports:\n    - "input/T25_FRONTEND/vba"\n    - "input/T25_DATA/vba"',
     )
-    text = text.replace('exported_paths: ["sources/sql"]', "exported_paths: []")
+    text = text.replace('exported_paths: ["input/sql"]', "exported_paths: []")
     manifest.write_text(text, encoding="utf-8")
-    frontend = app / "sources" / "T25_FRONTEND" / "vba"
-    data = app / "sources" / "T25_DATA" / "vba"
+    frontend = app / "input" / "T25_FRONTEND" / "vba"
+    data = app / "input" / "T25_DATA" / "vba"
     frontend.mkdir(parents=True)
     data.mkdir(parents=True)
     (frontend / "Form1.bas").write_text('Attribute VB_Name = "Form1"\n', encoding="utf-8")
     (data / "DataModule.bas").write_text('Attribute VB_Name = "DataModule"\n', encoding="utf-8")
-    (app / "sources" / "access" / "T25.accdb").write_text("synthetic placeholder", encoding="utf-8")
+    (app / "input" / "access" / "T25.accdb").write_text("synthetic placeholder", encoding="utf-8")
 
     report = json.loads(run_script("preflight.py", "--package", str(PACKAGE), "--manifest", str(manifest)).stdout)
     preconditions = report["input_preconditions"]
@@ -311,19 +311,19 @@ def test_nested_manifest_sources_drive_preflight_and_task_inputs(tmp_path: Path)
     assert preconditions["present"]["sql"] is False
     assert preconditions["recommended_missing"] == []
     assert preconditions["present"]["present_paths"]["vba"] == [
-        "sources/T25_FRONTEND/vba",
-        "sources/T25_DATA/vba",
+        "input/T25_FRONTEND/vba",
+        "input/T25_DATA/vba",
     ]
 
     run_script("create_run.py", "--app-root", str(app), "--runtime", "generic", "--run-id", "T25-NESTED")
-    run = app / "runs" / "T25-NESTED"
+    run = app / ".ak" / "runs" / "T25-NESTED"
     run_script("create_tasks.py", "--package", str(PACKAGE), "--run", str(run))
     tasks = [json.loads(path.read_text(encoding="utf-8")) for path in sorted((run / "tasks").glob("*.json"))]
     vba_task = next(task for task in tasks if task["role"] == "vba_ui")
     sql_task = next(task for task in tasks if task["role"] == "sql_data")
-    assert "../../sources/T25_FRONTEND/vba" in vba_task["input_paths"]
-    assert "../../sources/T25_DATA/vba" in vba_task["input_paths"]
-    assert "../../sources/sql" not in sql_task["input_paths"]
+    assert "../../input/T25_FRONTEND/vba" in vba_task["input_paths"]
+    assert "../../input/T25_DATA/vba" in vba_task["input_paths"]
+    assert "../../input/sql" not in sql_task["input_paths"]
 
 
 def test_extract_ps1_declares_unique_safe_names() -> None:
@@ -513,7 +513,7 @@ def test_document_normalizers_cover_office_and_report_scanned_pdf(tmp_path: Path
         "--name-en", "Document Normalization Test",
     )
     app = tmp_path / "T28"
-    documents = app / "sources" / "documents"
+    documents = app / "input" / "documents"
 
     workbook = openpyxl.Workbook()
     workbook.active.title = "業務規則"
@@ -538,9 +538,9 @@ def test_document_normalizers_cover_office_and_report_scanned_pdf(tmp_path: Path
         writer.write(handle)
 
     run_script("normalize_documents.py", "--app-root", str(app))
-    audit = json.loads((app / "extracted" / "documents" / "NORMALIZATION_AUDIT.json").read_text(encoding="utf-8"))
+    audit = json.loads((app / ".ak" / "extracted" / "documents" / "NORMALIZATION_AUDIT.json").read_text(encoding="utf-8"))
     statuses = {entry["source_path"]: entry["status"] for entry in audit["entries"]}
-    assert statuses["sources/documents/rules.xlsx"] == "NORMALIZED"
-    assert statuses["sources/documents/manual.docx"] == "NORMALIZED"
-    assert statuses["sources/documents/flow.pptx"] == "NORMALIZED"
-    assert statuses["sources/documents/scan.pdf"] in {"OCR_REQUIRED", "OCR_FAILED"}
+    assert statuses["input/documents/rules.xlsx"] == "NORMALIZED"
+    assert statuses["input/documents/manual.docx"] == "NORMALIZED"
+    assert statuses["input/documents/flow.pptx"] == "NORMALIZED"
+    assert statuses["input/documents/scan.pdf"] in {"OCR_REQUIRED", "OCR_FAILED"}

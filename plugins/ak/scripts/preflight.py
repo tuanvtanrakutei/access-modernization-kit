@@ -220,10 +220,10 @@ def _legacy_windows_access_capabilities() -> dict[str, bool | str]:
 def manifest_source_paths(manifest: Path | None) -> dict[str, list[str]]:
     """Read declared source locations without assuming a fixed workspace layout."""
     defaults = {
-        "vba": ["sources/vba"],
-        "sql": ["sources/sql"],
-        "documents": ["sources/documents"],
-        "japanese_documents": ["shared-docs"],
+        "vba": ["input/vba", "sources/vba"],
+        "sql": ["input/sql", "sources/sql"],
+        "documents": ["input/documents", "sources/documents"],
+        "japanese_documents": ["input/shared-docs", "shared-docs"],
         # Export packages: a directory or .zip carrying forms, reports, macros, modules
         # and query SQL together, declared through their own producer manifest. There is
         # no conventional default location for these - they are always declared.
@@ -281,6 +281,20 @@ def manifest_source_paths(manifest: Path | None) -> dict[str, list[str]]:
         return defaults
 
 
+def _has_bundle(app_root: Path) -> bool:
+    """A published bundle, in any layout this kit has written.
+
+    Stronger evidence that extraction happened than the legacy extracted/access
+    path, which current acquisition does not write. Without it an app with a valid
+    bundle reported extracted_access false and was told to extract again.
+    """
+    for root in (app_root / ".ak" / "bundles", app_root / "acquired" / "bundles",
+                 app_root / "acquired"):
+        if root.is_dir() and any((item / "bundle.json").is_file() for item in root.iterdir() if item.is_dir()):
+            return True
+    return False
+
+
 def scan_app_sources(app_root: Path, declared: dict[str, list[str]]) -> dict[str, object]:
     def nonempty(rel: str) -> bool:
         candidate = app_root / rel
@@ -291,19 +305,19 @@ def scan_app_sources(app_root: Path, declared: dict[str, list[str]]) -> dict[str
     def existing(paths: list[str]) -> list[str]:
         return [path for path in paths if nonempty(path)]
 
-    access_dir = app_root / "sources" / "access"
-    access_db = access_dir.is_dir() and any(
-        item.is_file() and item.suffix.lower() in {".mdb", ".accdb", ".adp"} for item in access_dir.rglob("*")
+    access_db = any(
+        directory.is_dir() and any(
+            item.is_file() and item.suffix.lower() in {".mdb", ".accdb", ".adp"}
+            for item in directory.rglob("*")
+        )
+        for directory in (app_root / "input" / "access", app_root / "sources" / "access")
     )
     extracted = app_root / "extracted" / "access"
     # A published acquisition bundle is stronger evidence that extraction already
     # happened than the legacy extracted/access path, which current acquisition does
     # not write - it stages under acquired/. Without this an app with a valid bundle
     # still reported extracted_access false and was told to run extraction again.
-    acquired = app_root / "acquired"
-    bundled = acquired.is_dir() and any(
-        item.is_dir() and item.name.startswith("bundle-") for item in acquired.iterdir()
-    )
+    bundled = _has_bundle(app_root)
     vba_present = existing(declared["vba"])
     sql_present = existing(declared["sql"])
     document_present = existing(declared["documents"])
@@ -314,10 +328,10 @@ def scan_app_sources(app_root: Path, declared: dict[str, list[str]]) -> dict[str
         "sql": bool(sql_present),
         "source_packages": bool(package_present),
         "access_db": access_db,
-        "screenshots": nonempty("sources/screenshots"),
-        "reports": nonempty("sources/reports-out"),
+        "screenshots": nonempty("input/screenshots") or nonempty("sources/screenshots"),
+        "reports": nonempty("input/report-samples") or nonempty("sources/reports-out"),
         "documents": bool(document_present),
-        "samples": nonempty("sources/samples"),
+        "samples": nonempty("input/samples") or nonempty("sources/samples"),
         "shared_docs": bool(japanese_present),
         "extracted_access": (extracted.is_dir() and any(item.is_file() for item in extracted.rglob("*"))) or bundled,
         "acquisition_bundle": bundled,
@@ -334,7 +348,9 @@ def scan_app_sources(app_root: Path, declared: dict[str, list[str]]) -> dict[str
 
 def input_preconditions(manifest: Path | None, needs: dict[str, bool], access: dict[str, object]) -> tuple[dict[str, object], list[str]]:
     """Detect the input mode and report missing inputs as warnings, never failures."""
-    if not manifest or not (manifest.parent / "sources").is_dir():
+    if not manifest or not any(
+        (manifest.parent / name).is_dir() for name in ("input", "sources")
+    ):
         return {"mode": "unknown", "reason": "no app workspace beside the manifest"}, []
     app_root = manifest.parent
     declared = manifest_source_paths(manifest)

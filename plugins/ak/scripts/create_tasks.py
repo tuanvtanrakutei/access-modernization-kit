@@ -54,6 +54,7 @@ def task_id(app_id: str, wave: str, role: str, module_id: str | None = None) -> 
 
 
 def module_plan(run: Path) -> tuple[list[str], list[str]]:
+    # run is <owned>/runs/<run-id>; module-plan sits beside runs under the same owner.
     path = run.parent.parent / "extracted" / "module-plan" / "processing-order.json"
     if not path.is_file():
         return [], []

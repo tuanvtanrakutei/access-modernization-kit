@@ -30,9 +30,14 @@ import io
 import json
 import os
 import re
+import sys
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "contracts"))
+
+import workspace as workspace_contract  # noqa: E402
 
 RECORD_SOURCE_RE = re.compile(r'(?<![A-Za-z])RecordSource\s*=\s*"([^"]*)"')
 CONTROL_SOURCE_RE = re.compile(r'(?<![A-Za-z])ControlSource\s*=\s*"([^"]*)"')
@@ -50,13 +55,7 @@ def node_id(stem: str, entity: str) -> str:
 
 
 def newest_bundle(app_root: Path) -> Path | None:
-    acquired = app_root / "acquired"
-    if not acquired.is_dir():
-        return None
-    # Both layouts: acquired/bundles/<date>-<digest>/ since 2.9.0, and the older
-    # acquired/bundle-<64 hex>/ a workspace may still carry.
-    candidates = list((acquired / "bundles").glob("*")) + list(acquired.glob("bundle-*"))
-    bundles = [p for p in candidates if (p / "bundle.json").is_file()]
+    bundles = workspace_contract.find_bundle_dirs(workspace_contract.Workspace(app_root))
     if not bundles:
         return None
     return max(bundles, key=lambda p: (p / "bundle.json").stat().st_mtime)
@@ -73,7 +72,7 @@ def read_text(path: Path) -> str:
 
 def latest_sessions(app_root: Path) -> list[tuple[str, Path]]:
     """The newest extraction session per database, which holds the definition text."""
-    staging = app_root / "acquired" / "staging"
+    staging = workspace_contract.Workspace(app_root).staging_root()
     found: list[tuple[str, Path]] = []
     if not staging.is_dir():
         return found
@@ -144,7 +143,8 @@ def main() -> int:
     app_root = Path(args.app_root).expanduser().resolve()
     bundle = newest_bundle(app_root)
     if bundle is None:
-        raise SystemExit(f"No acquisition bundle under {app_root / 'acquired'}; acquire first")
+        space = workspace_contract.Workspace(app_root)
+        raise SystemExit(f"No acquisition bundle under {space.bundles_root()}; acquire first")
 
     tables = json.loads((bundle / "databases" / "tables.json").read_text(encoding="utf-8"))
     table_names = {str(t.get("name")): t for t in tables if t.get("name")}
@@ -244,14 +244,15 @@ def main() -> int:
         print(json.dumps({"nodes": len(nodes), "edges": len(edges), "ui_objects": len(facts)}, indent=2))
         return 0
 
-    extraction_path = app_root / "extracted" / "derived-extraction.json"
+    space = workspace_contract.Workspace(app_root)
+    extraction_path = space.extracted("derived-extraction.json")
     extraction_path.parent.mkdir(parents=True, exist_ok=True)
     io.open(extraction_path, "w", encoding="utf-8", newline="\n").write(
         json.dumps(payload, ensure_ascii=False, indent=1) + "\n")
 
     # One distilled file per screen, so the corpus carries a node per screen whose text
     # is relationships rather than coordinates.
-    facts_dir = app_root / "extracted" / "ui-facts"
+    facts_dir = space.extracted("ui-facts")
     facts_dir.mkdir(parents=True, exist_ok=True)
     for existing in facts_dir.glob("*.md"):
         existing.unlink()

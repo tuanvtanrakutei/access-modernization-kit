@@ -155,6 +155,8 @@ def test_a_structural_claim_on_schema_is_exactly_what_schema_is_for(contract: di
 
 def test_how_to_supply_tells_an_operator_where_to_put_it(contract: dict) -> None:
     advice = evidence_classes.how_to_supply("SCREENSHOT", contract)
-    assert advice["put_it_in"] == ["sources/screenshots"]
+    assert advice["put_it_in"] == ["input/screenshots"]
+    # The pre-2.10.0 path is still read, so nobody is told to move a file.
+    assert "sources/screenshots" in advice["also_read"]
     assert advice["means"]
     assert "one frame" in advice["note"].lower()

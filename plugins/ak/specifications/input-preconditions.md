@@ -57,16 +57,22 @@ and by the migration proposer, but acquisition rejects it - run
 
 Pre-exported, human-readable sources. No Access runtime is required.
 
+Everything a person supplies goes under `input/`. Everything a person reads comes
+out in `output/`. Everything else the kit owns lives under `.ak/` and is never opened
+by hand. A workspace created before 2.10.0 uses `sources/`, `shared-docs/`,
+`decisions/` and `runs/<run-id>/outputs/` instead, and is read unchanged.
+
 | Input | Location | Requirement |
 |---|---|---|
-| VBA modules/forms (exported text) | `sources/vba/` | Required for screen and logic phases |
-| SQL schema, queries, stored procedures | `sources/sql/` | Required for data and logic phases |
+| VBA modules/forms (exported text) | `input/vba/` | Required for screen and logic phases |
+| SQL schema, queries, stored procedures | `input/sql/` | Required for data and logic phases |
 | Export package (forms/reports/macros/modules/queries together) | declared per artifact | See below |
-| Screen captures | `sources/screenshots/` | Recommended; visual evidence for Phase 2 |
-| Reports/output samples | `sources/reports/` | Recommended; evidence for Phase 4 |
-| Sample data files | `sources/samples/` | Optional; file-interface evidence |
-| App-specific documents | `sources/documents/` | Optional |
-| Shared Japanese documents | `shared-docs/` | Recommended for Phase 5 document integration |
+| Screen captures | `input/screenshots/` | Phase 2 loses layout, grouping and tab structure without them |
+| Output samples | `input/report-samples/` | Phase 3 cannot settle an outbound format without them |
+| Sample input files | `input/samples/` | Phase 3 cannot settle an inbound format without them |
+| App documents | `input/documents/` | **Phase 5 is BLOCKED without document evidence** |
+| Shared documents | `input/shared-docs/` | Counts as document evidence for Phase 5 |
+| Recorded stakeholder answers | `input/interviews/` | Closes what no document records |
 
 A **single file** declared directly as an artifact (for example
 `format: vba`) needs nothing further. A **directory or `.zip` package** additionally
@@ -100,7 +106,7 @@ definition text, are produced by the extractor.
 
 | Input | Location | Requirement |
 |---|---|---|
-| Access database | `sources/access/*.mdb` `*.accdb` `*.adp` | Required |
+| Access database | `input/access/*.mdb` `*.accdb` `*.adp` | Required |
 | Manifest entry | `artifacts[]` with `kind: access_database` | Required (`id`, `role`, `format`, `source_ref`) |
 | Authorization | `--authorize access_snapshot_extract` | Required; acquisition is `BLOCKED` without it |
 

@@ -20,6 +20,15 @@ CONTRACTS = PACKAGE / "contracts"
 sys.path.insert(0, str(CONTRACTS))
 
 
+def _workspace(app_root: Path):
+    """The layout resolver: one place knows a pre-2.10.0 workspace names things
+    differently, so every caller asks instead of assuming."""
+    from workspace import Workspace
+
+    return Workspace(app_root)
+
+
+
 def package_version() -> str:
     return json.loads((PACKAGE / "specifications" / "package.json").read_text(encoding="utf-8"))["version"]
 
@@ -472,7 +481,7 @@ def main() -> int:
         output_root = (
             Path(args.output_root).expanduser().resolve()
             if getattr(args, "output_root", None)
-            else manifest_path.parent / "acquired"
+            else _workspace(manifest_path.parent).acquired_root()
         )
         acquisition_id = getattr(args, "acquisition_id", None) or f"acquire-{uuid.uuid4().hex}"
         authorize = tuple(getattr(args, "authorize", []) or [])

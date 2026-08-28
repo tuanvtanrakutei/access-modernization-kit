@@ -1,5 +1,28 @@
 # Changelog
 
+## [2.10.0] - 2026-08-28
+
+### Changed
+
+- **The workspace is organised by who owns it, not by which stage of the pipeline produced it.** An operator opening a workspace met seven top-level directories, four of which they never open — `acquired/`, `extracted/`, and a `graphify-out/` left over from an earlier release — with the six phase documents they actually came for two levels down inside `runs/<run-id>/outputs/`, behind a run id they had no way to guess. The previous release made that machinery coherent; it did not make it smaller, because it was organised for the pipeline rather than for the person. There are three things at the top now:
+
+  ```
+  manifest.yaml     the one file a person edits
+  input/            everything a person supplies
+  output/           everything a person reads
+  .ak/              everything the kit owns, and never opens by hand
+  ```
+
+  Evidence is not hidden by this. Nothing is found by browsing — an evidence item cites a path, and a cited path resolves wherever it sits; what browsing produced before was noise. `input/` gains two containers that had no home: `interviews/`, for a recorded answer from a named person, which carries findings nothing else in the corpus can and previously had no shape because it had no place; and `report-samples/`, named for what it holds rather than the old `reports-out`, which existed only to dodge a collision with the `reports/` inside an export package and told a reader nothing.
+
+  `output/` is one directory holding the newest run, because a run id in the path is a question a reader cannot answer. A later run replaces it; every run's working state and evidence register stay under `.ak/runs/<run-id>/`, so a superseded run is recoverable even though its rendered documents were not kept.
+
+- `contracts/workspace.py` is the single place that knows a workspace written before 2.10.0 calls these `sources/`, `shared-docs/`, `decisions/`, `acquired/`, `extracted/` and `runs/<run-id>/outputs/`. Every accessor answers for both layouts, so upgrading the kit never strands a run in progress and nobody is told to move a file. A fallback repeated across fifteen call sites is a fallback that gets missed in one, which is why it is not repeated.
+
+### Fixed
+
+- `preflight` decided a directory was a published bundle from its name alone, so an aborted acquisition that left `acquired/bundle-*/` behind reported extraction as already done. It now requires the `bundle.json` inside. Two tests were faking a bundle with a bare directory; the fixture was made real rather than the check weakened.
+
 ## [2.9.0] - 2026-08-28
 
 Contract audit of Phase 0-6, opened because the six-phase output on a real

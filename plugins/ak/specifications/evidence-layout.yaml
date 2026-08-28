@@ -119,66 +119,82 @@ package_files:
     description: Object counts and skipped objects, written by the VBA exporter at the
       package root. Recognized by name; it is not a misfiled member.
 
-# The workspace directories, declared here so init creates exactly what the pipeline
-# uses. Three duplicated pairs had grown up: a top-level outputs/ beside every run's
-# own outputs/, a top-level evidence/evidence.json nothing ever read, and
-# extracted/access/ from before acquisition wrote acquired/staging/. Each was created
-# on every init and each gave an operator a second plausible place to look.
+# Organised by who owns it, not by the pipeline stage that produced it. An operator
+# used to meet seven top-level directories, four of which they never open, with the
+# six phase documents two levels down inside runs/<run-id>/outputs/. There are three
+# things now: the file you edit, what you supply, what you read - and .ak/, which the
+# kit owns and a person never opens.
+#
+# Evidence is not hidden by this. Nothing is found by browsing: an evidence item
+# cites a path, and a cited path resolves wherever it sits. What browsing produced
+# before was noise.
+#
+# contracts/workspace.py resolves both layouts, and is the only place that knows a
+# workspace written before 2.10.0 calls these sources/, acquired/, extracted/ and
+# runs/. A fallback repeated across fifteen call sites is one that gets missed in one.
 workspace:
-  inputs:
-    sources/access:
-      purpose: Access databases - .mdb, .accdb, .adp. The only binaries a human places.
-    sources/documents:
-      purpose: Business documents. Supplies document_inventory, which no runtime route can.
-    sources/screenshots:
-      purpose: Captured screens. No runtime route produces these.
-    sources/samples:
-      purpose: Sample input files the application reads, for the inbound boundary.
-    sources/reports-out:
-      purpose: Sample outputs the application produces, for the outbound boundary.
-    sources/<ARTIFACT_ID>:
+  operator_facing:
+    manifest.yaml:
+      purpose: The one file a person edits. Two decisions in it need a human before acquisition.
+    input:
+      purpose: Everything a person supplies.
+      contains:
+        access: Access databases - .mdb, .accdb, .adp. The only binaries a human places.
+        vba: Exported VBA, when a V2.1 project declares it at the fixed path.
+        sql: Exported SQL schema, queries and stored procedures.
+        documents: Business documents. Supplies DOCUMENT evidence, which no runtime route can.
+        shared-docs: Documents shared across the estate rather than owned by this app.
+        screenshots: Captured screens. Supplies SCREENSHOT evidence; no runtime route produces it.
+        samples: Real input files the application reads. The only class that settles an inbound format.
+        report-samples: >-
+          Real outputs the application produced. Settles an outbound contract.
+          Named for what it holds: `reports/` inside an export package already means
+          report definitions, and the old `reports-out` dodged that with a suffix
+          that told a reader nothing.
+        interviews: >-
+          Recorded answers from a named person on a named date. Carries findings
+          nothing else in the corpus can, and had no home before, so it had no shape.
+        decisions: Decisions a person made that the sources cannot state.
+        <ARTIFACT_ID>: >-
+          One imported export package per artifact, holding forms/, reports/, macros/,
+          vba/, queries/, schema/ plus its import-source-manifest.yaml. Placed by
+          whoever supplies the export, not by init.
+    output:
       purpose: >-
-        One imported export package per artifact, holding the containers declared
-        above - forms/, reports/, macros/, vba/, queries/, schema/ - plus its
-        import-source-manifest.yaml. Created by whoever supplies the export, not by init.
-    shared-docs:
-      purpose: Documents shared across the application estate rather than owned by this app.
-  machine_written:
+        Everything a person reads: the six phase documents, the derived HTML, the
+        README, and the registers. One directory holding the newest run, because a
+        run id in the path is a question a reader cannot answer. A later run replaces
+        it; every run's working state and evidence stay under .ak/runs/<run-id>/.
+  kit_owned:
     # One rule, and it is the whole of it: evidence moves left to right, and each
-    # step has exactly one home. Snapshots are disposable, staging is what was read
-    # out, a bundle is what was sealed, extracted/ is what was derived from a bundle.
-    # Before 2.9.0 the same question - "where is the extracted text" - had three
-    # plausible answers and no rule to choose between them.
-    acquired/snapshots/<acquisition-id>:
+    # step has exactly one home.
+    .ak/snapshots/<acquisition-id>:
       purpose: >-
         Disposable copies of the declared databases. They exist because the original
-        must never be opened - opening mutates it - and they are removed once
-        extraction has written its receipt, since nothing reads them afterwards. On a
-        real split application they were 615 MB beside 587 MB of originals.
+        must never be opened - opening mutates it - and are removed once extraction
+        has written its receipt. On a real split application they were 615 MB beside
+        587 MB of originals.
       lifetime: Deleted after a VALID run. Kept on PARTIAL or BLOCKED, and by --keep-snapshots.
       warning: Never cite one. The digest in the receipt is what proves what was read.
-    acquired/staging/<database-id>/<acquisition-id>:
+    .ak/staging/<database-id>/<acquisition-id>:
       purpose: What extraction read out of one artifact - definition text, schema, queries, and its receipt.
       warning: Never hand-edited. Immutable once written; this is the evidence.
-    acquired/bundles/<date>-<digest>:
+    .ak/bundles/<date>-<digest>:
       purpose: >-
-        A sealed, canonical view assembled from staging, and what every later phase
-        reads. The directory is named for a person; the full SHA-256 bundle_id stays
-        inside bundle.json, where it is the content address it was always meant to be.
-      note: >-
-        Workspaces written before 2.9.0 carry acquired/bundle-<64 hex> instead. Both
-        are read, so upgrading the kit does not strand a run in progress.
-    extracted:
+        A sealed, canonical view assembled from staging, and what every phase reads.
+        The directory is named for a person; the full SHA-256 bundle_id stays inside
+        bundle.json, where it is the content address it was always meant to be.
+    .ak/extracted:
       purpose: >-
-        Everything derived from the bundle - component-index.json, module-plan/,
-        derived-extraction.json, the distilled ui-facts, and documents/ holding
-        XLSX, DOCX, PPTX and PDF sources normalized to citable UTF-8 with a
-        provenance header. Regenerable; a phase cites it because re-running the
-        derivation reproduces it exactly.
-    runs/<run-id>:
-      purpose: >-
-        One investigation run. Phase documents, evidence register and traceability
-        matrix live in its outputs/ - there is no second copy at the workspace root.
-  human_written:
-    decisions:
-      purpose: Decisions a person made that the sources cannot state.
+        Everything derived from a bundle - component-index.json, module-plan/,
+        derived-extraction.json, the distilled ui-facts, and documents/ holding XLSX,
+        DOCX, PPTX and PDF normalized to citable UTF-8 with a provenance header.
+        Regenerable; a phase cites it because re-running the derivation reproduces it.
+    .ak/runs/<run-id>:
+      purpose: One run's working state - tasks, handoffs, evidence fragments, QA.
+  legacy_layout:
+    note: >-
+      A workspace created before 2.10.0 uses sources/, shared-docs/, decisions/,
+      acquired/, extracted/ and runs/<run-id>/outputs/. Every accessor answers for it
+      unchanged, so upgrading the kit never strands a run in progress and nobody is
+      told to move a file.

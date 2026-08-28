@@ -26,6 +26,18 @@ from pathlib import Path
 from typing import Callable
 
 
+def _workspace(app_root):
+    """The layout resolver. One place knows a pre-2.10.0 workspace names things
+    differently; every caller asks rather than assumes."""
+    contracts = str(Path(__file__).resolve().parent.parent / "contracts")
+    if contracts not in sys.path:
+        sys.path.insert(0, contracts)
+    from workspace import Workspace
+
+    return Workspace(app_root)
+
+
+
 BINARY_ACCESS = {".mdb", ".accdb", ".adp", ".laccdb", ".ldb"}
 TEXT_SUFFIXES = {
     ".bas", ".cls", ".frm", ".vb", ".sql", ".txt", ".md", ".mdx", ".qmd", ".rst",
@@ -38,7 +50,7 @@ DOCUMENT_SUFFIXES = {".pdf", ".xlsx", ".xls", ".docx", ".pptx"}
 IMAGE_SUFFIXES = {".png", ".jpg", ".jpeg", ".tif", ".tiff", ".bmp"}
 UNSUPPORTED_LEGACY = {".doc", ".ppt"}
 FORBIDDEN_PARTS = {
-    ".git", "runs", "outputs", "evidence", "decisions", "secrets", "credentials",
+    ".git", ".ak", "output", "runs", "outputs", "evidence", "decisions", "secrets", "credentials",
     # acquisition output: staging receipts, the canonical bundle, and any bundle backup
     # the operator keeps in the workspace. Normalization works from the component index and
     # declared sources - never from a serialised bundle.
@@ -84,7 +96,7 @@ def output_dir_from(manifest: dict, app_root: Path) -> Path:
     everything derived from the bundle one home; normalized text lives there too.
     """
     del manifest
-    return (app_root / "extracted" / "documents").resolve()
+    return _workspace(app_root).extracted("documents").resolve()
 
 
 def declared_paths(manifest: dict) -> tuple[list[str], list[str]]:
@@ -133,7 +145,7 @@ def _v22_declared_paths(manifest: dict) -> tuple[list[str], list[str]]:
 
 
 def component_paths(app_root: Path) -> list[str]:
-    index = app_root / "extracted" / "component-index.json"
+    index = _workspace(app_root).extracted("component-index.json")
     if not index.is_file():
         return []
     try:
@@ -182,7 +194,7 @@ def collect_sources(app_root: Path, manifest: dict) -> tuple[list[Path], list[Pa
         candidate = (app_root / relative).resolve()
         if candidate.is_file():
             excluded_access.add(candidate)
-    access_root = app_root / "sources" / "access"
+    access_root = _workspace(app_root).input_dir("access")
     if access_root.is_dir():
         excluded_access.update(path for path in access_root.rglob("*") if path.is_file() and path.suffix.lower() in BINARY_ACCESS)
 

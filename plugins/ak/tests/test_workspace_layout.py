@@ -247,3 +247,82 @@ def test_a_reclaimable_entry_can_never_name_a_protected_path(tmp_path: Path) -> 
         assert clean._is_protected(workspace, workspace / relative)
     assert clean._is_protected(workspace, workspace)
     assert not clean._is_protected(workspace, workspace / "graphify-out")
+
+
+# --- the resolver: one place knows both layouts -----------------------------
+
+def _space(root: Path):
+    from workspace import Workspace
+
+    return Workspace(root)
+
+
+def _new_layout(tmp_path: Path) -> Path:
+    (tmp_path / "input" / "access").mkdir(parents=True)
+    return tmp_path
+
+
+def _old_layout(tmp_path: Path) -> Path:
+    (tmp_path / "sources" / "access").mkdir(parents=True)
+    return tmp_path
+
+
+def test_a_new_workspace_puts_what_a_person_reads_at_the_top(tmp_path: Path) -> None:
+    """The six documents used to sit two levels down in runs/<run-id>/outputs/.
+
+    An operator met seven directories, four of which they never open, and had to
+    know a run id to find the thing they came for.
+    """
+    space = _space(_new_layout(tmp_path))
+    assert space.output_dir() == tmp_path / "output"
+    assert space.input_dir("access") == tmp_path / "input" / "access"
+
+
+def test_the_kit_owned_areas_are_all_under_one_directory(tmp_path: Path) -> None:
+    space = _space(_new_layout(tmp_path))
+    for name in ("snapshots", "staging", "bundles", "extracted", "runs"):
+        assert space.owned(name).parent == tmp_path / ".ak"
+
+
+def test_a_pre_2_10_workspace_answers_unchanged(tmp_path: Path) -> None:
+    """Upgrading the kit must never strand a run in progress."""
+    space = _space(_old_layout(tmp_path))
+    assert space.is_legacy
+    assert space.input_dir("access") == tmp_path / "sources" / "access"
+    assert space.input_dir("shared-docs") == tmp_path / "shared-docs"
+    assert space.input_dir("decisions") == tmp_path / "decisions"
+    assert space.staging_root() == tmp_path / "acquired" / "staging"
+    assert space.extracted("ui-facts") == tmp_path / "extracted" / "ui-facts"
+
+
+def test_a_legacy_output_dir_finds_the_newest_run(tmp_path: Path) -> None:
+    root = _old_layout(tmp_path)
+    for run_id in ("R1", "R2"):
+        (root / "runs" / run_id / "outputs").mkdir(parents=True)
+        (root / "runs" / run_id / "outputs" / "x.md").write_text(run_id, encoding="utf-8")
+    assert _space(root).output_dir().parent.name in {"R1", "R2"}
+    assert _space(root).output_dir(run_id="R1") == root / "runs" / "R1" / "outputs"
+
+
+def test_a_half_migrated_workspace_reads_as_new(tmp_path: Path) -> None:
+    """The safe direction: a stale sources/ left behind cannot shadow input/."""
+    (tmp_path / "input").mkdir()
+    (tmp_path / "sources").mkdir()
+    assert not _space(tmp_path).is_legacy
+    assert _space(tmp_path).input_dir("access") == tmp_path / "input" / "access"
+
+
+def test_bundles_are_found_in_every_layout_this_kit_has_written(tmp_path: Path) -> None:
+    from workspace import find_bundle_dirs
+
+    make_bundle(tmp_path / ".ak" / "bundles", "2026-08-28-aaaaaaaa")
+    make_bundle(tmp_path / "acquired" / "bundles", "2026-08-26-bbbbbbbb")
+    make_bundle(tmp_path / "acquired", BUNDLE_ID)
+    (tmp_path / "input").mkdir()
+    found = {path.name for path in find_bundle_dirs(_space(tmp_path))}
+    assert "2026-08-28-aaaaaaaa" in found
+
+
+def test_the_input_root_is_where_an_operator_actually_puts_things(tmp_path: Path) -> None:
+    assert _space(_new_layout(tmp_path)).input_root().name == "input"
+    assert _space(_old_layout(tmp_path / "old")).input_root().name == "sources"
