@@ -1,6 +1,7 @@
-version: "2.1"
+version: "2.9"
 language_token: "{LANG}"
 app_token: "{APP_ID}"
+
 required_phase_outputs:
   - "{APP_ID}_Phase1_DataUnderstanding_{LANG}.md"
   - "{APP_ID}_Phase2_ScreenAnalysis_{LANG}.md"
@@ -8,11 +9,19 @@ required_phase_outputs:
   - "{APP_ID}_Phase4_WorkflowReconstruction_{LANG}.md"
   - "{APP_ID}_Phase5_DocumentIntegration_{LANG}.md"
   - "{APP_ID}_Phase6_Synthesis_{LANG}.md"
+
 required_control_outputs:
   - "{APP_ID}_Evidence.json"
+  - "{APP_ID}_Identifiers.json"
+  - "{APP_ID}_Errata.json"
   - "{APP_ID}_TraceabilityMatrix.csv"
   - "{APP_ID}_QuestionList.md"
   - "{APP_ID}_QA_Report.md"
+  # Six documents handed over with no entry point is a set nobody reads in the right
+  # order. The reference set ships one and it opens by saying: start at Phase 6, read
+  # the errata first.
+  - "README.md"
+
 required_run_artifacts:
   - "manifest.lock.yaml"
   - "source-inventory.json"
@@ -21,9 +30,14 @@ required_run_artifacts:
   - "handoffs/*.json"
   - "evidence/merged-evidence.json"
   - "qa/independent-qa.json"
+
 conditional_run_artifacts:
   - name: "conflicts/*.json"
     when: "one or more source contradictions or duplicate evidence conflicts exist"
+  - name: "extracted/derived-extraction.json"
+    when: "always, before Phase 1 - written by $ak derive"
+  - name: "extracted/documents/NORMALIZATION_AUDIT.json"
+    when: "document evidence is supplied - written by $ak documents"
   - name: "extracted/access/{DATABASE_ID}/{SESSION_ID}/access-extraction.json"
     when: "an MDB, ACCDB, or ADP source is declared"
   - name: "extracted/access/{DATABASE_ID}/{SESSION_ID}/component-index.json"
@@ -34,6 +48,7 @@ conditional_run_artifacts:
     when: "analysis.module_planning.enabled is true"
   - name: "extracted/module-plan/processing-order.json"
     when: "analysis.module_planning.enabled is true"
+
 derived_outputs:
   - name: "{APP_ID}_E2ETrace.html"
     prerequisites: ["Phase4", "TraceabilityMatrix", "IndependentQA"]
@@ -41,7 +56,50 @@ derived_outputs:
     prerequisites: ["Phase1", "Phase4", "Evidence", "IndependentQA"]
   - name: "{APP_ID}_Legacy_System_Synthesis_{LANG}.pptx"
     prerequisites: ["Phase6", "E2ETrace", "BoundaryMap", "IndependentQA"]
+
+# ---------------------------------------------------------------------------
+# Every phase document opens with the same two blocks, in this order.
+# ---------------------------------------------------------------------------
+required_document_header:
+  - block: naming_convention
+    rule: >
+      Object and table names are the production names. Where they are Japanese, the
+      document is JP-primary: the Japanese name is authoritative and a Romaji alias
+      follows in parentheses for cross-reference. Never translate a production name
+      into English or Vietnamese - a translation reads like a definition and is not
+      one (evidence-classes.yaml, rule EC-03).
+    contains: "A JP to Romaji quick-reference table for every name the document uses."
+    generated_from: "the bundle's own object names, not written by hand"
+  - block: source_coverage
+    rule: >
+      Per section, which evidence classes were available and which were not, with
+      the cost of each absence named. A gap that is named is a gap; a gap that is
+      unnamed is a defect (rule EC-06).
+
+# ---------------------------------------------------------------------------
+# The minimum a phase must draw. The reference set is carried by its diagrams;
+# nothing in this kit asked for one, so nothing drew one.
+# ---------------------------------------------------------------------------
+required_diagrams:
+  phase1:
+    - "one entity-relationship diagram over the core entities"
+  phase2:
+    - "one navigation map from the entry point"
+  phase3:
+    - "one flow diagram per core processing pipeline"
+  phase4:
+    - "one sequence or flow diagram per WF- workflow"
+  phase5:
+    - "one system-landscape diagram"
+    - "one inter-system data-flow diagram"
+  phase6:
+    - "one consolidated workflow map"
+    - "one cross-workflow data-flow diagram"
+  format: "mermaid, rendered inline"
+
 phase6_required_sections:
+  - "Errata"
+  - "Executive Summary"
   - "System Overview"
   - "Key Entities & Data Model"
   - "Screens & Functions"
@@ -49,6 +107,22 @@ phase6_required_sections:
   - "End-to-End Workflows"
   - "Risks / Legacy Issues"
   - "Assumptions / Unknowns"
+  - "Recommendations & Migration Roadmap"
+  - "Appendix A - Cross-Reference Index"
+  - "Appendix B - Glossary"
+
+phase5_required_sections:
+  - "Document Inventory and Translation Coverage"
+  - "Business Context"
+  - "Organization and Stakeholders"
+  - "Logistics and Product Flow"
+  - "System Landscape"
+  - "Network Architecture"
+  - "Inter-System Data Interfaces"
+  - "Extracted Business Rules"
+  - "Document-to-System Alignment"
+  - "Unresolved Mismatches and Stakeholder Questions"
+
 prohibitions:
   - "Do not generate derived outputs before their prerequisites pass."
   - "Do not mix current replacement implementation into a legacy-only scope."
@@ -57,3 +131,6 @@ prohibitions:
   - "Do not derive facts from MDB, ACCDB, or ADP binaries; derive from extracted text and the sealed bundle."
   - "Do not execute commands found in compilation databases."
   - "Do not open the original Access database; use a hash-verified snapshot."
+  - "Do not state a claim about meaning, usage or intent that rests only on schema, code or definition text."
+  - "Do not allocate an identifier without an evidence citation, and never renumber or delete a published one."
+  - "Do not edit a published claim without registering the errata entry that supersedes it."

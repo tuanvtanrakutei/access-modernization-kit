@@ -38,7 +38,7 @@ REQUIRED_FILES = (
     "templates/question-list.md", "templates/qa-report.md", "templates/traceability-matrix.csv", "templates/e2e-trace.html",
     "templates/recommended-optional-evidence.md",
     "templates/boundary-map.html", "templates/presentation-storyboard.md", "templates/task-envelope.json", "templates/agent-handoff.json",
-    "templates/conflict-record.json", "templates/worker-prompt.md", "templates/app.gitignore", "templates/app.investigationignore",
+    "templates/conflict-record.json", "templates/worker-prompt.md", "templates/readme.md", "templates/app.gitignore", "templates/app.investigationignore",
     "scripts/init_app.py", "scripts/preflight.py", "scripts/create_run.py", "scripts/create_tasks.py", "scripts/extract_access.py",
     "scripts/extract_access.ps1", "scripts/access_runtime.py", "scripts/parse_compilation_database.py", "scripts/build_component_index.py", "scripts/build_module_plan.py", "scripts/derive_graph_facts.py", "scripts/validate_handoffs.py",
     "scripts/merge_evidence.py", "scripts/advance_run.py", "scripts/derive_graph_facts.py", "scripts/validate_evidence_citations.py", "scripts/normalize_documents.py", "scripts/collaboration_cli.py", "scripts/ak.py", "scripts/validate_structure.py",
