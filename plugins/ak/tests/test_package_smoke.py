@@ -538,7 +538,7 @@ def test_document_normalizers_cover_office_and_report_scanned_pdf(tmp_path: Path
         writer.write(handle)
 
     run_script("normalize_documents.py", "--app-root", str(app))
-    audit = json.loads((app / ".ak" / "extracted" / "documents" / "NORMALIZATION_AUDIT.json").read_text(encoding="utf-8"))
+    audit = json.loads((app / ".ak" / "extracted" / "normalized" / "NORMALIZATION_AUDIT.json").read_text(encoding="utf-8"))
     statuses = {entry["source_path"]: entry["status"] for entry in audit["entries"]}
     assert statuses["input/documents/rules.xlsx"] == "NORMALIZED"
     assert statuses["input/documents/manual.docx"] == "NORMALIZED"

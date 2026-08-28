@@ -96,7 +96,7 @@ def output_dir_from(manifest: dict, app_root: Path) -> Path:
     everything derived from the bundle one home; normalized text lives there too.
     """
     del manifest
-    return _workspace(app_root).extracted("documents").resolve()
+    return _workspace(app_root).extracted("normalized").resolve()
 
 
 def declared_paths(manifest: dict) -> tuple[list[str], list[str]]:

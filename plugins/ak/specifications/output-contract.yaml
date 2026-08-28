@@ -36,7 +36,7 @@ conditional_run_artifacts:
     when: "one or more source contradictions or duplicate evidence conflicts exist"
   - name: "extracted/derived-extraction.json"
     when: "always, before Phase 1 - written by $ak derive"
-  - name: "extracted/documents/NORMALIZATION_AUDIT.json"
+  - name: ".ak/extracted/normalized/NORMALIZATION_AUDIT.json"
     when: "document evidence is supplied - written by $ak documents"
   - name: "extracted/access/{DATABASE_ID}/{SESSION_ID}/access-extraction.json"
     when: "an MDB, ACCDB, or ADP source is declared"

@@ -160,3 +160,30 @@ def test_how_to_supply_tells_an_operator_where_to_put_it(contract: dict) -> None
     assert "sources/screenshots" in advice["also_read"]
     assert advice["means"]
     assert "one frame" in advice["note"].lower()
+
+
+# Found by running the whole chain on a fresh workspace, which the unit tests could
+# not: acquire, derive, documents, then ask for Phase 5.
+def test_normalizing_sources_does_not_manufacture_document_evidence(tmp_path: Path) -> None:
+    """The normalizer's corpus holds every source it read - VBA, SQL, the manifest.
+
+    Counting that directory as a DOCUMENT location meant running `$ak documents` on
+    a project with no documents at all made DOCUMENT present, and Phase 5 reported
+    LIMITED instead of BLOCKED - defeating the exact gate this release tightened,
+    from inside the release's own code.
+    """
+    corpus = tmp_path / ".ak" / "extracted" / "normalized" / "corpus" / "normalized"
+    corpus.mkdir(parents=True)
+    (corpus / "DemoOrderForm.bas.txt").write_text("Attribute VB_Name", encoding="utf-8")
+    (tmp_path / "input" / "documents").mkdir(parents=True)
+
+    assert "DOCUMENT" not in evidence_classes.observe(set(), tmp_path)
+    assert readiness(STRUCTURAL, tmp_path)["phase5"]["status"] == "BLOCKED"
+
+
+def test_a_document_a_person_supplied_still_counts(tmp_path: Path) -> None:
+    documents = tmp_path / "input" / "documents"
+    documents.mkdir(parents=True)
+    (documents / "manual.xlsx").write_bytes(b"x")
+    assert "DOCUMENT" in evidence_classes.observe(set(), tmp_path)
+    assert readiness(STRUCTURAL, tmp_path)["phase5"]["status"] != "BLOCKED"

@@ -187,8 +187,11 @@ workspace:
     .ak/extracted:
       purpose: >-
         Everything derived from a bundle - component-index.json, module-plan/,
-        derived-extraction.json, the distilled ui-facts, and documents/ holding XLSX,
-        DOCX, PPTX and PDF normalized to citable UTF-8 with a provenance header.
+        derived-extraction.json, the distilled ui-facts, and normalized/ holding
+        every source read into citable UTF-8 with a provenance header - XLSX,
+        DOCX, PPTX and text-layer PDF among them. It is not a document
+        inventory: whether DOCUMENT evidence exists is decided by what a person
+        put in input/documents, never by what the normalizer copied.
         Regenerable; a phase cites it because re-running the derivation reproduces it.
     .ak/runs/<run-id>:
       purpose: One run's working state - tasks, handoffs, evidence fragments, QA.

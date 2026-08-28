@@ -51,10 +51,10 @@ CLASS_LOCATIONS: dict[str, tuple[str, ...]] = {
     "SCREENSHOT": ("input/screenshots", "sources/screenshots"),
     "SAMPLE_DATA": ("input/samples", "sources/samples"),
     "OUTPUT_SAMPLE": ("input/report-samples", "sources/reports-out"),
-    "DOCUMENT": (
-        "input/documents", "input/shared-docs", ".ak/extracted/documents/corpus",
-        "sources/documents", "shared-docs", "extracted/documents/corpus",
-    ),
+    # Only where a person puts a document. The normalizer's corpus is not a
+    # location: it holds every normalized source, so reading it as document
+    # evidence let a project with no documents at all satisfy Phase 5.
+    "DOCUMENT": ("input/documents", "input/shared-docs", "sources/documents", "shared-docs"),
     "INTERVIEW": ("input/interviews", "sources/interviews", "decisions/interviews"),
 }
 

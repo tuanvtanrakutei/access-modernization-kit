@@ -21,6 +21,7 @@
 
 ### Fixed
 
+- **Normalizing the sources manufactured document evidence, defeating the gate this audit was opened to tighten.** `CLASS_LOCATIONS["DOCUMENT"]` listed the normalizer's output directory, which holds *every* source it read — VBA, SQL, the manifest — not only documents. So running `$ak documents` on a project with no documents at all made DOCUMENT read as present, and Phase 5 reported `LIMITED` instead of `BLOCKED`. Presence of document evidence is now decided only by what a person put in `input/documents` or `input/shared-docs`. The directory that invited the mistake is renamed `.ak/extracted/normalized/`, because it was never a document inventory. Found by running the whole chain — `init`, `acquire`, `derive`, `documents`, `phase requirements` — on a fresh workspace, which no unit test did.
 - `preflight` decided a directory was a published bundle from its name alone, so an aborted acquisition that left `acquired/bundle-*/` behind reported extraction as already done. It now requires the `bundle.json` inside. Two tests were faking a bundle with a bare directory; the fixture was made real rather than the check weakened.
 
 ## [2.9.0] - 2026-08-28
