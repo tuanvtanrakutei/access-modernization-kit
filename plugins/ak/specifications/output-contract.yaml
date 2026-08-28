@@ -115,7 +115,7 @@ phase5_required_sections:
   - "Document Inventory and Translation Coverage"
   - "Business Context"
   - "Organization and Stakeholders"
-  - "Logistics and Product Flow"
+  - "Operational Flow"
   - "System Landscape"
   - "Network Architecture"
   - "Inter-System Data Interfaces"

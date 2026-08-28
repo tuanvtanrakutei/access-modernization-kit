@@ -13,13 +13,9 @@ is re-run in this pass.
 |---|---|---|
 | **U0** cross-cutting contracts | **done** | `461d826`, `e662dff` |
 | Graphify removal | **done** | `461d826` |
-| U1 Phase 1 | not started | |
-| U2 Phase 2 | not started | |
-| U3 Phase 3 | not started | |
-| U4 Phase 4 | not started | |
-| U5 Phase 5 | not started | |
-| U6 Phase 6 | not started | |
-| Conformance checker + gold-standard regression | not started | |
+| Evidence-class gating (all phases) | **done** | this pass |
+| **U1-U6** phase templates | **done** | this pass |
+| Conformance checker + gold-standard regression | **done** | this pass |
 
 U0 delivered: `evidence-classes.yaml`, `identifier-scheme.yaml`,
 `errata-contract.yaml`, a rewritten `output-contract.yaml` (document header,
@@ -28,11 +24,23 @@ required output), real `boundary-map.html` / `e2e-trace.html` / `readme.md`
 templates, `$ak derive` and `$ak documents`, INTERVIEW and evidence-class fields in
 the evidence schema, and 39 tests. Suite 1264 passing.
 
-Still open in U0 and folded into U1-U6: the phase gates in
-`contracts/phase_readiness.py` and `contracts/evidence_requirements.py` are not yet
-evidence-class aware - `evidence-classes.yaml` declares `phase_needs` and nothing
-reads it yet. That is the first thing U1 does, since it is the same code path for
-all six.
+The gates now read `phase_needs`. Against the same A05 bundle that reported
+phase1/2/3 READY, they report phase1/2/3 LIMITED with the cost of each missing class
+named, and phase5 BLOCKED for want of documents - the same gaps that run raised as
+open questions at the end.
+
+The two regressions that judge the contract, both in the suite:
+
+- the reference set passes **every** content check, across all 18 documents. A
+  content check it fails is a contract written wrong, not a document at fault;
+- the reference set fails the apparatus checks, and that is the point - it has
+  excellent content and no machine-checkable citation trail, which is the gap the
+  kit exists to close.
+
+**Not done, and deliberately out of this pass:** no A05 phase was re-run. The
+existing A05 output stays as the "before" sample the checker is calibrated against,
+and it fails - naming missing diagrams, missing identifier vocabularies and a
+missing naming-convention statement.
 
 ---
 

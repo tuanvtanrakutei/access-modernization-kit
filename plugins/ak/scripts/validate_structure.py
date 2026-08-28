@@ -41,7 +41,7 @@ REQUIRED_FILES = (
     "templates/conflict-record.json", "templates/worker-prompt.md", "templates/readme.md", "templates/app.gitignore", "templates/app.investigationignore",
     "scripts/init_app.py", "scripts/preflight.py", "scripts/create_run.py", "scripts/create_tasks.py", "scripts/extract_access.py",
     "scripts/extract_access.ps1", "scripts/access_runtime.py", "scripts/parse_compilation_database.py", "scripts/build_component_index.py", "scripts/build_module_plan.py", "scripts/derive_graph_facts.py", "scripts/validate_handoffs.py",
-    "scripts/merge_evidence.py", "scripts/advance_run.py", "scripts/derive_graph_facts.py", "scripts/validate_evidence_citations.py", "scripts/normalize_documents.py", "scripts/collaboration_cli.py", "scripts/ak.py", "scripts/validate_structure.py",
+    "scripts/merge_evidence.py", "scripts/advance_run.py", "scripts/derive_graph_facts.py", "scripts/validate_evidence_citations.py", "scripts/validate_phase_conformance.py", "scripts/normalize_documents.py", "scripts/collaboration_cli.py", "scripts/ak.py", "scripts/validate_structure.py",
     "tools/ExportAccessObjects.bas",
     "fixtures/collaboration/two-contributor/bundle.lock.json", "fixtures/collaboration/two-contributor/expected-integration-order.json",
     "fixtures/collaboration/two-contributor/collaboration/work-packages/WP_SYN_SQL/work-package.json", "fixtures/collaboration/two-contributor/collaboration/work-packages/WP_SYN_UI/work-package.json",

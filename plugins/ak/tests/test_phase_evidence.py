@@ -84,8 +84,14 @@ def test_evidence_already_supplied_is_not_requested_again(tmp_path: Path) -> Non
         "backend_authority_declared": ["manifest"],
     })
     report = phase_evidence.phase_report(app, 1)
-    assert report["status"] == "READY"
+    # Every capability the phase asks for is satisfied and nothing is re-requested -
+    # which is what this test is for. The status is LIMITED rather than READY because
+    # all five capabilities are structural, and structural evidence cannot say what a
+    # table is for. This assertion used to read READY, and it was protecting the
+    # defect the 2.9.0 audit was opened to fix.
     assert report["missing"] == []
+    assert report["status"] == "LIMITED"
+    assert any("DOCUMENT" in reason for reason in report["reasons"])
     by_name = {item["capability"]: item["supplied_by"] for item in report["satisfied"]}
     assert by_name["field_inventory"] == "managed_access"
     assert by_name["access_schema_inventory"] == "imported_sources"
@@ -121,10 +127,17 @@ def test_an_older_bundle_falls_back_to_its_readiness_verdict(tmp_path: Path) -> 
 def test_a_waiver_is_reported_alongside_the_phase_it_unblocked(tmp_path: Path) -> None:
     app = _workspace(tmp_path, {})
     report = phase_evidence.phase_report(app, 4, ("trigger_effect_output_trace",), "no sample files exist")
-    assert report["status"] != "BLOCKED"
     assert report["waived"] == [
         {"capability": "trigger_effect_output_trace", "reason": "no sample files exist"}
     ]
+    # A waiver clears the capability it names. It does not clear the evidence classes
+    # Phase 4 needs, and an empty workspace has none of them - so the phase stays
+    # BLOCKED, and the report says which class rather than which capability. A waiver
+    # that could wave away a missing class would be a way to declare the analysis
+    # possible without the evidence to do it.
+    assert report["status"] == "BLOCKED"
+    blocking = [entry["class"] for entry in report["evidence"]["blocking"]]
+    assert blocking == ["CODE", "UI_DEFINITION"]
 
 
 # The derivation exists because Graphify's AST pass yields file-level nodes and no

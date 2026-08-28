@@ -3,6 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
+import evidence_classes
 from classification import Classification, resolve_classification
 
 PHASES = tuple(f"phase{i}" for i in range(1, 7))
@@ -54,7 +55,21 @@ def compute_readiness(
     profiles_dir: Path,
     present_capabilities: set[str],
     waivers: list[dict[str, str]] | None = None,
+    package_root: Path | None = None,
+    app_root: Path | str | None = None,
 ) -> dict[str, Any]:
+    """Phase readiness by capability, and - when the class contract is reachable - by
+    evidence class as well.
+
+    The capability half answers "can an inventory be computed". It cannot answer
+    "can this phase say what any of it means", because every capability a bundle
+    produces on its own is structural. The class half answers that, and a phase
+    that has to publish without a class it needs now says which class and what the
+    absence costs, rather than reporting READY and quietly writing counts.
+
+    `package_root` is optional so every existing caller keeps working; without it
+    the class half is skipped and behaviour is exactly as before.
+    """
     resolved = resolve_classification(classification, profiles_dir)
     result: dict[str, Any] = {
         phase: {"status": "READY", "reasons": [], "rule_ids": []} for phase in PHASES
@@ -90,9 +105,33 @@ def compute_readiness(
                 if status == "NOT_APPLICABLE":
                     _set_status(result[phase], status, rule_id, "positive_non_applicability_proof")
 
+    classes: dict[str, list[str]] = {}
+    if package_root is not None:
+        contract = evidence_classes.load_contract(package_root)
+        classes = evidence_classes.observe(present_capabilities, app_root)
+        present_classes = set(classes)
+        for phase in PHASES:
+            status = evidence_classes.phase_status(phase, present_classes, contract)
+            if not status["known"]:
+                continue
+            for name in status["blocking"]:
+                _set_status(result[phase], "BLOCKED", "classes." + phase, f"missing_class:{name}")
+            for degradation in status["degradations"]:
+                names = "|".join(degradation["classes"])
+                _set_status(
+                    result[phase], "LIMITED", "classes." + phase,
+                    f"degraded_without:{names}: {degradation['costs']}",
+                )
+            result[phase]["evidence_classes"] = {
+                "required": status["required"],
+                "blocking": status["blocking"],
+                "degradations": status["degradations"],
+            }
+
     result["_meta"] = {
         "waivers_accepted": accepted,
         "waivers_rejected": rejected,
         "rule_versions": resolved.rule_versions,
+        "evidence_classes_present": {name: sorted(why) for name, why in sorted(classes.items())},
     }
     return result

@@ -115,6 +115,7 @@ def phase_report(
     effective = set(present) | set(waived)
     report = evidence_requirements.requirements(
         phase, classification, PROFILES, effective, origin,
+        package_root=PACKAGE, app_root=app_root,
     )
     report["bundle"] = str(bundle_dir) if bundle_dir else None
     report["waived"] = [{"capability": name, "reason": reason} for name in waived]

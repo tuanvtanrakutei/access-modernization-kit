@@ -13,8 +13,8 @@ Treat `scripts/`, `references/`, `specifications/`, `schemas/`, `templates/`, an
 
 Treat these short forms as explicit user requests. They are agent commands, not shell commands.
 
-**Typical flow for one app, in order:** `init` → `assess` → `acquire` → `phase`/`run` →
-`status` → `render`. Each later step depends on the one before it — `acquire` needs a
+**Typical flow for one app, in order:** `init` → `assess` → `acquire` → `derive` →
+`documents` → `phase`/`run` → `citations`/`conformance` → `status` → `render`. Each later step depends on the one before it — `acquire` needs a
 workspace from `init`; `phase`/`run` need an approved bundle from `acquire`; `render` needs
 Phase 6 and QA gates already passed. `help` and `install ...` are one-time housekeeping, not
 part of this per-app sequence — most users only ever need them once, if at all.
@@ -26,6 +26,10 @@ part of this per-app sequence — most users only ever need them once, if at all
 | `$ak acquire <APP_ID>` | Automatically plan and run acquisition to create a canonical bundle for analysis. For imported sources (exported VBA/SQL or zip packages), no Access runtime is required. For managed Access MDB files, requires host Access/ACE runtime and explicit `access_snapshot_extract` authorization. |
 | `$ak phase <1-6> <APP_ID>` | Report what evidence the phase still needs and how to supply it. For V2.2 require an approved bundle, derived facts, and non-blocked phase readiness; for V2.1 warn that migration is pending, then run only the named phase. |
 | `$ak run <APP_ID>` | Run technically permitted phases in order, stopping on `BLOCKED`; this never authorizes live Access, ADP, SQL Server, backup restore, or network access. |
+| `$ak derive --app-root <PATH>` | Derive the relationships the sealed bundle states literally. Run once, after `acquire`, before Phase 1. |
+| `$ak documents --app-root <PATH>` | Normalize XLSX/DOCX/PPTX/PDF and legacy-encoded text into citable UTF-8 with provenance. Required before Phase 5, which is BLOCKED without DOCUMENT evidence. |
+| `$ak citations --outputs <DIR>` | Fail when a published document cites an evidence id that does not exist. |
+| `$ak conformance --outputs <DIR>` | Check a published phase document carries what the phase contract promises: named terms, diagrams, identifier vocabularies, resolvable citations. |
 | `$ak status <APP_ID>` | Report app/run/phase/QA status without changing evidence or outputs. |
 | `$ak render <APP_ID> [LANGUAGE]` | Render declared outputs only after the required Phase 6, traceability, and QA gates pass. |
 | `$ak help` | Show this guide again; does not modify an app workspace. |
@@ -149,6 +153,25 @@ User action -> screen/form -> VBA event -> processing/query -> table/file -> out
 - Derivation matches what the sources state literally and does not parse VBA. That does not weaken line-backed extraction evidence.
 - Derived facts do not replace the six-phase contract.
 - CodeWiki is not a dependency. V2.1 independently implements component indexing, hierarchical decomposition, leaf-first ordering, session isolation, and affected-module refresh.
+
+## Judge evidence by class, not by count
+
+- `specifications/evidence-classes.yaml` states which claims each class of evidence can carry. A claim about **meaning, usage or intent** requires a DOCUMENT, an INTERVIEW or an operator's declaration; no volume of schema, code or definition text substitutes.
+- A name is not a meaning. Translating a Japanese object name is a translation and carries no evidential weight about what the object is for.
+- Absence of a reference is unreachability, not disuse. An object no code path opens may still be reached from a navigation pane, a custom menu, or a copy not analysed - say which routes were not examined, every time the figure is quoted.
+- A format claim about a file the application reads needs a real sample of it. Code shows what a reader accepts, which is not what the producer writes.
+- Where a class is missing, name what the document loses by it. `$ak phase requirements` reports this per phase; carry it into the document's Source Coverage block rather than leaving the reader to infer it.
+
+## Give every finding an address
+
+- `specifications/identifier-scheme.yaml` registers the vocabularies: `BR-`, `WF-`, `F-`, `OB-`, `RD/RA/RW/RS-`, `DISC-`, `UK-`, `AS-`, `E-`, `Q-`, `d0n`/`r0n`. Allocate in the phase that discovers the finding; cite evidence for every one.
+- A published identifier is a permanent address: never renumbered, never reused, never deleted.
+- Phase 6 consolidates rather than re-derives. A finding appearing there for the first time is either an errata entry or a mistake.
+
+## Correct a published claim through the errata register
+
+- `specifications/errata-contract.yaml`. Correct the document **and** register the entry; never silently edit a published claim, because removing the prose destroys the record that the analysis changed its mind.
+- Record the cause class. `DESCRIBED_NOT_COUNTED` - a correct count described from the members you happened to open - has already cost this project two corrections.
 
 ## Check the evidence a phase needs before starting it
 

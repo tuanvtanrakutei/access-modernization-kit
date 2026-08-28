@@ -13,6 +13,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
+import evidence_classes
 import phase_readiness as phase_readiness_contract
 from classification import Classification
 
@@ -172,10 +173,21 @@ def requirements(
     profiles_dir: Path,
     present: set[str],
     supplied_by: dict[str, str] | None = None,
+    package_root: Path | None = None,
+    app_root: Path | str | None = None,
 ) -> dict[str, Any]:
-    """Report one phase's evidence position, and what would close each gap."""
+    """Report one phase's evidence position, and what would close each gap.
+
+    Capabilities answer whether an inventory can be computed. Evidence classes
+    answer whether the phase can say what the inventory means - and when it cannot,
+    which class is missing and what the document loses without it. An operator gets
+    a thing to fetch either way.
+    """
     key = f"phase{phase}"
-    readiness = phase_readiness_contract.compute_readiness(classification, profiles_dir, present)
+    readiness = phase_readiness_contract.compute_readiness(
+        classification, profiles_dir, present,
+        package_root=package_root, app_root=app_root,
+    )
     entry = readiness.get(key, {})
     baseline = required_capabilities(key)
 
@@ -226,7 +238,7 @@ def requirements(
             "supply": [route for name in missing_any for route in describe(name)["supply"]],
         })
 
-    return {
+    report = {
         "phase": key,
         "status": entry.get("status", "UNKNOWN"),
         "reasons": entry.get("reasons", []),
@@ -237,3 +249,29 @@ def requirements(
         ],
         "missing": gaps,
     }
+
+    if package_root is not None:
+        contract = evidence_classes.load_contract(package_root)
+        observed = readiness.get("_meta", {}).get("evidence_classes_present", {})
+        status = evidence_classes.phase_status(key, set(observed), contract)
+        report["evidence"] = {
+            "characteristic_claim": status.get("characteristic_claim", ""),
+            "classes_present": observed,
+            "blocking": [
+                evidence_classes.how_to_supply(name, contract) for name in status["blocking"]
+            ],
+            # Named, not merely counted: an operator reads what the document will be
+            # unable to say, which is the only form of "something is missing" that
+            # tells them whether they care.
+            "degraded": [
+                {
+                    "supply_any_of": [
+                        evidence_classes.how_to_supply(name, contract)
+                        for name in degradation["classes"]
+                    ],
+                    "otherwise": degradation["costs"],
+                }
+                for degradation in status["degradations"]
+            ],
+        }
+    return report

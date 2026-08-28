@@ -101,6 +101,15 @@ def parse_args() -> argparse.Namespace:
     citations.add_argument("--outputs", required=True, help="Directory holding the phase documents and evidence register.")
     citations.add_argument("--json", action="store_true", help="Emit a machine-readable report.")
 
+    conformance = commands.add_parser(
+        "conformance",
+        help="Check a published phase document carries what the phase contract promises.",
+    )
+    conformance.add_argument("--outputs", required=True, help="Directory holding the phase documents.")
+    conformance.add_argument("--strict", action="store_true", help="Fail on evidence apparatus as well as content.")
+    conformance.add_argument("--group", choices=("content", "apparatus", "all"), default="all")
+    conformance.add_argument("--json", action="store_true", help="Emit a machine-readable report.")
+
     install = commands.add_parser("install", help="Install the skill for a non-Codex runtime.")
     install.add_argument("--runtime", choices=("codex", "claude", "generic"), required=True)
     install.add_argument("--project", help="Claude project directory; required for --runtime claude.")
@@ -311,6 +320,13 @@ def main() -> int:
         if args.json:
             citation_args.append("--json")
         return run("validate_evidence_citations.py", *citation_args)
+    if args.command == "conformance":
+        conformance_args = ["--outputs", args.outputs, "--group", args.group]
+        if args.strict:
+            conformance_args.append("--strict")
+        if args.json:
+            conformance_args.append("--json")
+        return run("validate_phase_conformance.py", *conformance_args)
     if args.command == "install":
         return install_skill(args)
     if args.command == "init":
