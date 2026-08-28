@@ -20,14 +20,6 @@ APP_ID_RE = re.compile(r"^[A-Z][A-Z0-9_-]{1,15}$")
 _EXPORT_CONTAINERS = {"forms": "form", "reports": "report", "macros": "macro", "vba": "vba"}
 
 
-def graphify_runtime_version() -> str:
-    """The pinned Graphify version, read from the package's own specification.
-
-    Taken from `specifications/graphify-runtime.json` rather than repeated here, so a
-    generated manifest cannot drift from the runtime the kit actually installs.
-    """
-    spec = Path(__file__).resolve().parent.parent / "specifications" / "graphify-runtime.json"
-    return str(json.loads(spec.read_text(encoding="utf-8"))["version"])
 # Exactly the directories the pipeline uses, as declared by the workspace section of
 # specifications/evidence-layout.yaml. Three pairs were removed because each gave an
 # operator a second plausible place to look: a top-level outputs/ beside every run's
@@ -51,13 +43,11 @@ SOURCE_DIRS = (
     "extracted/build-context",
     "extracted/module-plan",
     "decisions",
-    "graphify-out",
     "runs",
 )
 OWNED_FILES = (
     "manifest.yaml",
     ".gitignore",
-    ".graphifyignore",
     ".investigationignore",
 )
 
@@ -257,22 +247,6 @@ def manifest_v22_text(
             "classification": classification,
         },
         "artifacts": artifacts,
-        # Graphify is a mandatory phase gate, and a V2.2 manifest that omitted the
-        # block read as "not needed": preflight then skipped its runtime check and
-        # never warned that the gate could not run.
-        "graphify": {
-            "enabled": True,
-            "mode": "standard",
-            "output_dir": "graphify-out",
-            "link_shared_nodes": True,
-            "input_policy": "extracted_text_and_supported_sources",
-            "required_before_phases": True,
-            "install_policy": "auto_managed",
-            "runtime_version": graphify_runtime_version(),
-            "extras": ["pdf", "office"],
-            "refresh_policy": "before_each_phase",
-            "corpus_policy": "binary_free_normalized",
-        },
     }
     rendered = yaml.safe_dump(data, sort_keys=False, allow_unicode=True)
     # safe_dump cannot carry comments, so the one field a human must resolve is marked
@@ -328,7 +302,7 @@ analysis:
     strategy: "hierarchical_leaf_first"
     incremental_refresh: true
 shared_context:
-  global_sms_graph: "shared/graphify-out/graph.json"
+  global_sms_graph: ""
   shared_decisions: []
 outputs:
   root: "outputs"
@@ -338,16 +312,6 @@ outputs:
     e2e_html: true
     boundary_html: true
     presentation_pptx: false  # optional; enable only when a presentation is required
-graphify:
-  enabled: true
-  mode: "standard"
-  output_dir: "graphify-out"
-  link_shared_nodes: true
-  input_policy: "extracted_text_and_supported_sources"
-  required_before_phases: true
-  install_policy: "auto_managed"
-  runtime_version: "0.9.18"
-  extras: ["pdf", "office"]
   refresh_policy: "before_each_phase"
   corpus_policy: "binary_free_normalized"
 multi_agent:
@@ -458,7 +422,6 @@ def main() -> int:
     package_root = Path(__file__).resolve().parent.parent
     for source_name, target_name in (
         ("app.gitignore", ".gitignore"),
-        ("app.graphifyignore", ".graphifyignore"),
         ("app.investigationignore", ".investigationignore"),
     ):
         shutil.copy2(package_root / "templates" / source_name, app_root / target_name)

@@ -1,6 +1,6 @@
 {
   "name": "access-modernization-kit",
-  "version": "2.8.0",
+  "version": "2.9.0",
   "contract_version": "2.2",
   "features": [
     "six_phase_legacy_analysis",
@@ -18,14 +18,15 @@
     "language_dialect_encoding_inventory",
     "read_only_compilation_database_ingestion",
     "independent_investigation_ignore_policy",
-    "managed_graphify_runtime",
-    "binary_free_document_normalization",
-    "graphify_gate_before_every_phase",
+    "deterministic_fact_derivation",
     "composable_classification",
     "canonical_extraction_bundle",
     "phase_readiness_matrix",
     "manifest_v22_reader",
-    "acquisition_adapters"
+    "acquisition_adapters",
+    "evidence_class_gating",
+    "stable_identifier_scheme",
+    "errata_register"
   ],
   "architecture_inspiration": {
     "project": "FSoft-AI4Code/CodeWiki",

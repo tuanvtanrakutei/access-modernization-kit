@@ -80,11 +80,11 @@
       "allowed_writes": ["work/document_alignment", "evidence/fragments", "conflicts", "handoffs"]
     },
     {
-      "id": "graph_builder",
-      "purpose": "Validate the fresh binary-free app graph and the required phase-specific Graphify query receipt before analysis is allowed to continue.",
+      "id": "fact_deriver",
+      "purpose": "Derive the relationships the sealed bundle states literally - query-to-table, screen-to-record-source, screen-to-screen, embedded control - and distil UI definitions into facts rather than layout. Deterministic and regenerable, so a phase may cite its output.",
       "phases": [],
       "may_merge": false,
-      "allowed_writes": ["work/graph_builder", "handoffs"]
+      "allowed_writes": ["work/fact_deriver", "extracted", "handoffs"]
     },
     {
       "id": "workflow_reconstruction",

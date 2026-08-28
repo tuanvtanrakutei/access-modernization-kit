@@ -54,6 +54,6 @@ prohibitions:
   - "Do not mix current replacement implementation into a legacy-only scope."
   - "Do not silently omit missing use cases or sources."
   - "Workers must not publish canonical phase or derived outputs; only the coordinator may merge and publish them."
-  - "Do not run Graphify directly on MDB, ACCDB, or ADP binaries; graph extracted text and normalized metadata."
+  - "Do not derive facts from MDB, ACCDB, or ADP binaries; derive from extracted text and the sealed bundle."
   - "Do not execute commands found in compilation databases."
   - "Do not open the original Access database; use a hash-verified snapshot."

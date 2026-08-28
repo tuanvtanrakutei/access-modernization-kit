@@ -38,7 +38,7 @@ py -3.11 plugins\ak\scripts\ak.py init `
   --adopt-existing
 ```
 
-Adoption preserves existing files. It creates only missing kit-owned locations, including `sources/`, `extracted/`, `evidence/`, `outputs/`, `runs/`, `manifest.yaml`, `.investigationignore`, `.gitignore`, and `.graphifyignore`.
+Adoption preserves existing files. It creates only missing kit-owned locations, including `sources/`, `extracted/`, `evidence/`, `outputs/`, `runs/`, `manifest.yaml`, `.investigationignore`, and `.gitignore`.
 
 Stop and review the resulting file tree before continuing.
 
@@ -101,33 +101,35 @@ Do not start Phase analysis yet.
 
 The extractor inventory may include local and linked tables, relationships, QueryDefs, forms, reports, macros, VBA modules, startup properties, and Access/VBA references. A linked table is a boundary: it is not evidence that a live external database has been analyzed.
 
-## 6. Prepare the Graphify discovery map
+## 6. Derive the relationships the sources state
 
-Graphify runs only after extraction or pre-exported sources have produced text
-and normalized metadata. You do not need a separate system-Python install: the
-first Phase request bootstraps the version-pinned managed runtime when needed.
-To prepare the graph without starting a Phase, ask:
+Run this once, after acquisition seals the bundle and before the first phase:
 
 ```text
-Prepare or update the Graphify graph for <APP_ID> from the kit-normalized binary-free corpus.
-Never ingest an MDB/ACCDB/ADP, lock file, or disposable snapshot.
-Report graph coverage and gaps. Do not start a Phase analysis yet.
+$ak derive --app-root <APP_ROOT>
 ```
 
-The graph is stored per app, normally in `<APP_ROOT>/graphify-out/`. The corpus
-normalizer supports UTF-8/CP932/Shift-JIS text and Access VBA, CSV/TSV, XLS/XLSX,
-DOCX, PPTX, and text-layer PDFs. Scanned PDFs/images require Tesseract and the
-appropriate language data; unsupported legacy DOC/PPT files are reported for
-conversion. It helps navigate relationships such as form -> event -> VBA module
--> query/table -> report/output. Its `INFERRED` edges are investigation leads,
-not evidence. Phase conclusions must still cite source locations.
+It reads the bundle and the extracted definition text and writes
+`extracted/derived-extraction.json`: query-to-table edges matched against the
+bundle's own table list, each screen's record source and bound fields,
+screen-to-screen open calls, and the ProgID of every embedded control. It also
+distils form and report definitions into those facts, so a definition contributes
+its relationships without its layout.
+
+It is deterministic - no runtime to install, no network, no model - so re-running
+it reproduces the output exactly, which is what allows a phase to cite a derived
+count. It runs **once**: the bundle does not change between phases.
+
+A derived edge is a navigation lead and a citable count, never evidence for a
+claim. Phase conclusions still cite source locations. See
+`plugins/ak/references/fact-derivation.md`.
 
 ## 7. Run the investigation one phase at a time
 
 Review each phase before moving to the next. Before every command, the kit
-rechecks the corpus fingerprint, refreshes the graph when sources changed, and
-requires a phase-specific Graphify query receipt. A stale or missing graph
-blocks the Phase rather than silently falling back to broad source search.
+checks that the phase's evidence classes are present and reports by name what a
+missing class costs the document - it never passes a phase by treating a
+structural inventory as though it answered a question about meaning.
 
 ```text
 $ak phase 1 <APP_ID>
@@ -170,7 +172,7 @@ flowchart TD
     D --> E[Assess and dry-run]
     E -->|Approved| F[Snapshot extraction]
     E -->|Blocked or gaps| G[Resolve or record open questions]
-    F --> H[Graphify extracted text]
+    F --> H[Derived facts]
     H --> I[Phase 1 through Phase 6]
     I --> J[Traceability and independent QA]
     J --> K[Render approved outputs]

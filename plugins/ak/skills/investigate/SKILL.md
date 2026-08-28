@@ -24,7 +24,7 @@ part of this per-app sequence — most users only ever need them once, if at all
 | `$ak init <APP_ID> [--source <PATH>]` | Scaffold or adopt an app workspace. If `--source` is provided (folder or .zip), automatically copy/extract sources and auto-generate `manifest.yaml`. For non-empty workspaces without `--source`, require `--adopt-existing`. |
 | `$ak assess <APP_ID>` | Resolve or propose the project classification, inspect authorized artifacts/staging, report bundle and phase readiness, gaps, required approvals, and recommended optional evidence without analyzing a phase. Also reports the two required Python packages (`PyYAML`, `jsonschema`) and fails when either is missing — installing this plugin does not install them. |
 | `$ak acquire <APP_ID>` | Automatically plan and run acquisition to create a canonical bundle for analysis. For imported sources (exported VBA/SQL or zip packages), no Access runtime is required. For managed Access MDB files, requires host Access/ACE runtime and explicit `access_snapshot_extract` authorization. |
-| `$ak phase <1-6> <APP_ID>` | For V2.2 require an approved bundle and non-blocked phase readiness before Graphify; for V2.1 warn that migration is pending, preserve the legacy gate, then run only the named phase. |
+| `$ak phase <1-6> <APP_ID>` | Report what evidence the phase still needs and how to supply it. For V2.2 require an approved bundle, derived facts, and non-blocked phase readiness; for V2.1 warn that migration is pending, then run only the named phase. |
 | `$ak run <APP_ID>` | Run technically permitted phases in order, stopping on `BLOCKED`; this never authorizes live Access, ADP, SQL Server, backup restore, or network access. |
 | `$ak status <APP_ID>` | Report app/run/phase/QA status without changing evidence or outputs. |
 | `$ak render <APP_ID> [LANGUAGE]` | Render declared outputs only after the required Phase 6, traceability, and QA gates pass. |
@@ -61,7 +61,7 @@ Before investigation work, read these files completely:
 - `specifications/language-support.yaml`
 - The target app's `manifest.yaml`
 
-Read only the phase template needed for the current phase. Before any Phase/run request, read `references/graphify-phase-gate.md`. Read `references/presentation-guidance.md` only when generating a presentation. Read `references/agent-compatibility.md` only when installing or adapting the kit for another agent runtime.
+Read only the phase template needed for the current phase. Before any Phase/run request, read `references/fact-derivation.md`, `specifications/evidence-classes.yaml`, `specifications/identifier-scheme.yaml` and `specifications/errata-contract.yaml`. Read `references/presentation-guidance.md` only when generating a presentation. Read `references/agent-compatibility.md` only when installing or adapting the kit for another agent runtime.
 
 For multi-agent work, also read `references/orchestration-guide.md`, `orchestration/roles.json`, `orchestration/waves.json`, and `orchestration/runtime-adapters.json`. When Access binaries, compilation databases, or module planning are present, also read `references/access-extraction-guide.md` and `references/module-and-build-context.md`.
 
@@ -83,13 +83,12 @@ For multi-agent work, also read `references/orchestration-guide.md`, `orchestrat
 - Normalize declared `compile_commands.json` files with `scripts/parse_compilation_database.py`. Never execute `command` or `arguments` values.
 - Build the deterministic app index with `scripts/build_component_index.py`, then run `scripts/build_module_plan.py`. Every component must be assigned exactly once and module cycles are forbidden.
 - Process modules leaf-first. For incremental work, compare component indexes and re-run affected leaves plus their ancestors; keep prior evidence immutable.
-- Before Phase 1-6, run the managed Graphify prepare/check/finalize sequence in `references/graphify-phase-gate.md`. A missing runtime is installed into the kit-managed environment; a failed install, invalid corpus, stale graph, or missing phase-query receipt blocks that phase.
+- Before Phase 1, run `$ak derive` once against the sealed bundle. It is deterministic and needs no runtime; only a failed derivation blocks a phase, and the bundle does not change between phases so it is never re-run per phase.
 
-## Separate source, Git, and graph policies
+## Separate source and Git policies
 
 - `.investigationignore` alone controls the immutable source inventory.
 - `.gitignore` controls tracking and keeps generated state, credentials, and raw Access databases local by default.
-- `.graphifyignore` excludes binaries, run state, outputs, and media while leaving extracted VBA/SQL and normalized metadata visible.
 - Record ignored inventory entries and the matching rule. Do not silently omit files.
 
 ## Apply language and build-context rules
@@ -142,17 +141,13 @@ Do not skip a phase because sources appear incomplete. Produce a scoped gap repo
 User action -> screen/form -> VBA event -> processing/query -> table/file -> output
 ```
 
-## Use Graphify as supporting infrastructure
+## Use derived facts as supporting infrastructure
 
-- Query an existing app graph before broad source search and before every phase.
-- Keep one graph per app and link only verified shared nodes to the global SMS graph declared in the manifest.
-- Never treat an inferred graph edge as code evidence.
-- Use the Graphify skill for graph build/update and follow its corpus, scale, semantic extraction, and honesty gates.
-- Bootstrap the pinned managed Graphify runtime when missing; do not mutate system Python or install dependencies in the app workspace.
-- Run Graphify only on the audited UTF-8 corpus produced by `scripts/normalize_graphify_corpus.py`, never directly on MDB/ACCDB/ADP, snapshots, or binary documents.
-- Before each Phase N, require `scripts/graphify_phase_gate.py check --phase N` to return `READY`. Refresh changed sources incrementally, accept the resulting graph hash, and run the N-specific query first.
-- Graphify's lack of a guaranteed VBA AST does not weaken line-backed extraction evidence.
-- Graphify does not replace the six-phase contract.
+- Run `$ak derive` once against the sealed bundle, before Phase 1, and consult its output before broad source search.
+- Derive only from extracted text and bundle metadata, never directly from MDB/ACCDB/ADP, snapshots, or binary documents.
+- A derived edge is navigation context and a citable count, never evidence for a claim. It says two names appear in a stated relationship; it does not say what the relationship means. A statement resting on an edge cites the file and location the edge came from.
+- Derivation matches what the sources state literally and does not parse VBA. That does not weaken line-backed extraction evidence.
+- Derived facts do not replace the six-phase contract.
 - CodeWiki is not a dependency. V2.1 independently implements component indexing, hierarchical decomposition, leaf-first ordering, session isolation, and affected-module refresh.
 
 ## Check the evidence a phase needs before starting it

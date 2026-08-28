@@ -3,7 +3,7 @@
 
 Two problems this solves, both observed on a real application.
 
-Graphify's AST pass produced 79 nodes and no edges from a corpus of exported query
+An LLM-backed graph pass produced 79 nodes and no edges from a corpus of exported query
 SQL: one node per file and not a single relationship. Yet every query names the
 tables it reads, in text, next to the authoritative table list the acquisition
 bundle already holds. Matching one against the other is exact, free and
@@ -17,7 +17,7 @@ each embedded control and the name of every event procedure, which are exactly t
 relationships Phase 2 asks the graph about. So the definitions are distilled rather
 than dropped: the facts enter the corpus, the property soup does not.
 
-Node ids follow the {stem}_{entity} shape Graphify expects, with a short digest of
+Node ids follow a {stem}_{entity} shape, with a short digest of
 the original name appended. Without it every Japanese name - the norm in this kit's
 target systems - normalizes to the same underscore run and distinct entities merge
 into one node.

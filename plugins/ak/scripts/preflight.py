@@ -22,7 +22,6 @@ MODULES = {
     "playwright": "Local browser automation",
 }
 EXECUTABLES = {
-    "graphify": "Persistent knowledge graph",
     "node": "Presentation or browser runtimes",
     "tesseract": "OCR for scanned Japanese sources",
     "powershell": "Access extraction adapter and Windows capability inspection",
@@ -75,7 +74,7 @@ def manifest_needs(path: Path | None) -> dict[str, bool]:
     # tier can require elevation; the DAO tier activates in-process and never does. An
     # Access-only project that skips object export needs no host at all, and warning it
     # about administrator rights trains operators to elevate runs that never needed it.
-    needs = {"graphify": False, "xlsx": False, "pdf": False, "html": False, "pptx": False, "live_sql": False, "access": False, "access_host": False, "adp": False, "compdb": False, "yaml_parsed": False}
+    needs = {"xlsx": False, "pdf": False, "html": False, "pptx": False, "live_sql": False, "access": False, "access_host": False, "adp": False, "compdb": False, "yaml_parsed": False}
     if not path or not path.is_file():
         return needs
     text = path.read_text(encoding="utf-8", errors="ignore").lower()
@@ -89,7 +88,6 @@ def manifest_needs(path: Path | None) -> dict[str, bool]:
         analysis = data.get("analysis", {})
         build = analysis.get("build_context", {})
         derived = data.get("outputs", {}).get("derived", {})
-        needs["graphify"] = bool(data.get("graphify", {}).get("enabled"))
         needs["xlsx"] = ".xlsx" in text
         needs["pdf"] = ".pdf" in text
         needs["html"] = bool(derived.get("e2e_html") or derived.get("boundary_html"))
@@ -117,7 +115,6 @@ def manifest_needs(path: Path | None) -> dict[str, bool]:
         )
         needs["compdb"] = bool(build.get("compilation_databases") or build.get("compile_flags"))
     except (ImportError, AttributeError, TypeError, ValueError):
-        needs["graphify"] = "graphify:" in text
         needs["xlsx"] = ".xlsx" in text
         needs["pdf"] = ".pdf" in text
         template_match = re.search(r"(?m)^\s*presentation_template:\s*([^#\r\n]*)", text)
@@ -218,16 +215,6 @@ def _legacy_windows_access_capabilities() -> dict[str, bool | str]:
     except ImportError:
         pass
     return result
-
-
-def managed_graphify_capabilities() -> dict[str, object]:
-    """Inspect the isolated Graphify runtime without installing anything."""
-    try:
-        from graphify_runtime import load_spec, runtime_report
-
-        return runtime_report(load_spec())
-    except (ImportError, OSError, ValueError) as exc:
-        return {"status": "NOT_AVAILABLE", "error": str(exc), "install_policy": "auto_managed"}
 
 
 def manifest_source_paths(manifest: Path | None) -> dict[str, list[str]]:
@@ -432,7 +419,6 @@ def main() -> int:
     modules = {name: importlib.util.find_spec(name) is not None for name in MODULES}
     executables = {name: shutil.which(name) is not None for name in EXECUTABLES}
     access = windows_access_capabilities(verify_activation=args.verify_access_activation)
-    graphify_runtime = managed_graphify_capabilities()
     skills = [] if args.skip_skill_scan else discover_skills()
 
     recommendations: list[str] = []
@@ -452,13 +438,9 @@ def main() -> int:
             "The manifest was pattern-matched rather than parsed, so the capability needs "
             "below are guesses. Install PyYAML for an accurate read."
         )
-    if needs["graphify"] and graphify_runtime.get("status") != "READY":
-        recommendations.append(
-            "The isolated Graphify runtime is not installed yet. The first Phase/run gate must bootstrap the pinned managed runtime, normalize a binary-free corpus, build or refresh the graph, and complete a phase query before analysis starts."
-        )
-    if needs["xlsx"] and not needs["graphify"] and not any("spreadsheet" in name.lower() for name in skills) and not modules["openpyxl"]:
+    if needs["xlsx"] and not any("spreadsheet" in name.lower() for name in skills) and not modules["openpyxl"]:
         recommendations.append("Enable a spreadsheet skill/runtime or install openpyxl for XLSX fallback.")
-    if needs["pdf"] and not needs["graphify"] and not modules["pypdf"]:
+    if needs["pdf"] and not modules["pypdf"]:
         recommendations.append("Use a runtime PDF reader; install pypdf only if a local fallback is needed.")
     if needs["pptx"] and not any("presentation" in name.lower() for name in skills):
         recommendations.append("Enable a presentation skill/runtime before requesting PPTX output.")
@@ -508,7 +490,6 @@ def main() -> int:
         "required": required,
         "modules": modules,
         "executables": executables,
-        "graphify_runtime": graphify_runtime,
         "access": access,
         "discovered_skills": skills,
         "manifest_needs": needs,

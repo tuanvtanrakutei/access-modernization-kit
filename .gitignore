@@ -9,7 +9,6 @@ venv/
 *.bak
 *.log
 smoke-workspace/
-graphify-out/
 
 # Sensitive and proprietary investigation inputs
 *.mdb

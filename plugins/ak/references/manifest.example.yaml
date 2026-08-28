@@ -41,7 +41,7 @@ analysis:
     strategy: "hierarchical_leaf_first"
     incremental_refresh: true
 shared_context:
-  global_sms_graph: "shared/graphify-out/graph.json"
+  global_sms_graph: ""
   shared_decisions: []
 outputs:
   root: "outputs"
@@ -51,18 +51,6 @@ outputs:
     e2e_html: true
     boundary_html: true
     presentation_pptx: false  # optional; enable only when a presentation is required
-graphify:
-  enabled: true
-  mode: "standard"
-  output_dir: "graphify-out"
-  link_shared_nodes: true
-  input_policy: "extracted_text_and_supported_sources"
-  required_before_phases: true
-  install_policy: "auto_managed"
-  runtime_version: "0.9.18"
-  extras: ["pdf", "office"]
-  refresh_policy: "before_each_phase"
-  corpus_policy: "binary_free_normalized"
 multi_agent:
   enabled: true
   preferred_runtime: "generic"

@@ -13,7 +13,7 @@ def _manifest(tmp_path: Path, body: str) -> Path:
 
 # A V2.2 manifest declares its inputs as artifacts, not under `sources`. Reading only
 # the V2.1 shape reported every capability as unneeded - including Access itself on an
-# Access-only project, and including graphify, whose gate is documented as mandatory.
+# Access-only project, and including Access itself.
 def test_v22_artifacts_are_read_as_capability_needs(tmp_path: Path) -> None:
     manifest = _manifest(tmp_path, """
 version: '2.2'
@@ -37,14 +37,11 @@ artifacts:
   source_ref:
     type: local_path
     value: sources/access/data.mdb
-graphify:
-  enabled: true
 """.lstrip())
 
     needs = preflight.manifest_needs(manifest)
 
     assert needs["access"] is True
-    assert needs["graphify"] is True
     assert needs["adp"] is False
     assert needs["live_sql"] is False
 
@@ -95,15 +92,12 @@ sources:
   sql_server:
     live:
       enabled: true
-graphify:
-  enabled: true
 """.lstrip())
 
     needs = preflight.manifest_needs(manifest)
 
     assert needs["access"] is True
     assert needs["live_sql"] is True
-    assert needs["graphify"] is True
 
 
 # Discovery alone is not predictive: a registered, bitness-matched Access can still

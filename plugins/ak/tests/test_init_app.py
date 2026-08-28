@@ -97,9 +97,10 @@ def test_sql_outside_a_queries_folder_still_implies_a_server(tmp_path: Path) -> 
     assert classification["backend_kinds"] == ["sql_server"]
 
 
-# Graphify is a mandatory phase gate, and a V2.2 manifest that omitted the block read
-# as "not needed", so preflight skipped its runtime check without warning.
-def test_generated_v22_manifest_declares_the_graphify_gate() -> None:
+# A generated manifest declared a graph runtime, its version and its refresh policy.
+# None of it survives: derivation needs no runtime, no version pin and no policy, so a
+# manifest that still carried the block would be describing machinery that is gone.
+def test_generated_v22_manifest_declares_no_graph_runtime() -> None:
     import yaml
 
     text = init_app.manifest_v22_text(
@@ -108,11 +109,5 @@ def test_generated_v22_manifest_declares_the_graphify_gate() -> None:
         [],
     )
     data = yaml.safe_load(text)
-    assert data["graphify"]["enabled"] is True
-    assert data["graphify"]["required_before_phases"] is True
-    # Read from the package's own specification rather than repeated, so a generated
-    # manifest cannot drift from the runtime the kit installs.
-    spec = Path(init_app.__file__).resolve().parent.parent / "specifications" / "graphify-runtime.json"
-    import json
-
-    assert data["graphify"]["runtime_version"] == json.loads(spec.read_text(encoding="utf-8"))["version"]
+    assert "graphify" not in data
+    assert set(data) == {"version", "app", "project", "artifacts"}

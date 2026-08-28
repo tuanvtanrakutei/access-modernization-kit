@@ -25,7 +25,7 @@ ROLE_INPUTS = {
     "vba_ui": ["manifest.lock.yaml", "source-inventory.json", "../../sources/screenshots", "../../sources/reports-out", ACQUISITION_INPUT, "../../extracted/access", "../../extracted/module-plan"],
     "japanese_documents": ["manifest.lock.yaml", "source-inventory.json", ACQUISITION_INPUT, "../../shared-docs"],
     "file_interfaces": ["manifest.lock.yaml", "source-inventory.json", "../../sources/samples", "../../sources/reports-out", "../../sources/screenshots", ACQUISITION_INPUT, "../../extracted/module-plan"],
-    "graph_builder": ["manifest.lock.yaml", "source-inventory.json", "../../extracted/component-index.json", "../../extracted/module-plan", "../../graphify-out"],
+    "fact_deriver": ["manifest.lock.yaml", "source-inventory.json", ACQUISITION_INPUT, "../../extracted/component-index.json", "../../extracted/module-plan"],
 }
 MODULE_FANOUT_ROLES = {"sql_data", "vba_ui", "file_interfaces", "logic_processing"}
 
@@ -269,8 +269,8 @@ def main() -> int:
                     # could satisfy its instruction or its scope, never both.
                     _handoff_instruction(role["allowed_writes"]),
                 ]
-                if role_id == "graph_builder":
-                    instructions.insert(1, "Run graphify_phase_gate.py check for this phase and require READY; the graph is navigation context, never substitute inferred edges for source-backed evidence.")
+                if role_id == "fact_deriver":
+                    instructions.insert(1, "Run $ak derive once against the sealed bundle and require it to succeed; the derived relationships are navigation context and a citable count, never a substitute for reading the source a claim rests on.")
                 if module_id:
                     instructions.insert(1, f"Analyze only module {module_id}; follow the global leaf-first module_order and preserve cross-module dependencies as handoff references.")
                 tasks.append({

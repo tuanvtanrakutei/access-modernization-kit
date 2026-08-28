@@ -1,5 +1,15 @@
 #!/usr/bin/env python3
-"""Build a deterministic, binary-free Graphify corpus for one app workspace."""
+"""Normalize an app workspace's sources into a deterministic, binary-free text corpus.
+
+Phase 5 requires DOCUMENT-class evidence, and a document the kit cannot read is a
+document the phase cannot cite. This reads XLSX, XLS, DOCX, PPTX and text-layer PDF,
+plus CP932/Shift-JIS text, into UTF-8 with a provenance header carrying the source
+path, its SHA-256 and the parser that produced the text - so an evidence item can
+name a worksheet cell or a PDF page and a reviewer can get back to the original.
+
+Scanned PDFs and images without a text layer are reported as OCR_REQUIRED rather
+than silently skipped, and Access binaries and disposable snapshots are never read.
+"""
 
 from __future__ import annotations
 
@@ -30,7 +40,7 @@ UNSUPPORTED_LEGACY = {".doc", ".ppt"}
 FORBIDDEN_PARTS = {
     ".git", "runs", "outputs", "evidence", "decisions", "secrets", "credentials",
     # acquisition output: staging receipts, the canonical bundle, and any bundle backup
-    # the operator keeps in the workspace. Graphify builds from the component index and
+    # the operator keeps in the workspace. Normalization works from the component index and
     # declared sources - never from a serialised bundle.
     "acquired",
 }
@@ -62,18 +72,19 @@ def load_manifest(path: Path) -> dict:
     try:
         import yaml  # type: ignore[import-not-found]
     except ImportError as exc:
-        raise RuntimeError("PyYAML is required for Graphify corpus normalization") from exc
+        raise RuntimeError("PyYAML is required for document normalization") from exc
     return yaml.safe_load(path.read_text(encoding="utf-8")) or {}
 
 
 def output_dir_from(manifest: dict, app_root: Path) -> Path:
-    relative = str(manifest.get("graphify", {}).get("output_dir", "graphify-out"))
-    output = (app_root / relative).resolve()
-    try:
-        output.relative_to(app_root)
-    except ValueError as exc:
-        raise RuntimeError("graphify.output_dir must remain inside the app workspace") from exc
-    return output
+    """Fixed by the workspace layout, not by the manifest.
+
+    It was a manifest key, and a key an operator can set is a key an operator can
+    point outside the workspace. `specifications/evidence-layout.yaml` gives
+    everything derived from the bundle one home; normalized text lives there too.
+    """
+    del manifest
+    return (app_root / "extracted" / "documents").resolve()
 
 
 def declared_paths(manifest: dict) -> tuple[list[str], list[str]]:
@@ -183,7 +194,7 @@ def collect_sources(app_root: Path, manifest: dict) -> tuple[list[Path], list[Pa
         if output in path.parents:
             continue
         if any(part.lower() in FORBIDDEN_PARTS for part in relative.parts) or path.name.lower() in FORBIDDEN_NAMES or path.suffix.lower() == ".dsn":
-            gaps.append({"source_path": relative.as_posix(), "status": "EXCLUDED_POLICY", "detail": "Secrets, credentials, run state, evidence, decisions, and outputs are not Graphify inputs"})
+            gaps.append({"source_path": relative.as_posix(), "status": "EXCLUDED_POLICY", "detail": "Secrets, credentials, run state, evidence, decisions, and outputs are never normalized"})
             continue
         if path.suffix.lower() in BINARY_ACCESS:
             excluded_access.add(path)
@@ -206,7 +217,7 @@ def _is_access_definition_text(path: Path) -> bool:
     controls (TextBox, SubForm, CommandButton...) with absolute coordinates - structural
     evidence valuable for an investigation but pointless as a knowledge-graph node: no
     semantic relationship, no call, no dependency, and no concept survives extraction.
-    Including them in the corpus consumes graph extraction tokens for zero meaningful
+    Including them in the corpus consumes reader effort for zero meaningful
     output. Their SHA-256 is recorded in the corpus audit, so renunciation is explicit.
 
     Only scans the first 200 bytes, so an unusually large header section is still
@@ -361,7 +372,7 @@ def normalize_pdf(path: Path) -> tuple[str, str, list[str]]:
         import fitz  # type: ignore[import-not-found]
     except ImportError as exc:
         raise RuntimeError("OCR_REQUIRED: PDF has no text layer and PyMuPDF is unavailable") from exc
-    with tempfile.TemporaryDirectory(prefix="ak-graphify-ocr-") as temp:
+    with tempfile.TemporaryDirectory(prefix="ak-ocr-") as temp:
         images: list[Path] = []
         document = fitz.open(path)
         try:
@@ -413,7 +424,7 @@ def destination_for(corpus: Path, app_root: Path, source: Path, suffix: str) -> 
 
 def provenance_header(relative: str, source_hash: str, parser: str) -> str:
     return (
-        "<!-- AK_GRAPHIFY_NORMALIZED\n"
+        "<!-- AK_NORMALIZED\n"
         f"source_path: {relative}\nsource_sha256: {source_hash}\nparser: {parser}\n"
         f"normalizer_version: {NORMALIZER_VERSION}\n-->\n\n"
     )
@@ -453,7 +464,7 @@ def main() -> int:
         return 0
 
     if corpus.is_symlink():
-        raise SystemExit(f"Refusing to replace symlinked Graphify corpus: {corpus}")
+        raise SystemExit(f"Refusing to replace symlinked corpus: {corpus}")
     if corpus.exists():
         shutil.rmtree(corpus)
     corpus.mkdir(parents=True)
@@ -489,7 +500,7 @@ def main() -> int:
             "source_path": path.relative_to(app_root).as_posix(),
             "source_sha256": sha256(path),
             "status": "EXCLUDED_BINARY",
-            "detail": "Access binaries and snapshots are never Graphify inputs",
+            "detail": "Access binaries and snapshots are never normalized",
         })
     entries.extend(initial_gaps)
     normalized = [entry for entry in entries if entry["status"] == "NORMALIZED"]
@@ -528,7 +539,7 @@ def main() -> int:
         "entries": entries,
     }
     graph_root.mkdir(parents=True, exist_ok=True)
-    audit_path = graph_root / "CORPUS_AUDIT.json"
+    audit_path = graph_root / "NORMALIZATION_AUDIT.json"
     audit_path.write_text(json.dumps(report, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     rendered = json.dumps(report, ensure_ascii=False, indent=2)
     print(rendered)

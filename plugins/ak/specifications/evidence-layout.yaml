@@ -150,9 +150,12 @@ workspace:
     acquired/bundle-<hash>:
       purpose: The canonical bundle every later phase reads.
     extracted:
-      purpose: Indexes derived from the bundle - component-index.json and module-plan/.
-    graphify-out:
-      purpose: The normalized corpus, the graph, and the per-phase query receipts.
+      purpose: >-
+        Everything derived from the bundle - component-index.json, module-plan/,
+        derived-extraction.json, the distilled ui-facts, and documents/ holding
+        XLSX, DOCX, PPTX and PDF sources normalized to citable UTF-8 with a
+        provenance header. Regenerable; a phase cites it because re-running the
+        derivation reproduces it exactly.
     runs/<run-id>:
       purpose: >-
         One investigation run. Phase documents, evidence register and traceability

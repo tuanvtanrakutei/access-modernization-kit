@@ -1,7 +1,7 @@
 # Investigation-Side Backlog
 
 Improvement notes for the `ak` investigation pipeline - acquisition, extraction,
-the Graphify phase gate. The modernize plugin keeps its own list in
+fact derivation, and the phase contracts. The modernize plugin keeps its own list in
 `modernize/BACKLOG.md`.
 
 Each entry records what was observed, on what evidence, and what is not yet known.

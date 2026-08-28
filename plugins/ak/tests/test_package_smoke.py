@@ -14,7 +14,6 @@ REPOSITORY = PACKAGE.parents[1]
 SCRIPTS = PACKAGE / "scripts"
 sys.path.insert(0, str(SCRIPTS))
 
-from graphify_phase_gate import gate_status  # noqa: E402
 
 
 def run_script(name: str, *args: str) -> subprocess.CompletedProcess[str]:
@@ -114,17 +113,12 @@ def test_friendly_cli_entrypoint(tmp_path: Path) -> None:
     # Presentation output is optional and off by default.
     manifest_text = (app / "manifest.yaml").read_text(encoding="utf-8")
     assert "presentation_pptx: false" in manifest_text
-    for token in ("required_before_phases: true", 'install_policy: "auto_managed"', 'refresh_policy: "before_each_phase"', 'corpus_policy: "binary_free_normalized"'):
-        assert token in manifest_text
+    assert "graphify" not in manifest_text
     run_script("ak.py", "preflight", "--app-root", str(app))
-    planned_graph = run_script(
-        "ak.py", "graphify", "prepare",
-        "--app-root", str(app),
-        "--phase", "1",
-        "--runtime", "generic",
-        "--dry-run",
+    planned_documents = run_script(
+        "ak.py", "documents", "--app-root", str(app), "--dry-run",
     )
-    assert json.loads(planned_graph.stdout)["status"] == "PREFLIGHT_ONLY"
+    assert json.loads(planned_documents.stdout)["status"] == "PREFLIGHT_ONLY"
 
 
 def test_synthetic_module_aware_pipeline(tmp_path: Path) -> None:
@@ -207,8 +201,10 @@ def test_synthetic_module_aware_pipeline(tmp_path: Path) -> None:
     tasks = [json.loads(path.read_text(encoding="utf-8")) for path in sorted((run / "tasks").glob("*.json"))]
     assert tasks
     assert any(task["module_targets"] for task in tasks)
-    graph_tasks = [task for task in tasks if task["role"] == "graph_builder"]
-    assert [task["phase_targets"] for task in graph_tasks] == [[phase] for phase in range(1, 7)]
+    # Derivation replaced six per-phase graph gates with one task, because the bundle
+    # it reads is sealed and does not change between phases.
+    derive_tasks = [task for task in tasks if task["role"] == "fact_deriver"]
+    assert len(derive_tasks) == 1, "fact derivation runs once, not once per phase"
 
 
 def test_access_runtime_probe_reports_json() -> None:
@@ -412,33 +408,31 @@ def test_recommended_optional_evidence_template() -> None:
     assert "optional, non-blocking" in tpl
     for phase in ("Phase 4", "Phase 5", "Phase 2"):
         assert phase in tpl
-
-
-def test_extract_access_blocks_before_snapshot_when_runtime_unavailable(tmp_path: Path) -> None:
-    database = tmp_path / "blocked.accdb"
-    database.write_text("synthetic placeholder", encoding="utf-8")
-    out_dir = tmp_path / "extracted"
-    # A non-existent PowerShell host forces NOT_FOUND without ever activating Access.
-    result = subprocess.run(
+def test_a_declared_access_runtime_that_does_not_match_stops_the_run(tmp_path: Path) -> None:
+    database = tmp_path / "app.mdb"
+    database.write_bytes(b"synthetic-signature-only")
+    completed = subprocess.run(
         [
             sys.executable, str(SCRIPTS / "extract_access.py"),
-            "--database", str(database),
-            "--database-id", "DBX",
-            "--session-id", "S1",
-            "--output-dir", str(out_dir),
-            "--execute",
-            "--powershell", str(tmp_path / "missing" / "powershell.exe"),
+            "--database", str(database), "--database-id", "T99",
+            "--output-dir", str(tmp_path / "out"), "--session-id", "s1", "--execute",
+            "--access-path", str(tmp_path / "nowhere" / "MSACCESS.EXE"),
         ],
-        cwd=PACKAGE,
-        check=False,
-        capture_output=True,
-        text=True,
+        check=False, capture_output=True, text=True, encoding="utf-8", errors="replace",
     )
-    assert result.returncode == 3, f"STDOUT:\n{result.stdout}\nSTDERR:\n{result.stderr}"
-    plan = json.loads(result.stdout)
-    assert plan["status"] == "BLOCKED"
-    # The block must happen before any snapshot copy.
-    assert not (out_dir / "DBX" / "S1" / "snapshot").exists()
+    if "windows" not in sys.platform.lower():
+        return
+    report = json.loads(completed.stdout)
+    declared = report["runtime"]["declared_runtime"]
+    # Only meaningful where an Access COM server is registered to disagree with.
+    if declared["matches"] is None or not declared["registered_paths"]:
+        return
+    assert declared["matches"] is False
+    assert report["status"] == "BLOCKED"
+    assert completed.returncode == 3
+    assert any("Declared Access runtime" in warning for warning in report["warnings"])
+    # The snapshot must not have been taken: the run stopped before touching the file.
+    assert not (tmp_path / "out" / "T99" / "s1" / "snapshot").exists()
 
 
 def test_adopt_existing_workspace_preserves_files(tmp_path: Path) -> None:
@@ -475,131 +469,38 @@ def test_adopt_existing_workspace_preserves_files(tmp_path: Path) -> None:
     assert original.read_text(encoding="utf-8") == "preserve"
     assert (app / "manifest.yaml").is_file()
 
-
-def test_graphify_runtime_dry_run_is_managed_and_non_mutating(tmp_path: Path) -> None:
-    runtime_root = tmp_path / "managed-graphify"
-    env = dict(__import__("os").environ)
-    env["AK_GRAPHIFY_RUNTIME_ROOT"] = str(runtime_root)
+def test_extract_access_blocks_before_snapshot_when_runtime_unavailable(tmp_path: Path) -> None:
+    database = tmp_path / "blocked.accdb"
+    database.write_text("synthetic placeholder", encoding="utf-8")
+    out_dir = tmp_path / "extracted"
+    # A non-existent PowerShell host forces NOT_FOUND without ever activating Access.
     result = subprocess.run(
         [
-            sys.executable,
-            str(SCRIPTS / "graphify_runtime.py"),
-            "ensure",
-            "--runtime", "generic",
-            "--dry-run",
+            sys.executable, str(SCRIPTS / "extract_access.py"),
+            "--database", str(database),
+            "--database-id", "DBX",
+            "--session-id", "S1",
+            "--output-dir", str(out_dir),
+            "--execute",
+            "--powershell", str(tmp_path / "missing" / "powershell.exe"),
         ],
         cwd=PACKAGE,
-        env=env,
         check=False,
         capture_output=True,
         text=True,
     )
-    assert result.returncode == 0, result.stderr
-    report = json.loads(result.stdout)
-    assert report["status"] == "INSTALL_PLANNED"
-    assert report["isolated_from_system_python"] is True
-    assert str(runtime_root) in report["runtime_root"]
-    assert not runtime_root.exists()
+    assert result.returncode == 3, f"STDOUT:\n{result.stdout}\nSTDERR:\n{result.stderr}"
+    plan = json.loads(result.stdout)
+    assert plan["status"] == "BLOCKED"
+    # The block must happen before any snapshot copy.
+    assert not (out_dir / "DBX" / "S1" / "snapshot").exists()
 
 
-def test_graphify_corpus_is_binary_free_and_cp932_safe(tmp_path: Path) -> None:
-    run_script(
-        "init_app.py",
-        "--root", str(tmp_path),
-        "--app-id", "T26",
-        "--name-en", "Graphify Corpus Test",
-    )
-    app = tmp_path / "T26"
-    vba = app / "sources" / "vba" / "受注処理.bas"
-    vba.write_bytes('Attribute VB_Name = "受注処理"\nSub 実行(): End Sub\n'.encode("cp932"))
-    (app / "sources" / "documents" / "rules.csv").write_text("項目,規則\n受注,必須\n", encoding="utf-8")
-    (app / "sources" / "documents" / ".env").write_text("SECRET=do-not-ingest\n", encoding="utf-8")
-    access = app / "sources" / "access" / "private.mdb"
-    access.write_bytes(b"synthetic-access-binary")
-
-    run_script("normalize_graphify_corpus.py", "--app-root", str(app))
-    audit = json.loads((app / "graphify-out" / "CORPUS_AUDIT.json").read_text(encoding="utf-8"))
-    assert audit["status"] in {"READY", "READY_WITH_GAPS"}
-    assert audit["binary_files_ingested"] == 0
-    assert audit["excluded_access_binary_count"] == 1
-    assert all(not str(entry.get("output_path", "")).lower().endswith(".mdb") for entry in audit["entries"])
-    assert next(entry for entry in audit["entries"] if entry.get("source_path", "").endswith("/.env"))["status"] == "EXCLUDED_POLICY"
-    normalized_vba = next(
-        app / entry["output_path"]
-        for entry in audit["entries"]
-        if entry.get("source_path", "").endswith("受注処理.bas")
-    )
-    assert "受注処理" in normalized_vba.read_text(encoding="utf-8")
-
-
-def test_graphify_phase_gate_requires_fresh_graph_and_phase_receipt(tmp_path: Path) -> None:
-    run_script(
-        "init_app.py",
-        "--root", str(tmp_path),
-        "--app-id", "T27",
-        "--name-en", "Graph Gate Test",
-    )
-    app = tmp_path / "T27"
-    (app / "sources" / "vba" / "Form1.bas").write_text('Attribute VB_Name = "Form1"\n', encoding="utf-8")
-    run_script("normalize_graphify_corpus.py", "--app-root", str(app))
-    runtime = {"status": "READY", "requested_version": "0.9.18", "installed_version": "0.9.18", "graphify_executable": "synthetic"}
-    missing = gate_status(app, 1, runtime)
-    assert missing["reason"] == "GRAPH_BUILD_REQUIRED"
-
-    root = app / "graphify-out"
-    graph = root / "graph.json"
-    graph.write_text(json.dumps({"nodes": [{"id": "Form1"}], "edges": []}), encoding="utf-8")
-    audit = json.loads((root / "CORPUS_AUDIT.json").read_text(encoding="utf-8"))
-    graph_hash = __import__("hashlib").sha256(graph.read_bytes()).hexdigest()
-    state = {
-        "corpus_fingerprint": audit["corpus_fingerprint"],
-        "graph_sha256": graph_hash,
-        "phase_queries": {
-            "1": {
-                "corpus_fingerprint": audit["corpus_fingerprint"],
-                "output_path": "graphify-out/phase-context/phase-1.json",
-            }
-        },
-    }
-    (root / "GRAPH_STATE.json").write_text(json.dumps(state), encoding="utf-8")
-    assert gate_status(app, 1, runtime)["status"] == "READY"
-    assert gate_status(app, 2, runtime)["reason"] == "PHASE_QUERY_REQUIRED"
-    (root / ".needs_update").write_text("semantic refresh pending", encoding="utf-8")
-    assert gate_status(app, 1, runtime)["reason"] == "GRAPH_SEMANTIC_UPDATE_REQUIRED"
-    (root / ".needs_update").unlink()
-
-    (app / "sources" / "vba" / "Form1.bas").write_text('Attribute VB_Name = "Form1"\nSub Changed(): End Sub\n', encoding="utf-8")
-    run_script("normalize_graphify_corpus.py", "--app-root", str(app))
-    assert gate_status(app, 1, runtime)["reason"] == "GRAPH_UPDATE_REQUIRED"
-
-
-# Graphify writes the NetworkX node-link shape, whose edge list is named "links".
-# The gate read only "edges", so every real graph was pinned as having none.
-def test_graph_shape_counts_node_link_links_as_edges(tmp_path: Path) -> None:
-    from graphify_phase_gate import graph_shape
-
-    node_link = tmp_path / "graph.json"
-    node_link.write_text(json.dumps({
-        "directed": False, "multigraph": False, "graph": {},
-        "nodes": [{"id": "a"}, {"id": "b"}],
-        "links": [{"source": "a", "target": "b"}],
-    }), encoding="utf-8")
-    assert graph_shape(node_link) == (2, 1)
-
-    explicit = tmp_path / "explicit.json"
-    explicit.write_text(json.dumps({
-        "nodes": [{"id": "a"}, {"id": "b"}],
-        "edges": [{"source": "a", "target": "b"}, {"source": "b", "target": "a"}],
-    }), encoding="utf-8")
-    assert graph_shape(explicit) == (2, 2)
-
-    empty = tmp_path / "empty.json"
-    empty.write_text(json.dumps({"nodes": [], "links": []}), encoding="utf-8")
-    with pytest.raises(RuntimeError):
-        graph_shape(empty)
-
-
-def test_graphify_document_normalizers_cover_office_and_report_scanned_pdf(tmp_path: Path) -> None:
+# Phase 5 requires DOCUMENT-class evidence, and a document the kit cannot read is a
+# document the phase cannot cite. These readers moved out of the deleted Graphify
+# corpus builder into normalize_documents.py precisely because they are Phase 5
+# infrastructure and were never Graphify's.
+def test_document_normalizers_cover_office_and_report_scanned_pdf(tmp_path: Path) -> None:
     import docx
     import openpyxl
     import pptx
@@ -636,40 +537,10 @@ def test_graphify_document_normalizers_cover_office_and_report_scanned_pdf(tmp_p
     with (documents / "scan.pdf").open("wb") as handle:
         writer.write(handle)
 
-    run_script("normalize_graphify_corpus.py", "--app-root", str(app))
-    audit = json.loads((app / "graphify-out" / "CORPUS_AUDIT.json").read_text(encoding="utf-8"))
+    run_script("normalize_documents.py", "--app-root", str(app))
+    audit = json.loads((app / "extracted" / "documents" / "NORMALIZATION_AUDIT.json").read_text(encoding="utf-8"))
     statuses = {entry["source_path"]: entry["status"] for entry in audit["entries"]}
     assert statuses["sources/documents/rules.xlsx"] == "NORMALIZED"
     assert statuses["sources/documents/manual.docx"] == "NORMALIZED"
     assert statuses["sources/documents/flow.pptx"] == "NORMALIZED"
     assert statuses["sources/documents/scan.pdf"] in {"OCR_REQUIRED", "OCR_FAILED"}
-
-
-# A declared Access runtime that is not the one COM will activate used to be recorded
-# as matches: false inside the receipt and read by nobody, so a run proceeded against
-# an install the operator had explicitly said it was not.
-def test_a_declared_access_runtime_that_does_not_match_stops_the_run(tmp_path: Path) -> None:
-    database = tmp_path / "app.mdb"
-    database.write_bytes(b"synthetic-signature-only")
-    completed = subprocess.run(
-        [
-            sys.executable, str(SCRIPTS / "extract_access.py"),
-            "--database", str(database), "--database-id", "T99",
-            "--output-dir", str(tmp_path / "out"), "--session-id", "s1", "--execute",
-            "--access-path", str(tmp_path / "nowhere" / "MSACCESS.EXE"),
-        ],
-        check=False, capture_output=True, text=True, encoding="utf-8", errors="replace",
-    )
-    if "windows" not in sys.platform.lower():
-        return
-    report = json.loads(completed.stdout)
-    declared = report["runtime"]["declared_runtime"]
-    # Only meaningful where an Access COM server is registered to disagree with.
-    if declared["matches"] is None or not declared["registered_paths"]:
-        return
-    assert declared["matches"] is False
-    assert report["status"] == "BLOCKED"
-    assert completed.returncode == 3
-    assert any("Declared Access runtime" in warning for warning in report["warnings"])
-    # The snapshot must not have been taken: the run stopped before touching the file.
-    assert not (tmp_path / "out" / "T99" / "s1" / "snapshot").exists()

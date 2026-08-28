@@ -1,0 +1,136 @@
+# Errata: how a published claim is corrected.
+#
+# A phase document is published, read, and acted on. When a later phase or a new
+# source shows one of its claims was wrong, three things must happen at once: the
+# document must stop saying the wrong thing, a reader who saw the old version must
+# be able to find out what changed, and the correction must be traceable to the
+# source that forced it.
+#
+# The kit had none of this. It had a QA report, which records findings but cannot
+# mark a published claim superseded. The gap was hit for real: the claim that all
+# eight objects embedding the barcode control were picking-list variants gating the
+# entire printing path was wrong, appeared in two published phases, and there was
+# no channel for the correction except editing the prose.
+#
+# The reference set solves it with a table at the head of Phase 6 - E-01 through
+# E-13 - each naming what was said, what is true, which sections are affected, and
+# which source settled it. This file makes that table a contract.
+
+version: "2.9"
+
+# ---------------------------------------------------------------------------
+# The correction is made in two places at once, and neither alone is enough.
+# ---------------------------------------------------------------------------
+procedure:
+  1_correct_in_place: >
+    Edit the phase document so it no longer states the wrong thing, and mark the
+    corrected passage with the errata identifier. A reader of the current document
+    gets the truth without having to cross-reference anything.
+  2_register_the_entry: >
+    Append an entry to the errata register. A reader who saw the earlier version,
+    or who is auditing how a conclusion moved, gets the history.
+  3_carry_it_into_phase6: >
+    Phase 6 opens with the rendered register. It is the first thing in the
+    synthesis because it governs how everything before it should be read.
+
+  prohibition: >
+    A published claim is never silently edited, and never deleted. Correcting the
+    prose without registering the entry destroys the evidence that the analysis
+    changed its mind, which is exactly the evidence a reviewer needs.
+
+# ---------------------------------------------------------------------------
+# What an entry must carry.
+# ---------------------------------------------------------------------------
+entry:
+  required:
+    id: "E-nn, per identifier-scheme.yaml"
+    original: "What the published document said, quoted or closely paraphrased."
+    corrected: "What is true, stated as the document now states it."
+    affected: "Every section, in every phase, that carried the wrong claim."
+    source: "The evidence ID, file or interview that settled it."
+    cause: "One of the cause classes below."
+    created_at: "date-time"
+  optional:
+    superseded_evidence_ids: >
+      Evidence items whose statements are now wrong. They are not deleted - they
+      keep their identifiers and gain a note pointing at this entry.
+    severity: "How much a reader who acted on the wrong claim would have been misled."
+
+# ---------------------------------------------------------------------------
+# Why the claim was wrong. Recording this is what stops the class recurring;
+# without it an errata table is a list of corrections with no pattern in it.
+# ---------------------------------------------------------------------------
+cause_classes:
+
+  EVIDENCE_ABSENT:
+    means: "The source that would have prevented it was not in the bundle."
+    remedy: "An input-contract gap. The evidence class belongs in phase_needs."
+
+  EVIDENCE_MISREAD:
+    means: "The source was present and was read wrong."
+    remedy: "Re-verify the reading; check whether other claims share the misreading."
+
+  INFERRED_AS_FACT:
+    means: "An inference was published without its INFERRED label and confidence."
+    remedy: "Re-label. Check the phase for other unlabelled inferences."
+
+  DESCRIBED_NOT_COUNTED:
+    means: >
+      A measurement was correct and the description of what had been measured was
+      written from the part of it that was looked at. The barcode-control error was
+      exactly this: eight objects counted correctly, then characterised from the
+      three that had been opened.
+    remedy: "Re-derive the description from the full list, not from a sample of it."
+
+  SCOPE_WRONG:
+    means: "The claim was true of a narrower or wider set than it named."
+    remedy: "Restate with the set named explicitly."
+
+  STALE:
+    means: "It was true when written and the system or the source has changed since."
+    remedy: "Date the claim; note what changed."
+
+severities:
+  HIGH: "A reader acting on it would have made a wrong migration decision."
+  MEDIUM: "It would have misdirected effort or scoping."
+  LOW: "It would have been noticed before it cost anything."
+
+# ---------------------------------------------------------------------------
+# Where it lives and how it is checked.
+# ---------------------------------------------------------------------------
+register:
+  path: "runs/{RUN_ID}/outputs/{APP_ID}_Errata.json"
+  rendered_into: "{APP_ID}_Phase6_Synthesis_{LANG}.md, first section after the header"
+
+rules:
+
+  - id: ER-01
+    rule: "Every E- in the register appears at least once in a phase document, marking the corrected passage."
+    on_violation: "The register records a correction the documents do not carry."
+
+  - id: ER-02
+    rule: "Every E- cited by a document resolves to a register entry."
+    on_violation: "A dangling errata reference."
+
+  - id: ER-03
+    rule: "Every entry names at least one affected section and one source."
+    on_violation: "The correction cannot be audited."
+
+  - id: ER-04
+    rule: >
+      An evidence item named in `superseded_evidence_ids` keeps its id and gains a
+      note referencing the entry. It is never deleted and never rewritten to say
+      something else.
+    on_violation: "The record of what the analysis believed is destroyed."
+
+  - id: ER-05
+    rule: >
+      A correction discovered during QA is an errata entry, not only a QA finding.
+      The QA report explains how the error survived; the errata register states
+      what is now true.
+    on_violation: "The correction reaches the reviewer and not the reader."
+
+  - id: ER-06
+    rule: >
+      An errata entry may correct a claim in any phase, including one published in
+      an earlier run of the same app. The affected list names the run.

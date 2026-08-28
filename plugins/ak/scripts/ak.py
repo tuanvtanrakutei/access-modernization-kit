@@ -140,13 +140,18 @@ def parse_args() -> argparse.Namespace:
         help="Actually activate and release Access so a READY status predicts whether extraction can run.",
     )
 
-    graphify = commands.add_parser("graphify", help="Prepare or validate the mandatory Graphify phase gate.")
-    graphify.add_argument("action", choices=("prepare", "check", "finalize"))
-    graphify.add_argument("--app-root", required=True)
-    graphify.add_argument("--phase", required=True, type=int, choices=range(1, 7))
-    graphify.add_argument("--runtime", choices=("codex", "claude", "generic"), default="generic")
-    graphify.add_argument("--no-install-missing", action="store_true")
-    graphify.add_argument("--dry-run", action="store_true")
+    derive = commands.add_parser(
+        "derive", help="Derive the relationships the sealed bundle states literally. Runs once, before the first phase.",
+    )
+    derive.add_argument("--app-root", required=True)
+    derive.add_argument("--dry-run", action="store_true", help="Report counts without writing.")
+
+    documents = commands.add_parser(
+        "documents", help="Normalize XLSX/DOCX/PPTX/PDF and legacy-encoded text into citable UTF-8 with provenance.",
+    )
+    documents.add_argument("--app-root", required=True)
+    documents.add_argument("--dry-run", action="store_true", help="Report planned sources without writing.")
+    documents.add_argument("--output", help="Also write the audit to this path.")
 
     profile = commands.add_parser("profile", help="Detect or validate a composable project classification.")
     profile_commands = profile.add_subparsers(dest="profile_action", required=True)
@@ -323,18 +328,18 @@ def main() -> int:
         if getattr(args, "source", None):
             init_args.extend(["--source", args.source])
         return run("init_app.py", *init_args)
-    if args.command == "graphify":
-        graphify_args = [
-            args.action,
-            "--app-root", args.app_root,
-            "--phase", str(args.phase),
-            "--runtime", args.runtime,
-        ]
-        if args.no_install_missing:
-            graphify_args.append("--no-install-missing")
+    if args.command == "derive":
+        derive_args = ["--app-root", args.app_root]
         if args.dry_run:
-            graphify_args.append("--dry-run")
-        return run("graphify_phase_gate.py", *graphify_args)
+            derive_args.append("--dry-run")
+        return run("derive_graph_facts.py", *derive_args)
+    if args.command == "documents":
+        document_args = ["--app-root", args.app_root]
+        if args.dry_run:
+            document_args.append("--dry-run")
+        if args.output:
+            document_args.extend(["--output", args.output])
+        return run("normalize_documents.py", *document_args)
     if args.command == "profile":
         from classification import Classification
         from manifest_v22 import load_manifest

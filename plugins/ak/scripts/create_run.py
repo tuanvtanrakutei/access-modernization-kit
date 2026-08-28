@@ -24,7 +24,6 @@ RUN_DIRS = (
     "derived/e2e",
     "derived/boundary",
     "derived/presentation",
-    "graphify-out",
 )
 
 

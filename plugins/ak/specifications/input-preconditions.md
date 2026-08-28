@@ -160,21 +160,37 @@ Environment expectations:
 If no host is `READY`, do not block: export the VBA and SQL on a compatible machine
 and provide them through `imported_sources` instead.
 
-## Mandatory pre-phase Graphify context
+## Mandatory fact derivation, once
 
-After export/extraction and deterministic module planning, every Phase 1-6
-requires a fresh Graphify context. This is an execution gate rather than a
-source-evidence requirement:
+After export/extraction and deterministic module planning, and before the first
+phase, the run derives the relationships its sources state literally
+(`scripts/derive_graph_facts.py`): query text matched against the bundle's own
+table list, each screen's record source and bound fields, screen-to-screen open
+calls, and the ProgID of every embedded control. It also distils form and report
+definitions into those facts, so a definition enters the corpus as
+`RecordSource`, `ControlSource`, event names and embedded classes rather than as
+coordinates.
 
-- bootstrap the pinned managed runtime when it is missing;
-- normalize the authorized sources into a UTF-8, binary-free corpus;
-- build or incrementally refresh the graph when the corpus fingerprint changes;
-- validate graph/corpus provenance and zero Access binaries ingested; and
-- run and record the query designed for the requested phase.
+It runs **once**, not once per phase: the bundle is sealed and does not change
+between phases. It is deterministic - no managed runtime, no network, no model -
+so re-running it reproduces the output exactly, which is what lets a phase cite a
+derived count.
 
-Missing business sources remain evidence gaps, but a failed Graphify install,
-invalid corpus, stale/invalid graph, pending semantic update, or missing phase
-query receipt blocks Phase output until corrected.
+This replaces the six per-phase Graphify gates removed in 2.9.0. They were removed
+on measurement, not preference: on a real application Graphify's AST pass produced
+79 nodes and no edges from the query corpus, while the same sources derived
+deterministically produced 756. A failed derivation blocks phase output; nothing
+else about the derivation can block it.
+
+## What each phase needs, by evidence class
+
+Capability presence was never the right gate. Structural evidence produces
+structural statements, so a phase satisfied by schema alone reports counts where
+the business needs meaning - and reports `READY` while doing it.
+`specifications/evidence-classes.yaml` defines the classes, which claims each can
+carry, and per phase what is `required` versus what the phase is `degraded_without`.
+`assess` reports the degradations by name, so the operator is told what to fetch
+rather than that something unspecified is missing.
 
 ## Precondition outcomes
 

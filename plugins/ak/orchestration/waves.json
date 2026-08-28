@@ -1,32 +1,31 @@
 {
-  "version": "2.1",
-  "publication_policy": "phase_outputs_sequential_evidence_collection_parallel_graphify_before_each_phase",
+  "version": "2.9",
+  "publication_policy": "phase_outputs_sequential_evidence_collection_parallel_facts_derived_once",
+  "notes": [
+    "Six blocking Graphify gates were removed. They ran once per phase against a bundle that does not change between phases, and on a real application the graph they gated carried no edges: the AST pass produced 79 nodes and 0 edges, while deterministic derivation over the same sources produced 756.",
+    "Derivation replaces them and runs once, after the bundle is sealed - scripts/derive_graph_facts.py. It is deterministic, needs no managed runtime, and its output is regenerable byte-for-byte, so a phase can cite it."
+  ],
   "waves": [
     {"id": "wave0_inventory", "roles": ["source_inventory"], "depends_on": [], "max_parallel": 1, "gate": "inventory_accepted", "human_checkpoint_default": true},
     {"id": "wave0_context_extraction", "roles": ["access_extractor", "build_context_analyzer"], "depends_on": ["wave0_inventory"], "max_parallel": 2, "gate": "context_extraction_accepted", "human_checkpoint_default": true},
     {"id": "wave0_module_decomposition", "roles": ["module_decomposer"], "depends_on": ["wave0_context_extraction"], "max_parallel": 1, "gate": "module_plan_accepted", "human_checkpoint_default": true},
+    {"id": "wave0_fact_derivation", "roles": ["fact_deriver"], "depends_on": ["wave0_module_decomposition"], "max_parallel": 1, "gate": "derived_facts_accepted", "human_checkpoint_default": false},
 
-    {"id": "gate_graph_phase1", "roles": ["graph_builder"], "phase_context": 1, "depends_on": ["wave0_module_decomposition"], "max_parallel": 1, "gate": "graph_phase1_ready", "human_checkpoint_default": false},
-    {"id": "wave1_source_extraction", "roles": ["sql_data", "vba_ui", "japanese_documents", "file_interfaces"], "depends_on": ["gate_graph_phase1"], "max_parallel": 4, "gate": "source_evidence_ready", "human_checkpoint_default": false},
+    {"id": "wave1_source_extraction", "roles": ["sql_data", "vba_ui", "japanese_documents", "file_interfaces"], "depends_on": ["wave0_fact_derivation"], "max_parallel": 4, "gate": "source_evidence_ready", "human_checkpoint_default": false},
     {"id": "gate1_publish_phase1", "roles": ["coordinator"], "phase_context": 1, "depends_on": ["wave1_source_extraction"], "max_parallel": 1, "gate": "phase1_published", "human_checkpoint_default": true},
 
-    {"id": "gate_graph_phase2", "roles": ["graph_builder"], "phase_context": 2, "depends_on": ["gate1_publish_phase1"], "max_parallel": 1, "gate": "graph_phase2_ready", "human_checkpoint_default": false},
-    {"id": "gate2_publish_phase2", "roles": ["coordinator"], "phase_context": 2, "depends_on": ["gate_graph_phase2"], "max_parallel": 1, "gate": "phase2_published", "human_checkpoint_default": true},
+    {"id": "gate2_publish_phase2", "roles": ["coordinator"], "phase_context": 2, "depends_on": ["gate1_publish_phase1"], "max_parallel": 1, "gate": "phase2_published", "human_checkpoint_default": true},
 
-    {"id": "gate_graph_phase3", "roles": ["graph_builder"], "phase_context": 3, "depends_on": ["gate2_publish_phase2"], "max_parallel": 1, "gate": "graph_phase3_ready", "human_checkpoint_default": false},
-    {"id": "wave2_logic_processing", "roles": ["logic_processing"], "depends_on": ["gate_graph_phase3"], "max_parallel": 1, "gate": "phase3_evidence_ready", "human_checkpoint_default": false},
+    {"id": "wave2_logic_processing", "roles": ["logic_processing"], "depends_on": ["gate2_publish_phase2"], "max_parallel": 1, "gate": "phase3_evidence_ready", "human_checkpoint_default": false},
     {"id": "gate3_publish_phase3", "roles": ["coordinator"], "phase_context": 3, "depends_on": ["wave2_logic_processing"], "max_parallel": 1, "gate": "phase3_published", "human_checkpoint_default": true},
 
-    {"id": "gate_graph_phase4", "roles": ["graph_builder"], "phase_context": 4, "depends_on": ["gate3_publish_phase3"], "max_parallel": 1, "gate": "graph_phase4_ready", "human_checkpoint_default": false},
-    {"id": "wave3_workflow", "roles": ["workflow_reconstruction"], "depends_on": ["gate_graph_phase4"], "max_parallel": 1, "gate": "phase4_evidence_ready", "human_checkpoint_default": false},
+    {"id": "wave3_workflow", "roles": ["workflow_reconstruction"], "depends_on": ["gate3_publish_phase3"], "max_parallel": 1, "gate": "phase4_evidence_ready", "human_checkpoint_default": false},
     {"id": "gate4_publish_phase4", "roles": ["coordinator"], "phase_context": 4, "depends_on": ["wave3_workflow"], "max_parallel": 1, "gate": "phase4_published", "human_checkpoint_default": true},
 
-    {"id": "gate_graph_phase5", "roles": ["graph_builder"], "phase_context": 5, "depends_on": ["gate4_publish_phase4"], "max_parallel": 1, "gate": "graph_phase5_ready", "human_checkpoint_default": false},
-    {"id": "wave4_document_integration", "roles": ["document_alignment", "document_integration"], "depends_on": ["gate_graph_phase5"], "max_parallel": 2, "gate": "phase5_evidence_ready", "human_checkpoint_default": false},
+    {"id": "wave4_document_integration", "roles": ["document_alignment", "document_integration"], "depends_on": ["gate4_publish_phase4"], "max_parallel": 2, "gate": "phase5_evidence_ready", "human_checkpoint_default": false},
     {"id": "gate5_publish_phase5", "roles": ["coordinator"], "phase_context": 5, "depends_on": ["wave4_document_integration"], "max_parallel": 1, "gate": "phase5_published", "human_checkpoint_default": true},
 
-    {"id": "gate_graph_phase6", "roles": ["graph_builder"], "phase_context": 6, "depends_on": ["gate5_publish_phase5"], "max_parallel": 1, "gate": "graph_phase6_ready", "human_checkpoint_default": false},
-    {"id": "wave5_synthesis", "roles": ["synthesis"], "depends_on": ["gate_graph_phase6"], "max_parallel": 1, "gate": "phase6_evidence_ready", "human_checkpoint_default": false},
+    {"id": "wave5_synthesis", "roles": ["synthesis"], "depends_on": ["gate5_publish_phase5"], "max_parallel": 1, "gate": "phase6_evidence_ready", "human_checkpoint_default": false},
     {"id": "gate6_publish_phase6", "roles": ["coordinator"], "phase_context": 6, "depends_on": ["wave5_synthesis"], "max_parallel": 1, "gate": "phase6_published", "human_checkpoint_default": true},
 
     {"id": "wave6_independent_qa", "roles": ["independent_qa"], "depends_on": ["gate6_publish_phase6"], "max_parallel": 1, "gate": "qa_accepted", "human_checkpoint_default": true},
