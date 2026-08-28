@@ -140,10 +140,13 @@ def assemble_bundle(
         },
     }
     provenance = _provenance(bundle_id, schema_version, contributions, declared_capabilities)
-    output = Path(output_root).expanduser().resolve()
+    output = Path(output_root).expanduser().resolve() / "bundles"
     output.mkdir(parents=True, exist_ok=True)
-    bundle_dir = output / bundle_id
-    staged = Path(tempfile.mkdtemp(prefix=f".{bundle_id}.", dir=output))
+    bundle_dir = output / bundle_contract.bundle_dir_name(bundle_id)
+    # The staging prefix used the full id and produced a path long enough to hit the
+    # Windows limit on a deep workspace. Eight characters distinguish it just as well
+    # inside a directory that holds one temporary at a time.
+    staged = Path(tempfile.mkdtemp(prefix=f".{bundle_dir.name}.", dir=output))
     try:
         _write_layout(staged, merged, contributions, bundle_id, schema_version)
         _write_json(staged / "profile-validation.json", profile_validation)

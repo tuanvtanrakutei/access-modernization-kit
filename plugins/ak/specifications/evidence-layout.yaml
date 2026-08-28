@@ -144,11 +144,30 @@ workspace:
     shared-docs:
       purpose: Documents shared across the application estate rather than owned by this app.
   machine_written:
-    acquired/staging:
-      purpose: Per-artifact extraction output and the shared snapshot directory.
-      warning: Never hand-edited. One directory per acquisition id, immutable once written.
-    acquired/bundle-<hash>:
-      purpose: The canonical bundle every later phase reads.
+    # One rule, and it is the whole of it: evidence moves left to right, and each
+    # step has exactly one home. Snapshots are disposable, staging is what was read
+    # out, a bundle is what was sealed, extracted/ is what was derived from a bundle.
+    # Before 2.9.0 the same question - "where is the extracted text" - had three
+    # plausible answers and no rule to choose between them.
+    acquired/snapshots/<acquisition-id>:
+      purpose: >-
+        Disposable copies of the declared databases. They exist because the original
+        must never be opened - opening mutates it - and they are removed once
+        extraction has written its receipt, since nothing reads them afterwards. On a
+        real split application they were 615 MB beside 587 MB of originals.
+      lifetime: Deleted after a VALID run. Kept on PARTIAL or BLOCKED, and by --keep-snapshots.
+      warning: Never cite one. The digest in the receipt is what proves what was read.
+    acquired/staging/<database-id>/<acquisition-id>:
+      purpose: What extraction read out of one artifact - definition text, schema, queries, and its receipt.
+      warning: Never hand-edited. Immutable once written; this is the evidence.
+    acquired/bundles/<date>-<digest>:
+      purpose: >-
+        A sealed, canonical view assembled from staging, and what every later phase
+        reads. The directory is named for a person; the full SHA-256 bundle_id stays
+        inside bundle.json, where it is the content address it was always meant to be.
+      note: >-
+        Workspaces written before 2.9.0 carry acquired/bundle-<64 hex> instead. Both
+        are read, so upgrading the kit does not strand a run in progress.
     extracted:
       purpose: >-
         Everything derived from the bundle - component-index.json, module-plan/,

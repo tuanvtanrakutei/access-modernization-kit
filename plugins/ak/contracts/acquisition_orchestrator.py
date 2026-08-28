@@ -115,6 +115,7 @@ def run_acquisition(
     granted_authorization: tuple[str, ...],
     acquisition_id: str,
     required_phases: tuple[str, ...] = (),
+    keep_snapshots: bool = False,
 ) -> dict[str, Any]:
     manifest = load_manifest(Path(manifest_path))
     source_root = Path(manifest_path).resolve().parent
@@ -156,6 +157,8 @@ def run_acquisition(
             acquisition_id=acquisition_id,
             granted_authorization=tuple(granted_authorization),
             runtime_output_root=str(Path(output_root) / "staging"),
+            snapshot_root=str(Path(output_root) / "snapshots"),
+            keep_snapshots=keep_snapshots,
         )
         contributions.append(adapter.normalize(adapter.acquire(plan)))
     _flag_export_drift(contributions)

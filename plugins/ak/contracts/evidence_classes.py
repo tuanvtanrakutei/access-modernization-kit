@@ -48,7 +48,7 @@ CLASS_FROM_CAPABILITY: dict[str, str] = {
 CLASS_LOCATIONS: dict[str, tuple[str, ...]] = {
     "SCREENSHOT": ("sources/screenshots",),
     "SAMPLE_DATA": ("sources/samples",),
-    "OUTPUT_SAMPLE": ("sources/reports", "sources/reports-out"),
+    "OUTPUT_SAMPLE": ("sources/reports-out",),
     "DOCUMENT": ("sources/documents", "shared-docs", "extracted/documents/corpus"),
     "INTERVIEW": ("sources/interviews", "decisions/interviews"),
 }

@@ -13,6 +13,7 @@ import json
 from pathlib import Path
 from typing import Any
 
+import bundle as bundle_contract
 import evidence_requirements
 from classification import Classification
 from manifest_v22 import load_manifest
@@ -22,9 +23,14 @@ PROFILES = PACKAGE / "profiles"
 
 
 def newest_bundle(app_root: Path) -> Path | None:
-    """The most recently written bundle, which is what the phases read from."""
+    """The most recently written bundle, which is what the phases read from.
+
+    Reads both layouts: `acquired/bundles/<date>-<digest>/` as written since 2.9.0,
+    and `acquired/bundle-<64 hex>/` as written before it. Recency still comes from
+    the file rather than the name, so a workspace holding both is ordered correctly.
+    """
     candidates = sorted(
-        (path for path in (app_root / "acquired").glob("bundle-*") if (path / "bundle.json").is_file()),
+        bundle_contract.find_bundles(app_root / "acquired"),
         key=lambda path: (path / "bundle.json").stat().st_mtime,
     )
     return candidates[-1] if candidates else None

@@ -45,6 +45,13 @@ class AcquisitionPlan:
     acquisition_id: str = "acquire"
     granted_authorization: tuple[str, ...] = ()
     runtime_output_root: str = ""
+    # Disposable copies. A sibling of staging rather than a child of it, because
+    # staging is keyed by database id and the snapshot directory had to wear a
+    # leading underscore to stay out of that namespace - a workaround that became
+    # structure. Separate roots also make "delete after a clean run" obviously
+    # safe: nothing inside the evidence is being removed.
+    snapshot_root: str = ""
+    keep_snapshots: bool = False
 
 
 @dataclass(frozen=True)

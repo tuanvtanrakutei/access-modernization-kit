@@ -30,6 +30,7 @@ part of this per-app sequence — most users only ever need them once, if at all
 | `$ak documents --app-root <PATH>` | Normalize XLSX/DOCX/PPTX/PDF and legacy-encoded text into citable UTF-8 with provenance. Required before Phase 5, which is BLOCKED without DOCUMENT evidence. |
 | `$ak citations --outputs <DIR>` | Fail when a published document cites an evidence id that does not exist. |
 | `$ak conformance --outputs <DIR>` | Check a published phase document carries what the phase contract promises: named terms, diagrams, identifier vocabularies, resolvable citations. |
+| `$ak clean --app-root <PATH>` | Report what a workspace no longer needs - disposable database snapshots, retired trees - and remove it with `--delete`. Reports by default. |
 | `$ak status <APP_ID>` | Report app/run/phase/QA status without changing evidence or outputs. |
 | `$ak render <APP_ID> [LANGUAGE]` | Render declared outputs only after the required Phase 6, traceability, and QA gates pass. |
 | `$ak help` | Show this guide again; does not modify an app workspace. |

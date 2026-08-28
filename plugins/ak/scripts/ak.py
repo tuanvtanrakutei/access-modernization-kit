@@ -36,6 +36,12 @@ def configure_acquire_parser(commands: argparse._SubParsersAction) -> None:
     acquire.add_argument("--output-root", help="Output directory for acquisition bundle")
     acquire.add_argument("--authorize", action="append", default=[])
     acquire.add_argument("--acquisition-id", default=None)
+    acquire.add_argument(
+        "--keep-snapshots", action="store_true",
+        help="Keep the disposable database copies after a clean run. They are removed by "
+             "default: nothing reads them once extraction has written its receipt, and on a "
+             "real application they doubled the workspace.",
+    )
     # The question an operator actually has is not "which mode is this" but "can this
     # evidence carry the phases I came here for". Naming them makes acquisition answer
     # it instead of leaving a blocked phase to be discovered in a file afterwards.
@@ -109,6 +115,13 @@ def parse_args() -> argparse.Namespace:
     conformance.add_argument("--strict", action="store_true", help="Fail on evidence apparatus as well as content.")
     conformance.add_argument("--group", choices=("content", "apparatus", "all"), default="all")
     conformance.add_argument("--json", action="store_true", help="Emit a machine-readable report.")
+
+    clean = commands.add_parser(
+        "clean", help="Report, and optionally remove, what a workspace no longer needs.",
+    )
+    clean.add_argument("--app-root", required=True)
+    clean.add_argument("--delete", action="store_true", help="Actually remove; without it the command only reports.")
+    clean.add_argument("--json", action="store_true")
 
     install = commands.add_parser("install", help="Install the skill for a non-Codex runtime.")
     install.add_argument("--runtime", choices=("codex", "claude", "generic"), required=True)
@@ -327,6 +340,13 @@ def main() -> int:
         if args.json:
             conformance_args.append("--json")
         return run("validate_phase_conformance.py", *conformance_args)
+    if args.command == "clean":
+        clean_args = ["--app-root", args.app_root]
+        if args.delete:
+            clean_args.append("--delete")
+        if args.json:
+            clean_args.append("--json")
+        return run("clean_workspace.py", *clean_args)
     if args.command == "install":
         return install_skill(args)
     if args.command == "init":
@@ -481,12 +501,18 @@ def main() -> int:
             print_json(plan)
             return 0 if not plan.get("required_phases", {}).get("unreachable") else 2
         elif action == "run":
-            result = run_acquisition(manifest_path, output_root, authorize, acquisition_id, required_phases)
+            result = run_acquisition(
+                manifest_path, output_root, authorize, acquisition_id, required_phases,
+                keep_snapshots=args.keep_snapshots,
+            )
             print_json(result)
             return 0 if result.get("bundle_id") else 2
 
         plan = plan_acquisition(manifest_path)
-        result = run_acquisition(manifest_path, output_root, authorize, acquisition_id, required_phases)
+        result = run_acquisition(
+            manifest_path, output_root, authorize, acquisition_id, required_phases,
+            keep_snapshots=args.keep_snapshots,
+        )
         result["plan"] = plan
         print_json(result)
         return 0 if result.get("bundle_id") else 2

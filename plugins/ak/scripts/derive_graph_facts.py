@@ -53,7 +53,10 @@ def newest_bundle(app_root: Path) -> Path | None:
     acquired = app_root / "acquired"
     if not acquired.is_dir():
         return None
-    bundles = [p for p in acquired.glob("bundle-*") if (p / "bundle.json").is_file()]
+    # Both layouts: acquired/bundles/<date>-<digest>/ since 2.9.0, and the older
+    # acquired/bundle-<64 hex>/ a workspace may still carry.
+    candidates = list((acquired / "bundles").glob("*")) + list(acquired.glob("bundle-*"))
+    bundles = [p for p in candidates if (p / "bundle.json").is_file()]
     if not bundles:
         return None
     return max(bundles, key=lambda p: (p / "bundle.json").stat().st_mtime)
@@ -82,6 +85,39 @@ def latest_sessions(app_root: Path) -> list[tuple[str, Path]]:
             continue
         found.append((database.name, max(sessions, key=lambda p: p.stat().st_mtime)))
     return found
+
+
+# Characters a filesystem genuinely refuses, and nothing else. Replacing everything
+# outside [A-Za-z0-9_.-] is the sanitiser this project already had to fix once, in
+# extract_access.ps1: it turned 共通ルーチン into _____ and merged distinct objects onto
+# one filename, in a kit whose whole target population is Japanese. The rule there is
+# the rule here - keep the name, alter it only when the filesystem forces it, and
+# append a digest whenever it was altered so an alteration can never silently collide.
+# Characters Windows genuinely refuses, and nothing else. No regex: the escaping
+# needed to express a backslash and a control range inside a pattern is exactly how
+# this line acquired a literal NUL byte and stopped the module importing at all.
+_FORBIDDEN_CHARS = set('<>:"/|?*' + chr(92)) | {chr(c) for c in range(32)}
+
+
+def fact_filename(database_id: str, name: str) -> str:
+    """`<database>-<object name>.md`, readable by the person who has to open it."""
+    cleaned = "".join("_" if ch in _FORBIDDEN_CHARS else ch for ch in name).rstrip(". ")
+    stem = f"{database_id}-{cleaned or 'object'}"
+    if cleaned == name and len(stem.encode("utf-8")) <= 180:
+        return f"{stem}.md"
+    digest = hashlib.sha1(f"{database_id}|{name}".encode("utf-8")).hexdigest()[:8]
+    return f"{_clip(stem, 180)}-{digest}.md"
+
+
+def _clip(text: str, limit: int) -> str:
+    """Trim to a byte budget without splitting a character.
+
+    The limit a filesystem enforces is on bytes, and a character slice against it
+    does nothing for the names it was written for: 120 Japanese characters is 360
+    bytes. Same units mistake, same population, as the sanitiser above.
+    """
+    encoded = text.encode("utf-8")[:limit]
+    return encoded.decode("utf-8", errors="ignore")
 
 
 def distil_object(text: str, kind: str) -> dict[str, Any]:
@@ -220,8 +256,7 @@ def main() -> int:
     for existing in facts_dir.glob("*.md"):
         existing.unlink()
     for key, fact in sorted(facts.items()):
-        safe = re.sub(r"[^A-Za-z0-9_.-]+", "_", key).strip("_") or "object"
-        digest = hashlib.sha1(key.encode("utf-8")).hexdigest()[:8]
+        safe = fact_filename(fact["database_id"], fact["name"])
         lines = [
             f"# {fact['name']}",
             "",
@@ -235,7 +270,7 @@ def main() -> int:
             lines += ["- embedded controls:"] + [f"  - {v}" for v in fact["activex_classes"]]
         if fact["event_procedures"]:
             lines += ["- event procedures:"] + [f"  - {v}" for v in fact["event_procedures"]]
-        io.open(facts_dir / f"{safe}-{digest}.md", "w", encoding="utf-8", newline="\n").write(
+        io.open(facts_dir / safe, "w", encoding="utf-8", newline="\n").write(
             "\n".join(lines) + "\n")
 
     print(f"derived {len(nodes)} nodes and {len(edges)} edges from {bundle.name}")
