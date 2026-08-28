@@ -7,6 +7,35 @@ is re-run in this pass.
 
 ---
 
+## Status
+
+| Unit | State | Landed in |
+|---|---|---|
+| **U0** cross-cutting contracts | **done** | `461d826`, `e662dff` |
+| Graphify removal | **done** | `461d826` |
+| U1 Phase 1 | not started | |
+| U2 Phase 2 | not started | |
+| U3 Phase 3 | not started | |
+| U4 Phase 4 | not started | |
+| U5 Phase 5 | not started | |
+| U6 Phase 6 | not started | |
+| Conformance checker + gold-standard regression | not started | |
+
+U0 delivered: `evidence-classes.yaml`, `identifier-scheme.yaml`,
+`errata-contract.yaml`, a rewritten `output-contract.yaml` (document header,
+per-phase diagram minimum, the sections Phases 5 and 6 were missing, README as a
+required output), real `boundary-map.html` / `e2e-trace.html` / `readme.md`
+templates, `$ak derive` and `$ak documents`, INTERVIEW and evidence-class fields in
+the evidence schema, and 39 tests. Suite 1264 passing.
+
+Still open in U0 and folded into U1-U6: the phase gates in
+`contracts/phase_readiness.py` and `contracts/evidence_requirements.py` are not yet
+evidence-class aware - `evidence-classes.yaml` declares `phase_needs` and nothing
+reads it yet. That is the first thing U1 does, since it is the same code path for
+all six.
+
+---
+
 ## 1. The finding that motivates the audit
 
 The kit's contracts specify **structure** — which sections a document has, which
