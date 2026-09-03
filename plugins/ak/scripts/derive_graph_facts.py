@@ -39,7 +39,15 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "contracts"))
 
 import workspace as workspace_contract  # noqa: E402
 
-RECORD_SOURCE_RE = re.compile(r'(?<![A-Za-z])RecordSource\s*=\s*"([^"]*)"')
+# An escaped quote inside the value must not end it. Access writes a record source
+# containing an `IN "path"` clause as `RecordSource ="select ... IN \"L:\...\"..."`,
+# and a pattern that stops at the first quote captured only `select ... IN \` - so the
+# `IN` clause was truncated away on 35 of 51 A05 forms, and the boundary it declares
+# was invisible to every later reader. The symptom was visible in the catalogue as a
+# record source ending in `IN \` and was not chased.
+RECORD_SOURCE_RE = re.compile(
+    r'(?<![A-Za-z])RecordSource\s*=\s*"((?:[^"\\]|\\.)*)"'
+)
 CONTROL_SOURCE_RE = re.compile(r'(?<![A-Za-z])ControlSource\s*=\s*"([^"]*)"')
 # Not preceded by a letter: SaveAsText writes OLEClass ="<display name>" beside the
 # real Class ="<ProgID>", and matching both reports a caption as a control.

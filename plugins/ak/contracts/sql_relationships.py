@@ -56,6 +56,16 @@ OBJECT_REF = re.compile(
 # A table this SQL creates, so naming it is not a dangling reference.
 CREATES = re.compile(r"\b(?:INTO|CREATE\s+TABLE)\s+(\[[^\]]+\]|[^\s,();]+)", re.IGNORECASE)
 
+# `... FROM x IN "L:\path\other.mdb"` - Access runs the query against another database
+# file named by absolute path, so a table absent from the acquired copy is not missing;
+# it is expected somewhere this run never opened.
+#
+# Missing this cost a wrong published claim (E-09): two working screens were reported
+# as unable to open because their record source named a table that "does not exist".
+# It also hid the mechanism - 35 of 51 A05 forms query a backend this way, 145 times,
+# naming four locations, one of them on a different drive letter than the stored links.
+IN_DATABASE = re.compile(r"\bIN\s+\\{0,2}\"([^\"]{2,200})", re.IGNORECASE)
+
 # Words that follow FROM/JOIN/INTO without being an object name.
 NOT_A_NAME = {"select", "distinct", "distinctrow", "top"}
 
@@ -96,6 +106,7 @@ class Analysis:
     relationships: list[Relationship]
     candidate_keys: dict[str, list[tuple[str, int]]]
     dangling: dict[str, list[str]]
+    external_databases: dict[str, list[str]]
     unresolved_aliases: dict[str, int]
     joined_through_query: dict[str, int]
     sources_scanned: int
@@ -122,6 +133,7 @@ def analyse(
     unresolved: Counter[str] = Counter()
     through_query: Counter[str] = Counter()
     dangling: dict[str, list[str]] = {}
+    external: dict[str, list[str]] = {}
 
     for label, text in sources.items():
         if not text:
@@ -175,7 +187,10 @@ def analyse(
             and resolve(name).lower() not in {a.lower() for a in aliases}
             and resolve(name) not in created
         })
-        if absent:
+        elsewhere = sorted({m.strip().rstrip("\\ ") for m in IN_DATABASE.findall(text)})
+        if elsewhere:
+            external[label] = elsewhere
+        if absent and not elsewhere:
             dangling[label] = absent
 
     # A table's candidate key: the column it is most often joined on. Both sides
@@ -191,6 +206,7 @@ def analyse(
         candidate_keys={table: counts.most_common()
                         for table, counts in sorted(joined_on.items())},
         dangling=dict(sorted(dangling.items())),
+        external_databases=dict(sorted(external.items())),
         unresolved_aliases=dict(unresolved.most_common()),
         joined_through_query=dict(through_query.most_common()),
         sources_scanned=len([t for t in sources.values() if t]),

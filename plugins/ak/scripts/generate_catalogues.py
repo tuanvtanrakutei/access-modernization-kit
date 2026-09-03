@@ -798,6 +798,42 @@ def logic_catalogue(app_id: str, bundle: Path, derived: dict | None,
                 "something absent reads exactly like a reference to something present.",
                 ""]
 
+    external = getattr(sql, "external_databases", {}) or {}
+    out += ["", f"## SQL that runs against another database file ({len(external)})", ""]
+    if not external:
+        out += ["No statement carries an `IN` clause.", ""]
+    else:
+        targets: dict[str, int] = defaultdict(int)
+        for names in external.values():
+            for name in names:
+                targets[name] += 1
+        out += [
+            f"{len(external)} statements carry an `IN \"…\"` clause, which makes the "
+            "query run against **another database file named by absolute path** rather "
+            "than against this application's linked tables. A table absent from the "
+            "acquired copy is therefore not missing; it is expected at the end of that "
+            "path, in a database this run never opened.",
+            "",
+            "| Target named in the clause | Statements |",
+            "|---|---:|",
+        ]
+        for name, count in sorted(targets.items(), key=lambda kv: -kv[1]):
+            note = ("**a variable** — check it is assigned"
+                    if not ("\\" in name or "/" in name) else "")
+            out.append(f"| `{escape(name)}` {note} | {count} |")
+        out += [
+            "",
+            "**This is a boundary, and it is wider than the stored links.** A migration "
+            "planned against the linked tables alone would miss every one of these.",
+            "",
+            "**Scope.** This counts stored record sources only. SQL that a form builds "
+            "in VBA carries `IN` clauses too, and those cannot be counted as statements "
+            "because the path is a variable rather than a literal - which is itself the "
+            "finding: in A05 the variable is `Sパス名`, declared `Public` and assigned "
+            "nowhere in either database. See `Q20`.",
+            "",
+        ]
+
     out += ["", f"## Files crossing the boundary ({len(linked) + len(interfaces)})", "",
             "Every declared inbound and outbound file. A format claim about any of "
             f"these needs one real sample ({NOT_EXTRACTED} means the declaration says "
