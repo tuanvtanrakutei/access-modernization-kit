@@ -197,7 +197,7 @@ class Naming:
         rendered = self.of(name)
         if not rendered.english:
             return "_no term matched_"
-        marker = "" if rendered.accepted else "?"
+        marker = "" if rendered.is_settled else "?"
         partial = "" if rendered.is_complete else " partial"
         return f"`{rendered.english}{marker}`{partial}"
 

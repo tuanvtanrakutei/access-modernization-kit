@@ -80,12 +80,26 @@ def test_a_partial_name_says_so_rather_than_looking_finished() -> None:
     assert "partial" in rendered.bilingual()
 
 
-def test_a_complete_proposal_is_still_marked_a_proposal() -> None:
-    """Mechanical is not the same as correct."""
+def test_a_name_from_a01_precedent_alone_carries_no_question_mark() -> None:
+    """`?` must mean "this analysis made this up", or it means nothing.
+
+    `商品コード` composes from `商品` and `コード`, both decided in the A01 conversion
+    table. That is precedent applied, not a proposal, and 149 of 649 A05 names are in
+    that position.
+    """
     rendered = compose("商品コード")
+    assert rendered.provenance == "A01"
+    assert rendered.is_settled and not rendered.accepted
+    assert rendered.bilingual() == "商品コード (product_cd)"
+
+
+def test_a_name_using_any_analysis_term_is_still_marked_a_proposal() -> None:
+    """Mechanical is not the same as correct."""
+    rendered = compose("ＤＰコード商品")
     assert rendered.is_complete
-    assert not rendered.accepted
-    assert rendered.bilingual() == "商品コード (product_cd?)"
+    assert rendered.provenance == "A01+analysis"
+    assert not rendered.is_settled
+    assert rendered.bilingual().endswith("?)")
 
 
 def test_an_accepted_name_loses_the_question_mark() -> None:
@@ -163,3 +177,34 @@ def test_only_accepted_entries_are_honoured(tmp_path: Path) -> None:
     assert accepted == {"商品コード": "item_code"}, (
         "a proposed name must not be treated as decided"
     )
+
+
+def test_a_roman_numeral_term_does_not_capture_the_plain_letter() -> None:
+    """NFKC makes `Ⅰ` and `I` the same character.
+
+    A term mapping `Ⅰ` to "1" therefore also matched the plain letter, and
+    `元受注データI` - the test-side staging table - rendered as `source_order_data_1`.
+    The shipped dictionary leaves both Roman numerals out for that reason.
+    """
+    terms = bl.load_terms(PACKAGE)
+    assert "Ⅰ" not in terms and "Ⅱ" not in terms
+    assert bl.compose("元受注データI", terms).english == "source_order_data_i"
+    assert bl.compose("元受注データC", terms).english == "source_order_data_c"
+    assert bl.compose("雑貨Ⅱ分類コード", terms).english == "sundries_ii_category_cd"
+
+
+def test_no_shipped_term_collides_with_another_under_nfkc() -> None:
+    """Two keys that normalise to the same text must agree on the English name.
+
+    `ＦＬＧ` and `FLG` are the same term written two ways and both map to `flg`, which
+    is fine. Two keys normalising alike with different values would make the result
+    depend on dictionary order.
+    """
+    import unicodedata
+    from collections import defaultdict
+
+    by_normal = defaultdict(set)
+    for key, entry in bl.load_terms(PACKAGE).items():
+        by_normal[unicodedata.normalize("NFKC", key)].add(str(entry.get("en")))
+    clashes = {k: v for k, v in by_normal.items() if len(v) > 1}
+    assert not clashes, clashes

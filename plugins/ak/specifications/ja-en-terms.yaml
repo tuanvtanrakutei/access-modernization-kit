@@ -255,8 +255,12 @@ terms:
   ＷＫ: {en: wk, provenance: analysis}
   WK: {en: wk, provenance: analysis}
   ＢＫ: {en: bk, provenance: analysis}
-  Ⅰ: {en: "1", provenance: analysis}
-  Ⅱ: {en: "2", provenance: analysis}
+  # Ⅰ and Ⅱ are deliberately NOT terms. NFKC normalises the Roman numeral Ⅰ to the
+  # letter I, so a term mapping Ⅰ to "1" also matched the plain letter - and
+  # `元受注データI`, the test-side staging table, rendered as `source_order_data_1`.
+  # Left out, NFKC turns them into I and II and they render as `i` / `ii`, which is
+  # less pretty than `2` and reversible, and reversibility is the property that makes
+  # a composed name safe to put in a migration script.
   ｶｳﾝﾄ: {en: count, provenance: analysis}
   最大: {en: max, provenance: analysis}
 

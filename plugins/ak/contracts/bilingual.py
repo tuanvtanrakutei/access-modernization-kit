@@ -54,6 +54,17 @@ class Rendered:
     def is_complete(self) -> bool:
         return self.covered >= 0.999
 
+    @property
+    def is_settled(self) -> bool:
+        """No `?` needed: either a person accepted it, or A01 already decided it.
+
+        A name composed only from terms the A01 conversion table decided is not a new
+        proposal - it is precedent applied. Marking those with a `?` put a question
+        mark on 149 of 649 A05 names that nobody needs to re-decide, and diluted the
+        one signal that matters: `?` should mean "this analysis made this up".
+        """
+        return self.accepted or (self.provenance == "A01" and self.is_complete)
+
     def bilingual(self) -> str:
         """`商品コード (product_cd)`, the form a reader sees.
 
@@ -63,7 +74,7 @@ class Rendered:
         """
         if not self.english:
             return self.japanese
-        if self.accepted:
+        if self.is_settled:
             return f"{self.japanese} ({self.english})"
         if self.is_complete:
             return f"{self.japanese} ({self.english}?)"

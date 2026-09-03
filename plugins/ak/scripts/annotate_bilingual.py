@@ -43,7 +43,15 @@ FENCE = re.compile(r"^(```|~~~)", re.MULTILINE)
 BACKTICKED = re.compile(r"`([^`\n]{1,120})`")
 JAPANESE = re.compile(r"[぀-ヿ一-鿿＀-￯]")
 # Already annotated, in either the accepted or the proposed form.
-ALREADY = re.compile(r"^\s*\((?:[a-z0-9_]+\??(?:\s+partial)?)\)")
+#
+# The character class has to admit a dot and a hyphen, because a composed name can be
+# `assortment_support_data.mdb`, and the match has to run against the whole remaining
+# text rather than a fixed peek: the first version looked at 40 characters, and
+# `produce_aggregate_product_master_footer?` is 41, so the closing bracket fell
+# outside the window and the name was annotated a second time. 14 duplicates in the
+# published set, and the test that was supposed to catch it used `order_data`, which
+# is short and has no dot.
+ALREADY = re.compile(r"\s*\([a-z0-9_.\-]+\??(?:\s+partial)?\)")
 
 
 def fenced_spans(text: str) -> list[tuple[int, int]]:
@@ -80,8 +88,7 @@ def annotate(text: str, naming: object, seen: set[str] | None = None) -> tuple[s
             continue
         if name in seen:
             continue
-        tail = text[match.end():match.end() + 40]
-        if ALREADY.match(tail):
+        if ALREADY.match(text, match.end()):
             seen.add(name)
             continue
         rendered = naming.of(name)  # type: ignore[attr-defined]
@@ -90,7 +97,7 @@ def annotate(text: str, naming: object, seen: set[str] | None = None) -> tuple[s
             # name in front of a reader as though it were a name.
             continue
         seen.add(name)
-        marker = "" if rendered.accepted else "?"
+        marker = "" if rendered.is_settled else "?"
         out.append(text[cursor:match.end()])
         out.append(f" ({rendered.english}{marker})")
         cursor = match.end()
@@ -121,9 +128,12 @@ def appendix(text: str, naming: object) -> str:
         APPENDIX_HEADING,
         "",
         "The Japanese name is the production name and is authoritative. The English is "
-        "a proposal composed from `specifications/ja-en-terms.yaml`; a `?` means nobody "
-        "has accepted it yet, and `partial` means only part of the Japanese matched a "
-        "known term. Accept or correct them in `input/decisions/glossary.yaml`.",
+        "composed from `specifications/ja-en-terms.yaml`. **A `?` means this analysis "
+        "proposed the name and nobody has accepted it.** No `?` means either a person "
+        "accepted it or every term in it was already decided in the A01 conversion "
+        "table, which is precedent rather than a proposal. `partial` means only part of "
+        "the Japanese matched a known term. Accept or correct any of them in "
+        "`input/decisions/glossary.yaml`.",
         "",
         "| Production name | English | |",
         "|---|---|---|",
@@ -134,8 +144,12 @@ def appendix(text: str, naming: object) -> str:
             english, note = "—", "no term matched"
         else:
             english = f"`{rendered.english}`"
-            note = ("accepted" if rendered.accepted
-                    else ("proposed" if rendered.is_complete else "**partial**"))
+            if rendered.accepted:
+                note = "accepted"
+            elif rendered.provenance == "A01" and rendered.is_complete:
+                note = "A01 precedent"
+            else:
+                note = "proposed" if rendered.is_complete else "**partial**"
         lines.append(f"| `{name}` | {english} | {note} |")
     return "\n".join(lines) + "\n"
 

@@ -37,14 +37,15 @@ class Naming:
 
 def test_the_first_mention_is_annotated() -> None:
     text, added = annotator.annotate("The `受注データ` table.", Naming())
-    assert text == "The `受注データ` (order_data?) table."
+    # No `?`: every term in `受注データ` was decided in the A01 conversion table.
+    assert text == "The `受注データ` (order_data) table."
     assert added == 1
 
 
 def test_only_the_first_mention_is_annotated() -> None:
     body = "`受注データ` is read by `商品マスタ`, and `受注データ` again."
     text, added = annotator.annotate(body, Naming())
-    assert text.count("(order_data?)") == 1
+    assert text.count("(order_data)") == 1
     assert added == 2
 
 
@@ -55,7 +56,7 @@ def test_nothing_inside_a_fenced_block_is_touched() -> None:
         "```sql\nSELECT * FROM `店舗マスタ`;\n```\n"
     )
     text, _ = annotator.annotate(body, Naming())
-    assert "(order_data?)" in text
+    assert "(order_data)" in text
     assert "product_master" not in text, "a diagram must not be rewritten"
     assert "store_master" not in text, "a SQL snippet must not be rewritten"
 
@@ -63,7 +64,7 @@ def test_nothing_inside_a_fenced_block_is_touched() -> None:
 def test_an_unclosed_fence_protects_the_rest_of_the_document() -> None:
     body = "Fine `受注データ`.\n\n```\nnot closed `商品マスタ`\n"
     text, _ = annotator.annotate(body, Naming())
-    assert "(order_data?)" in text
+    assert "(order_data)" in text
     assert "product_master" not in text
 
 
@@ -141,9 +142,12 @@ def test_the_narrative_gains_names_and_an_appendix(published: Path) -> None:
     run(published)
     narrative = (published / "output" / "T01_Phase1_DataUnderstanding_EN.md").read_text(
         encoding="utf-8")
-    assert "(order_data?)" in narrative
-    assert "(product_master?)" in narrative
+    assert "(order_data)" in narrative
+    assert "(product_master)" in narrative
     assert annotator.APPENDIX_HEADING in narrative
+    assert "A01 precedent" in narrative, (
+        "the appendix must distinguish precedent from a proposal"
+    )
 
 
 def test_a_second_run_is_a_no_op(published: Path) -> None:
@@ -160,3 +164,59 @@ def test_dry_run_changes_nothing(published: Path) -> None:
     run(published, "--dry-run")
     assert (published / "output"
             / "T01_Phase1_DataUnderstanding_EN.md").read_bytes() == before
+
+
+# --- the two cases the idempotency test missed -------------------------------
+#
+# `test_running_twice_does_not_annotate_twice` used `受注データ` -> `order_data`, which
+# is short and has no dot, so it passed while 14 duplicates went into the published
+# set. Both failing shapes are pinned here.
+
+
+def test_a_name_containing_a_dot_is_not_annotated_twice() -> None:
+    """`品揃支援DATA.MDB` -> `assortment_support_data.mdb`. The dot broke the check."""
+    naming = Naming()
+    once, _ = annotator.annotate("Reads `品揃支援DATA.MDB` at startup.", naming)
+    assert "(assortment_support_data.mdb?)" in once
+    twice, added = annotator.annotate(once, Naming())
+    assert twice == once
+    assert added == 0
+
+
+def test_a_long_english_name_is_not_annotated_twice() -> None:
+    """The check peeked at 40 characters; this annotation is longer than that."""
+    naming = Naming()
+    once, _ = annotator.annotate("See `青果集計商品マスタフッタ`.", naming)
+    english = Naming().of("青果集計商品マスタフッタ").english
+    # What overflowed the old window was the whole annotation, not the name: a space,
+    # a bracket, the name, the `?` and the closing bracket.
+    assert len(f" ({english}?)") > 40, "the fixture must exceed the old peek window"
+    twice, added = annotator.annotate(once, Naming())
+    assert twice == once
+    assert added == 0
+
+
+def test_no_annotation_is_ever_repeated_across_the_whole_term_dictionary() -> None:
+    """Every shipped term composed and re-annotated, so no length or character can hide."""
+    import re
+
+    naming = Naming()
+    names = ["受注データ", "品揃支援DATA.MDB", "青果集計商品マスタフッタ",
+             "雑貨Ⅱアイテム別確認表フッタ2", "配送コースマスタ20241231バックアップ",
+             "店舗ピッキングライン表示情報"]
+    body = " ".join(f"`{n}`" for n in names)
+    once, _ = annotator.annotate(body, naming)
+    twice, added = annotator.annotate(once, Naming())
+    assert added == 0
+    duplicate = re.compile(r"\(([a-z0-9_.\-]+\??)\)\s*\(\1\)")
+    assert not duplicate.search(twice), duplicate.findall(twice)
+
+
+def test_the_appendix_distinguishes_the_three_states() -> None:
+    """accepted / A01 precedent / proposed. A `?` on all three signals nothing."""
+    naming = Naming({"店舗マスタ": "shop_master"})
+    body = "`店舗マスタ` and `受注データ` and `ＤＰコード`."
+    text = annotator.appendix(body, naming)
+    assert "| `店舗マスタ` | `shop_master` | accepted |" in text
+    assert "| `受注データ` | `order_data` | A01 precedent |" in text
+    assert "| `ＤＰコード` | `dp_cd` | proposed |" in text
