@@ -144,3 +144,54 @@ def test_bracketed_names_are_read() -> None:
 def test_an_empty_source_is_skipped_rather_than_counted() -> None:
     result = analyse(one="", two="SELECT * FROM 受注データ;")
     assert result.sources_scanned == 1
+
+
+# --- who writes each table --------------------------------------------------
+#
+# The business-role column needs a document, and rule EC-03 forbids reading a name as
+# a meaning. Who writes a table is evidence, and it is what lets a reader classify
+# without the analysis pretending to know.
+
+
+def test_a_write_statement_names_its_writer() -> None:
+    profile = sql.write_profile(
+        {"form 集計": "DELETE * FROM WK集計; INSERT INTO WK集計 SELECT * FROM 受注データ"},
+        TABLES)
+    assert profile.of("WK集計") == ["form 集計 (DELETE)", "form 集計 (INSERT)"]
+    assert "DELETE" in profile.summary("WK集計")
+
+
+def test_a_vba_statement_separator_is_not_part_of_the_table_name() -> None:
+    """VBA separates statements with `:`, so `FROM WK集計: rs...` used to attribute
+    the write to a table called `WK集計:`, which is to say to nothing."""
+    profile = sql.write_profile({"module M": 'DELETE * FROM WK集計: Set rs = x'}, TABLES)
+    assert profile.of("WK集計") == ["module M (DELETE)"]
+
+
+def test_a_table_nothing_writes_says_not_attributable_not_never_written() -> None:
+    """129 of 152 A05 recordset opens take a built string. Silence is not proof."""
+    profile = sql.write_profile({"query q": "SELECT * FROM 商品マスタ"}, TABLES)
+    assert profile.summary("商品マスタ") == "no writer attributable"
+
+
+def test_a_transfer_call_naming_a_table_counts_as_a_write() -> None:
+    profile = sql.write_profile(
+        {"module AutoExec":
+         'DoCmd.TransferDatabase acImport, "Microsoft Access", path, acTable, '
+         '"商品マスタ", "商品マスタ"'},
+        TABLES)
+    assert profile.of("商品マスタ") == ["module AutoExec (TRANSFER)"]
+
+
+def test_a_recordset_opened_by_name_counts_only_when_something_writes() -> None:
+    read_only = sql.write_profile(
+        {"form F": 'Set rs = db.OpenRecordset("WK集計")\nx = rs!a'}, TABLES)
+    assert read_only.of("WK集計") == []
+    writing = sql.write_profile(
+        {"form F": 'Set rs = db.OpenRecordset("WK集計")\nrs.AddNew\nrs.Update'}, TABLES)
+    assert writing.of("WK集計") == ["form F (RECORDSET)"]
+
+
+def test_built_string_opens_are_counted_so_the_gap_is_visible() -> None:
+    profile = sql.write_profile({"form F": "Set rs = db.OpenRecordset(sql)"}, TABLES)
+    assert profile.built_string_opens == 1

@@ -1,0 +1,289 @@
+# Japanese business terms and the English name each one gets.
+#
+# Why a dictionary rather than a translator. 328 A05 column names collapse to 137
+# once a trailing index is stripped (`店舗コード1` … `店舗コード21` are one term and
+# a position), and 118 table names collapse to 105 - and both are built from the same
+# vocabulary. So roughly 110 terms compose almost every name in the application, and
+# a term translated once is translated consistently everywhere it appears.
+#
+# Why it matters more than convenience. A01 and A05 are the same company and the same
+# business. If A05 calls `商品コード` anything other than `product_cd`, the two systems
+# cannot be integrated later without a mapping nobody wrote down. Consistency across
+# the programme is the point; automation is a side effect.
+#
+# `provenance` is per term and is not decoration:
+#
+#   A01       This term's English name is already decided in
+#             `A01_Table_Definitions.md`, a dated document with a named author. It is
+#             precedent, and a later project must not spell it differently.
+#   analysis  Proposed by this analysis. It is a translation, not evidence. Nothing
+#             downstream may treat it as decided until a person accepts it - which is
+#             what `input/decisions/glossary.yaml` records.
+#
+# A composed name is only ever as good as its terms, so `$ak glossary` reports which
+# terms produced each name and whether the name was covered completely. A name that
+# is not fully covered is published as a partial proposal, never as a finished name.
+version: 1
+
+provenance:
+  A01: >-
+    Aligned with A01_Table_Definitions.md (Conversion Table, version 0.1). Decided by
+    a person; treat as precedent binding on later projects.
+  analysis: >-
+    Proposed by this analysis from the Japanese. Needs a human to accept it before
+    anything downstream relies on it.
+
+# Longest match wins, left to right, joined with `_`. A trailing index is stripped
+# before matching and re-appended, so `数量12` composes as `quantity_12`.
+composition:
+  join: "_"
+  index_suffix: "_{n}"
+  case: lower_snake
+  # Japanese word order is kept, not rearranged into idiomatic English.
+  # `酒アイテム別確認表` becomes `liquor_item_by_confirmation_report`, not
+  # `liquor_confirmation_report_by_item`. Reordering reads better and breaks the one
+  # property that makes these names safe: a composed name maps back to exactly one
+  # production name, term for term, in order. For a migration mapping that
+  # reversibility is worth more than fluency.
+  word_order: source
+
+terms:
+  # --- entities, the vocabulary the whole application turns on -----------------
+  商品: {en: product, provenance: A01}
+  店舗: {en: store, provenance: A01}
+  配送: {en: delivery, provenance: A01}
+  受注: {en: order, provenance: A01}
+  発注: {en: purchase_order, provenance: analysis}
+  請求: {en: billing, provenance: analysis}
+  返品: {en: return, provenance: A01}
+  伝票: {en: invoice, provenance: A01}
+  在庫: {en: stock, provenance: analysis}
+  部門: {en: department, provenance: A01}
+  担当者: {en: employee, provenance: A01}
+
+  # --- identifiers and labels --------------------------------------------------
+  コード: {en: cd, provenance: A01}
+  ＤＰコード: {en: dp_cd, provenance: analysis}
+  DPコード: {en: dp_cd, provenance: analysis}
+  番号: {en: number, provenance: A01}
+  名称: {en: name, provenance: analysis}
+  名: {en: name, provenance: A01}
+  略称: {en: short_name, provenance: analysis}
+  ID: {en: id, provenance: A01}
+  # Quoted: YAML 1.1 reads a bare `No` as boolean false, and PyYAML implements that.
+  "No": {en: "no", provenance: analysis}
+
+  # --- quantities and measures -------------------------------------------------
+  数量: {en: quantity, provenance: A01}
+  合計数: {en: total_count, provenance: analysis}
+  合計: {en: total, provenance: analysis}
+  件数: {en: record_count, provenance: analysis}
+  個数: {en: piece_count, provenance: analysis}
+  重量: {en: weight, provenance: analysis}
+  容積: {en: volume, provenance: analysis}
+  単位: {en: unit, provenance: A01}
+  単価: {en: price, provenance: A01}
+  係数: {en: coefficient, provenance: analysis}
+  誤差: {en: variance, provenance: analysis}
+  集計値: {en: aggregate_value, provenance: analysis}
+  量: {en: amount, provenance: analysis}
+  値: {en: value, provenance: analysis}
+
+  # --- time --------------------------------------------------------------------
+  日付: {en: date, provenance: A01}
+  日時: {en: datetime, provenance: analysis}
+  時間: {en: time, provenance: analysis}
+  曜日: {en: day_of_week, provenance: analysis}
+  日: {en: date, provenance: analysis}
+  月: {en: monday, provenance: analysis}
+  火: {en: tuesday, provenance: analysis}
+  水: {en: wednesday, provenance: analysis}
+  木: {en: thursday, provenance: analysis}
+  金: {en: friday, provenance: analysis}
+  土: {en: saturday, provenance: A01}
+  月曜日: {en: monday, provenance: analysis}
+  火曜日: {en: tuesday, provenance: analysis}
+  水曜日: {en: wednesday, provenance: analysis}
+  木曜日: {en: thursday, provenance: analysis}
+  金曜日: {en: friday, provenance: analysis}
+  土曜日: {en: saturday, provenance: analysis}
+  日曜日: {en: sunday, provenance: analysis}
+  月木土: {en: mon_thu_sat, provenance: analysis}
+  火金日: {en: tue_fri_sun, provenance: analysis}
+
+  # --- classification and ordering ---------------------------------------------
+  分類: {en: category, provenance: A01}
+  区分: {en: type, provenance: A01}
+  順: {en: sequence, provenance: analysis}
+  表示順: {en: display_sequence, provenance: analysis}
+  印刷順: {en: print_sequence, provenance: analysis}
+  印字順: {en: print_sequence, provenance: analysis}
+  任意印刷順: {en: manual_print_sequence, provenance: analysis}
+  範囲: {en: range, provenance: analysis}
+  パターン: {en: pattern, provenance: analysis}
+  グループ: {en: group, provenance: analysis}
+  集計: {en: aggregate, provenance: analysis}
+  マスタ: {en: master, provenance: A01}
+
+  # --- flags and states --------------------------------------------------------
+  ＦＬＧ: {en: flg, provenance: A01}
+  FLG: {en: flg, provenance: A01}
+  フラグ: {en: flg, provenance: A01}
+  未出荷: {en: unshipped, provenance: analysis}
+  未登録: {en: unregistered, provenance: analysis}
+  終売: {en: discontinued, provenance: analysis}
+  日替: {en: daily_change, provenance: analysis}
+  先出し: {en: fifo, provenance: analysis}
+  不定貫: {en: variable_weight, provenance: A01}
+  実績: {en: actual, provenance: analysis}
+  確認: {en: confirmation, provenance: analysis}
+
+  # --- movement ----------------------------------------------------------------
+  出荷: {en: shipping, provenance: analysis}
+  入荷: {en: receiving, provenance: analysis}
+  移動元: {en: source, provenance: A01}
+  移動先: {en: destination, provenance: A01}
+  振替: {en: transfer, provenance: analysis}
+  引渡: {en: handover, provenance: analysis}
+
+  # --- place and storage -------------------------------------------------------
+  場所: {en: location, provenance: A01}
+  配置場所: {en: placement_location, provenance: analysis}
+  配置: {en: placement, provenance: analysis}
+  保管: {en: storage, provenance: analysis}
+  エリア: {en: area, provenance: analysis}
+  ゾーン: {en: zone, provenance: analysis}
+  ライン: {en: line, provenance: analysis}
+  コース: {en: route, provenance: analysis}
+  デポ: {en: depot, provenance: analysis}
+  棚: {en: shelf, provenance: analysis}
+  旧棚: {en: previous_shelf, provenance: analysis}
+  現場: {en: site, provenance: analysis}
+  ピッキング: {en: picking, provenance: A01}
+  ピッキングライン: {en: picking_line, provenance: A01}
+
+  # --- goods categories, which name real product families ----------------------
+  酒: {en: liquor, provenance: analysis}
+  アイス: {en: ice_cream, provenance: analysis}
+  ドライアイス: {en: dry_ice, provenance: analysis}
+  青果: {en: produce, provenance: analysis}
+  雑貨: {en: sundries, provenance: analysis}
+  常温品: {en: ambient_goods, provenance: analysis}
+  冷凍品: {en: frozen_goods, provenance: analysis}
+  銀ケース: {en: silver_case, provenance: analysis}
+  備品: {en: supplies, provenance: analysis}
+  米: {en: rice, provenance: analysis}
+  缶: {en: can, provenance: analysis}
+  ねぎ卵: {en: negi_tamago, provenance: analysis}
+  カクテキ: {en: kakuteki, provenance: analysis}
+  おしぼり: {en: oshibori, provenance: analysis}
+  バニラアイス: {en: vanilla_ice_cream, provenance: analysis}
+  ソーセージ: {en: sausage, provenance: analysis}
+  アイテム: {en: item, provenance: analysis}
+
+  # --- documents and screens ---------------------------------------------------
+  一覧表: {en: list_report, provenance: analysis}
+  確認表: {en: confirmation_report, provenance: analysis}
+  合計表: {en: total_report, provenance: analysis}
+  個数表: {en: piece_count_report, provenance: analysis}
+  チェックリスト: {en: checklist, provenance: analysis}
+  リスト: {en: list, provenance: analysis}
+  表: {en: report, provenance: analysis}
+  設定: {en: settings, provenance: analysis}
+  画面: {en: screen, provenance: analysis}
+  メニュー: {en: menu, provenance: analysis}
+  メインメニュー: {en: main_menu, provenance: analysis}
+  ヘッド: {en: header, provenance: analysis}
+  フッタ: {en: footer, provenance: analysis}
+  ボディ: {en: body, provenance: analysis}
+  表示: {en: display, provenance: analysis}
+  印刷: {en: print, provenance: analysis}
+  更新: {en: update, provenance: analysis}
+  作成: {en: created, provenance: analysis}
+  取込: {en: import, provenance: analysis}
+  取り込み: {en: import, provenance: analysis}
+  出力: {en: export, provenance: analysis}
+  切替: {en: switch, provenance: analysis}
+  追加: {en: append, provenance: analysis}
+  検索: {en: search, provenance: analysis}
+  入力: {en: entry, provenance: analysis}
+  履歴: {en: history, provenance: analysis}
+  操作履歴: {en: operation_history, provenance: analysis}
+  情報: {en: info, provenance: analysis}
+  データ: {en: data, provenance: A01}
+  記録: {en: record, provenance: analysis}
+  テーブル: {en: table, provenance: analysis}
+  コピー: {en: copy, provenance: analysis}
+
+  # --- notes and filler columns ------------------------------------------------
+  備考: {en: note, provenance: A01}
+  メモ: {en: memo, provenance: analysis}
+  コメント: {en: comment, provenance: analysis}
+  アドレス: {en: address, provenance: analysis}
+  ダミー: {en: dummy, provenance: analysis}
+  その他: {en: other, provenance: analysis}
+  フィールド: {en: field, provenance: analysis}
+  新規: {en: new, provenance: analysis}
+  本番: {en: production, provenance: analysis}
+  テスト: {en: test, provenance: analysis}
+  業態: {en: business_type, provenance: A01}
+  作業: {en: work, provenance: analysis}
+  前準備: {en: preparation, provenance: analysis}
+  支援: {en: support, provenance: analysis}
+  品揃: {en: assortment, provenance: analysis}
+  元: {en: source, provenance: analysis}
+  本: {en: main, provenance: analysis}
+  別: {en: by, provenance: analysis}
+  用: {en: for, provenance: analysis}
+
+  # --- depot and place names. Proper nouns: romanised, never translated --------
+  三芳: {en: miyoshi, provenance: analysis, proper_noun: true}
+  五霞: {en: goka, provenance: analysis, proper_noun: true}
+  千葉: {en: chiba, provenance: analysis, proper_noun: true}
+  幸松: {en: saiwaimatsu, provenance: analysis, proper_noun: true}
+  物流部: {en: logistics_dept, provenance: analysis, proper_noun: true}
+  受注課: {en: order_section, provenance: analysis, proper_noun: true}
+
+  # --- codes that are already Latin in the source -----------------------------
+  ＣＲＢ: {en: crb, provenance: analysis}
+  ＤＰ: {en: dp, provenance: analysis}
+  DP: {en: dp, provenance: analysis}
+  Ｐ: {en: p, provenance: analysis}
+  Ｆカル: {en: f_cal, provenance: analysis}
+  Fカル: {en: f_cal, provenance: analysis}
+  SOP: {en: sop, provenance: analysis}
+  ＷＫ: {en: wk, provenance: analysis}
+  WK: {en: wk, provenance: analysis}
+  ＢＫ: {en: bk, provenance: analysis}
+  Ⅰ: {en: "1", provenance: analysis}
+  Ⅱ: {en: "2", provenance: analysis}
+  ｶｳﾝﾄ: {en: count, provenance: analysis}
+  最大: {en: max, provenance: analysis}
+
+  # --- terms the first coverage measurement showed were missing -----------------
+  # Every one of these was named by a name that came out partial. Added rather than
+  # left, because a partial name is a name a person has to finish by hand.
+  の: {en: "", provenance: analysis, note: "genitive particle - carries no word"}
+  マーク: {en: mark, provenance: analysis}
+  桁: {en: digit, provenance: analysis}
+  各種: {en: various, provenance: analysis}
+  当日: {en: same_day, provenance: analysis}
+  翌日: {en: next_day, provenance: analysis}
+  新: {en: new, provenance: analysis}
+  現: {en: current, provenance: analysis}
+  旧: {en: previous, provenance: analysis}
+  品: {en: goods, provenance: analysis}
+  C品: {en: c_goods, provenance: analysis}
+  ネギ: {en: negi, provenance: analysis}
+  リブフィンガー: {en: rib_finger, provenance: analysis}
+  バックアップ: {en: backup, provenance: analysis}
+  貼り付け: {en: paste, provenance: analysis}
+  エラー: {en: error, provenance: analysis}
+  数: {en: count, provenance: analysis}
+
+# Terms deliberately absent, so a gap is a decision rather than an oversight.
+not_translated:
+  - reason: >-
+      A name that is only a single kana or symbol carries no term. Composition leaves
+      it as-is and marks the name partial, because guessing at it would be worse than
+      saying it is unresolved.

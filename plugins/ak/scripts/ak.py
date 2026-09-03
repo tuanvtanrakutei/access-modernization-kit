@@ -132,6 +132,13 @@ def parse_args() -> argparse.Namespace:
     clean.add_argument("--delete", action="store_true", help="Actually remove; without it the command only reports.")
     clean.add_argument("--json", action="store_true")
 
+    glossary = commands.add_parser(
+        "glossary",
+        help="Propose an English name for every production name, for a person to accept.",
+    )
+    glossary.add_argument("--app-root", required=True)
+    glossary.add_argument("--dry-run", action="store_true")
+
     catalogues = commands.add_parser(
         "catalogues",
         help="Generate the exhaustive per-entity catalogues from the acquisition bundle.",
@@ -370,6 +377,12 @@ def main() -> int:
         if args.json:
             conformance_args.append("--json")
         return run("validate_phase_conformance.py", *conformance_args)
+    if args.command == "glossary":
+        glossary_args = ["--app-root", args.app_root]
+        if args.dry_run:
+            glossary_args.append("--dry-run")
+        return run("build_glossary.py", *glossary_args)
+
     if args.command == "catalogues":
         catalogue_args = ["--app-root", args.app_root]
         if args.app_id:

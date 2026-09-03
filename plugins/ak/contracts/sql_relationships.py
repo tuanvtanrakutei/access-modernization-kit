@@ -205,3 +205,89 @@ def is_work_table(name: str) -> bool:
     "by naming convention" wherever it uses this.
     """
     return name.startswith(("WK", "W", "ＷＫ", "ＢＫ", "BK", "tmp", "TMP", "Temp"))
+
+
+
+# --- who writes each table --------------------------------------------------
+#
+# The catalogue's "business role" column needs a document and cannot be filled from a
+# name: rule EC-03 says a name is not a meaning, so classifying `商品マスタ` as master
+# data because it ends in `マスタ` is exactly what the kit forbids.
+#
+# What *is* evidence is who writes the table. A table nothing writes behaves as
+# reference data; a table deleted and refilled by the form that prints a report is
+# scratch - which is how the A05 `WK*` tables turn out to be used, confirming an
+# assumption Phase 1 could only state. That is a USAGE claim from CODE, and it lets a
+# reader classify without the analysis pretending to know meaning.
+#
+# The limit is stated rather than smoothed over: 129 of 152 `OpenRecordset` calls in
+# A05 take a built string, so a write through one of those cannot be attributed to a
+# named table without dataflow analysis. "No writer attributable" is therefore never
+# reported as "never written".
+
+WRITE_STATEMENT = re.compile(
+    r"(UPDATE|INSERT\s+INTO|DELETE\s+(?:\*\s+)?FROM|SELECT\b[^\"';]{0,200}?\bINTO)\s+"
+    # `:` is excluded because VBA separates statements with it, so `FROM WK集計: rs...`
+    # would otherwise capture the colon as part of the table name and the write would
+    # be silently attributed to nothing.
+    r"(\[[^\]]+\]|[^\s,;:()\"']+)",
+    re.IGNORECASE,
+)
+TRANSFER_CALL = re.compile(
+    r"DoCmd\.Transfer(?:Database|Text|Spreadsheet)[^\r\n]{0,240}", re.IGNORECASE
+)
+RECORDSET_LITERAL = re.compile(r"OpenRecordset\s*\(\s*\"([^\"]+)\"", re.IGNORECASE)
+RECORDSET_BUILT = re.compile(r"OpenRecordset\s*\(\s*[A-Za-z_]", re.IGNORECASE)
+RECORDSET_WRITE = re.compile(r"\.(AddNew|Edit|Delete)\b", re.IGNORECASE)
+
+
+@dataclass
+class WriteProfile:
+    """Every writer of one table that could be attributed, and how."""
+
+    writers: dict[str, set[str]]
+    built_string_opens: int
+    statements_naming_a_non_table: int
+
+    def of(self, table: str) -> list[str]:
+        return sorted(self.writers.get(table, ()))
+
+    def summary(self, table: str) -> str:
+        """One cell. Says "not attributable" rather than "never written"."""
+        who = self.of(table)
+        if not who:
+            return "no writer attributable"
+        verbs = sorted({w.rsplit("(", 1)[-1].rstrip(")") for w in who if "(" in w})
+        return f"{len(who)} writer(s): {', '.join(verbs)}"
+
+
+def write_profile(sources: dict[str, str], table_names: set[str]) -> WriteProfile:
+    """Read every source for a statement or call that writes a named table.
+
+    `sources` maps a label a reader recognises - `query X`, `form Y`, `module Z` - to
+    its text. Query SQL and VBA are both read, because in this application family
+    every write performed in normal operation is in VBA rather than in a saved query.
+    """
+    writers: dict[str, set[str]] = defaultdict(set)
+    built = 0
+    orphan = 0
+    for label, text in sources.items():
+        if not text:
+            continue
+        built += len(RECORDSET_BUILT.findall(text))
+        for verb, target in WRITE_STATEMENT.findall(text):
+            name = unbracket(target)
+            if name in table_names:
+                writers[name].add(f"{label} ({verb.split()[0].upper()})")
+            else:
+                orphan += 1
+        for call in TRANSFER_CALL.findall(text):
+            for name in table_names:
+                if '"' + name + '"' in call:
+                    writers[name].add(f"{label} (TRANSFER)")
+        opens_and_writes = RECORDSET_WRITE.search(text) is not None
+        for name in RECORDSET_LITERAL.findall(text):
+            cleaned = unbracket(name)
+            if cleaned in table_names and opens_and_writes:
+                writers[cleaned].add(f"{label} (RECORDSET)")
+    return WriteProfile(dict(writers), built, orphan)

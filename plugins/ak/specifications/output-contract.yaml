@@ -38,6 +38,48 @@ required_catalogues:
     covers: "every saved query with the statement read from its own SQL, every module, every boundary file"
     phase: 3
 
+# Bilingual naming. Every production name is published unchanged and stays
+# authoritative; an English name is printed beside it for the people who have to write
+# the replacement and cannot type `雑貨Ⅱアイテム別確認表フッタ` into a migration script.
+#
+# It is composed from `specifications/ja-en-terms.yaml`, and provenance is per term:
+# a term already decided in the A01 conversion table is precedent binding on later
+# projects, because if A05 spells `商品コード` differently from A01 the two systems
+# cannot be integrated later without a mapping nobody wrote down. Everything else is
+# a proposal, marked with a `?`, until a person accepts it in the decisions file.
+#
+# 328 A05 column names collapse to 137 once a trailing index is stripped and 118 table
+# names to 105, so ~200 terms compose 100% of both. Coverage below 1.0 renders as
+# `partial` rather than as a finished name.
+bilingual_naming:
+  term_dictionary: "specifications/ja-en-terms.yaml"
+  decisions_file: "input/decisions/glossary.yaml"
+  rule: >-
+    A production name is never replaced or translated in place. The English name is
+    additive, is marked `?` until accepted, and an accepted name always wins over a
+    composed one.
+
+# Derived columns that answer a question a name cannot. Rule EC-03 forbids reading a
+# name as a meaning, so `商品マスタ` ending in `マスタ` does not establish that it holds
+# master data - but who writes a table is USAGE evidence from CODE, and it lets a
+# reader classify without the analysis pretending to know. `business_role` stays empty
+# and needs a document; these two do not.
+derived_columns:
+  - name: write_profile
+    claim_kind: USAGE
+    from: "saved query SQL, and the VBA of every module, form and report"
+    limit: >-
+      A write performed through a recordset opened on a built string cannot be
+      attributed to a named table without dataflow analysis, so the cell reads
+      "no writer attributable" and never "never written".
+  - name: target_type_proposal
+    claim_kind: PROPOSAL
+    from: "specifications/dao-field-types.yaml"
+    limit: >-
+      A proposal, never a decision. A text size is in characters: the source stores
+      CP932 at up to 2 bytes per full-width character and a UTF-8 target needs up to
+      3, so the byte width the target column must have is stated alongside.
+
 # The machine-readable registers live in `output/registers/`. A reader opening output/
 # should meet documents; these four are for tools, and a checker looks in both places.
 registers_subdirectory: "registers"

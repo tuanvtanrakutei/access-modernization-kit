@@ -43,6 +43,7 @@ from typing import Any
 PACKAGE = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(PACKAGE / "contracts"))
 
+import bilingual as bilingual_contract  # noqa: E402
 import sql_relationships as sql_contract  # noqa: E402
 import workspace as workspace_contract  # noqa: E402
 
@@ -155,6 +156,56 @@ def analyse_sql(bundle: Path, facts_dir: Path) -> Any:
     return sql_contract.analyse(sql_sources(bundle, facts_dir), tables, queries)
 
 
+def code_sources(space: Any, bundle: Path, facts_dir: Path) -> dict[str, str]:
+    """Every text a write could be hiding in: query SQL, and the VBA of each object.
+
+    Screen record sources are not enough here. In this application family every write
+    performed in normal operation is in VBA - the four saved queries that write are
+    manual leftovers - so the module, form and report definition text is where the
+    writers are.
+    """
+    sources = dict(sql_sources(bundle, facts_dir))
+    staging = space.staging_root()
+    if staging.is_dir():
+        for kind, label in (("vba", "module"), ("forms", "form"), ("reports", "report"),
+                            ("macros", "macro")):
+            for path in sorted(staging.glob(f"*/*/{kind}/*.txt")):
+                sources[f"{label} {path.stem}"] = read_bundle_text(path)
+    return sources
+
+
+class Naming:
+    """Renders every production name with its English proposal beside it."""
+
+    def __init__(self, package: Path, glossary: Path) -> None:
+        self.terms = bilingual_contract.load_terms(package)
+        self.accepted = bilingual_contract.load_accepted(glossary)
+        self._cache: dict[str, Any] = {}
+
+    def of(self, name: str) -> Any:
+        if name not in self._cache:
+            self._cache[name] = bilingual_contract.compose(
+                name, self.terms, self.accepted)
+        return self._cache[name]
+
+    def render(self, name: str) -> str:
+        """`商品コード (product_cd?)` - the `?` marks a proposal nobody has accepted."""
+        return self.of(name).bilingual()
+
+    def english(self, name: str) -> str:
+        rendered = self.of(name)
+        if not rendered.english:
+            return "_no term matched_"
+        marker = "" if rendered.accepted else "?"
+        partial = "" if rendered.is_complete else " partial"
+        return f"`{rendered.english}{marker}`{partial}"
+
+    def stats(self) -> dict[str, int]:
+        complete = sum(1 for r in self._cache.values() if r.is_complete)
+        accepted = sum(1 for r in self._cache.values() if r.accepted)
+        return {"names": len(self._cache), "complete": complete, "accepted": accepted}
+
+
 def load_types() -> dict[int, dict[str, str]]:
     import yaml
 
@@ -198,8 +249,35 @@ def declared_type(field: dict, types: dict[int, dict[str, str]]) -> tuple[str, s
     return name, entry.get("dao_constant", "")
 
 
+def target_proposal(field: dict, types: dict[int, dict[str, str]]) -> str:
+    """A proposed target type, marked as a proposal, with the byte trap called out.
+
+    A `Short Text` size is a maximum in **characters**, and the two ends of a
+    migration count bytes differently: the source stores CP932, at most 2 bytes per
+    full-width character, while a UTF-8 target needs 3 for the same character (4 for
+    some). So a column declared `Short Text(10)` holds ten Japanese characters, which
+    occupy up to 20 bytes where they are and need up to 30 where they are going.
+
+    A target column sized in bytes at 10 truncates real data. That is the one
+    mechanical mistake this column exists to prevent; choosing the type remains a
+    person's decision, which is why every value here carries a `?`.
+    """
+    entry = types.get(field.get("type")) if isinstance(field.get("type"), int) else None
+    if entry is None:
+        return NEEDS_DECISION
+    hint = str(entry.get("target_hint", "")).strip()
+    if not hint:
+        return NEEDS_DECISION
+    size = field.get("size")
+    if "size" in hint and size:
+        hint = hint.replace("size", str(size))
+        if entry.get("dao_constant") in ("dbText", "dbChar"):
+            return f"{hint}? **needs {int(size) * 3}B in UTF-8**"
+    return f"{hint}?"
+
+
 def data_catalogue(app_id: str, bundle: Path, types: dict[int, dict[str, str]],
-                   sql: Any) -> str:
+                   sql: Any, naming: Any, writes: Any) -> str:
     tables = rows_of(read_json(bundle / "databases" / "tables.json"))
     fields = rows_of(read_json(bundle / "databases" / "fields.json"))
     indexes = rows_of(read_json(bundle / "databases" / "indexes.json"))
@@ -242,7 +320,18 @@ def data_catalogue(app_id: str, bundle: Path, types: dict[int, dict[str, str]],
         "| Marker | Means |",
         "|---|---|",
         f"| {NEEDS_DOC} | No document was supplied. A schema cannot state a business "
-        "role or an English name; rule EC-01. |",
+        "role; rule EC-01. |",
+        "| `name?` | An **English proposal**, composed from "
+        "`specifications/ja-en-terms.yaml`. A term decided in the A01 conversion table "
+        "is precedent; one this analysis proposed is a suggestion. The `?` stays until "
+        "a person accepts it in `input/decisions/glossary.yaml`, and an accepted name "
+        "renders without it. |",
+        "| `name? partial` | Only part of the Japanese matched a known term. Finish it "
+        "by hand, or add the missing term to the dictionary. |",
+        "| `type?` | A **proposed** target type from the DAO type spec, not a decision. "
+        "A text size is in characters: the source stores CP932 at up to 2 bytes per "
+        "full-width character and a UTF-8 target needs up to 3, so "
+        "`needs nB in UTF-8` is the byte width the target column must actually have. |",
         f"| {NEEDS_INTERVIEW} | Nobody could be asked. |",
         f"| {NEEDS_DECISION} | A person's design choice, not an analysis result. In the "
         "reference set the target types are a separate document with an author. |",
@@ -256,9 +345,9 @@ def data_catalogue(app_id: str, bundle: Path, types: dict[int, dict[str, str]],
         "",
         f"{len(tables)} table objects.",
         "",
-        "| No. | Table (production name) | English name | Database | Linked | Columns | "
-        "Primary key | Business role |",
-        "|---:|---|---|---|---|---:|---|---|",
+        "| No. | Table (production name) | English (proposed) | Database | Linked | "
+        "Columns | Primary key | Written by | Business role |",
+        "|---:|---|---|---|---|---:|---|---|---|",
     ]
     for number, table in enumerate(sorted(tables, key=lambda t: (t.get("database_id", ""),
                                                                  t.get("name", ""))), 1):
@@ -268,10 +357,10 @@ def data_catalogue(app_id: str, bundle: Path, types: dict[int, dict[str, str]],
         is_linked = bool(metadata.get("linked")) or key in linked_by_name
         primary = key_fields[key]["primary"]
         out.append(
-            f"| {number} | `{escape(name)}` | {NEEDS_DOC} | {escape(database)} | "
-            f"{'yes' if is_linked else '—'} | {len(by_table[key])} | "
+            f"| {number} | `{escape(name)}` | {naming.english(name)} | "
+            f"{escape(database)} | {'yes' if is_linked else '—'} | {len(by_table[key])} | "
             f"{'`' + '`, `'.join(escape(p) for p in primary) + '`' if primary else '**none**'} | "
-            f"{NEEDS_DOC} |"
+            f"{escape(writes.summary(name))} | {NEEDS_DOC} |"
         )
 
     without_key = [t for t in tables
@@ -405,7 +494,7 @@ def data_catalogue(app_id: str, bundle: Path, types: dict[int, dict[str, str]],
             out += ["", "_No column detail in the bundle for this object._", ""]
             continue
         out += ["",
-                "| No. | Column (production name) | English name | Type (current) | "
+                "| No. | Column (production name) | English (proposed) | Type (current) | "
                 "Target type | PK | FK | Required | Business meaning |",
                 "|---:|---|---|---|---|---|---|---|---|"]
         primary = set(key_fields[key]["primary"])
@@ -413,14 +502,65 @@ def data_catalogue(app_id: str, bundle: Path, types: dict[int, dict[str, str]],
             column = field.get("name", "")
             type_text, _ = declared_type(field, types)
             out.append(
-                f"| {number} | `{escape(column)}` | {NEEDS_DOC} | {escape(type_text)} | "
-                f"{NEEDS_DECISION} | {'PK' if column in primary else '—'} | — | "
+                f"| {number} | `{escape(column)}` | {naming.english(column)} | "
+                f"{escape(type_text)} | {target_proposal(field, types)} | "
+                f"{'PK' if column in primary else '—'} | — | "
                 f"{'yes' if field.get('required') else 'no'} | {NEEDS_DOC} |"
             )
         out.append("")
 
+    # A column name used in several tables with several declared types is the finding
+    # a catalogue exists to surface: it cannot be seen by reading one table, and it
+    # decides whether a single target type is even possible.
+    shapes: dict[str, set[tuple[Any, Any]]] = defaultdict(set)
+    holders: dict[str, set[str]] = defaultdict(set)
+    for field in fields:
+        column = field.get("name", "")
+        shapes[column].add((field.get("type"), field.get("size")))
+        holders[column].add(field.get("table", ""))
+    inconsistent = {c: s for c, s in shapes.items() if len(s) > 1}
+
+    out += ["", "## 4. Columns whose declared type differs between tables", ""]
+    if not inconsistent:
+        out += ["Every column name carries one declared type everywhere it appears.", ""]
+    else:
+        out += [
+            f"**{len(inconsistent)} of {len(shapes)} column names are declared with "
+            "more than one type.**",
+            "",
+            "This cannot be seen by reading any single table, and it decides whether "
+            "one target type is even possible. Where two of these are joined, the "
+            "database is coercing on every comparison; where a migration picks one "
+            "type, the other side stops fitting.",
+            "",
+            "| Column | Declared as | In tables |",
+            "|---|---|---:|",
+        ]
+        def described(shape: tuple[Any, Any]) -> str:
+            code, size = shape
+            entry = types.get(code) if isinstance(code, int) else None
+            if entry is None:
+                return f"_unknown DAO type {code}_"
+            label = str(entry.get("access_type", code))
+            if entry.get("dao_constant") in ("dbText", "dbChar") and size:
+                return f"{label}({size})"
+            return label
+
+        for column, shape_set in sorted(inconsistent.items(),
+                                        key=lambda kv: (-len(kv[1]), kv[0])):
+            rendered = ", ".join(sorted(described(s) for s in shape_set))
+            out.append(f"| `{escape(column)}` {naming.english(column)} | "
+                       f"{escape(rendered)} | {len(holders[column])} |")
+        worst = max(inconsistent.items(), key=lambda kv: len(kv[1]))
+        out += [
+            "",
+            f"The widest is `{escape(worst[0])}`, declared "
+            f"{len(worst[1])} different ways across {len(holders[worst[0]])} tables. "
+            "A key that is a number in one table and text in another is not one key.",
+        ]
+
     out += [
-        "## 4. What a target type needs before it can be chosen",
+        "## 5. What a target type needs before it can be chosen",
         "",
         "The `Target type` column is deliberately unfilled. Two of these decide "
         "correctness rather than style:",
@@ -439,7 +579,7 @@ def data_catalogue(app_id: str, bundle: Path, types: dict[int, dict[str, str]],
 
 
 def screen_catalogue(app_id: str, bundle: Path, facts_dir: Path,
-                     derived: dict | None) -> str:
+                     derived: dict | None, naming: Any) -> str:
     forms = rows_of(read_json(bundle / "ui" / "forms" / "inventory.json"))
     reports = rows_of(read_json(bundle / "ui" / "reports" / "inventory.json"))
     macros = rows_of(read_json(bundle / "ui" / "macros" / "inventory.json"))
@@ -487,7 +627,8 @@ def screen_catalogue(app_id: str, bundle: Path, facts_dir: Path,
             events = fact.get("event_procedures") or []
             controls = fact.get("embedded_controls") or []
             out.append(
-                f"| {number} | `{escape(name)}` | {escape(database)} | "
+                f"| {number} | `{escape(name)}` | {naming.english(name)} | "
+                f"{escape(database)} | "
                 f"{('`' + escape(source) + '`') if source else '**none declared**'} | "
                 f"{len(bound)} | {len(events)} | "
                 f"{('`' + '`, `'.join(escape(c) for c in controls) + '`') if controls else '—'} | "
@@ -565,7 +706,7 @@ def parse_fact(text: str) -> dict[str, Any] | None:
 
 
 def logic_catalogue(app_id: str, bundle: Path, derived: dict | None,
-                    sql: Any) -> str:
+                    sql: Any, naming: Any) -> str:
     queries = rows_of(read_json(bundle / "code" / "access-sql" / "inventory.json"))
     modules = rows_of(read_json(bundle / "code" / "vba" / "inventory.json"))
     interfaces = rows_of(read_json(bundle / "interfaces" / "file-interfaces.json"))
@@ -591,17 +732,17 @@ def logic_catalogue(app_id: str, bundle: Path, derived: dict | None,
         "",
         f"## Saved queries ({len(queries)})",
         "",
-        "| No. | Query (production name) | Database | Statement | Referenced by | "
-        "What it does |",
-        "|---:|---|---|---|---:|---|",
+        "| No. | Query (production name) | English (proposed) | Database | Statement | "
+        "Referenced by | What it does |",
+        "|---:|---|---|---|---|---:|---|",
     ]
     for number, query in enumerate(sorted(queries, key=lambda q: (q.get("database_id", ""),
                                                                   q.get("name", ""))), 1):
         database, name = query.get("database_id", ""), query.get("name", "")
         verb = verbs[(database, name)]
         out.append(
-            f"| {number} | `{escape(name)}` | {escape(database)} | "
-            f"{('**' + verb + '**') if verb in writes else verb} | "
+            f"| {number} | `{escape(name)}` | {naming.english(name)} | "
+            f"{escape(database)} | {('**' + verb + '**') if verb in writes else verb} | "
             f"{referenced.get((database, 'query', name), 0)} | {NEEDS_DOC} |"
         )
 
@@ -620,13 +761,14 @@ def logic_catalogue(app_id: str, bundle: Path, derived: dict | None,
         "",
         f"## VBA modules ({len(modules)})",
         "",
-        "| No. | Module | Database | Referenced by |",
-        "|---:|---|---|---:|",
+        "| No. | Module | English (proposed) | Database | Referenced by |",
+        "|---:|---|---|---|---:|",
     ]
     for number, module in enumerate(sorted(modules, key=lambda m: (m.get("database_id", ""),
                                                                    m.get("name", ""))), 1):
         database, name = module.get("database_id", ""), module.get("name", "")
-        out.append(f"| {number} | `{escape(name)}` | {escape(database)} | "
+        out.append(f"| {number} | `{escape(name)}` | {naming.english(name)} | "
+                   f"{escape(database)} | "
                    f"{referenced.get((database, 'module', name), 0)} |")
 
     out += ["", f"## SQL naming an object that does not exist ({len(sql.dangling)})", ""]
@@ -693,14 +835,22 @@ def main() -> int:
     app_id = args.app_id or read_app_id(space.root) or space.root.name
     derived = read_json(space.extracted("derived-extraction.json"))
     types = load_types()
-    sql = analyse_sql(bundle, space.extracted("ui-facts"))
+    facts_dir = space.extracted("ui-facts")
+    sql = analyse_sql(bundle, facts_dir)
+    naming = Naming(PACKAGE, space.input_dir("decisions") / "glossary.yaml")
+    table_names = {r.get("name", "") for r in rows_of(
+        read_json(bundle / "databases" / "tables.json"))}
+    writes = sql_contract.write_profile(
+        code_sources(space, bundle, facts_dir), table_names)
 
     written: list[str] = []
     catalogues = {
-        f"{app_id}_DataCatalogue.md": data_catalogue(app_id, bundle, types, sql),
+        f"{app_id}_DataCatalogue.md": data_catalogue(
+            app_id, bundle, types, sql, naming, writes),
         f"{app_id}_ScreenCatalogue.md": screen_catalogue(
-            app_id, bundle, space.extracted("ui-facts"), derived),
-        f"{app_id}_LogicCatalogue.md": logic_catalogue(app_id, bundle, derived, sql),
+            app_id, bundle, space.extracted("ui-facts"), derived, naming),
+        f"{app_id}_LogicCatalogue.md": logic_catalogue(
+            app_id, bundle, derived, sql, naming),
     }
     if args.dry_run:
         for name, text in catalogues.items():
