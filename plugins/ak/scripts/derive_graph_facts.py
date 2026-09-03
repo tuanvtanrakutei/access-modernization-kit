@@ -98,10 +98,18 @@ def latest_sessions(app_root: Path) -> list[tuple[str, Path]]:
 _FORBIDDEN_CHARS = set('<>:"/|?*' + chr(92)) | {chr(c) for c in range(32)}
 
 
-def fact_filename(database_id: str, name: str) -> str:
-    """`<database>-<object name>.md`, readable by the person who has to open it."""
+def fact_filename(database_id: str, name: str, kind: str = "") -> str:
+    """`<database>-<kind>-<object name>.md`, readable by the person who has to open it.
+
+    The kind is in the name because Access permits a form and a report to share one,
+    and this application does it four times - 酒アイテム別確認表, 青果アイテム別確認表,
+    雑貨Ⅱアイテム別確認表 and 冷凍品引渡表 each exist as both in the frontend. Keyed on
+    (database, name) alone, one silently overwrote the other and four objects' distilled
+    facts left the corpus without a word.
+    """
     cleaned = "".join("_" if ch in _FORBIDDEN_CHARS else ch for ch in name).rstrip(". ")
-    stem = f"{database_id}-{cleaned or 'object'}"
+    prefix = f"{database_id}-{kind}" if kind else database_id
+    stem = f"{prefix}-{cleaned or 'object'}"
     if cleaned == name and len(stem.encode("utf-8")) <= 180:
         return f"{stem}.md"
     digest = hashlib.sha1(f"{database_id}|{name}".encode("utf-8")).hexdigest()[:8]
@@ -168,8 +176,9 @@ def main() -> int:
     # longer match rather than to the substring.
     ordered_tables = sorted(table_names, key=len, reverse=True)
 
-    object_node: dict[tuple[str, str], str] = {}
-    texts: dict[tuple[str, str], tuple[Path, str, str]] = {}
+    object_node: dict[tuple[str, str, str], str] = {}
+    by_label: dict[tuple[str, str], list[str]] = {}
+    texts: dict[tuple[str, str, str], tuple[Path, str, str]] = {}
     for database, session in latest_sessions(app_root):
         # The extraction receipt maps each object's real name to the file it was written
         # to. Reading the name out of the definition text instead picks up the first
@@ -191,9 +200,14 @@ def main() -> int:
             path = session / Path(*paths[0].split("/"))
             if not path.is_file():
                 continue
-            key = (database, label)
+            # Keyed by kind as well as name: Access permits a form and a report to
+            # share one, and this application does it four times. Keyed on
+            # (database, name) alone the second silently replaced the first, and four
+            # objects left the derived corpus without a word about it.
+            key = (database, kind, label)
             identifier = node_id(f"{kind}_{database}".lower(), label)
             object_node[key] = identifier
+            by_label.setdefault((database, label), []).append(identifier)
             texts[key] = (path, kind, read_text(path))
             nodes.append({
                 "id": identifier, "label": label,
@@ -203,7 +217,7 @@ def main() -> int:
                 "author": None, "contributor": None,
             })
 
-    ordered_objects = sorted({label for _, label in object_node}, key=len, reverse=True)
+    ordered_objects = sorted({label for _, _, label in object_node}, key=len, reverse=True)
 
     def add_edge(source: str, target: str, relation: str, source_file: str, line: int) -> None:
         edges.append({
@@ -212,8 +226,8 @@ def main() -> int:
             "source_file": source_file, "source_location": f"line {line}", "weight": 1.0,
         })
 
-    for (database, label), (path, kind, text) in texts.items():
-        holder = object_node[(database, label)]
+    for (database, kind_key, label), (path, kind, text) in texts.items():
+        holder = object_node[(database, kind_key, label)]
         relative = os.path.relpath(path, app_root).replace(chr(92), "/")
         seen_tables: set[str] = set()
         seen_objects: set[str] = set()
@@ -225,12 +239,16 @@ def main() -> int:
             for other in ordered_objects:
                 if other == label or other in seen_objects or other not in line:
                     continue
-                target = object_node.get((database, other))
-                if target:
+                # A name shared by a form and a report is genuinely ambiguous in text:
+                # the line says the name and both objects bear it. Both edges are
+                # recorded rather than one guessed at.
+                targets = [t for t in by_label.get((database, other), []) if t != holder]
+                if targets:
                     seen_objects.add(other)
-                    add_edge(holder, target, "references", relative, line_no)
+                    for target in targets:
+                        add_edge(holder, target, "references", relative, line_no)
         if kind in {"form", "report"}:
-            facts[f"{database}::{label}"] = {"database_id": database, "name": label,
+            facts[f"{database}::{kind}::{label}"] = {"database_id": database, "name": label,
                                              **distil_object(text, kind)}
 
     payload = {
@@ -257,7 +275,7 @@ def main() -> int:
     for existing in facts_dir.glob("*.md"):
         existing.unlink()
     for key, fact in sorted(facts.items()):
-        safe = fact_filename(fact["database_id"], fact["name"])
+        safe = fact_filename(fact["database_id"], fact["name"], fact["kind"])
         lines = [
             f"# {fact['name']}",
             "",

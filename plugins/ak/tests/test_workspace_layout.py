@@ -326,3 +326,28 @@ def test_bundles_are_found_in_every_layout_this_kit_has_written(tmp_path: Path) 
 def test_the_input_root_is_where_an_operator_actually_puts_things(tmp_path: Path) -> None:
     assert _space(_new_layout(tmp_path)).input_root().name == "input"
     assert _space(_old_layout(tmp_path / "old")).input_root().name == "sources"
+
+
+# --- a form and a report may share a name -----------------------------------
+
+def test_a_form_and_a_report_sharing_a_name_are_two_objects() -> None:
+    """Access permits it, and the A05 frontend does it four times.
+
+    Keyed on (database, name) alone the second silently replaced the first. Five
+    objects never entered the derived corpus, and - worse - four of them were print
+    launchers whose `DoCmd.OpenReport` calls were therefore never counted. The
+    published reachability figure said 57 objects were referenced by nothing; the
+    real number was 37. A collapse in the analysis became a finding about the
+    application.
+    """
+    derive = _derive_module()
+    form = derive.fact_filename("FE", "酒アイテム別確認表", "form")
+    report = derive.fact_filename("FE", "酒アイテム別確認表", "report")
+    assert form != report
+    assert "form" in form and "report" in report
+
+
+def test_the_kind_is_optional_so_older_callers_still_work() -> None:
+    derive = _derive_module()
+    assert derive.fact_filename("FE", "x") == "FE-x.md"
+    assert derive.fact_filename("FE", "x", "form") == "FE-form-x.md"
