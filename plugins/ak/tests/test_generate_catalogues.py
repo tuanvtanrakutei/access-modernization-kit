@@ -276,3 +276,79 @@ def test_regenerating_is_byte_identical(workspace: Path) -> None:
     first = build(workspace)
     second = build(workspace)
     assert first == second
+
+
+# --- what the SQL fills in when the schema declares nothing ------------------
+
+
+def test_inferred_relationships_appear_when_none_are_declared(workspace: Path) -> None:
+    bundle = workspace / ".ak" / "bundles" / "bundle-abc"
+    io.open(bundle / "code" / "access-sql" / "aaa.txt", "w", encoding="utf-8").write(
+        "SELECT * FROM 受注データ INNER JOIN 商品情報 "
+        "ON 受注データ.伝票番号 = 商品情報.商品コード;")
+    data = build(workspace)["T01_DataCatalogue.md"]
+    assert "Relationships inferred from real joins" in data
+    assert "| 1 | INFERRED |" in data
+    assert "The SQL still knows" in data
+
+
+def test_a_candidate_key_is_offered_only_where_none_is_declared(
+    workspace: Path,
+) -> None:
+    bundle = workspace / ".ak" / "bundles" / "bundle-abc"
+    io.open(bundle / "code" / "access-sql" / "aaa.txt", "w", encoding="utf-8").write(
+        "SELECT * FROM 受注データ INNER JOIN 商品情報 "
+        "ON 受注データ.伝票番号 = 商品情報.商品コード;")
+    data = build(workspace)["T01_DataCatalogue.md"]
+    section = data.split("### 2.2")[1].split("## 3.")[0]
+    # 受注データ declares a primary key in the fixture, so it must not be suggested one.
+    assert "`商品情報`" in section
+    assert "`受注データ`" not in section
+
+
+def test_a_candidate_key_says_it_cannot_be_confirmed(workspace: Path) -> None:
+    """A join proves the column identifies a row, not that it does so uniquely."""
+    bundle = workspace / ".ak" / "bundles" / "bundle-abc"
+    io.open(bundle / "code" / "access-sql" / "aaa.txt", "w", encoding="utf-8").write(
+        "SELECT * FROM 受注データ JOIN 商品情報 ON 受注データ.伝票番号 = 商品情報.商品コード;")
+    data = build(workspace)["T01_DataCatalogue.md"]
+    assert "requires rows, which means SAMPLE_DATA" in data
+
+
+def test_sql_naming_a_nonexistent_object_is_reported(workspace: Path) -> None:
+    bundle = workspace / ".ak" / "bundles" / "bundle-abc"
+    io.open(bundle / "code" / "access-sql" / "aaa.txt", "w", encoding="utf-8").write(
+        "SELECT * FROM 元受注データC LEFT JOIN 元受注データI "
+        "ON 元受注データC.伝票番号 = 元受注データI.伝票番号;")
+    logic = build(workspace)["T01_LogicCatalogue.md"]
+    assert "SQL naming an object that does not exist" in logic
+    assert "`元受注データC`" in logic and "`元受注データI`" in logic
+    assert "cannot run" in logic
+
+
+def test_a_screen_record_source_is_checked_too(workspace: Path) -> None:
+    """The fixture's main menu binds to a table that is not in the inventory.
+
+    Which is the real A05 case: two screens bind to `集計分類マスタ`, and it
+    exists nowhere - so neither screen can open, and nothing said so.
+    """
+    logic = build(workspace)["T01_LogicCatalogue.md"]
+    assert "form メインメニュー" in logic
+    assert "`集計商品マスタ`" in logic
+    assert "cannot open" in logic
+
+
+def test_a_clean_application_says_so_rather_than_showing_an_empty_table(
+    workspace: Path,
+) -> None:
+    bundle = workspace / ".ak" / "bundles" / "bundle-abc"
+    tables = bundle / "databases" / "tables.json"
+    rows = json.loads(tables.read_text(encoding="utf-8"))
+    rows.append({"database_id": FE, "name": "集計商品マスタ",
+                 "kind": "table", "metadata": {}})
+    write(tables, rows)
+    io.open(bundle / "code" / "access-sql" / "ccc.txt", "w", encoding="utf-8").write(
+        "INSERT INTO 商品情報 SELECT * FROM 受注データ;")
+    logic = build(workspace)["T01_LogicCatalogue.md"]
+    assert "SQL naming an object that does not exist (0)" in logic
+    assert "Every table and query named in a saved query or a screen record "            "source exists" in logic

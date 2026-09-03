@@ -43,6 +43,7 @@ from typing import Any
 PACKAGE = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(PACKAGE / "contracts"))
 
+import sql_relationships as sql_contract  # noqa: E402
 import workspace as workspace_contract  # noqa: E402
 
 # What a cell says when the evidence class that would fill it was not supplied. One
@@ -117,6 +118,43 @@ def query_verb(bundle: Path, query: dict) -> str:
     return match.group(1).upper() if match else "_unrecognised_"
 
 
+def read_bundle_text(path: Path) -> str:
+    for encoding in ("utf-8-sig", "utf-8", "cp932"):
+        try:
+            return path.read_text(encoding=encoding)
+        except (UnicodeDecodeError, OSError):
+            continue
+    return ""
+
+
+def sql_sources(bundle: Path, facts_dir: Path) -> dict[str, str]:
+    """Every complete SQL statement the acquisition holds, labelled by where it is.
+
+    Saved queries and screen record sources. VBA is deliberately excluded: its SQL is
+    built by string concatenation, so a scan of it would report fragments as if they
+    were statements.
+    """
+    sources: dict[str, str] = {}
+    for query in rows_of(read_json(bundle / "code" / "access-sql" / "inventory.json")):
+        relative = query.get("path")
+        if relative:
+            sources[f"query {query.get('name', '')}"] = read_bundle_text(
+                bundle / "code" / "access-sql" / relative)
+    for path in sorted(facts_dir.glob("*.md")) if facts_dir.is_dir() else []:
+        fact = parse_fact(read_bundle_text(path))
+        if fact and fact.get("record_source"):
+            sources[f"{fact['kind']} {fact['name']}"] = str(fact["record_source"])
+    return sources
+
+
+def analyse_sql(bundle: Path, facts_dir: Path) -> Any:
+    tables = {r.get("name", "") for r in rows_of(
+        read_json(bundle / "databases" / "tables.json"))}
+    queries = {r.get("name", "") for r in rows_of(
+        read_json(bundle / "code" / "access-sql" / "inventory.json"))}
+    return sql_contract.analyse(sql_sources(bundle, facts_dir), tables, queries)
+
+
 def load_types() -> dict[int, dict[str, str]]:
     import yaml
 
@@ -160,7 +198,8 @@ def declared_type(field: dict, types: dict[int, dict[str, str]]) -> tuple[str, s
     return name, entry.get("dao_constant", "")
 
 
-def data_catalogue(app_id: str, bundle: Path, types: dict[int, dict[str, str]]) -> str:
+def data_catalogue(app_id: str, bundle: Path, types: dict[int, dict[str, str]],
+                   sql: Any) -> str:
     tables = rows_of(read_json(bundle / "databases" / "tables.json"))
     fields = rows_of(read_json(bundle / "databases" / "fields.json"))
     indexes = rows_of(read_json(bundle / "databases" / "indexes.json"))
@@ -259,14 +298,89 @@ def data_catalogue(app_id: str, bundle: Path, types: dict[int, dict[str, str]]) 
             "",
             "This is a finding about the application, not a gap in the extraction. "
             "Referential integrity is not enforced anywhere by the database engine, so "
-            "every join in this system is a convention held in a query or in VBA. A "
-            "migration that adds foreign keys will find rows that violate them, and "
-            "there is no declaration here to say which pairs of columns were ever meant "
-            "to match.",
+            "every join in this system is a convention held in a query or in VBA, and "
+            "a migration that adds foreign keys will find rows that violate them.",
             "",
-            "The `FK` column in section 3 is therefore blank for every column by "
-            "necessity. Nothing in the databases could fill it.",
+            "**The SQL still knows.** Section 2.1 reads the joins the application "
+            "actually performs. A declared constraint says what is permitted; a join "
+            "says what is done, which for a migration is the more useful of the two - "
+            "but it constrains nothing, so every row there is INFERRED.",
         ]
+
+    out += ["", "### 2.1 Relationships inferred from real joins", ""]
+    if not sql.relationships:
+        out += ["No `JOIN ... ON` clause resolved to a pair of tables.", ""]
+    else:
+        covered = sql.tables_in_a_join
+        out += [
+            f"{len(sql.relationships)} distinct column pairs, from "
+            f"{sql.sources_scanned} SQL statements - every saved query and every screen "
+            "record source. Confidence is the number of places that perform the join: a "
+            "pair joined in one place may be a mistake, a pair joined in five is how "
+            "the application works.",
+            "",
+            f"**Coverage: {len(covered)} of {len(tables)} table objects appear in a "
+            "join at all.** The rest are joined only in VBA, whose SQL is built by "
+            "string concatenation and cannot be read as statements, or are not joined. "
+            "Absence from this table is not evidence that a table stands alone.",
+            "",
+            "| Table | Column | Table | Column | Joined in | Status |",
+            "|---|---|---|---|---:|---|",
+        ]
+        for relationship in sql.relationships:
+            out.append(
+                f"| `{escape(relationship.left_table)}` | "
+                f"`{escape(relationship.left_column)}` | "
+                f"`{escape(relationship.right_table)}` | "
+                f"`{escape(relationship.right_column)}` | "
+                f"{relationship.occurrences} | INFERRED |"
+            )
+        if sql.unresolved_aliases:
+            out += [
+                "",
+                "**Names a join used that resolve to nothing:**",
+                "",
+                "| Name | Times | |",
+                "|---|---:|---|",
+            ]
+            for name, count in sql.unresolved_aliases.items():
+                note = ("an alias whose `FROM` this reader could not bind"
+                        if len(name) <= 3 else
+                        "**exists nowhere** - see the Logic Catalogue")
+                out.append(f"| `{escape(name)}` | {count} | {note} |")
+
+    out += ["", "### 2.2 Candidate keys, where none is declared", ""]
+    real_candidates = []
+    for table_object in tables:
+        database, name = table_object.get("database_id", ""), table_object.get("name", "")
+        if key_fields[(database, name)]["primary"]:
+            continue
+        columns = sql.candidate_keys.get(name)
+        if columns:
+            real_candidates.append((database, name, columns))
+    if not real_candidates:
+        out += ["No unkeyed table is joined on any column, so nothing can be "
+                "suggested here.", ""]
+    else:
+        out += [
+            f"{len(real_candidates)} table objects have no declared primary key but are "
+            "joined on a column, which is that column acting as a key in practice.",
+            "",
+            "**This cannot be confirmed from the evidence supplied.** Proving a column "
+            "is unique requires rows, which means SAMPLE_DATA. A join tells you the "
+            "column is used to identify a row; it does not tell you that it does so "
+            "uniquely.",
+            "",
+            "| Table | Database | Joined on | Times | Reads as |",
+            "|---|---|---|---:|---|",
+        ]
+        for database, name, columns in sorted(real_candidates):
+            column, count = columns[0]
+            reads = ("work table by naming convention - no key expected"
+                     if sql_contract.is_work_table(name) else
+                     "**a key is expected here and none is declared**")
+            out.append(f"| `{escape(name)}` | {escape(database)} | "
+                       f"`{escape(column)}` | {count} | {reads} |")
 
     out += ["", "## 3. Column detail", "",
             f"{len(fields)} columns across {len(by_table)} tables.", ""]
@@ -450,7 +564,8 @@ def parse_fact(text: str) -> dict[str, Any] | None:
     return parsed
 
 
-def logic_catalogue(app_id: str, bundle: Path, derived: dict | None) -> str:
+def logic_catalogue(app_id: str, bundle: Path, derived: dict | None,
+                    sql: Any) -> str:
     queries = rows_of(read_json(bundle / "code" / "access-sql" / "inventory.json"))
     modules = rows_of(read_json(bundle / "code" / "vba" / "inventory.json"))
     interfaces = rows_of(read_json(bundle / "interfaces" / "file-interfaces.json"))
@@ -514,6 +629,33 @@ def logic_catalogue(app_id: str, bundle: Path, derived: dict | None) -> str:
         out.append(f"| {number} | `{escape(name)}` | {escape(database)} | "
                    f"{referenced.get((database, 'module', name), 0)} |")
 
+    out += ["", f"## SQL naming an object that does not exist ({len(sql.dangling)})", ""]
+    if not sql.dangling:
+        out += ["Every table and query named in a saved query or a screen record "
+                "source exists.", ""]
+    else:
+        out += [
+            "Each statement below reads from or writes to a name that is **not a "
+            "table, not a saved query, and not created by the statement itself**. "
+            "A saved query in this state cannot run; a screen whose record source is "
+            "in this state cannot open.",
+            "",
+            "Checked against the full inventory of both databases, and against every "
+            "`SELECT INTO` and `CREATE TABLE` in the acquisition - so a work table "
+            "built at runtime is not reported here.",
+            "",
+            "| Statement | Names, which does not exist |",
+            "|---|---|",
+        ]
+        for label, absent in sql.dangling.items():
+            out.append(f"| {escape(label)} | "
+                       f"`{'`, `'.join(escape(a) for a in absent)}` |")
+        out += ["",
+                "This is the check that has no counterpart in the phase documents: a "
+                "name is only ever read in the context that uses it, so a reference to "
+                "something absent reads exactly like a reference to something present.",
+                ""]
+
     out += ["", f"## Files crossing the boundary ({len(linked) + len(interfaces)})", "",
             "Every declared inbound and outbound file. A format claim about any of "
             f"these needs one real sample ({NOT_EXTRACTED} means the declaration says "
@@ -551,13 +693,14 @@ def main() -> int:
     app_id = args.app_id or read_app_id(space.root) or space.root.name
     derived = read_json(space.extracted("derived-extraction.json"))
     types = load_types()
+    sql = analyse_sql(bundle, space.extracted("ui-facts"))
 
     written: list[str] = []
     catalogues = {
-        f"{app_id}_DataCatalogue.md": data_catalogue(app_id, bundle, types),
+        f"{app_id}_DataCatalogue.md": data_catalogue(app_id, bundle, types, sql),
         f"{app_id}_ScreenCatalogue.md": screen_catalogue(
             app_id, bundle, space.extracted("ui-facts"), derived),
-        f"{app_id}_LogicCatalogue.md": logic_catalogue(app_id, bundle, derived),
+        f"{app_id}_LogicCatalogue.md": logic_catalogue(app_id, bundle, derived, sql),
     }
     if args.dry_run:
         for name, text in catalogues.items():
