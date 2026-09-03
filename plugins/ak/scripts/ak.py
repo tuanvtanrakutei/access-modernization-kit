@@ -132,6 +132,14 @@ def parse_args() -> argparse.Namespace:
     clean.add_argument("--delete", action="store_true", help="Actually remove; without it the command only reports.")
     clean.add_argument("--json", action="store_true")
 
+    references = commands.add_parser(
+        "references",
+        help="List every source this analysis read, with the digest that says which copy.",
+    )
+    references.add_argument("--app-root", required=True)
+    references.add_argument("--app-id")
+    references.add_argument("--dry-run", action="store_true")
+
     bilingual = commands.add_parser(
         "bilingual",
         help="Print the English name beside every production name in the narratives.",
@@ -384,6 +392,14 @@ def main() -> int:
         if args.json:
             conformance_args.append("--json")
         return run("validate_phase_conformance.py", *conformance_args)
+    if args.command == "references":
+        reference_args = ["--app-root", args.app_root]
+        if args.app_id:
+            reference_args += ["--app-id", args.app_id]
+        if args.dry_run:
+            reference_args.append("--dry-run")
+        return run("build_references.py", *reference_args)
+
     if args.command == "bilingual":
         bilingual_args = ["--app-root", args.app_root]
         if args.dry_run:

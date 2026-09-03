@@ -49,12 +49,20 @@ TABULAR_SUFFIXES = {".csv", ".tsv"}
 DOCUMENT_SUFFIXES = {".pdf", ".xlsx", ".xls", ".docx", ".pptx"}
 IMAGE_SUFFIXES = {".png", ".jpg", ".jpeg", ".tif", ".tiff", ".bmp"}
 UNSUPPORTED_LEGACY = {".doc", ".ppt"}
+# Excluded by purpose, not by owner. `.ak` used to be in this list, and since the
+# 2.10.0 layout put everything the kit owns under `.ak/`, that excluded
+# `.ak/extracted/ui-facts` and `.ak/extracted/module-plan` - the distilled screen
+# facts that were deliberately added to the corpus so Phase 2 evidence reaches the
+# graph at all. Naming the purposes keeps the same exclusions without swallowing the
+# derived facts beside them.
 FORBIDDEN_PARTS = {
-    ".git", ".ak", "output", "runs", "outputs", "evidence", "decisions", "secrets", "credentials",
+    ".git", "output", "outputs", "evidence", "decisions", "secrets", "credentials",
+    # run state, which is the kit's bookkeeping and not evidence about the application
+    "runs",
     # acquisition output: staging receipts, the canonical bundle, and any bundle backup
-    # the operator keeps in the workspace. Normalization works from the component index and
-    # declared sources - never from a serialised bundle.
-    "acquired",
+    # the operator keeps in the workspace. Normalization works from the component index
+    # and declared sources - never from a serialised bundle.
+    "acquired", "staging", "bundles", "snapshots",
 }
 FORBIDDEN_NAMES = {".env", ".dsn"}
 NORMALIZER_VERSION = "2.6.2"
@@ -161,6 +169,36 @@ def component_paths(app_root: Path) -> list[str]:
     ]
 
 
+# A path recorded under the pre-2.10.0 layout, and where it lives now. The migration
+# rewrites cited paths this way; the component index is written once at extraction and
+# is not rewritten, so anything reading it has to do the same.
+_RELOCATIONS = (
+    ("acquired/snapshots/", ".ak/snapshots/"),
+    ("acquired/bundles/", ".ak/bundles/"),
+    ("acquired/bundle-", ".ak/bundles/bundle-"),
+    ("acquired/staging/", ".ak/staging/"),
+    ("extracted/", ".ak/extracted/"),
+    ("sources/reports-out/", "input/report-samples/"),
+    ("sources/", "input/"),
+    ("runs/", ".ak/runs/"),
+)
+
+# Derived inputs that may legitimately not exist yet, so their absence is not a gap.
+_OPTIONAL = ("component-index.json", "module-plan", "ui-facts")
+
+
+def _relocate(relative: str) -> str:
+    normalized = str(relative).replace("\\", "/")
+    for old, new in _RELOCATIONS:
+        if normalized.startswith(old):
+            return normalized.replace(old, new, 1)
+    return ""
+
+
+def _is_optional(relative: str) -> bool:
+    return any(name in str(relative).replace("\\", "/") for name in _OPTIONAL)
+
+
 def collect_sources(app_root: Path, manifest: dict) -> tuple[list[Path], list[Path], list[dict[str, str]], list[str]]:
     declared, access_declared = declared_paths(manifest)
     declared.extend(component_paths(app_root))
@@ -168,10 +206,27 @@ def collect_sources(app_root: Path, manifest: dict) -> tuple[list[Path], list[Pa
     # embedded controls, event procedures - derived from definition text this corpus
     # deliberately renounces. Without it no form or report evidence of any kind reached
     # the graph, and Phase 2 was asking the graph about screens it had never seen.
-    declared.extend([
-        "manifest.yaml", "extracted/component-index.json", "extracted/module-plan",
-        "extracted/ui-facts",
-    ])
+    space = _workspace(app_root)
+    declared.append("manifest.yaml")
+    declared.extend(
+        str(space.extracted(name).relative_to(app_root))
+        for name in ("component-index.json", "module-plan", "ui-facts")
+    )
+
+    # Everything a person put into an input directory. This is the whole reason those
+    # directories exist, and until now nothing read them: the corpus was built from
+    # manifest-declared artifacts and the component index only, so a document dropped
+    # into `input/documents/` - which is exactly where the evidence request tells an
+    # operator to put one - never reached the corpus, and Phase 5 stayed BLOCKED with
+    # the document sitting in the workspace.
+    #
+    # Person-supplied evidence is declared by being there. Asking an operator to also
+    # list it in the manifest would be asking them to do the kit's bookkeeping.
+    for name in ("documents", "screenshots", "samples", "report-samples",
+                 "interviews", "shared-docs"):
+        directory = space.input_dir(name)
+        if directory.is_dir():
+            declared.append(str(directory.relative_to(app_root)))
     files: set[Path] = set()
     excluded_access: set[Path] = set()
     gaps: list[dict[str, str]] = []
@@ -187,8 +242,21 @@ def collect_sources(app_root: Path, manifest: dict) -> tuple[list[Path], list[Pa
             files.add(candidate)
         elif candidate.is_dir():
             files.update(path for path in candidate.rglob("*") if path.is_file())
-        elif relative not in {"extracted/component-index.json", "extracted/module-plan", "extracted/ui-facts"}:
-            gaps.append({"source_path": relative, "status": "MISSING", "detail": "Declared source does not exist"})
+        else:
+            # The component index records paths relative to the layout in force when it
+            # was written, so a workspace migrated to `input/` + `.ak/` carries an index
+            # full of `acquired/…` and `extracted/…`. Those resolve after the same
+            # rewrite the migration applies to cited paths; a path that still does not
+            # resolve is a real gap.
+            moved = _relocate(relative)
+            candidate = (app_root / moved).resolve() if moved else None
+            if candidate is not None and candidate.is_file():
+                files.add(candidate)
+            elif candidate is not None and candidate.is_dir():
+                files.update(path for path in candidate.rglob("*") if path.is_file())
+            elif not _is_optional(relative):
+                gaps.append({"source_path": relative, "status": "MISSING",
+                             "detail": "Declared source does not exist"})
 
     for relative in access_declared:
         candidate = (app_root / relative).resolve()
