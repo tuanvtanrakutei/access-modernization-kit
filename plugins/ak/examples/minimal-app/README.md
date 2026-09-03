@@ -6,9 +6,9 @@ evidence.
 
 The fixture declares three artifacts:
 
-- `sources/vba/DemoOrderForm.bas` — one exported VBA form module.
-- `sources/sql/demo_orders.sql` — one SQL Server table definition.
-- `sources/sql/catalog.json` — the same table represented in the SQL Server catalog contract;
+- `input/vba/DemoOrderForm.bas` — one exported VBA form module.
+- `input/sql/demo_orders.sql` — one SQL Server table definition.
+- `input/sql/catalog.json` — the same table represented in the SQL Server catalog contract;
   it adds no object or behavior absent from the DDL.
 
 From the repository root, copy this directory to a throwaway location before running it, then:

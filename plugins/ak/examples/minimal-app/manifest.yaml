@@ -19,7 +19,7 @@ artifacts:
     required: true
     source_ref:
       type: "workspace_path"
-      value: "sources/vba/DemoOrderForm.bas"
+      value: "input/vba/DemoOrderForm.bas"
   - id: "DEMO_SQL_SCHEMA"
     kind: "sql_server_schema"
     role: "backend"
@@ -29,7 +29,7 @@ artifacts:
     required: true
     source_ref:
       type: "workspace_path"
-      value: "sources/sql/demo_orders.sql"
+      value: "input/sql/demo_orders.sql"
   - id: "DEMO_SQL_CATALOG"
     kind: "sql_server_catalog"
     role: "backend"
@@ -39,7 +39,7 @@ artifacts:
     required: true
     source_ref:
       type: "workspace_path"
-      value: "sources/sql/catalog.json"
+      value: "input/sql/catalog.json"
 scope:
   legacy_only: true
   current_implementation: "excluded"

@@ -49,8 +49,8 @@ REQUIRED_FILES = (
     "fixtures/collaboration/two-contributor/contract-fixture/work-package.json", "fixtures/collaboration/two-contributor/contract-fixture/contract-impact.json",
     "fixtures/collaboration/two-contributor/run/candidate-tasks/WP_SYN_SQL.json", "fixtures/collaboration/two-contributor/run/candidate-tasks/WP_SYN_UI.json",
     "tests/test_package_smoke.py", "examples/minimal-app/README.md", "examples/minimal-app/manifest.yaml",
-    "examples/minimal-app/.investigationignore", "examples/minimal-app/sources/vba/DemoOrderForm.bas",
-    "examples/minimal-app/sources/sql/demo_orders.sql", "examples/minimal-app/sources/sql/catalog.json",
+    "examples/minimal-app/.investigationignore", "examples/minimal-app/input/vba/DemoOrderForm.bas",
+    "examples/minimal-app/input/sql/demo_orders.sql", "examples/minimal-app/input/sql/catalog.json",
 )
 JSON_FILES = tuple(path for path in REQUIRED_FILES if path.endswith(".json"))
 REPOSITORY_FILES = (

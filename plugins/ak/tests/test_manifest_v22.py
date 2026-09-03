@@ -77,9 +77,9 @@ def test_minimal_app_is_classified_v22_acquisition_fixture() -> None:
         "DEMO_SQL_CATALOG",
     ]
     assert [artifact.source_ref.value for artifact in manifest.artifacts] == [
-        "sources/vba/DemoOrderForm.bas",
-        "sources/sql/demo_orders.sql",
-        "sources/sql/catalog.json",
+        "input/vba/DemoOrderForm.bas",
+        "input/sql/demo_orders.sql",
+        "input/sql/catalog.json",
     ]
     assert all(artifact.source_ref.type == "workspace_path" for artifact in manifest.artifacts)
 
