@@ -41,6 +41,28 @@ A finder as strict as the scheme makes a malformed identifier invisible rather t
 faulted, and it failed the reference set, whose Phase 3 writes `BR-M01`. The split -
 permissive finder, scheme as validator, in the apparatus group - is the resolution.
 
+### A14 - a narrative was the only deliverable, so enumeration had nowhere to live
+
+**Observed 2026-09-03, on a completeness review the user asked for.** Counted against
+the bundle, the published narratives named 20 of 118 tables, 4 of 328 distinct column
+names, 22 of 51 forms and 5 of 77 queries. Every aggregate count was correct; almost
+nothing counted was named.
+
+Not a writing failure. The contract declared six phase documents and nothing else, and
+a narrative carrying 1,055 columns stops being one. The reference set solves it with a
+separate catalogue - `A01_Table_Definitions.md`, 83 KB - which is why its Phase 1
+narrative is the shortest of its six.
+
+Closed by `$ak catalogues`: three generated catalogues declared in the output contract,
+enumeration at 100%, and unfillable columns present and marked so a missing input costs
+one cell per row. Generating the first one found `E-07` (37 unreferenced objects
+published, 26 actual) and `E-08` within minutes.
+
+**What stays open** is the same as A13: nothing checks that a narrative's aggregate
+figure agrees with the catalogue's count of the same thing. `E-07` was a published
+figure contradicting a derivable one, and only a person comparing them noticed. A check
+that reconciles the two is writable and is not written.
+
 ### A13a - the same shape again, in the register instead of the checker
 
 **Observed 2026-09-03, migrating the A05 workspace to the current layout.** The move

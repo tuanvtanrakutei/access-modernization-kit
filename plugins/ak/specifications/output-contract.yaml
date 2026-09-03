@@ -1,4 +1,4 @@
-version: "2.9"
+version: "2.10"
 language_token: "{LANG}"
 app_token: "{APP_ID}"
 
@@ -9,6 +9,38 @@ required_phase_outputs:
   - "{APP_ID}_Phase4_WorkflowReconstruction_{LANG}.md"
   - "{APP_ID}_Phase5_DocumentIntegration_{LANG}.md"
   - "{APP_ID}_Phase6_Synthesis_{LANG}.md"
+
+# Exhaustive enumeration, generated from the acquisition bundle by `$ak catalogues`.
+#
+# A phase document is a narrative and cannot carry 1,055 columns. Measured against the
+# bundle, the first A05 run's narratives named 20 of 118 tables, 4 of 328 distinct
+# column names and 5 of 77 queries - so the published set stated its counts correctly
+# and named almost none of what it counted. The reference set answers this with
+# `A01_Table_Definitions.md`, 83 KB and the second-largest file in that set, which is
+# also why its Phase 1 narrative is the shortest of the six.
+#
+# Generated, never written. Three wrong counts in one A05 session were all the same
+# mistake - a set counted by one key and then described from a subset - and a
+# hand-written 118-row table is that mistake with more chances to make it. Generating
+# the first screen catalogue immediately found a fourth (E-07: 37 unreferenced objects
+# published, 26 actual).
+#
+# Columns no supplied evidence can fill are present and marked, not omitted, so the
+# cost of a missing document reads once per row instead of once per document.
+required_catalogues:
+  - name: "{APP_ID}_DataCatalogue.md"
+    covers: "every table, every column, every index, and the declared relationships"
+    phase: 1
+  - name: "{APP_ID}_ScreenCatalogue.md"
+    covers: "every form and report, its record source, bound fields, events, and what references it"
+    phase: 2
+  - name: "{APP_ID}_LogicCatalogue.md"
+    covers: "every saved query with the statement read from its own SQL, every module, every boundary file"
+    phase: 3
+
+# The machine-readable registers live in `output/registers/`. A reader opening output/
+# should meet documents; these four are for tools, and a checker looks in both places.
+registers_subdirectory: "registers"
 
 required_control_outputs:
   - "{APP_ID}_Evidence.json"

@@ -263,7 +263,11 @@ def load_registers(outputs: Path) -> dict[str, Any]:
     registers: dict[str, Any] = {}
 
     def ids_from(pattern: str, key: str, field: str) -> None:
-        matches = sorted(outputs.glob(pattern))
+        # `registers/` as well as the top level: the registers moved down a level when
+        # the published set grew catalogues, and a checker that only looked at the top
+        # reported every register missing on a correctly published run.
+        matches = [m for where in (".", "registers")
+                   for m in sorted((outputs / where).glob(pattern))]
         if len(matches) != 1:
             return
         try:

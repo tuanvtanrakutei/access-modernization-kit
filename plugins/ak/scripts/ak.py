@@ -132,6 +132,16 @@ def parse_args() -> argparse.Namespace:
     clean.add_argument("--delete", action="store_true", help="Actually remove; without it the command only reports.")
     clean.add_argument("--json", action="store_true")
 
+    catalogues = commands.add_parser(
+        "catalogues",
+        help="Generate the exhaustive per-entity catalogues from the acquisition bundle.",
+    )
+    catalogues.add_argument("--app-root", required=True)
+    catalogues.add_argument("--app-id", help="Defaults to the manifest's app id.")
+    catalogues.add_argument(
+        "--dry-run", action="store_true", help="Report the sizes without writing.",
+    )
+
     migrate = commands.add_parser(
         "migrate-workspace",
         help="Move a workspace laid out before 2.10.0 into input/, output/ and .ak/.",
@@ -360,6 +370,14 @@ def main() -> int:
         if args.json:
             conformance_args.append("--json")
         return run("validate_phase_conformance.py", *conformance_args)
+    if args.command == "catalogues":
+        catalogue_args = ["--app-root", args.app_root]
+        if args.app_id:
+            catalogue_args += ["--app-id", args.app_id]
+        if args.dry_run:
+            catalogue_args.append("--dry-run")
+        return run("generate_catalogues.py", *catalogue_args)
+
     if args.command == "migrate-workspace":
         migrate_args = ["--workspace", args.workspace]
         if args.apply:

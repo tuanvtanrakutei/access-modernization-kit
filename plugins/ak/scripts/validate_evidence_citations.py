@@ -126,11 +126,20 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
+# The machine-readable registers moved into `registers/` when the published set grew
+# catalogues: a reader opening output/ should meet documents, not four JSON files they
+# will never open. Both locations are searched, so a run published either way resolves.
+REGISTER_DIRS = (".", "registers")
+
+
 def sole_match(outputs: Path, pattern: str, explicit: Path | None) -> Path | None:
     if explicit is not None:
         return explicit
-    matches = sorted(outputs.glob(pattern))
-    return matches[0] if len(matches) == 1 else None
+    for where in REGISTER_DIRS:
+        matches = sorted((outputs / where).glob(pattern))
+        if len(matches) == 1:
+            return matches[0]
+    return None
 
 
 def main() -> int:

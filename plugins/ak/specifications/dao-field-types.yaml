@@ -1,0 +1,173 @@
+# DAO field type codes, and what each one actually constrains.
+#
+# `databases/fields.json` records `type` as the DAO numeric constant, because that is
+# what DAO returns. Nothing in the kit translated it, so every field type ever
+# published was the integer - a data catalogue printing "10" for 421 of 1055 columns
+# tells a migration team nothing at all.
+#
+# Two things are deliberately separated here, because conflating them is how a
+# migration gets the target schema wrong:
+#
+#   access_type   what Access itself calls it, which is what an operator sees in the
+#                 designer and what a legacy screenshot or document will say.
+#   constraint    what the code actually guarantees about the value. This is the half
+#                 that has to survive a migration, and it is not always what the name
+#                 suggests: dbText's `size` is a maximum in *characters*, so a CP932
+#                 column of size 10 holds ten Japanese characters and up to twenty
+#                 bytes.
+#
+# `target_hint` is a hint and is labelled as one. Choosing the real target type is a
+# design decision a person makes - in the A01 reference set that decision is a
+# separate document with an author and a version, not an output of the analysis - so
+# a catalogue must leave the column for a human and never fill it from this table.
+version: 1
+
+types:
+  1:
+    dao_constant: dbBoolean
+    access_type: "Yes/No"
+    constraint: "Two states. Access stores no NULL here: an unset value reads False."
+    target_hint: boolean
+  2:
+    dao_constant: dbByte
+    access_type: "Number (Byte)"
+    constraint: "Integer 0-255. Overflows silently on assignment in VBA."
+    target_hint: smallint
+  3:
+    dao_constant: dbInteger
+    access_type: "Number (Integer)"
+    constraint: "Signed 16-bit, -32,768 to 32,767."
+    target_hint: smallint
+  4:
+    dao_constant: dbLong
+    access_type: "Number (Long Integer)"
+    constraint: >-
+      Signed 32-bit. An AutoNumber column is also dbLong and is distinguished only by
+      its field attributes, which this extraction does not carry - so a dbLong column
+      may or may not be generated, and the catalogue must not claim either.
+    target_hint: integer
+  5:
+    dao_constant: dbCurrency
+    access_type: "Currency"
+    constraint: >-
+      Scaled 64-bit integer, exactly four decimal places. Not a float: migrating it to
+      one loses the exactness that made it the right type.
+    target_hint: "numeric(19,4)"
+  6:
+    dao_constant: dbSingle
+    access_type: "Number (Single)"
+    constraint: "32-bit binary float. Not exact; unsuitable for money or counts."
+    target_hint: real
+  7:
+    dao_constant: dbDouble
+    access_type: "Number (Double)"
+    constraint: >-
+      64-bit binary float. Where one of these holds a quantity or an amount, that is
+      worth a question rather than a direct mapping.
+    target_hint: "double precision"
+  8:
+    dao_constant: dbDate
+    access_type: "Date/Time"
+    constraint: >-
+      A double counting days from 1899-12-30, so date and time are one value and there
+      is no timezone and no date-only variant. A column used as a date still carries a
+      time component, which is why a date comparison in this family of application is
+      so often written against a formatted string instead.
+    target_hint: timestamp
+  9:
+    dao_constant: dbBinary
+    access_type: "Binary"
+    constraint: "Fixed-length bytes. Rare outside system tables."
+    target_hint: bytea
+  10:
+    dao_constant: dbText
+    access_type: "Short Text"
+    constraint: >-
+      Variable-length text, `size` being the maximum in CHARACTERS, not bytes. Under
+      CP932 a size of 10 accepts ten Japanese characters occupying up to twenty bytes,
+      so a target column sized in bytes must be widened or it will truncate real data.
+    target_hint: "varchar(size)"
+  11:
+    dao_constant: dbLongBinary
+    access_type: "OLE Object"
+    constraint: "Arbitrary bytes, often an embedded document or image."
+    target_hint: bytea
+  12:
+    dao_constant: dbMemo
+    access_type: "Long Text"
+    constraint: "Text with no declared maximum. `size` is meaningless."
+    target_hint: text
+  15:
+    dao_constant: dbGUID
+    access_type: "Replication ID"
+    constraint: "16-byte GUID."
+    target_hint: uuid
+  16:
+    dao_constant: dbBigInt
+    access_type: "Number (Large Number)"
+    constraint: "Signed 64-bit. Only in ACCDB from Access 2016."
+    target_hint: bigint
+  17:
+    dao_constant: dbVarBinary
+    access_type: "Binary (variable)"
+    constraint: "Variable-length bytes."
+    target_hint: bytea
+  18:
+    dao_constant: dbChar
+    access_type: "Text (fixed)"
+    constraint: "Fixed-length text, space padded."
+    target_hint: "char(size)"
+  19:
+    dao_constant: dbNumeric
+    access_type: "Number (Decimal)"
+    constraint: "Exact decimal; precision and scale are not carried by this extraction."
+    target_hint: numeric
+  20:
+    dao_constant: dbDecimal
+    access_type: "Number (Decimal)"
+    constraint: "Exact decimal; precision and scale are not carried by this extraction."
+    target_hint: numeric
+  21:
+    dao_constant: dbFloat
+    access_type: "Number (Float)"
+    constraint: "Binary float."
+    target_hint: "double precision"
+  22:
+    dao_constant: dbTime
+    access_type: "Time"
+    constraint: "Time of day."
+    target_hint: time
+  23:
+    dao_constant: dbTimeStamp
+    access_type: "Timestamp"
+    constraint: "Date and time."
+    target_hint: timestamp
+  101:
+    dao_constant: dbAttachment
+    access_type: "Attachment"
+    constraint: "Multi-valued; a table of its own behind one column. ACCDB only."
+    target_hint: "separate table"
+  109:
+    dao_constant: dbComplexText
+    access_type: "Multi-valued Short Text"
+    constraint: "Multi-valued; a table of its own behind one column. ACCDB only."
+    target_hint: "separate table"
+
+# What the extraction does not carry, so no catalogue may state it. Named here rather
+# than left as silence, per rule EC-06: every gap gets a name.
+not_extracted:
+  - field: "AutoNumber / generated"
+    why: >-
+      Requires the field's DAO Attributes (dbAutoIncrField). The extractor reads name,
+      type, size and required only.
+  - field: "Default value"
+    why: "Requires Field.DefaultValue, not collected."
+  - field: "Validation rule"
+    why: "Requires Field.ValidationRule, not collected."
+  - field: "Decimal precision and scale"
+    why: "Requires Field.Precision and Field.Scale, meaningful only for dbNumeric/dbDecimal."
+  - field: "Foreign key"
+    why: >-
+      Requires a declared relationship. This is not a collection gap - the A05
+      databases declare zero relationships - so absence of an FK column in a catalogue
+      is a finding about the application, not about the extraction.

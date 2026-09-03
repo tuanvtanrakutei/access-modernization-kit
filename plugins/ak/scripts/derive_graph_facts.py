@@ -212,7 +212,14 @@ def main() -> int:
             nodes.append({
                 "id": identifier, "label": label,
                 "file_type": "code" if kind in {"query", "module", "macro"} else "document",
-                "source_file": os.path.relpath(path, app_root).replace(chr(92), "/"),
+                # `DATABASE_ID:path`, the same shape the table nodes use. It used to
+                # be the bare path here and `DATABASE_ID:schema/tables.json` there, so
+                # a consumer reading the database out of a node got it for tables and
+                # an empty string for every form, report, query and module - which is
+                # how the first screen catalogue reported all 118 objects as referenced
+                # by nothing, against the 37 Phase 2 had established.
+                "source_file": f"{database}:"
+                               + os.path.relpath(path, app_root).replace(chr(92), "/"),
                 "source_location": None, "source_url": None, "captured_at": None,
                 "author": None, "contributor": None,
             })
