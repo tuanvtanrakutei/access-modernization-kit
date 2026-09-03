@@ -132,6 +132,13 @@ def parse_args() -> argparse.Namespace:
     clean.add_argument("--delete", action="store_true", help="Actually remove; without it the command only reports.")
     clean.add_argument("--json", action="store_true")
 
+    bilingual = commands.add_parser(
+        "bilingual",
+        help="Print the English name beside every production name in the narratives.",
+    )
+    bilingual.add_argument("--app-root", required=True)
+    bilingual.add_argument("--dry-run", action="store_true")
+
     glossary = commands.add_parser(
         "glossary",
         help="Propose an English name for every production name, for a person to accept.",
@@ -377,6 +384,12 @@ def main() -> int:
         if args.json:
             conformance_args.append("--json")
         return run("validate_phase_conformance.py", *conformance_args)
+    if args.command == "bilingual":
+        bilingual_args = ["--app-root", args.app_root]
+        if args.dry_run:
+            bilingual_args.append("--dry-run")
+        return run("annotate_bilingual.py", *bilingual_args)
+
     if args.command == "glossary":
         glossary_args = ["--app-root", args.app_root]
         if args.dry_run:

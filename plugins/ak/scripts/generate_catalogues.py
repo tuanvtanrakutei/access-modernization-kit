@@ -44,6 +44,7 @@ PACKAGE = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(PACKAGE / "contracts"))
 
 import bilingual as bilingual_contract  # noqa: E402
+import meanings as meanings_contract  # noqa: E402
 import sql_relationships as sql_contract  # noqa: E402
 import workspace as workspace_contract  # noqa: E402
 
@@ -249,6 +250,20 @@ def declared_type(field: dict, types: dict[int, dict[str, str]]) -> tuple[str, s
     return name, entry.get("dao_constant", "")
 
 
+def table_meaning(meaning: Any, name: str) -> str:
+    """A recorded meaning, or the marker saying what would fill it."""
+    entry = meaning.table(name)
+    if entry is None:
+        return NEEDS_DOC
+    role = f"**{escape(entry.role)}** — " if entry.role else ""
+    return role + escape(entry.cite())
+
+
+def column_meaning(meaning: Any, table: str, column: str) -> str:
+    entry = meaning.column(table, column)
+    return escape(entry.cite()) if entry else NEEDS_DOC
+
+
 def target_proposal(field: dict, types: dict[int, dict[str, str]]) -> str:
     """A proposed target type, marked as a proposal, with the byte trap called out.
 
@@ -277,7 +292,7 @@ def target_proposal(field: dict, types: dict[int, dict[str, str]]) -> str:
 
 
 def data_catalogue(app_id: str, bundle: Path, types: dict[int, dict[str, str]],
-                   sql: Any, naming: Any, writes: Any) -> str:
+                   sql: Any, naming: Any, writes: Any, meaning: Any) -> str:
     tables = rows_of(read_json(bundle / "databases" / "tables.json"))
     fields = rows_of(read_json(bundle / "databases" / "fields.json"))
     indexes = rows_of(read_json(bundle / "databases" / "indexes.json"))
@@ -319,8 +334,11 @@ def data_catalogue(app_id: str, bundle: Path, types: dict[int, dict[str, str]],
         "",
         "| Marker | Means |",
         "|---|---|",
-        f"| {NEEDS_DOC} | No document was supplied. A schema cannot state a business "
-        "role; rule EC-01. |",
+        f"| {NEEDS_DOC} | Nobody with the standing to say it has said it yet. A "
+        "schema cannot state a business role and neither can more analysis; rule "
+        "EC-01. It fills when a document, an interview or an operator's declaration "
+        "arrives and is recorded in `input/decisions/meanings.yaml` — **an entry there "
+        "must name its source, or it is ignored**. |",
         "| `name?` | An **English proposal**, composed from "
         "`specifications/ja-en-terms.yaml`. A term decided in the A01 conversion table "
         "is precedent; one this analysis proposed is a suggestion. The `?` stays until "
@@ -360,7 +378,7 @@ def data_catalogue(app_id: str, bundle: Path, types: dict[int, dict[str, str]],
             f"| {number} | `{escape(name)}` | {naming.english(name)} | "
             f"{escape(database)} | {'yes' if is_linked else '—'} | {len(by_table[key])} | "
             f"{'`' + '`, `'.join(escape(p) for p in primary) + '`' if primary else '**none**'} | "
-            f"{escape(writes.summary(name))} | {NEEDS_DOC} |"
+            f"{escape(writes.summary(name))} | {table_meaning(meaning, name)} |"
         )
 
     without_key = [t for t in tables
@@ -505,7 +523,8 @@ def data_catalogue(app_id: str, bundle: Path, types: dict[int, dict[str, str]],
                 f"| {number} | `{escape(column)}` | {naming.english(column)} | "
                 f"{escape(type_text)} | {target_proposal(field, types)} | "
                 f"{'PK' if column in primary else '—'} | — | "
-                f"{'yes' if field.get('required') else 'no'} | {NEEDS_DOC} |"
+                f"{'yes' if field.get('required') else 'no'} | "
+                f"{column_meaning(meaning, name, column)} |"
             )
         out.append("")
 
@@ -878,11 +897,15 @@ def main() -> int:
         read_json(bundle / "databases" / "tables.json"))}
     writes = sql_contract.write_profile(
         code_sources(space, bundle, facts_dir), table_names)
+    meaning = meanings_contract.load(
+        space.input_dir("decisions") / "meanings.yaml")
+    for problem in meaning.incomplete:
+        print(f"meanings.yaml: ignored, {problem}")
 
     written: list[str] = []
     catalogues = {
         f"{app_id}_DataCatalogue.md": data_catalogue(
-            app_id, bundle, types, sql, naming, writes),
+            app_id, bundle, types, sql, naming, writes, meaning),
         f"{app_id}_ScreenCatalogue.md": screen_catalogue(
             app_id, bundle, space.extracted("ui-facts"), derived, naming),
         f"{app_id}_LogicCatalogue.md": logic_catalogue(
