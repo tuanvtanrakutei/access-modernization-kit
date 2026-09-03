@@ -132,6 +132,17 @@ def parse_args() -> argparse.Namespace:
     clean.add_argument("--delete", action="store_true", help="Actually remove; without it the command only reports.")
     clean.add_argument("--json", action="store_true")
 
+    migrate = commands.add_parser(
+        "migrate-workspace",
+        help="Move a workspace laid out before 2.10.0 into input/, output/ and .ak/.",
+    )
+    migrate.add_argument("--workspace", required=True)
+    migrate.add_argument(
+        "--apply", action="store_true",
+        help="Perform the move; without it the command only prints what it would do.",
+    )
+    migrate.add_argument("--json", action="store_true")
+
     install = commands.add_parser("install", help="Install the skill for a non-Codex runtime.")
     install.add_argument("--runtime", choices=("codex", "claude", "generic"), required=True)
     install.add_argument("--project", help="Claude project directory; required for --runtime claude.")
@@ -349,6 +360,14 @@ def main() -> int:
         if args.json:
             conformance_args.append("--json")
         return run("validate_phase_conformance.py", *conformance_args)
+    if args.command == "migrate-workspace":
+        migrate_args = ["--workspace", args.workspace]
+        if args.apply:
+            migrate_args.append("--apply")
+        if args.json:
+            migrate_args.append("--json")
+        return run("migrate_workspace.py", *migrate_args)
+
     if args.command == "clean":
         clean_args = ["--app-root", args.app_root]
         if args.delete:

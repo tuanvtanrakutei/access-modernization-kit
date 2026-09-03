@@ -71,6 +71,36 @@ def cited_in_matrix(path: Path) -> dict[str, list[str]]:
     return found
 
 
+def unresolvable_sources(items: list, workspace_root: Path) -> dict[str, str]:
+    """Evidence items whose cited `source_path` names nothing on disk.
+
+    An evidence item's value is that a reader can follow it back to the file. This
+    check exists because a workspace layout migration moved every acquired file and
+    left 66 of 67 items citing the old location; every other check still passed, and
+    would have gone on passing, because they all read the register against the
+    documents and never against the filesystem.
+
+    A path outside the workspace, or one naming something that is not a path at all
+    (`operator screenshot`), is not reported: the check is for citations that were
+    meant to resolve and no longer do.
+    """
+    broken: dict[str, str] = {}
+    for item in items:
+        if not isinstance(item, dict):
+            continue
+        cited = (item.get("source_path") or "").strip()
+        if not cited or " " in cited.rstrip("/") and "/" not in cited:
+            continue
+        candidate = (workspace_root / cited).resolve()
+        try:
+            candidate.relative_to(workspace_root)
+        except ValueError:
+            continue
+        if not candidate.exists():
+            broken[item.get("id", "?")] = cited
+    return broken
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     parser.add_argument(
@@ -84,6 +114,11 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--matrix", type=Path,
         help="traceability matrix; defaults to the single *TraceabilityMatrix.csv there",
+    )
+    parser.add_argument(
+        "--workspace", type=Path,
+        help="workspace root the cited source_path values are relative to; "
+             "defaults to two levels above --outputs, which is where output/ sits",
     )
     parser.add_argument(
         "--json", action="store_true", help="emit a machine-readable report",
@@ -128,6 +163,9 @@ def main() -> int:
         for identifier, where in source.items():
             everywhere.setdefault(identifier, []).extend(where)
 
+    workspace_root = (args.workspace or outputs.parent).resolve()
+    unresolvable = unresolvable_sources(items, workspace_root)
+
     dangling = {i: w for i, w in sorted(everywhere.items()) if i not in known}
     uncited = sorted(known - set(everywhere))
     by_phase: dict[str, dict[str, int]] = {}
@@ -147,7 +185,9 @@ def main() -> int:
         "dangling": dangling,
         "uncited": uncited,
         "by_phase": by_phase,
-        "status": "FAIL" if dangling else "PASS",
+        "workspace": str(workspace_root),
+        "unresolvable_sources": unresolvable,
+        "status": "FAIL" if dangling or unresolvable else "PASS",
     }
 
     if args.json:
@@ -163,8 +203,13 @@ def main() -> int:
             print(f"  DANGLING {identifier} <- {', '.join(sorted(set(where)))}")
         if uncited:
             print(f"  uncited (not an error): {len(uncited)} item(s)")
+        if unresolvable:
+            print(f"  {len(unresolvable)} item(s) cite a path that does not exist "
+                  f"under {workspace_root}:")
+            for identifier, cited in sorted(unresolvable.items())[:6]:
+                print(f"    {identifier} -> {cited}")
 
-    return 1 if dangling else 0
+    return 1 if dangling or unresolvable else 0
 
 
 if __name__ == "__main__":

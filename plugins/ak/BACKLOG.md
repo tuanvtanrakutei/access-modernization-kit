@@ -41,6 +41,28 @@ A finder as strict as the scheme makes a malformed identifier invisible rather t
 faulted, and it failed the reference set, whose Phase 3 writes `BR-M01`. The split -
 permissive finder, scheme as validator, in the apparatus group - is the resolution.
 
+### A13a - the same shape again, in the register instead of the checker
+
+**Observed 2026-09-03, migrating the A05 workspace to the current layout.** The move
+relocated every acquired file and rewrote the manifest and the ignore files. It did not
+touch the evidence register, so **66 of 67 items cited a path that no longer existed**.
+
+`$ak conformance --strict` passed. `$ak citations` passed. The whole suite passed. All
+of them read the register against the documents and none against the filesystem, so a
+register in which every path was wrong looked exactly like one in which every path was
+right.
+
+Closed for this case: `$ak citations` now resolves each cited `source_path` under the
+workspace, the migration repoints paths as part of the move, and its tests assert
+against the filesystem rather than the rewritten string. Filed under A13 because it is
+the same defect class - apparatus verified against itself - and because closing three
+instances by hand is not the same as having a way to find the fourth.
+
+It also exposed one that predated the migration: fifteen Phase 3 items cited
+`.../fresh-01/modules/...` where the extractor writes to `vba/`. That directory never
+existed in either layout, so those citations had never resolved from the moment they
+were written.
+
 ### A12 - a scraped identifier register makes its own check vacuous
 
 **Observed 2026-09-03, republishing A05 Phase 1 under the 2.9.0 contract.** The
