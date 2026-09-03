@@ -14,6 +14,20 @@ PUBLISH_PHASES = {
     f"gate{number}_publish_phase{number}": number for number in range(1, 7)
 }
 
+# Which phase becomes READY once a wave completes. Every key must name a wave in
+# orchestration/waves.json; this used to say "gate_graph_phase2", and when the Graphify
+# waves were removed nothing noticed, so Phase 2 could no longer be marked READY at all.
+# test_advance_run.py now checks these keys against the declared sequence.
+READY_AFTER: dict[str, tuple[str, ...]] = {
+    "wave1_source_extraction": ("phase1",),
+    "gate1_publish_phase1": ("phase2",),
+    "wave2_logic_processing": ("phase3",),
+    "wave3_workflow": ("phase4",),
+    "wave4_document_integration": ("phase5",),
+    "wave5_synthesis": ("phase6",),
+}
+
+
 def load_waves(package: Path) -> list[dict] | None:
     try:
         value = json.loads(
@@ -99,15 +113,7 @@ def main() -> int:
     state["status"] = "COMPLETED" if next_wave is None else "RUNNING"
     if next_wave:
         state["wave_status"][next_wave] = "RUNNING"
-    ready_map = {
-        "wave1_source_extraction": ("phase1",),
-        "gate_graph_phase2": ("phase2",),
-        "wave2_logic_processing": ("phase3",),
-        "wave3_workflow": ("phase4",),
-        "wave4_document_integration": ("phase5",),
-        "wave5_synthesis": ("phase6",),
-    }
-    for phase in ready_map.get(args.wave, ()):
+    for phase in READY_AFTER.get(args.wave, ()):
         state["phase_gates"][phase] = "READY"
     if args.wave in PUBLISH_PHASES:
         state["phase_gates"][f"phase{PUBLISH_PHASES[args.wave]}"] = "PUBLISHED"

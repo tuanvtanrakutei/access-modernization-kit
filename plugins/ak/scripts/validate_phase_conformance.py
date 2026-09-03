@@ -60,17 +60,59 @@ REQUIRED_NAMESPACES: dict[int, tuple[str, ...]] = {
     6: ("BR-", "RD-", "UK-", "AS-", "E-"),
 }
 
+# Finding an identifier in prose and judging whether it is well formed are two jobs,
+# and one pattern cannot do both. Deriving the finder from the scheme's own pattern
+# made the finder as strict as the scheme, which means a malformed identifier becomes
+# invisible rather than reported - and it failed the reference set, whose Phase 3
+# writes `BR-M01`. The finder below is deliberately permissive; SCHEME_PATTERNS judges
+# the shape, in the apparatus group, where the reference is expected to fall short.
+#
+# The finder is still checked against the scheme: test_phase_conformance asserts that
+# every namespace the scheme declares has one here, and that each accepts everything
+# its scheme pattern accepts. That is what was missing when `RA-`, `RW-`, `RS-` and `Q`
+# were absent from this table while the scheme declared all four.
 NAMESPACE_PATTERNS: dict[str, re.Pattern[str]] = {
     "OB-": re.compile(r"\bOB-\d{2}\b"),
     "F-": re.compile(r"\bF-\d{3}\b"),
-    "BR-": re.compile(r"\bBR-[A-Z0-9]{1,6}-?\d{2}\b"),
+    "BR-": re.compile(r"\bBR-[A-Z0-9]{1,6}(?:-\d{2}|\d{2})\b"),
     "WF-": re.compile(r"\bWF-\d{3}[a-z]?\b"),
     "DISC-": re.compile(r"\bDISC-\d{2}\b"),
     "RD-": re.compile(r"\bRD-\d{2}\b"),
+    "RA-": re.compile(r"\bRA-\d{2}\b"),
+    "RW-": re.compile(r"\bRW-\d{2}\b"),
+    "RS-": re.compile(r"\bRS-\d{2}\b"),
     "UK-": re.compile(r"\bUK-[A-Z]?\d{2}\b"),
     "AS-": re.compile(r"\bAS-\d{2}\b"),
     "E-": re.compile(r"\bE-\d{2}\b"),
+    "Q-": re.compile(r"\bQ\d{1,3}\b"),
+    "d-": re.compile(r"\bd\d{2}\b"),
+    "r-": re.compile(r"\br\d{2}\b"),
 }
+
+
+def load_scheme_patterns() -> dict[str, re.Pattern[str]]:
+    """The scheme's own patterns, keyed the way NAMESPACE_PATTERNS is keyed.
+
+    Returns an empty mapping when the scheme cannot be read, which turns the
+    wellformedness check into a skip rather than a false accusation.
+    """
+    scheme = Path(__file__).resolve().parents[1] / "specifications" / "identifier-scheme.yaml"
+    try:
+        import yaml
+
+        data = yaml.safe_load(scheme.read_text(encoding="utf-8")) or {}
+    except Exception:
+        return {}
+    patterns: dict[str, re.Pattern[str]] = {}
+    for name, body in (data.get("namespaces") or {}).items():
+        pattern = (body or {}).get("pattern")
+        if pattern:
+            patterns[f"{name}-"] = re.compile(pattern)
+    return patterns
+
+
+SCHEME_PATTERNS: dict[str, re.Pattern[str]] = load_scheme_patterns()
+
 
 # Words that show the document said what its terms mean rather than translating them.
 NAMING_SIGNALS = ("naming convention", "production name", "romaji", "never translate")
@@ -182,7 +224,21 @@ def apparatus_checks(phase: int, text: str, registers: dict[str, Any]) -> list[d
         dangling = sorted(used - allocated)
         results.append(check(
             "identifiers_resolve", "apparatus", not dangling,
-            f"dangling: {dangling[:6]}" if dangling else f"{len(used)} identifier(s), all allocated",
+            f"{len(dangling)} dangling, first: {dangling[:6]}" if dangling
+            else f"{len(used)} identifier(s), all allocated",
+        ))
+
+    if SCHEME_PATTERNS:
+        malformed: list[str] = []
+        for namespace, finder in NAMESPACE_PATTERNS.items():
+            shape = SCHEME_PATTERNS.get(namespace)
+            if shape is None:
+                continue
+            malformed += [i for i in set(finder.findall(text)) if not shape.match(i)]
+        results.append(check(
+            "identifiers_wellformed", "apparatus", not malformed,
+            f"{len(malformed)} off-scheme: {sorted(malformed)[:6]}" if malformed
+            else "every identifier matches its namespace pattern",
         ))
 
     if phase == 6:
@@ -197,7 +253,8 @@ def apparatus_checks(phase: int, text: str, registers: dict[str, Any]) -> list[d
             dangling = sorted(used - errata)
             results.append(check(
                 "errata_resolve", "apparatus", not dangling,
-                f"dangling: {dangling[:6]}" if dangling else f"{len(used)} entry reference(s)",
+                f"{len(dangling)} dangling, first: {dangling[:6]}" if dangling
+                else f"{len(used)} entry reference(s)",
             ))
     return results
 

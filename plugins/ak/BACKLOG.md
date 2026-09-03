@@ -12,6 +12,35 @@ that it should now work.
 
 ## Open
 
+### A13 - nothing checks the checkers against the contracts they enforce
+
+**Observed 2026-09-03, publishing the first A05 Phase 3.** Three defects, all of the
+same kind, all found by *using* the apparatus on a document it had never seen:
+
+- `validate_phase_conformance` carried a hand-written copy of the identifier
+  namespaces listing nine; `identifier-scheme.yaml` declares fifteen. `RA-`, `RW-`,
+  `RS-` and `Q` were missing, so Phase 3's eight risks and four questions were
+  invisible to the check whose entire job is resolving identifiers.
+- Its dangling report printed six entries with no count. The real number was 26.
+- `advance_run` still named `gate_graph_phase2` in its readiness map after the
+  Graphify waves were deleted from `orchestration/waves.json`. A dict lookup that
+  misses is silent, so Phase 2 could no longer be marked READY and nothing said so.
+
+Each is now closed - the finder table is tested against the scheme, counts are printed
+before the sample, and `test_advance_run.py` asserts every wave name in the
+orchestration code is a wave the sequence declares. **The general case is open.** The
+kit verifies documents against contracts; nothing verifies that a checker still
+enforces the contract it claims to, or that orchestration code still names steps the
+orchestration data declares. Every such drift so far has been silent, and every one
+was found by a person running the thing end to end.
+
+The first attempt at a fix made it worse and is worth recording: deriving the finder
+patterns from the scheme's own patterns removed the drift and introduced a false
+negative, because finding an identifier in prose and judging its shape are two jobs.
+A finder as strict as the scheme makes a malformed identifier invisible rather than
+faulted, and it failed the reference set, whose Phase 3 writes `BR-M01`. The split -
+permissive finder, scheme as validator, in the apparatus group - is the resolution.
+
 ### A12 - a scraped identifier register makes its own check vacuous
 
 **Observed 2026-09-03, republishing A05 Phase 1 under the 2.9.0 contract.** The

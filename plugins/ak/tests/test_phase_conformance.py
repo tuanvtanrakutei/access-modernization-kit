@@ -156,3 +156,57 @@ def test_the_reference_set_fails_apparatus_and_that_is_the_point() -> None:
     two groups from quietly merging.
     """
     assert run(REFERENCE, "--strict") == 1
+
+
+# --- the finder table against the scheme ------------------------------------
+#
+# The finder table used to be a hand-written copy of the scheme's namespaces, and it
+# drifted: `RA-`, `RW-`, `RS-` and `Q` were declared in the scheme and absent here, so
+# the first Phase 3 this kit produced allocated eight risks and four questions that no
+# check could see. Deriving the finders from the scheme instead was worse - it made the
+# finder as strict as the scheme, which hides a malformed identifier rather than
+# reporting it, and failed the reference set. So the two tables stay separate and these
+# tests hold them together.
+
+
+def test_every_scheme_namespace_has_a_finder() -> None:
+    missing = sorted(set(checker.SCHEME_PATTERNS) - set(checker.NAMESPACE_PATTERNS))
+    assert not missing, (
+        f"{missing} are declared in identifier-scheme.yaml but nothing looks for them, "
+        "so identifiers in those namespaces are invisible to every check"
+    )
+
+
+def test_every_finder_has_a_scheme_namespace() -> None:
+    unknown = sorted(set(checker.NAMESPACE_PATTERNS) - set(checker.SCHEME_PATTERNS))
+    assert not unknown, f"{unknown} are looked for but the scheme does not declare them"
+
+
+@pytest.mark.parametrize(
+    "identifier",
+    [
+        "OB-01", "F-123", "BR-ORD-06", "BR-W001-03", "WF-004", "WF-004a", "DISC-02",
+        "RD-01", "RA-08", "RW-03", "RS-02", "UK-D04", "UK-L01", "AS-05", "E-06",
+        "Q16", "d01", "r07",
+    ],
+)
+def test_the_finder_accepts_what_the_scheme_accepts(identifier: str) -> None:
+    """A well-formed identifier the finder misses is one no check will ever see."""
+    namespace = next(
+        key for key, pattern in checker.SCHEME_PATTERNS.items()
+        if pattern.match(identifier)
+    )
+    found = checker.NAMESPACE_PATTERNS[namespace].findall(f"see {identifier} above")
+    assert identifier in found, (
+        f"{identifier} matches the scheme for {namespace} but the finder does not find it"
+    )
+
+
+def test_the_finder_is_looser_than_the_scheme_so_malformed_ids_are_reported() -> None:
+    """`BR-M01` is in the reference set and off-scheme. It must be found, then faulted.
+
+    If the finder rejected it the document would appear clean, which is the failure
+    mode this split exists to prevent.
+    """
+    assert checker.NAMESPACE_PATTERNS["BR-"].findall("rule BR-M01 applies") == ["BR-M01"]
+    assert not checker.SCHEME_PATTERNS["BR-"].match("BR-M01")

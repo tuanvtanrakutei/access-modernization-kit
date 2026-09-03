@@ -37,8 +37,14 @@ namespaces:
 
   BR:
     name: "Business rule"
-    pattern: "^BR-[A-Z]{2,6}-[0-9]{2}$"
+    # Two forms, both in the reference set. A rule that belongs to a business domain
+    # is scoped by that domain; a rule that exists only as a step of one workflow is
+    # scoped by the workflow, which is how the reference set's Phase 4 writes every
+    # rule it allocates. A single-letter domain is not permitted: BR-M01 and BR-D02
+    # gave one namespace two meanings, and nothing said which.
+    pattern: "^BR-(?:[A-Z]{2,6}|W[0-9]{3})-[0-9]{2}$"
     example: "BR-ORD-06"
+    example_workflow_scoped: "BR-W001-03"
     owned_by: [phase3, phase4, phase5]
     consolidated_by: phase6
     requires_evidence: true
