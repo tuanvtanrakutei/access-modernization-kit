@@ -177,7 +177,7 @@ def test_a_name_containing_a_dot_is_not_annotated_twice() -> None:
     """`品揃支援DATA.MDB` -> `assortment_support_data.mdb`. The dot broke the check."""
     naming = Naming()
     once, _ = annotator.annotate("Reads `品揃支援DATA.MDB` at startup.", naming)
-    assert "(assortment_support_data.mdb?)" in once
+    assert "(assortment_support_data.mdb)" in once
     twice, added = annotator.annotate(once, Naming())
     assert twice == once
     assert added == 0
@@ -220,3 +220,11 @@ def test_the_appendix_distinguishes_the_three_states() -> None:
     assert "| `店舗マスタ` | `shop_master` | accepted |" in text
     assert "| `受注データ` | `order_data` | A01 precedent |" in text
     assert "| `ＤＰコード` | `dp_cd` | proposed |" in text
+
+
+def test_an_annotation_from_the_older_marked_form_is_still_recognised() -> None:
+    """A document annotated before the marker was removed must not gain a second one."""
+    body = "The `受注データ` (order_data?) table."
+    text, added = annotator.annotate(body, Naming())
+    assert text == body
+    assert added == 0

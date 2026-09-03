@@ -197,9 +197,10 @@ class Naming:
         rendered = self.of(name)
         if not rendered.english:
             return "_no term matched_"
-        marker = "" if rendered.is_settled else "?"
-        partial = "" if rendered.is_complete else " partial"
-        return f"`{rendered.english}{marker}`{partial}"
+        # No marker. The column header says these are proposals, and the glossary
+        # records which are accepted; a `?` on almost every row said nothing.
+        partial = "" if rendered.is_complete else " _partial_"
+        return f"`{rendered.english}`{partial}"
 
     def stats(self) -> dict[str, int]:
         complete = sum(1 for r in self._cache.values() if r.is_complete)
@@ -287,8 +288,10 @@ def target_proposal(field: dict, types: dict[int, dict[str, str]]) -> str:
     if "size" in hint and size:
         hint = hint.replace("size", str(size))
         if entry.get("dao_constant") in ("dbText", "dbChar"):
-            return f"{hint}? **needs {int(size) * 3}B in UTF-8**"
-    return f"{hint}?"
+            return f"{hint} **needs {int(size) * 3}B in UTF-8**"
+    # No marker, for the same reason the English names carry none: a `?` on all 1,055
+    # rows is wallpaper. The column heading and the legend say these are proposals.
+    return hint
 
 
 def data_catalogue(app_id: str, bundle: Path, types: dict[int, dict[str, str]],
@@ -339,14 +342,17 @@ def data_catalogue(app_id: str, bundle: Path, types: dict[int, dict[str, str]],
         "EC-01. It fills when a document, an interview or an operator's declaration "
         "arrives and is recorded in `input/decisions/meanings.yaml` — **an entry there "
         "must name its source, or it is ignored**. |",
-        "| `name?` | An **English proposal**, composed from "
-        "`specifications/ja-en-terms.yaml`. A term decided in the A01 conversion table "
-        "is precedent; one this analysis proposed is a suggestion. The `?` stays until "
-        "a person accepts it in `input/decisions/glossary.yaml`, and an accepted name "
-        "renders without it. |",
-        "| `name? partial` | Only part of the Japanese matched a known term. Finish it "
+        "| `name` | The English name, composed from "
+        "`specifications/ja-en-terms.yaml`. **Treat every one as a proposal** unless "
+        "`input/decisions/glossary.yaml` marks it accepted - that file is where a "
+        "correction is made, and an accepted name always wins. A name whose every term "
+        "was already decided in the A01 conversion table is precedent rather than a "
+        "proposal, and overriding one makes the two systems disagree. |",
+        "| `name` _partial_ | Only part of the Japanese matched a known term. Finish it "
         "by hand, or add the missing term to the dictionary. |",
-        "| `type?` | A **proposed** target type from the DAO type spec, not a decision. "
+        "| Target type | A **proposal** from the DAO type spec, never a decision — "
+        "choosing the real one is a person's job, and in the reference set that "
+        "decision is a separate document with an author. "
         "A text size is in characters: the source stores CP932 at up to 2 bytes per "
         "full-width character and a UTF-8 target needs up to 3, so "
         "`needs nB in UTF-8` is the byte width the target column must actually have. |",

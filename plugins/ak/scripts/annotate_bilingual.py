@@ -42,7 +42,9 @@ FENCE = re.compile(r"^(```|~~~)", re.MULTILINE)
 # A production name as the documents write it: inside backticks.
 BACKTICKED = re.compile(r"`([^`\n]{1,120})`")
 JAPANESE = re.compile(r"[぀-ヿ一-鿿＀-￯]")
-# Already annotated, in either the accepted or the proposed form.
+# Already annotated. The `?` a name used to carry is still accepted here, so a
+# document annotated by an older version is recognised and not annotated a second
+# time.
 #
 # The character class has to admit a dot and a hyphen, because a composed name can be
 # `assortment_support_data.mdb`, and the match has to run against the whole remaining
@@ -97,9 +99,8 @@ def annotate(text: str, naming: object, seen: set[str] | None = None) -> tuple[s
             # name in front of a reader as though it were a name.
             continue
         seen.add(name)
-        marker = "" if rendered.is_settled else "?"
         out.append(text[cursor:match.end()])
-        out.append(f" ({rendered.english}{marker})")
+        out.append(f" ({rendered.english})")
         cursor = match.end()
         added += 1
     out.append(text[cursor:])
@@ -128,12 +129,13 @@ def appendix(text: str, naming: object) -> str:
         APPENDIX_HEADING,
         "",
         "The Japanese name is the production name and is authoritative. The English is "
-        "composed from `specifications/ja-en-terms.yaml`. **A `?` means this analysis "
-        "proposed the name and nobody has accepted it.** No `?` means either a person "
-        "accepted it or every term in it was already decided in the A01 conversion "
-        "table, which is precedent rather than a proposal. `partial` means only part of "
-        "the Japanese matched a known term. Accept or correct any of them in "
-        "`input/decisions/glossary.yaml`.",
+        "composed from `specifications/ja-en-terms.yaml`. The table below says what "
+        "each one's standing is: **accepted** means a person settled it; **A01 "
+        "precedent** means every term in it was already decided in the A01 conversion "
+        "table, so overriding it makes the two systems disagree; **proposed** means "
+        "this analysis composed it and nobody has confirmed it; **partial** means only "
+        "part of the Japanese matched a known term. Correct any of them in "
+        "`input/decisions/glossary.yaml` and re-run `$ak bilingual`.",
         "",
         "| Production name | English | |",
         "|---|---|---|",

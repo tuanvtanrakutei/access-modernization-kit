@@ -73,11 +73,11 @@ def test_an_interior_digit_run_stays_one_token() -> None:
     assert "2_0_2_4" not in rendered.english
 
 
-def test_a_partial_name_says_so_rather_than_looking_finished() -> None:
+def test_a_partial_name_is_flagged_on_the_object_even_though_nothing_is_printed() -> None:
+    """A partial name is never printed inline; the appendix is where it is marked."""
     rendered = compose("商品ワケワカラン")
     assert not rendered.is_complete
     assert rendered.covered < 1.0
-    assert "partial" in rendered.bilingual()
 
 
 def test_a_name_from_a01_precedent_alone_carries_no_question_mark() -> None:
@@ -93,13 +93,24 @@ def test_a_name_from_a01_precedent_alone_carries_no_question_mark() -> None:
     assert rendered.bilingual() == "商品コード (product_cd)"
 
 
-def test_a_name_using_any_analysis_term_is_still_marked_a_proposal() -> None:
-    """Mechanical is not the same as correct."""
+def test_no_rendered_name_carries_a_marker() -> None:
+    """Removed on request: the reader corrects names in the glossary, not inline."""
+    for name in ("商品コード", "ＤＰコード商品", "商品ワケワカラン", "数量12"):
+        assert "?" not in compose(name).bilingual(), name
+
+
+def test_a_name_using_any_analysis_term_records_that_in_its_provenance() -> None:
+    """The standing is on the object and in the appendix, not in the printed name.
+
+    A `?` inline went on 500 of 649 names, which is wallpaper rather than a warning.
+    `provenance` and `is_settled` still carry the distinction for anything that needs
+    to act on it.
+    """
     rendered = compose("ＤＰコード商品")
     assert rendered.is_complete
     assert rendered.provenance == "A01+analysis"
     assert not rendered.is_settled
-    assert rendered.bilingual().endswith("?)")
+    assert rendered.bilingual() == "ＤＰコード商品 (dp_cd_product)"
 
 
 def test_an_accepted_name_loses_the_question_mark() -> None:

@@ -66,19 +66,21 @@ class Rendered:
         return self.accepted or (self.provenance == "A01" and self.is_complete)
 
     def bilingual(self) -> str:
-        """`商品コード (product_cd)`, the form a reader sees.
+        """`商品コード (product_cd)`, the form a reader sees. No marker.
 
-        A partial proposal is marked so nobody mistakes it for a settled name, and a
-        name with no English at all renders as the Japanese alone rather than as an
-        empty parenthesis.
+        There was a `?` here for anything nobody had accepted. It went on 500 of 649
+        names, which is not a warning - it is wallpaper, and it made the documents
+        harder to read for a developer, who is the person the second name exists for.
+
+        Status did not go away; it moved to where it can be acted on. Every document's
+        appendix records, per name, whether it is accepted, A01 precedent, a proposal
+        or partial, and `input/decisions/glossary.yaml` is where a correction is made.
+        A partial name is still never printed inline: it appears only in the appendix,
+        because a half-finished name in a sentence reads like a finished one.
         """
         if not self.english:
             return self.japanese
-        if self.is_settled:
-            return f"{self.japanese} ({self.english})"
-        if self.is_complete:
-            return f"{self.japanese} ({self.english}?)"
-        return f"{self.japanese} ({self.english}? partial)"
+        return f"{self.japanese} ({self.english})"
 
 
 def load_terms(package_root: Path) -> dict[str, dict[str, Any]]:
