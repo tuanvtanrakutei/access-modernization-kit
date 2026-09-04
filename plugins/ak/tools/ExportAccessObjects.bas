@@ -209,10 +209,9 @@ Private Function JsonEscape(ByVal s As String) As String
     Dim r As String
     r = Replace$(s, "\", "\\")
     r = Replace$(r, """", "\""")
-    r = Replace$(r, vbCr, "")
-    r = Replace$(r, vbLf, "
-")
-    r = Replace$(r, vbTab, "	")
+    r = Replace$(r, vbCr, "\r")
+    r = Replace$(r, vbLf, "\n")
+    r = Replace$(r, vbTab, "\t")
     JsonEscape = r
 End Function
 
