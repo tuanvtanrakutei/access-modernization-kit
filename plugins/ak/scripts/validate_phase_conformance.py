@@ -211,6 +211,38 @@ def apparatus_checks(phase: int, text: str, registers: dict[str, Any]) -> list[d
             f"{len(cited)} citation(s)" if cited else "no evidence cited anywhere in the document",
         ))
 
+    # The register is a contract, and until this check existed nothing held it to it.
+    schema_errors = registers.get("evidence_schema_errors")
+    if schema_errors is not None:
+        results.append(check(
+            "evidence_register_conforms", "apparatus", not schema_errors,
+            f"{len(schema_errors)} violation(s): {schema_errors[:3]}" if schema_errors
+            else "conforms to evidence.schema.json",
+        ))
+
+    ec01 = registers.get("ec01_violations")
+    if ec01 is not None:
+        results.append(check(
+            "evidence_class_supports_claim", "apparatus", not ec01,
+            f"{len(ec01)} EC-01 violation(s): {ec01[:3]}" if ec01
+            else "every classified item makes a claim its class can support (EC-01)",
+        ))
+
+    # `evidence_class` and `claim_kind` are what rules EC-01 to EC-06 are written
+    # against - a MEANING claim on a SCHEMA item is EC-01. An item that states
+    # neither cannot be checked against any of them, so an unpopulated register makes
+    # the whole rule set decorative. Reported as a count rather than a failure,
+    # because the reference application does not populate them either.
+    unclassified = registers.get("evidence_unclassified")
+    if unclassified is not None:
+        total = registers.get("evidence_total", 0)
+        results.append(check(
+            "evidence_classes_stated", "apparatus", not unclassified,
+            f"conforms" if not unclassified
+            else f"{unclassified} of {total} items state no evidence_class, so rules "
+                 f"EC-01 to EC-06 cannot be checked against them",
+        ))
+
     allocated = registers.get("identifier_ids")
     if allocated is None:
         results.append(check(
@@ -280,7 +312,84 @@ def load_registers(outputs: Path) -> dict[str, Any]:
     ids_from("*_Evidence.json", "evidence_ids", "id")
     ids_from("*_Identifiers.json", "identifier_ids", "id")
     ids_from("*_Errata.json", "errata_ids", "id")
+    registers["evidence_schema_errors"] = _schema_errors(outputs)
+    registers["ec01_violations"] = _ec01_violations(outputs)
+    matches = [m for where in (".", "registers")
+               for m in sorted((outputs / where).glob("*_Evidence.json"))]
+    if len(matches) == 1:
+        try:
+            items = (json.loads(read(matches[0]) or "{}").get("items") or [])
+        except json.JSONDecodeError:
+            items = []
+        registers["evidence_total"] = len(items)
+        registers["evidence_unclassified"] = sum(
+            1 for item in items
+            if isinstance(item, dict) and not item.get("evidence_class"))
     return registers
+
+
+def _ec01_violations(outputs: Path) -> list[str] | None:
+    """Items making a claim their evidence class cannot support - rule EC-01.
+
+    The rule was prose in `specifications/evidence-classes.yaml` and the two fields
+    it is written against were unpopulated in every register, so it had never once
+    been evaluated. Its first run found three: two BEHAVIOUR statements labelled
+    INTENT, and a BEHAVIOUR conclusion drawn from a screenshot.
+    """
+    matches = [m for where in (".", "registers")
+               for m in sorted((outputs / where).glob("*_Evidence.json"))]
+    spec = Path(__file__).resolve().parents[1] / "specifications" / "evidence-classes.yaml"
+    if len(matches) != 1 or not spec.is_file():
+        return None
+    try:
+        import yaml
+    except ImportError:
+        return None
+    try:
+        classes = (yaml.safe_load(read(spec)) or {}).get("evidence_classes") or {}
+        items = (json.loads(read(matches[0]) or "{}").get("items") or [])
+    except (json.JSONDecodeError, yaml.YAMLError):
+        return None
+    violations = []
+    for item in items:
+        if not isinstance(item, dict):
+            continue
+        klass, kind = item.get("evidence_class"), item.get("claim_kind")
+        if not klass or not kind:
+            continue
+        if kind in (classes.get(klass, {}).get("cannot_support") or []):
+            violations.append(f"{item.get('id')}: {klass} cannot support {kind}")
+    return violations
+
+
+def _schema_errors(outputs: Path) -> list[str] | None:
+    """What the evidence register violates in `schemas/evidence.schema.json`.
+
+    None when the register or the schema cannot be found, which the caller reports
+    differently from a register that is present and wrong.
+    """
+    matches = [m for where in (".", "registers")
+               for m in sorted((outputs / where).glob("*_Evidence.json"))]
+    if len(matches) != 1:
+        return None
+    schema_path = Path(__file__).resolve().parents[1] / "schemas" / "evidence.schema.json"
+    if not schema_path.is_file():
+        return None
+    try:
+        import jsonschema
+    except ImportError:
+        return None
+    try:
+        schema = json.loads(read(schema_path) or "{}")
+        data = json.loads(read(matches[0]) or "{}")
+    except json.JSONDecodeError as error:
+        return [f"unreadable: {error}"]
+    validator = jsonschema.Draft202012Validator(schema)
+    errors = []
+    for error in sorted(validator.iter_errors(data), key=lambda e: list(e.absolute_path)):
+        where = "/".join(str(part) for part in error.absolute_path) or "(root)"
+        errors.append(f"{where}: {error.message}")
+    return errors
 
 
 def parse_args() -> argparse.Namespace:

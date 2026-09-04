@@ -66,6 +66,67 @@ def _merge_records(target: list[dict[str, Any]], incoming: list[dict[str, Any]])
     )
 
 
+# A table cannot appear twice in one database, nor a field twice in one table. The
+# flat schema inventories therefore have a natural key, and it is not `logical_id`:
+# two routes reading the same DAO schema describe the same table in two shapes, one
+# carrying `logical_id` and one not, so `_merge_records` files both as unkeyed and
+# keeps both.
+#
+# Observed on A05, where the frontend was acquired managed for its schema and
+# imported for its definition text: 22 tables, 161 fields and 46 index rows appeared
+# twice, and the duplicates were reported as coverage - 1,558 database records where
+# there were 1,327 - and as findings, 143 table objects of which 86 without a primary
+# key, against a true 121 and 76.
+SCHEMA_IDENTITY = {
+    "tables": ("database_id", "name"),
+    "fields": ("database_id", "table", "name"),
+    "indexes": ("database_id", "table", "name"),
+}
+
+# Present because a route recorded where it read the row, not because the row says
+# something different about the schema.
+PROVENANCE_KEYS = frozenset({
+    "logical_id", "id", "source_paths", "container", "module_hint", "depends_on",
+    "metadata", "kind",
+})
+
+
+def _dedupe_schema(records: list[dict[str, Any]], identity: tuple[str, ...]) -> None:
+    """Collapse rows describing the same schema element, unless they disagree.
+
+    Two readings that agree on every column they share are one fact reported twice,
+    and the row carrying more columns is kept. Two readings that disagree are a real
+    discrepancy about the schema: both are kept, so it shows up as a duplicate in the
+    catalogue rather than being resolved by whichever adapter happened to sort first.
+    """
+    groups: dict[tuple[Any, ...], list[dict[str, Any]]] = {}
+    order: list[tuple[Any, ...]] = []
+    for record in records:
+        if not all(field in record for field in identity):
+            key = (id(record),)
+        else:
+            key = tuple(record[field] for field in identity)
+        if key not in groups:
+            groups[key] = []
+            order.append(key)
+        groups[key].append(record)
+
+    collapsed: list[dict[str, Any]] = []
+    for key in order:
+        group = groups[key]
+        if len(group) == 1:
+            collapsed.extend(group)
+            continue
+        richest = max(group, key=len)
+        agrees = all(
+            record[column] == richest[column]
+            for record in group
+            for column in set(record) & set(richest) - PROVENANCE_KEYS
+        )
+        collapsed.extend([richest] if agrees else group)
+    records[:] = collapsed
+
+
 def _merge_sections(contributions: list[dict[str, Any]]) -> dict[str, Any]:
     from adapters.base import empty_sections
 
@@ -79,6 +140,8 @@ def _merge_sections(contributions: list[dict[str, Any]]) -> dict[str, Any]:
                 merged["evidence_sources"][key]["inventory"],
                 contribution["evidence_sources"][key]["inventory"]
             )
+    for key, identity in SCHEMA_IDENTITY.items():
+        _dedupe_schema(merged["databases"][key], identity)
     return merged
 
 

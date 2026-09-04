@@ -786,7 +786,14 @@ def logic_catalogue(app_id: str, bundle: Path, derived: dict | None,
         "",
         f"## VBA modules ({len(modules)})",
         "",
-        "| No. | Module | English (proposed) | Database | Referenced by |",
+        "`Referenced by` counts text naming the **module**, and VBA calls a "
+        "**procedure**: code writes `Call S色設定`, never `共通ルーチン.S色設定`. So a "
+        "module referenced by nothing may hold procedures called from everywhere, and "
+        "this column is not evidence about the module's contents. Reading it as such "
+        "is what produced `E-16` — a published finding that `S色設定` is never "
+        "called, when it is the first statement of the main menu's `Form_Open`.",
+        "",
+        "| No. | Module | English (proposed) | Database | Module name referenced by |",
         "|---:|---|---|---|---:|",
     ]
     for number, module in enumerate(sorted(modules, key=lambda m: (m.get("database_id", ""),

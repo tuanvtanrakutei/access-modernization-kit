@@ -325,6 +325,22 @@ def _declared_kind(artifact: dict[str, Any]) -> str:
 
 def _record(item: dict[str, Any], raw: bytes) -> dict[str, Any]:
     record = {key: item.get(key) for key in ("logical_id", "kind", "role", "sha256", "media_type", "object_name") if item.get(key) is not None}
+    # Stated explicitly because consumers key on it and an imported record left it
+    # empty. The A05 screen catalogue looked up every one of 51 forms and 63 reports
+    # by (database, kind, name), missed all 118, and reported all 118 as referenced
+    # by nothing - a figure that says the join failed, not that the code is dead.
+    database_id = str(item.get("database_id") or "")
+    if not database_id:
+        logical = str(item.get("logical_id") or "")
+        database_id = logical.split(":", 1)[0] if ":" in logical else ""
+    if database_id:
+        record["database_id"] = database_id
+    # Also spelled `name`, because the managed route spells it that way and every
+    # consumer keys on (database_id, name). Two routes naming the same property two
+    # ways is the defect; carrying both spellings is what fixes it without asking
+    # each consumer to know which route produced the row.
+    if item.get("object_name") is not None:
+        record.setdefault("name", item["object_name"])
     if item["kind"] in TEXT_KINDS:
         text, encoding = decode_text(raw, item.get("encoding"))
         record.update({"text": text.replace("\r\n", "\n").replace("\r", "\n"), "source_encoding": encoding})

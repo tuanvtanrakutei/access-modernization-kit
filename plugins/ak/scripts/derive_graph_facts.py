@@ -150,6 +150,73 @@ def distil_object(text: str, kind: str) -> dict[str, Any]:
     }
 
 
+# Each container in the bundle that carries object definition text, with the kind
+# to record for it. The imported route names its kinds after the container
+# (`vba`, `access_sql`); the managed route names them after the object. Both spellings
+# appear in one inventory when a workspace acquires one database each way, so the
+# kinds are normalised rather than trusted.
+BUNDLE_INVENTORIES = ("ui/forms", "ui/reports", "ui/macros", "code/vba",
+                      "code/access-sql")
+BUNDLE_KINDS = {"form": "form", "report": "report", "macro": "macro",
+                "module": "module", "vba": "module",
+                "query": "query", "access_sql": "query"}
+
+
+def bundle_texts(
+    bundle: Path | None,
+) -> dict[tuple[str, str, str], tuple[str, Path, str]]:
+    """Object definition text the bundle carries, keyed by (database, kind, label).
+
+    Read because staging is refreshed only by the managed route. An acquisition that
+    takes its definition text from an operator's export writes that text into the
+    bundle and leaves the previous staging files untouched, so a deriver reading
+    staging alone re-derives from the older text and reports no difference. That is
+    not hypothetical: it is how A05's reachability figures came to be computed from a
+    main menu missing 24 of its 45 procedures (E-17).
+
+    The text is either inline in the inventory - the imported route stores it there,
+    hash-verified at import - or in a digest-named member of the same container.
+    """
+    found: dict[tuple[str, str, str], tuple[str, Path, str]] = {}
+    if bundle is None:
+        return found
+    for container in BUNDLE_INVENTORIES:
+        inventory = bundle / container / "inventory.json"
+        if not inventory.is_file():
+            continue
+        try:
+            rows = json.loads(read_text(inventory) or "[]")
+        except ValueError:
+            continue
+        if not isinstance(rows, list):
+            continue
+        for row in rows:
+            if not isinstance(row, dict):
+                continue
+            kind = BUNDLE_KINDS.get(str(row.get("kind", "")))
+            label = str(row.get("object_name") or row.get("name") or "")
+            logical = str(row.get("logical_id") or "")
+            database = str(row.get("database_id") or "")
+            if not database and ":" in logical:
+                # The imported route leaves `database_id` empty and states the
+                # database in the logical id instead.
+                database = logical.split(":", 1)[0]
+            if not kind or not label or not database:
+                continue
+            text = row.get("text")
+            if isinstance(text, str) and text:
+                # Cited as the inventory plus the object name, because that is where
+                # the text is: inline in one row of a file holding fifty-one of them.
+                found[(database, kind, label)] = (text, inventory, label)
+                continue
+            member = row.get("path")
+            if isinstance(member, str) and member:
+                path = bundle / container / member
+                if path.is_file():
+                    found[(database, kind, label)] = (read_text(path), path, "")
+    return found
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--app-root", required=True)
@@ -187,6 +254,10 @@ def main() -> int:
     object_node: dict[tuple[str, str, str], str] = {}
     by_label: dict[tuple[str, str], list[str]] = {}
     texts: dict[tuple[str, str, str], tuple[Path, str, str]] = {}
+
+    # What the bundle carries. Read before the staging walk so it can be preferred.
+    from_bundle = bundle_texts(bundle)
+
     for database, session in latest_sessions(app_root):
         # The extraction receipt maps each object's real name to the file it was written
         # to. Reading the name out of the definition text instead picks up the first
@@ -216,7 +287,11 @@ def main() -> int:
             identifier = node_id(f"{kind}_{database}".lower(), label)
             object_node[key] = identifier
             by_label.setdefault((database, label), []).append(identifier)
-            texts[key] = (path, kind, read_text(path))
+            # The bundle wins over staging where both hold the same object: its
+            # content is hash-verified and it is what the newest acquisition wrote.
+            carried = from_bundle.pop(key, None)
+            texts[key] = ((path, kind, carried[0]) if carried
+                          else (path, kind, read_text(path)))
             nodes.append({
                 "id": identifier, "label": label,
                 "file_type": "code" if kind in {"query", "module", "macro"} else "document",
@@ -231,6 +306,23 @@ def main() -> int:
                 "source_location": None, "source_url": None, "captured_at": None,
                 "author": None, "contributor": None,
             })
+
+    # Objects the bundle holds that no staging receipt mentions. A workspace whose
+    # definition text arrives entirely by import has no receipt at all, and without
+    # this the derivation would see the tables and nothing else.
+    for (database, kind, label), (text, member, row) in sorted(from_bundle.items()):
+        identifier = node_id(f"{kind}_{database}".lower(), label)
+        object_node[(database, kind, label)] = identifier
+        by_label.setdefault((database, label), []).append(identifier)
+        relative = os.path.relpath(member, app_root).replace(chr(92), "/")
+        texts[(database, kind, label)] = (member, kind, text)
+        nodes.append({
+            "id": identifier, "label": label,
+            "file_type": "code" if kind in {"query", "module", "macro"} else "document",
+            "source_file": f"{database}:{relative}" + (f"#{row}" if row else ""),
+            "source_location": None, "source_url": None, "captured_at": None,
+            "author": None, "contributor": None,
+        })
 
     ordered_objects = sorted({label for _, _, label in object_node}, key=len, reverse=True)
 

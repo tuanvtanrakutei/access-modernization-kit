@@ -62,6 +62,24 @@ containers:
     kind: report_output
     role: interface
     description: Sample outputs the application produces - printed reports, exports.
+  ui:
+    # `metadata` rather than a kind of its own. A new kind would have to be added to
+    # import-source-manifest.schema.json, to the bundle contribution shape, and to the
+    # component router - three more places to drift - and `metadata` already means
+    # exactly this: a file *about* the export rather than an exported object. What is
+    # lost is that the bundle cannot route it as UI evidence; a consumer reads it from
+    # the export package by path. Worth revisiting if it should become first-class.
+    kind: metadata
+    role: frontend
+    format: json
+    extension: .json
+    encoding: utf-8
+    description: >-
+      Per-control facts SaveAsText cannot yield: which label a control actually
+      displays, and whether it is visible. Access stores a button's caption on a
+      separate label control and records no link between the two, and a hidden
+      control is indistinguishable from a live one in definition text. Written by
+      ExportAccessObjects' control-inventory pass.
 
 # Container names other producers use for the same thing. Declared rather than
 # quietly accepted, so it is visible which tool a layout belongs to. msaccess-vcs

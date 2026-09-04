@@ -147,6 +147,7 @@
           "enum": [
             "SCHEMA",
             "CODE",
+            "ENVIRONMENT",
             "UI_DEFINITION",
             "SCREENSHOT",
             "SAMPLE_DATA",

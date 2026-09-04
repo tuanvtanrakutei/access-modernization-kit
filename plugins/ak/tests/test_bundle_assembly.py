@@ -196,3 +196,53 @@ def test_raw_binary_flag_is_still_rejected_inside_metadata(tmp_path: Path) -> No
         assert "carries a raw database binary" in str(exc)
         return
     raise AssertionError("a raw_binary marker must still be rejected")
+
+
+def test_two_routes_reading_one_schema_yield_one_table() -> None:
+    """A table read by both the managed and the imported route is one table.
+
+    A05's frontend was acquired managed for its schema and imported for its
+    definition text, and the same 22 tables, 161 fields and 46 indexes entered the
+    bundle twice. `_merge_records` cannot see it: the two routes describe a table in
+    two shapes, only one carrying a `logical_id`, so both are filed as unkeyed. The
+    duplicates were then reported as coverage - 1,558 database records against a true
+    1,327 - and as a finding, 143 table objects of which 86 lacked a primary key
+    against a true 121 and 76.
+    """
+    from bundle_assembly import _dedupe_schema
+
+    managed = {"database_id": "D", "name": "T", "attributes": 0, "connect": "",
+               "logical_id": "D:table:T", "kind": "table", "container": "data"}
+    imported = {"database_id": "D", "name": "T", "attributes": 0, "connect": ""}
+    rows = [imported, managed]
+    _dedupe_schema(rows, ("database_id", "name"))
+    assert len(rows) == 1
+    # The surviving row is the one carrying more, so nothing a route knew is lost.
+    assert rows[0]["logical_id"] == "D:table:T"
+
+    fields = [{"database_id": "D", "table": "T", "name": "f", "type": 10},
+              {"database_id": "D", "table": "T", "name": "f", "type": 10}]
+    _dedupe_schema(fields, ("database_id", "table", "name"))
+    assert len(fields) == 1
+
+
+def test_two_readings_that_disagree_are_both_kept() -> None:
+    """Disagreement about the schema is a finding, not something to resolve by rule.
+
+    Collapsing to whichever adapter sorted first would hide the one case where the
+    duplicate matters.
+    """
+    from bundle_assembly import _dedupe_schema
+
+    rows = [{"database_id": "D", "name": "T", "attributes": 0},
+            {"database_id": "D", "name": "T", "attributes": 1, "logical_id": "x"}]
+    _dedupe_schema(rows, ("database_id", "name"))
+    assert len(rows) == 2
+
+
+def test_a_row_without_the_identity_is_never_collapsed() -> None:
+    from bundle_assembly import _dedupe_schema
+
+    rows = [{"name": "T"}, {"name": "T"}]
+    _dedupe_schema(rows, ("database_id", "name"))
+    assert len(rows) == 2

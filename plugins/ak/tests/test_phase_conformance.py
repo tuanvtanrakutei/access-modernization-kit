@@ -210,3 +210,84 @@ def test_the_finder_is_looser_than_the_scheme_so_malformed_ids_are_reported() ->
     """
     assert checker.NAMESPACE_PATTERNS["BR-"].findall("rule BR-M01 applies") == ["BR-M01"]
     assert not checker.SCHEME_PATTERNS["BR-"].match("BR-M01")
+
+
+def _register(items: list[dict]) -> dict:
+    return {"app_id": "SYN", "generated_at": "2026-09-04T00:00:00+00:00",
+            "items": items}
+
+
+def _item(**overrides) -> dict:
+    base = {
+        "id": "SYN-P1-TABLE_INVENTORY-001", "run_id": "R", "app_id": "SYN",
+        "phase": 1, "role": "data_understanding", "task_id": "SYN-P1-TABLE_INVENTORY",
+        "statement": "22 tables carry 161 columns.", "status": "EXTRACTED",
+        "source_type": "RUNTIME", "source_path": "databases/tables.json",
+        "confidence": 1.0, "created_at": "2026-09-04T00:00:00+00:00",
+    }
+    return base | overrides
+
+
+def test_evidence_register_must_conform_to_its_schema(tmp_path: Path) -> None:
+    """The register carried an evidence CLASS in the source_type field for months.
+
+    `validate_structure.py` checks that `schemas/evidence.schema.json` exists; nothing
+    checked any register against it, so fifteen items whose `source_type` was
+    DOCUMENT, UI_DEFINITION or OPERATOR_DECLARATION - none of them a medium the schema
+    permits - passed every gate the kit has.
+    """
+    import json
+
+    outputs = tmp_path / "output"
+    (outputs / "registers").mkdir(parents=True)
+    (outputs / "registers" / "SYN_Evidence.json").write_text(
+        json.dumps(_register([_item(source_type="DOCUMENT")])), encoding="utf-8")
+
+    errors = checker._schema_errors(outputs)
+    assert errors, "an evidence class in the source_type field must be reported"
+    assert "source_type" in errors[0]
+
+    (outputs / "registers" / "SYN_Evidence.json").write_text(
+        json.dumps(_register([_item(source_type="XLSX", evidence_class="DOCUMENT")])),
+        encoding="utf-8")
+    assert checker._schema_errors(outputs) == []
+
+
+def test_ec01_is_evaluated(tmp_path: Path) -> None:
+    """Rule EC-01 was prose against two fields no register populated.
+
+    So the rule had never been evaluated once. Its first run over A05 found three
+    violations: two BEHAVIOUR statements labelled INTENT, and a BEHAVIOUR conclusion
+    drawn from a screenshot.
+    """
+    import json
+
+    outputs = tmp_path / "output"
+    (outputs / "registers").mkdir(parents=True)
+
+    # SCHEMA cannot support MEANING: a table name is not a statement of its role.
+    (outputs / "registers" / "SYN_Evidence.json").write_text(
+        json.dumps(_register([
+            _item(evidence_class="SCHEMA", claim_kind="MEANING")])), encoding="utf-8")
+    violations = checker._ec01_violations(outputs)
+    assert violations and "SCHEMA cannot support MEANING" in violations[0]
+
+    (outputs / "registers" / "SYN_Evidence.json").write_text(
+        json.dumps(_register([
+            _item(evidence_class="SCHEMA", claim_kind="STRUCTURE")])), encoding="utf-8")
+    assert checker._ec01_violations(outputs) == []
+
+
+def test_an_unclassified_register_is_reported(tmp_path: Path) -> None:
+    """An item stating no class cannot be checked against EC-01 to EC-06 at all."""
+    import json
+
+    outputs = tmp_path / "output"
+    (outputs / "registers").mkdir(parents=True)
+    (outputs / "registers" / "SYN_Evidence.json").write_text(
+        json.dumps(_register([_item(), _item(id="SYN-P1-TABLE_INVENTORY-002",
+                                            evidence_class="SCHEMA")])),
+        encoding="utf-8")
+    registers = checker.load_registers(outputs)
+    assert registers["evidence_total"] == 2
+    assert registers["evidence_unclassified"] == 1

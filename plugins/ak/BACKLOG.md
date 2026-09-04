@@ -12,6 +12,42 @@ that it should now work.
 
 ## Open
 
+### A15 - an imported export's completeness is never checked, only its integrity
+
+**Observed 2026-09-04, on A05.** The imported-sources adapter verifies every file
+against the SHA-256 the export manifest declares, and verifies the manifest against
+the source database's own digest. All of it passed. The definition text was still
+materially incomplete: `メインメニュー` arrived with 21 of its 45 procedures, 45 of its
+114 control blocks and 1,642 of its 4,886 lines.
+
+Integrity answers "is this the file the exporter wrote". Nothing answers "did the
+exporter write the whole object". Ten errata followed from the gap - `E-14` to `E-18`,
+`E-23` - and the largest was a third of the reachability figure.
+
+**What a check could compare.** The managed route reads the object inventory from DAO,
+so for a database acquired both ways the two routes' object lists can be reconciled -
+counts matched here, which is why the incompleteness survived, so a count check alone
+is not enough. Per-object signals that would have caught it: a form's `Begin Form`
+block count against its control count, a module's `Attribute VB_Name` against the
+procedures the same file declares, and - most simply - a definition text that ends
+mid-object. `メインメニュー` ended on a complete `End Sub`, so even that would not have
+fired here. The honest version of this entry is that **the check is not obvious**, and
+that the fallback until one exists is to re-export and diff, which is what found it.
+
+### A16 - a bundle's identity ignores the code that assembled it
+
+**Observed 2026-09-04.** The bundle directory name and `bundle_id` derive from the
+source digests alone. Fixing a defect in `bundle_assembly` and re-running therefore
+produced the same name with different content, and `_publish_bundle` refused it as
+`BUNDLE_PATH_CONFLICT` - a message that reads as tampering when the cause was the
+kit's own code changing. Worked around by moving the previous bundle aside three
+times in one session.
+
+The identity should include the assembly's own version, so a re-assembly of the same
+sources by different code is a different bundle and both can be kept. That also makes
+"which code produced this bundle" answerable from the bundle, which it currently is
+not.
+
 ### A13 - nothing checks the checkers against the contracts they enforce
 
 **Observed 2026-09-03, publishing the first A05 Phase 3.** Three defects, all of the
@@ -84,6 +120,35 @@ It also exposed one that predated the migration: fifteen Phase 3 items cited
 `.../fresh-01/modules/...` where the extractor writes to `vba/`. That directory never
 existed in either layout, so those citations had never resolved from the moment they
 were written.
+
+### A13b - the register was schema-invalid, and the rule set was decorative
+
+**Observed 2026-09-04, on A05.** Two more instances of A13, found the same way -
+by using the apparatus rather than by testing it.
+
+The evidence register carried **fifteen items whose `source_type` was an evidence
+class** - `DOCUMENT`, `UI_DEFINITION`, `OPERATOR_DECLARATION` - none of them one of
+the twelve media `evidence.schema.json` permits. `validate_structure.py` checks that
+the schema file exists; nothing had ever validated a register against it.
+
+Worse: **none of 113 items stated `evidence_class` or `claim_kind`**, which are the
+two fields rules EC-01 to EC-06 are written against. The rules were prose an analyst
+could follow or not, and no run had ever been checked against them. Populating both
+fields and evaluating EC-01 for the first time found three violations, one of which -
+a BEHAVIOUR conclusion drawn from a screenshot - was a published finding.
+
+Closed for these cases: `$ak conformance` now validates the register against its
+schema (`evidence_register_conforms`), evaluates EC-01
+(`evidence_class_supports_claim`), and reports how many items state no class
+(`evidence_classes_stated`). All three are apparatus checks, so the A01 reference is
+not required to pass them. Filed under A13 for the same reason A13a is: three more
+instances closed by hand is still not a way to find the fourth.
+
+It also exposed a gap in the taxonomy itself. Three A05 findings - which backend
+paths resolve, which drives are mapped, whether two files on disk are the same file -
+had no class to sit in. Added `ENVIRONMENT`, with the two cautions that make it
+different from the other nine: it goes stale when a share is remapped, and it
+describes one deployment rather than the application.
 
 ### A12 - a scraped identifier register makes its own check vacuous
 

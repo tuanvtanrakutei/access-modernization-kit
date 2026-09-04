@@ -62,6 +62,27 @@ evidence_classes:
       "product master" is a translation, not evidence. Grouping tables by a name
       prefix is an interpretation and must be labelled one.
 
+  ENVIRONMENT:
+    means: >
+      The observed state of the machine, share or network the application runs on:
+      which paths exist, which drives are mapped, whether two files on disk are the
+      same file.
+    typical_source_types: ["RUNTIME"]
+    typical_locations: ["a directory listing", "a file comparison", "a drive mapping"]
+    supports: [STRUCTURE]
+    corroborates: [BEHAVIOUR, USAGE]
+    cannot_support: [MEANING, INTENT, FORMAT]
+    note: >
+      Added because three A05 findings had no class to sit in. Code can quote a path
+      but not say whether it resolves; only the environment can, and A05's four
+      hard-coded backend spellings turned out to be three that resolve to nothing
+      plus one that resolves to the wrong database (E-23). Two cautions. It goes
+      stale faster than any other class - a share is remapped and the evidence is
+      false with no change to the application - so an item of this class is worth
+      little without its observation date. And it describes one deployment: what is
+      true of the machine observed is not thereby true of every machine that runs
+      the application.
+
   CODE:
     means: "VBA, macro and SQL text as written."
     typical_source_types: ["VBA", "SQL"]
