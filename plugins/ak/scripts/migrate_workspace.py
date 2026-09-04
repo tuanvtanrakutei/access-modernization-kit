@@ -296,6 +296,15 @@ def apply(root: Path, report: dict[str, Any]) -> list[str]:
         shutil.move(str(source), str(destination))
         done.append(f"moved {entry['from']} -> {entry['to']}")
 
+    # A workspace created before the guide existed gets one now. Never overwritten:
+    # an operator may have edited it.
+    guide = root / "input" / "README.md"
+    if guide.parent.is_dir() and not guide.exists():
+        template = PACKAGE / "templates" / "input.README.md"
+        if template.is_file():
+            shutil.copy2(template, guide)
+            done.append("added input/README.md")
+
     for leftover in ("sources", "acquired"):
         path = root / leftover
         if path.is_dir() and not any(path.iterdir()):

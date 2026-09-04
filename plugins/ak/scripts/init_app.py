@@ -443,6 +443,15 @@ def main() -> int:
         ("app.investigationignore", ".investigationignore"),
     ):
         shutil.copy2(package_root / "templates" / source_name, app_root / target_name)
+
+    # The guide to input/ belongs beside the folders it describes, and it belongs to
+    # the kit rather than to a project: it explains what each evidence class can
+    # establish, which is the same everywhere. What a particular project still needs
+    # is the evidence request in output/, which is regenerated as the run learns.
+    guide = _input_root(app_root) / "README.md"
+    guide.parent.mkdir(parents=True, exist_ok=True)
+    if not guide.exists():
+        shutil.copy2(package_root / "templates" / "input.README.md", guide)
     verb = "Adopted existing workspace" if existing_nonempty else "Initialized"
     print(f"{verb} {app_root}")
     # A role left unknown blocks Phase 1 by design, so say so here rather than letting
