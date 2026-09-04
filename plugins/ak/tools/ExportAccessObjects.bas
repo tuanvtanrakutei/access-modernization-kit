@@ -30,6 +30,13 @@ Option Explicit
 '   macros\     one .txt per macro     (SaveAsText)
 '   vba\        one .txt per module    (SaveAsText)
 '   queries\    one .sql per query     (QueryDef.SQL, UTF-8)
+'   ui\controls.json    every control on every form and report: name, type,
+'                       caption, ATTACHED LABEL, tooltip, visible, position and
+'                       OnClick. Two of those cannot be recovered from the
+'                       definition text. Access stores a button's visible text on
+'                       a separate label control and records no link between the
+'                       two, so reading a button's Name as its caption is a guess;
+'                       and a hidden control looks exactly like a live one.
 '   schema\tables.txt   table list with linked/local flag and fields (UTF-8).
 '                       System (MSys*), temp (~*), and Access ImportErrors
 '                       tables are excluded; their count/names go in the manifest.
@@ -95,6 +102,11 @@ Public Sub ExportAccessObjects(ByVal OutRoot As String)
         End If
     Next
     WriteUtf8 OutRoot & "\schema\tables.json", "[" & vbCrLf & sb & vbCrLf & "]" & vbCrLf
+
+    ' The control inventory. A separate pass because it opens each object in
+    ' design view - slower, and able to fail per object - and because an operator
+    ' may want to re-run only this part after a form changes.
+    ExportControlInventory OutRoot
 
     Dim summary As String
     summary = "forms=" & nForm & vbCrLf & _
@@ -337,3 +349,148 @@ Private Sub WriteUtf8(ByVal path As String, ByVal text As String)
     stm.SaveToFile path, 2       ' adSaveCreateOverWrite
     stm.Close
 End Sub
+
+' =============================================================================
+' Control inventory - the half SaveAsText cannot give you
+' =============================================================================
+' SaveAsText writes every control's properties, but two things a reader needs
+' are not recoverable from that text without guessing:
+'
+'   The visible label. Access stores a button's caption on a SEPARATE label
+'   control, and the definition text does not say which label belongs to which
+'   button - only that both exist at certain coordinates. Reading the button's
+'   Name as though it were the caption produced three wrong claims in one
+'   analysis, including test instructions naming buttons that appear on no tab.
+'   A control's attached label is Controls(0) at run time, and that is exact.
+'
+'   Visible. A control the designer hid is still in the definition text, with
+'   nothing to distinguish it from one an operator uses every morning. In the
+'   A05 frontend 21 buttons are hidden, 14 of them on the main menu alone -
+'   including one this analysis had reported as a live hazard.
+'
+' Each object is opened in DESIGN view, hidden, read, and closed with acSaveNo.
+' Design view does not fire Form_Open or Form_Load, so startup code never runs.
+' Nothing is ever saved: the 印刷設定 module in this very application shows what
+' opening a report acDesign and closing acSaveYes does to a file.
+' =============================================================================
+Public Sub ExportControlInventory(ByVal OutRoot As String)
+    Dim fso As Object
+    Set fso = CreateObject("Scripting.FileSystemObject")
+    EnsureDir fso, OutRoot
+    EnsureDir fso, OutRoot & "\ui"
+
+    Dim ao As Object, sb As String, first As Boolean, n As Long, failed As Long
+    first = True
+
+    For Each ao In CurrentProject.AllForms
+        Dim body As String
+        body = ObjectControlsJson(acForm, "form", ao.Name)
+        If Len(body) > 0 Then
+            If Not first Then sb = sb & "," & vbCrLf
+            sb = sb & body
+            first = False
+            n = n + 1
+        Else
+            failed = failed + 1
+        End If
+    Next
+    For Each ao In CurrentProject.AllReports
+        body = ObjectControlsJson(acReport, "report", ao.Name)
+        If Len(body) > 0 Then
+            If Not first Then sb = sb & "," & vbCrLf
+            sb = sb & body
+            first = False
+            n = n + 1
+        Else
+            failed = failed + 1
+        End If
+    Next
+
+    WriteUtf8 OutRoot & "\ui\controls.json", "[" & vbCrLf & sb & vbCrLf & "]" & vbCrLf
+    Debug.Print "Control inventory: " & n & " object(s) read, " & failed & " could not be opened"
+    Debug.Print "  -> " & OutRoot & "\ui\controls.json"
+End Sub
+
+Private Function ObjectControlsJson(ByVal objType As Integer, ByVal kind As String, _
+                                    ByVal objName As String) As String
+    On Error GoTo Failed
+    Dim obj As Object, ctl As Object, sb As String, first As Boolean
+
+    If objType = acForm Then
+        DoCmd.OpenForm objName, acDesign, , , , acHidden
+        Set obj = Forms(objName)
+    Else
+        DoCmd.OpenReport objName, acDesign, , , acHidden
+        Set obj = Reports(objName)
+    End If
+
+    first = True
+    For Each ctl In obj.Controls
+        If Not first Then sb = sb & "," & vbCrLf
+        sb = sb & ControlJson(ctl)
+        first = False
+    Next
+
+    If objType = acForm Then
+        DoCmd.Close acForm, objName, acSaveNo
+    Else
+        DoCmd.Close acReport, objName, acSaveNo
+    End If
+
+    ObjectControlsJson = "  {" & vbCrLf & _
+        "    ""object"": """ & JsonEscape(objName) & """," & vbCrLf & _
+        "    ""kind"": """ & kind & """," & vbCrLf & _
+        "    ""controls"": [" & vbCrLf & sb & vbCrLf & "    ]" & vbCrLf & "  }"
+    Exit Function
+
+Failed:
+    ' Close whatever managed to open, save nothing, and record the failure the
+    ' same way the rest of this module does: an object that cannot be read is
+    ' reported, never silently dropped.
+    On Error Resume Next
+    If objType = acForm Then
+        DoCmd.Close acForm, objName, acSaveNo
+    Else
+        DoCmd.Close acReport, objName, acSaveNo
+    End If
+    AddSkip kind & "-controls", objName, Err.Description
+    ObjectControlsJson = ""
+End Function
+
+Private Function ControlJson(ByVal ctl As Object) As String
+    On Error Resume Next
+    Dim cap As String, tip As String, onClick As String, vis As String
+    Dim lbl As String, sect As String, parentName As String
+
+    cap = "": cap = CStr(ctl.Caption)
+    tip = "": tip = CStr(ctl.ControlTipText)
+    onClick = "": onClick = CStr(ctl.OnClick)
+    vis = "true": vis = LCase$(CStr(ctl.Visible))
+    sect = "": sect = CStr(ctl.Section)
+    parentName = "": parentName = CStr(ctl.Parent.Name)
+
+    ' The attached label. This is the visible text for a control that has no
+    ' caption of its own, and it is the association the definition text loses.
+    lbl = ""
+    If ctl.Controls.Count > 0 Then lbl = CStr(ctl.Controls(0).Caption)
+
+    ControlJson = "      {""name"": """ & JsonEscape(CStr(ctl.Name)) & """" & _
+        ", ""type"": " & CStr(ctl.ControlType) & _
+        ", ""caption"": """ & JsonEscape(cap) & """" & _
+        ", ""attached_label"": """ & JsonEscape(lbl) & """" & _
+        ", ""tooltip"": """ & JsonEscape(tip) & """" & _
+        ", ""visible"": " & vis & _
+        ", ""on_click"": """ & JsonEscape(onClick) & """" & _
+        ", ""section"": """ & JsonEscape(sect) & """" & _
+        ", ""parent"": """ & JsonEscape(parentName) & """" & _
+        ", ""left"": " & CStr(NzLong(ctl.Left)) & _
+        ", ""top"": " & CStr(NzLong(ctl.Top)) & _
+        ", ""width"": " & CStr(NzLong(ctl.Width)) & _
+        ", ""height"": " & CStr(NzLong(ctl.Height)) & "}"
+End Function
+
+Private Function NzLong(ByVal v As Variant) As Long
+    On Error Resume Next
+    NzLong = 0
+    NzLong = CLng(v)
+End Function
