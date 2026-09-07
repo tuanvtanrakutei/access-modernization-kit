@@ -106,8 +106,22 @@ missing, discharged before the phases move rather than after.
 need are declared and wired into the group envelope, and the rule is stated where the
 forms are: an answer only in somebody's memory has no anchor and cannot pass G1.
 
+`7ac931a` - the collection step reaches screens. It had covered tables and columns;
+`ScreenCatalogue`'s purpose column was a literal, so it asserted a gap rather than
+reporting one and could not have changed if anybody answered it. Ranked the same way -
+by what opens it, how many events it carries - and EC-05 written into the note of any
+screen nothing opens.
+
 Phase 3 is untouched and stays that way: it is the one phase whose required class
 supports its characteristic claim.
+
+**What the collection step still does not reach.** Boundary files are enumerable from
+`interfaces/linked-tables.json` and `interfaces/file-interfaces.json` and are the next
+section. Workflows are not enumerable at all: a workflow is a phase 4 construct,
+reconstructed rather than extracted, so there is nothing for a worklist to write a
+blank against. This entry asked for all three as if they were the same kind of subject
+and two of them are; the third needs a different mechanism, and naming which is the
+useful half of finding out.
 
 **What this does not settle.**
 
