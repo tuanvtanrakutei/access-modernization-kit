@@ -123,11 +123,33 @@ conditional_run_artifacts:
   - name: "extracted/module-plan/processing-order.json"
     when: "analysis.module_planning.enabled is true"
 
+# A prerequisite names the artifact that carries the data the output renders - not a
+# document written at the same time about the same material.
+#
+# `Phase4` was listed for both HTML outputs and read by neither. `E2ETrace` renders
+# steps and data state, which is `traceability-row` (screen, vba_event, processing,
+# data_target, output, evidence_ids) plus the evidence each step cites; `BoundaryMap`
+# renders touchpoints with direction and evidence, which is the LogicCatalogue's
+# "Files crossing the boundary" - generated from `interfaces/linked-tables.json` and
+# `interfaces/file-interfaces.json`, and wider than the stored links, which is the
+# whole point of a boundary map. Phase 4 narrates the same material; it does not hold
+# it. `modernize/docs/LEGACY_EVIDENCE.md` 6.4 records the same finding from the other
+# side: no script reads phase 4's or phase 6's content.
+#
+# This matters beyond tidiness. Backlog A19 proposes moving phases 4-6 to after the
+# collection step, and a prerequisite pointing at a phase that has moved orphans the
+# artifact silently - the failure that entry had to be corrected for missing.
+#
+# The PPTX keeps `Phase6`: a presentation renders the synthesis, so that one is a real
+# input. It moves when phase 6 does, and it is off by default until then.
+#
+# Nothing enforces this list mechanically. Independent QA reads it - `qa-report.md` has
+# a line per output - so what is written here is what gets checked.
 derived_outputs:
   - name: "{APP_ID}_E2ETrace.html"
-    prerequisites: ["Phase4", "TraceabilityMatrix", "IndependentQA"]
+    prerequisites: ["TraceabilityMatrix", "Evidence", "IndependentQA"]
   - name: "{APP_ID}_BoundaryMap.html"
-    prerequisites: ["Phase1", "Phase4", "Evidence", "IndependentQA"]
+    prerequisites: ["LogicCatalogue", "Evidence", "IndependentQA"]
   - name: "{APP_ID}_Legacy_System_Synthesis_{LANG}.pptx"
     prerequisites: ["Phase6", "E2ETrace", "BoundaryMap", "IndependentQA"]
 

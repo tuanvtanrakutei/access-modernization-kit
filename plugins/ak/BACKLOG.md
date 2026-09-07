@@ -78,11 +78,64 @@ a named decision is blocked, not to fill a section. That ordering - evidence fir
 questions only for what evidence cannot settle - is what keeps the question set closed
 and the brief from growing past what someone actually answered.
 
+**Landed so far.**
+
+`5ba6d60` - phase 1 section 2 stopped asking for a second copy of the DataCatalogue;
+the per-table table and the per-table "meaning not established" list are gone, the
+counts carry where they were read from, and section 3 keeps the meaning. Drafting it
+reintroduced the defect two sections away first, which is worth knowing about this
+kind of edit.
+
+`3d606ce` - phase 2 section 1.1 and section 5.2 the same way, against the
+ScreenCatalogue. Section 1.2 did **not** move: entry points are an interpretation the
+catalogue does not make, so the plan above was wrong to treat all of phase 2 as
+duplication, and the seeder that reads 1.2 needs no re-pointing at all.
+
+`a378aee` - that seeder could not read the shipped phase 2 template in the first
+place, which is what looking for the re-pointing found. `50ec38b` - the ScreenCatalogue
+wrote ten cells under a nine-column header, found the same way. Both had no test
+asserting the shape of what they produced.
+
+`6749f3a` - the three derived outputs no longer hang off phase 4.
+`E2ETrace` names the TraceabilityMatrix and the Evidence register, `BoundaryMap` names
+the LogicCatalogue's boundary section; the PPTX keeps phase 6, which a presentation
+genuinely renders. This is the ordering rule this entry had to be corrected for
+missing, discharged before the phases move rather than after.
+
+`cbd1afb` - `DOCUMENT` and `INTERVIEW` have anchor forms, the two directories they
+need are declared and wired into the group envelope, and the rule is stated where the
+forms are: an answer only in somebody's memory has no anchor and cannot pass G1.
+
+`7ac931a` - the collection step reaches screens. It had covered tables and columns;
+`ScreenCatalogue`'s purpose column was a literal, so it asserted a gap rather than
+reporting one and could not have changed if anybody answered it. Ranked the same way -
+by what opens it, how many events it carries - and EC-05 written into the note of any
+screen nothing opens.
+
+Phase 3 is untouched and stays that way: it is the one phase whose required class
+supports its characteristic claim.
+
+**What the collection step still does not reach.** Boundary files are enumerable from
+`interfaces/linked-tables.json` and `interfaces/file-interfaces.json` and are the next
+section. Workflows are not enumerable at all: a workflow is a phase 4 construct,
+reconstructed rather than extracted, so there is nothing for a worklist to write a
+blank against. This entry asked for all three as if they were the same kind of subject
+and two of them are; the third needs a different mechanism, and naming which is the
+useful half of finding out.
+
 **What this does not settle.**
 
-*The anchor.* `TRACEBACK_GATES.md` anchors evidence as `file::Routine():start-end`.
-An answer has no line number. Unless `INTERVIEW` gets an anchor form of its own,
-G1 will report a coverage gap on precisely the claims with the best sources.
+*The anchor - settled by `cbd1afb`, and this entry had it half wrong.* The concern
+was right: `TRACEBACK_GATES.md` had a form for twelve evidence types and none for
+`DOCUMENT` or `INTERVIEW`, which EC-01 makes the only two that can carry a claim about
+meaning - so G1 did check coverage by an anchor that the best-sourced claims had no way
+to produce. The stated reason was wrong. An answer does not lack a line number for want
+of a format; `schemas/evidence.schema.json` has carried `source_type: INTERVIEW`,
+`evidence_class: INTERVIEW` and an `attribution` object all along, with an `allOf`
+making `person` and `recorded_on` mandatory. The register was ahead of the gate spec.
+What was missing was the row, the mention of `attribution` in the field table, and any
+directory for either class to live in - `PROJECT_CONFIG.md` declared CODE, UI and
+OUTPUT and nowhere to put a recorded answer.
 
 *Who answered.* `contracts/meanings.py` requires a `source`, but nothing distinguishes
 the person who knows from the person who typed. A developer answering a MEANING

@@ -146,6 +146,51 @@ def test_every_derived_output_the_contract_declares_has_a_template(contract: dic
             assert (TEMPLATES / templates[name]).is_file(), f"{name} has no template"
 
 
+def test_every_prerequisite_names_an_artifact_the_contract_declares(contract: dict) -> None:
+    """A prerequisite nobody can resolve is a check nobody can run.
+
+    Independent QA reads this list - `qa-report.md` carries a line per output - and
+    nothing else does, so a token naming an artifact that was renamed or removed goes
+    on being reported as satisfied. That is how `Phase4` stayed listed for two HTML
+    outputs that never read it, and it is what A19 warns will happen to these three
+    the moment phases 4-6 move.
+    """
+    declared: list[str] = list(contract["required_phase_outputs"])
+    declared += list(contract["required_control_outputs"])
+    declared += [entry["name"] for entry in contract["required_catalogues"]]
+    declared += list(contract["required_run_artifacts"])
+    declared += [entry["name"] for entry in contract["derived_outputs"]]
+
+    def normal(text: str) -> str:
+        return "".join(c for c in text.lower() if c.isalnum())
+
+    haystack = [normal(name) for name in declared]
+    for output in contract["derived_outputs"]:
+        for token in output["prerequisites"]:
+            assert any(normal(token) in name for name in haystack), (
+                f"{output['name']} requires {token!r}, which this contract declares "
+                f"nowhere - QA cannot check it"
+            )
+
+
+def test_no_derived_output_depends_on_a_phase_whose_content_nothing_reads(
+    contract: dict,
+) -> None:
+    """Phase 4's and phase 6's content is read by no script (LEGACY_EVIDENCE.md 6.4).
+
+    Phase 6 is a real input to the presentation - a synthesis is what a presentation
+    renders - so it stays. Phase 4 is not an input to either HTML output: E2ETrace
+    renders the traceability matrix and BoundaryMap the LogicCatalogue's boundary
+    section. Re-listing it would re-create the dependency A19 has to unpick before
+    those phases can move.
+    """
+    for output in contract["derived_outputs"]:
+        assert "Phase4" not in output["prerequisites"], (
+            f"{output['name']} lists Phase4; name the artifact holding the data it "
+            f"renders instead"
+        )
+
+
 def test_readme_is_a_required_control_output(contract: dict) -> None:
     assert "README.md" in contract["required_control_outputs"]
 

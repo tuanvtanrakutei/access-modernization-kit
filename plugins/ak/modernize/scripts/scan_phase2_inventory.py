@@ -144,8 +144,31 @@ def extract_inventory_block(text: str) -> list[str] | None:
     return extract_section(text, HEADING_RE, NEXT_HEADING_RE)
 
 
-def parse_pipe_table(block: list[str]) -> tuple[list[str], list[list[str]]] | None:
-    table_lines = [ln for ln in block if ln.strip().startswith("|")]
+def pipe_tables(block: list[str]) -> list[list[str]]:
+    """Every contiguous run of table lines in the block, in document order.
+
+    Section 1 holds more than one table. The shipped template opens with a totals
+    table - `| | Forms | Reports |` under `### 1.1` - and the object rows come after
+    it under `### 1.2`; `NEXT_HEADING_RE` deliberately breaks on `#` and `##` only,
+    so both are inside this block. Reading the first line of the whole block as the
+    header therefore read the totals header and reported the object column missing,
+    against the kit's own template - which is exactly what a first run supplies.
+    """
+    tables: list[list[str]] = []
+    current: list[str] = []
+    for line in block:
+        if line.strip().startswith("|"):
+            current.append(line)
+            continue
+        if current:
+            tables.append(current)
+            current = []
+    if current:
+        tables.append(current)
+    return tables
+
+
+def parse_pipe_table(table_lines: list[str]) -> tuple[list[str], list[list[str]]] | None:
     if len(table_lines) < 2:
         return None
     header_cells = [c.strip() for c in table_lines[0].strip().strip("|").split("|")]
@@ -327,16 +350,29 @@ def main() -> int:
         print(f"error: heading 'Screen, Form, and Report Inventory' not found in {doc_path}", file=sys.stderr)
         return 2
 
-    parsed = parse_pipe_table(block)
-    if parsed is None:
+    tables = pipe_tables(block)
+    if not tables:
         print(f"error: no pipe table found under the inventory heading in {doc_path}", file=sys.stderr)
         return 2
 
-    header_cells, rows_raw = parsed
-    col_map = map_columns(header_cells)
-    missing = REQUIRED_COLUMNS - set(col_map.values())
-    if missing:
-        print(f"error: inventory table missing required column(s): {sorted(missing)}", file=sys.stderr)
+    # The object table is whichever one carries the required columns. Picking by
+    # position instead assumes the section opens with it, which the template does not.
+    header_cells: list[str] = []
+    rows_raw: list[list[str]] = []
+    col_map: dict[int, str] = {}
+    for table_lines in tables:
+        parsed = parse_pipe_table(table_lines)
+        if parsed is None:
+            continue
+        candidate_header, candidate_rows = parsed
+        candidate_map = map_columns(candidate_header)
+        if not REQUIRED_COLUMNS - set(candidate_map.values()):
+            header_cells, rows_raw, col_map = candidate_header, candidate_rows, candidate_map
+            break
+    if not col_map:
+        print(f"error: none of the {len(tables)} table(s) under the inventory heading "
+              f"in {doc_path} carries the required column(s): {sorted(REQUIRED_COLUMNS)}",
+              file=sys.stderr)
         return 2
 
     modules: list[tuple[str, str, str]] = []

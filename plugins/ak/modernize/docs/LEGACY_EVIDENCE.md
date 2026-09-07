@@ -228,6 +228,18 @@ template filenames (`phase2-screen-analysis.md`), which do not occur in real out
 `scripts/scan_phase2_inventory.py` had exactly this bug until it was caught by renaming a
 self-test fixture to the real convention before its first real-project run, not after.
 
+The same script then had the same shape one layer in, found 2026-09-07 and fixed the same
+day. Section 1 of `ak`'s Phase 2 template opens with a totals table under `### 1.1` and
+carries the object rows under `### 1.2`. The section extractor breaks on `#` and `##` only,
+so both tables arrive in one block, and the seeder read the block's first line as the header
+of everything — the totals header, which has no `Object` column. Run against the template the
+kit ships, which is the document a first project supplies, it exited 2 with "inventory table
+missing required column(s): ['object']". It now selects the table that carries the columns it
+needs rather than the one that comes first. The general rule both instances are cases of:
+**verify a discoverer against the real artifact, not against a fixture shaped like the code's
+assumptions.** `plugins/ak/tests/test_scan_phase2_inventory.py` runs it against the shipped
+template; before that file there were no tests for this script at all.
+
 ### 6.3 Cross-Artifact Screen Identity — What Is Guaranteed And What Is Not
 
 `Screens_Registry.md`'s `screen` column is documented as the join key across every per-screen

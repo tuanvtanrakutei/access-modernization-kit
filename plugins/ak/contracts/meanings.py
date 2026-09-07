@@ -67,6 +67,10 @@ class Meaning:
 class Meanings:
     tables: dict[str, Meaning]
     columns: dict[str, Meaning]
+    # Forms and reports, keyed `"{kind} {name}"`. A form and a report may share a name
+    # - A05 has two objects called the same thing - so the kind is part of the key, the
+    # same reason `generate_catalogues.py` keys objects by kind.
+    screens: dict[str, Meaning]
     incomplete: list[str]
     # Subjects with a blank entry waiting to be filled. Counted, never listed: this is
     # the worklist `$ak meanings` wrote, not a set of defects.
@@ -74,6 +78,11 @@ class Meanings:
 
     def table(self, name: str) -> Meaning | None:
         entry = self.tables.get(name)
+        return entry if entry and entry.is_complete else None
+
+    def screen(self, kind: str, name: str) -> Meaning | None:
+        """What a form or report is for. `kind` is `form` or `report`."""
+        entry = self.screens.get(f"{kind} {name}")
         return entry if entry and entry.is_complete else None
 
     def column(self, table: str, column: str) -> Meaning | None:
@@ -93,15 +102,17 @@ class Meanings:
 def load(path: Path) -> Meanings:
     """Read the decisions file. A missing file means nothing is recorded yet."""
     if not path.is_file():
-        return Meanings({}, {}, [])
+        return Meanings({}, {}, {}, [])
     import yaml
 
     data = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
     tables: dict[str, Meaning] = {}
     columns: dict[str, Meaning] = {}
+    screens: dict[str, Meaning] = {}
     incomplete: list[str] = []
     unfilled: list[str] = []
-    for section, target in (("tables", tables), ("columns", columns)):
+    for section, target in (("tables", tables), ("columns", columns),
+                            ("screens", screens)):
         for subject, entry in (data.get(section) or {}).items():
             if not isinstance(entry, dict):
                 incomplete.append(f"{section}/{subject}: not a mapping")
@@ -130,4 +141,4 @@ def load(path: Path) -> Meanings:
                 incomplete.append(f"{section}/{subject}: " + "; ".join(why))
                 continue
             target[str(subject)] = meaning
-    return Meanings(tables, columns, incomplete, unfilled)
+    return Meanings(tables, columns, screens, incomplete, unfilled)

@@ -50,17 +50,25 @@ document is JP-primary, with a Romaji alias for cross-reference. Never translate
 
 ### 1.1 Totals
 
-| | Forms | Reports |
-|---|---:|---:|
-| Total | | |
-| Declaring a record source | | |
-| Carrying event procedures | | |
-| Embedding a third-party control | | |
+<!-- Every figure here is in `{{APP_ID}}_ScreenCatalogue.md`, which is generated from
+     the bundle and lists every form and report with its record source, its bound
+     fields, its event procedures and its embedded controls. Read them from there
+     rather than counting again: two counts of one thing is how E-07 was published,
+     37 unreferenced objects against 26 actual.
 
-<!-- A count is not a description of what was counted. If you characterise the set
-     behind a number - "all eight are X" - re-derive that from the full list, never
-     from the members you happened to open. This is errata cause class
-     DESCRIBED_NOT_COUNTED, and it has already cost this project two corrections. -->
+     A count is also not a description of what was counted. If you characterise the
+     set behind a number - "all eight are X" - re-derive that from the catalogue's
+     full list, never from the members you happened to open. This is errata cause
+     class DESCRIBED_NOT_COUNTED, and it has already cost this project two
+     corrections. -->
+
+| | Forms | Reports | Read from |
+|---|---:|---:|---|
+| Total | | | `{{APP_ID}}_ScreenCatalogue.md` |
+| Declaring a record source | | | `{{APP_ID}}_ScreenCatalogue.md` |
+| Carrying event procedures | | | `{{APP_ID}}_ScreenCatalogue.md` |
+| Embedding a third-party control | | | `{{APP_ID}}_ScreenCatalogue.md` |
+| Business purpose not established | | | the catalogue's marked cells |
 
 ### 1.2 Entry points
 
@@ -123,8 +131,20 @@ flowchart TD
 
 ### 5.2 Unreferenced objects, grouped
 
-<!-- Superseded variants, sub-menus nothing opens, reports with no launcher. Naming
-     the groups is what turns a number into something an operator can answer. -->
+<!-- The list is `{{APP_ID}}_ScreenCatalogue.md` section "Objects referenced by
+     nothing", computed from the derived graph. Do not re-derive it here and do not
+     restate its count: E-07 is exactly this figure published from a subset, 37
+     against 26 actual, and it was caught by generating the catalogue rather than by
+     reading the document.
+
+     What belongs here is the grouping - superseded variants, sub-menus nothing opens,
+     reports with no launcher - because naming the groups is what turns the
+     catalogue's number into something an operator can answer. Say which routes were
+     not examined every time the figure is quoted: absence of a reference is
+     unreachability, not disuse (EC-05). -->
+
+| Group | Objects | Why they are grouped this way | Routes not examined |
+|---|---:|---|---|
 
 ### 5.3 Missing captures
 

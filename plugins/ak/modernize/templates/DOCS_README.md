@@ -26,6 +26,7 @@ the operational manual, not the introduction.
 | Look up code style (naming, type hints, tests, logging) | `{{CONVENTIONS_DOC}}` |
 | Look up DB table or field name | `{{TABLE_MAP_DOC}}` |
 | Find legacy evidence (form, screenshot, report) | `{{EVIDENCE_CODE_DIR}}`, `{{EVIDENCE_UI_DIR}}`, `{{EVIDENCE_OUTPUT_DIR}}` |
+| Find what somebody said a thing is for | `{{EVIDENCE_INTERVIEW_DIR}}`, `{{EVIDENCE_DOCUMENT_DIR}}` - the only two classes that can carry a claim about meaning, usage or intent |
 | Understand the PM-facing flow for one screen | `Business_flows/{screen}.md` |
 | Understand the technical design for one screen | `Screen_plans/{screen}.md` |
 | See how a screen was actually implemented | `Coding_Records/{screen}.md` |
@@ -121,6 +122,7 @@ fe_mode: Greenfield` — a normal state, not an error.
 | `FRONTEND_TESTING.md` | Frontend test method — read at Stage 4b |
 | `{{CONVENTIONS_DOC}}` | Language-level style |
 | `{{EVIDENCE_CODE_DIR}}` / `{{EVIDENCE_UI_DIR}}` / `{{EVIDENCE_OUTPUT_DIR}}` | Raw legacy evidence |
+| `{{EVIDENCE_INTERVIEW_DIR}}` / `{{EVIDENCE_DOCUMENT_DIR}}` | Recorded answers and supplied business documents |
 | `{{API_COLLECTION_DIR}}` | QA handoff artifacts, or `n/a` |
 
 ## 5. Common Commands

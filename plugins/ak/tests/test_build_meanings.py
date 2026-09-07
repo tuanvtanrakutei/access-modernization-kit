@@ -131,6 +131,44 @@ tables:
     assert meanings_contract.load(target).table("受注データ") is not None
 
 
+def test_a_form_and_a_report_sharing_a_name_are_two_questions(
+    workspace: Path,  # noqa: F811
+) -> None:
+    """Keyed `"{kind} {name}"`, because A05 has a form and a report called the same.
+
+    Keying by name alone would put one duplicate key in the YAML, where the last one
+    silently wins - the defect the tables section already had to be fixed for. The
+    fixture's two reports share a name across databases and are deliberately *one*
+    entry; a form and a report sharing one would be two.
+    """
+    text = run(workspace)
+    screens = text.split("screens:", 1)[1]
+    assert '"form メインメニュー":' in screens
+    assert '"form 商品検索":' in screens
+    # Same name in two databases is one question, the same rule tables follow.
+    assert screens.count('"report ピッキングリスト":') == 1
+    assert "in 2 databases (BACK_2222, FRONT_1111)" in screens
+
+
+def test_a_screen_note_carries_what_the_definition_already_says(
+    workspace: Path,  # noqa: F811
+) -> None:
+    """The note is USAGE and STRUCTURE informing the question, never answering it.
+
+    A person filling in a screen that 3 objects open and that carries 14 event
+    procedures knows it is worth getting right. One that nothing opens needs a
+    different question, and EC-05 is why: no code path opening it is unreachability,
+    not disuse.
+    """
+    screens = run(workspace).split("screens:", 1)[1]
+    assert "record source `select * from 集計商品マスタ`" in screens
+    assert "2 bound field(s); 1 event procedure(s); opened by 0 object(s)" in screens
+    assert "unreachability and not disuse" in screens
+    # And nothing is proposed: every added entry is blank, screens included.
+    body = screens.split('"form メインメニュー":', 1)[1]
+    assert body.lstrip().startswith('meaning: ""')
+
+
 def test_a_sourced_meaning_outlives_its_table(workspace: Path) -> None:  # noqa: F811
     """A meaning somebody obtained is not dropped because a bundle stopped listing it.
 
