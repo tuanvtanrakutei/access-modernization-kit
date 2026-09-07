@@ -96,7 +96,7 @@ place, which is what looking for the re-pointing found. `50ec38b` - the ScreenCa
 wrote ten cells under a nine-column header, found the same way. Both had no test
 asserting the shape of what they produced.
 
-`__PREREQ__` - the three derived outputs no longer hang off phase 4.
+`6749f3a` - the three derived outputs no longer hang off phase 4.
 `E2ETrace` names the TraceabilityMatrix and the Evidence register, `BoundaryMap` names
 the LogicCatalogue's boundary section; the PPTX keeps phase 6, which a presentation
 genuinely renders. This is the ordering rule this entry had to be corrected for
