@@ -175,6 +175,10 @@ evidence_classes:
     note: >
       Narrow by design: which artifact is the backend, which copy is current.
       It is a declaration about the inputs, not a source of business knowledge.
+      An operator who knows what a table is for is not exempt from that: they are
+      a source, and the class for a source who is a person is INTERVIEW, named and
+      dated. Settled 2026-09-07 - EC-01 offered this class as a third route for a
+      MEANING claim until then, contradicting the line above it (backlog A18).
 
 # ---------------------------------------------------------------------------
 # The rules a phase gate and the conformance checker enforce.
@@ -183,8 +187,10 @@ rules:
 
   - id: EC-01
     rule: >
-      A MEANING, USAGE or INTENT claim requires DOCUMENT, INTERVIEW or
-      OPERATOR_DECLARATION. No volume of SCHEMA, CODE or UI_DEFINITION substitutes.
+      A MEANING, USAGE or INTENT claim requires DOCUMENT or INTERVIEW. No volume of
+      SCHEMA, CODE or UI_DEFINITION substitutes, and neither does an
+      OPERATOR_DECLARATION: a person answering from their own knowledge is an
+      INTERVIEW, named and dated.
     on_violation: "The claim is downgraded to an open question naming the class needed."
 
   - id: EC-02

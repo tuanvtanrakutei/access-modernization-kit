@@ -90,7 +90,7 @@ tables:
   受注データ:
     role: transaction
     meaning: One row per ordered line.
-    evidence_class: OPERATOR_DECLARATION
+    evidence_class: INTERVIEW
     source: Vo Ta Tuan, 2026-09-07
 """)
     text = run(workspace)
@@ -100,6 +100,35 @@ tables:
     assert entry is not None and entry.role == "transaction"
     # And the subjects it did not have are added alongside, still blank.
     assert '"商品情報":' in text
+
+
+def test_a_meaning_declared_by_the_operator_is_refused(workspace: Path) -> None:  # noqa: F811
+    """A18, settled 2026-09-07: OPERATOR_DECLARATION cannot carry a MEANING.
+
+    The class is a statement about the inputs - which file is the backend, which copy
+    is current. An operator who knows what a table is for is still a source, and the
+    class for a source who is a person is INTERVIEW, so the identical sentence is
+    accepted the moment it names who said it and when. That is the whole of what
+    changed, and it is why this refusal costs an operator nothing.
+    """
+    target = workspace / "input" / "decisions" / "meanings.yaml"
+    target.parent.mkdir(parents=True, exist_ok=True)
+    declared = """
+tables:
+  受注データ:
+    meaning: One row per ordered line.
+    evidence_class: OPERATOR_DECLARATION
+    source: Vo Ta Tuan, 2026-09-07
+"""
+    target.write_text(declared, encoding="utf-8")
+    refused = meanings_contract.load(target)
+    assert refused.table("受注データ") is None
+    assert any("受注データ" in row and "DOCUMENT, INTERVIEW" in row
+               for row in refused.incomplete), refused.incomplete
+
+    target.write_text(declared.replace("OPERATOR_DECLARATION", "INTERVIEW"),
+                      encoding="utf-8")
+    assert meanings_contract.load(target).table("受注データ") is not None
 
 
 def test_a_sourced_meaning_outlives_its_table(workspace: Path) -> None:  # noqa: F811

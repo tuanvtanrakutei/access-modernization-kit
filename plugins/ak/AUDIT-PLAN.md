@@ -205,6 +205,10 @@ The largest unit, because D1–D6 are settled here once for all phases.
   audit exists to write: *a claim about business meaning, frequency, ownership or
   intent requires `DOCUMENT`, `INTERVIEW` or `OPERATOR_DECLARATION`; no volume of
   `SCHEMA` substitutes.*
+  [Corrected 2026-09-07: `OPERATOR_DECLARATION` was dropped from that list. The class
+  is a statement about the inputs - which file is the backend, which copy is current -
+  and its own entry always said it could not carry a meaning. A person answering from
+  their own knowledge is an `INTERVIEW`, named and dated. Backlog A18.]
 - **Identifier scheme** (D1) — `specifications/identifier-scheme.yaml` registering
   the `BR-`, `WF-`, `F-`, `RD/RA/RW/RS-`, `UK-`, `AS-`, `DISC-`, `E-`, `d`/`r`
   vocabularies, their namespaces, allocation rules, and the requirement that every

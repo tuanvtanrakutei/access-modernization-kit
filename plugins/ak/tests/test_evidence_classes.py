@@ -140,6 +140,21 @@ def test_a_meaning_claim_may_not_rest_on_schema(contract: dict) -> None:
     assert not ok and "EC-01" in why
 
 
+def test_a_rule_may_not_offer_a_class_its_own_table_forbids(contract: dict) -> None:
+    """A18: EC-01 required DOCUMENT, INTERVIEW *or OPERATOR_DECLARATION* for a MEANING
+    claim, forty lines below the class entry saying that class cannot support one.
+
+    Nothing compared the prose of a rule with the table it sits beside, so the file
+    contradicted itself for as long as no register happened to carry the combination.
+    """
+    ec01 = next(r for r in contract["rules"] if r["id"] == "EC-01")["rule"]
+    requires = next(s for s in ec01.split(".") if "requires" in s)
+    forbidden = [name for name, spec in contract["evidence_classes"].items()
+                 if "MEANING" in (spec.get("cannot_support") or [])]
+    offered = [name for name in forbidden if name in requires]
+    assert not offered, f"EC-01 offers {offered} for a MEANING claim"
+
+
 def test_a_format_claim_may_not_rest_on_code(contract: dict) -> None:
     """Code shows what a reader accepts, not what the producer writes."""
     ok, why = evidence_classes.claim_is_supportable("FORMAT", "CODE", contract)

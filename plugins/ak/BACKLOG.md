@@ -66,13 +66,17 @@ Phases 4, 5 and 6 move after collection. Once they are downstream of an answer r
 than upstream of one, there is no longer a reason for three documents where one brief
 would do.
 
-Add the collection step. `$ak meanings` is already the right shape and the wrong
-scope: the machine enumerates the blanks, ranks them by `write_profile` and reference
-count, a person fills them, and nothing is ever proposed. Generalize it past tables
-and columns to screens, workflows and boundaries, and the question set stays closed
-and countable - which is the property that keeps the collection from becoming an
-open-ended conversation, and the brief from growing past what someone actually
-answered.
+Add the collection step, and size it to the project. `$ak meanings` is already the
+right shape: the machine enumerates the blanks, ranks them by `write_profile` and
+reference count, a person fills them, and nothing is ever proposed. At A05's 1,176
+subjects that shape has to be a process. On a smaller application it does not.
+
+What survives a deep pass over the evidence that is actually supplied - VBA, form and
+report definitions, schema, saved SQL, file samples, screenshots - is a short residue,
+and a short residue is a numbered list of exceptions rather than a stage. Ask because
+a named decision is blocked, not to fill a section. That ordering - evidence first,
+questions only for what evidence cannot settle - is what keeps the question set closed
+and the brief from growing past what someone actually answered.
 
 **What this does not settle.**
 
@@ -83,50 +87,37 @@ G1 will report a coverage gap on precisely the claims with the best sources.
 *Who answered.* `contracts/meanings.py` requires a `source`, but nothing distinguishes
 the person who knows from the person who typed. A developer answering a MEANING
 question is INFERRED, not INTERVIEW, and the difference is invisible in the file.
-Related to A18, which has to be settled first: the file cannot say which classes may
-carry a meaning while its own two halves disagree.
+A18 settled the neighbouring question - which classes may carry a meaning at all -
+and narrowed this one rather than answering it: with `OPERATOR_DECLARATION` gone,
+every meaning now claims to be a DOCUMENT or an INTERVIEW, and an INTERVIEW asserts
+that a named person said it on a named date. Nothing checks that the named person is
+the one who knew.
 
-*The blast radius, which is smaller than it looks.* Exactly three places read phase
-output: `MASTER_WORKFLOW.md`'s pre-flight check on `phase_gates` for
-phase2/phase4/phase6, `scan_phase2_inventory.py` reading phase 2 section 1 to seed the
-registry, and `LEGACY_EVIDENCE.md` 6.1's enriched-tier table. Phase 4 and phase 6 can
-be demoted to optional deliverables today without touching any of the three.
+*The blast radius, corrected the same day.* This entry first said three places read
+phase output, and that phases 4 and 6 could be demoted today without touching any of
+them. That was wrong, and wrong in the direction that breaks things.
+`output-contract.yaml`'s `derived_outputs` is a fourth: `E2ETrace.html` requires
+`Phase4`, `BoundaryMap.html` requires `Phase1` and `Phase4`, and the PPTX requires
+both of those plus `Phase6`. The cross-screen view is not missing from this kit - it
+exists, and it hangs off the two phases this entry proposes to move. Demoting them
+without re-pointing those prerequisites orphans all three artifacts silently.
+
+The four, then: `MASTER_WORKFLOW.md`'s pre-flight check on `phase_gates` for
+phase2/phase4/phase6; `scan_phase2_inventory.py` reading phase 2 section 1 to seed
+the registry; `LEGACY_EVIDENCE.md` 6.1's enriched-tier table; and the three
+`derived_outputs` prerequisites. Still bounded and still nameable, but the
+prerequisites have to move with the phases rather than be left pointing at them.
+
+*Whether those artifacts were ever readable.* Recorded from the operator, on the
+previous project: a boundary map and an E2E trace were produced, and the system still
+could not be understood from them, because the scope was too large to hold. That is
+evidence for this entry rather than against it - the defect was volume, not a missing
+artifact - but it also means re-pointing a prerequisite is not by itself an
+improvement. Nothing here measures whether a cross-screen artifact gets read at a
+scale where it could be.
 
 Found by asking where each phase document's content is read, rather than whether it
 was published - the question the gates do not ask, and the same blind spot as A13.
-
-### A18 - the class table and rule EC-01 disagree about OPERATOR_DECLARATION, in one file
-
-**Observed 2026-09-07, writing the meanings worklist.** `evidence-classes.yaml` defines
-`OPERATOR_DECLARATION` with `cannot_support: [BEHAVIOUR, FORMAT, MEANING, USAGE,
-INTENT]` and a note that reads "a declaration about the inputs, not a source of
-business knowledge". Forty lines below, in the same file, rule EC-01 says a MEANING,
-USAGE or INTENT claim "requires DOCUMENT, INTERVIEW **or OPERATOR_DECLARATION**".
-
-One of them has to go, and until one does the kit contradicts itself in a way that is
-now enforced: `_ec01_violations`, added 2026-09-04, evaluates `cannot_support`, so it
-would report as a violation exactly what the rule beside it permits. Nobody has hit
-this only because no register has carried an `OPERATOR_DECLARATION` item with
-`claim_kind: MEANING` yet.
-
-It reaches further than the taxonomy. `contracts/meanings.py` lists
-`OPERATOR_DECLARATION` in `VALID_CLASSES`, so a business meaning recorded that way in
-`meanings.yaml` is accepted and rendered into the catalogue today; and
-`build_references.py` describes `input/decisions/` as "OPERATOR_DECLARATION — accepted
-names and recorded meanings". Two parts of the kit are built on the permissive reading
-and one checker on the strict one.
-
-**Which is probably right.** The class note is the more considered of the two - it
-states a scope ("which artifact is the backend, which copy is current") and a reason.
-EC-01's third option reads like it was added to a list. If the strict reading wins,
-`VALID_CLASSES` should lose the class and the guidance should say what it now says:
-that an answer from a conversation is an INTERVIEW, named and dated. If the permissive
-reading wins, the class table needs a second `supports` line and the note needs
-rewriting, because "not a source of business knowledge" cannot stand beside it.
-
-Found the same way as every A13 instance: by using the apparatus rather than testing
-it. The worklist's header had to tell an operator which class to write, and there was
-no answer that both halves of one file agreed with.
 
 ### A17 - the two tables that define a text link's columns are excluded as system tables
 
@@ -464,6 +455,25 @@ against that one object rather than against the application as a whole.
 
 Closed entries name the commit that closed them and the run that proved it.
 
+- **The class table and rule EC-01 disagreed about `OPERATOR_DECLARATION`, in one
+  file** (A18) - the class declared `cannot_support: [BEHAVIOUR, FORMAT, MEANING,
+  USAGE, INTENT]` under a note reading "a declaration about the inputs, not a source of
+  business knowledge", and forty lines below, in the same file, EC-01 offered that class
+  as a third route for exactly those claims. `contracts/meanings.py` and
+  `build_references.py` were built on the permissive reading and `_ec01_violations` on
+  the strict one; nobody had hit it only because no register had yet carried an
+  `OPERATOR_DECLARATION` item with `claim_kind: MEANING`. Settled the strict way,
+  because the class note states a scope and a reason while EC-01's third option reads
+  like it was appended to a list. EC-01 now requires `DOCUMENT` or `INTERVIEW`;
+  `VALID_CLASSES` lost the class; and the worklist header, `input/README.md` and
+  `build_references.py` now say the same thing - an operator who knows the answer is a
+  source, and the class for a source who is a person is `INTERVIEW`, named and dated.
+  The refusal costs an operator nothing, which is why it is safe: the identical sentence
+  is accepted the moment it carries a name and a date, and that is what the test
+  demonstrates. Proven by `test_a_meaning_declared_by_the_operator_is_refused` and by
+  `test_a_rule_may_not_offer_a_class_its_own_table_forbids`, which compares EC-01's
+  prose against the table it sits beside and fails against the wording just removed -
+  the A13 check applied inside a single file, which is what was missing.
 - **Nothing checked that a document's evidence citations resolved** - a phase document
   can cite `A05-P2-FLOW-020` and mean nothing by it, and the document reads exactly the
   same whether the id names a measured statement or nothing at all. The A05 run

@@ -47,7 +47,8 @@ INPUT_CLASSES = {
     "samples": "SAMPLE_DATA — inbound file formats and real column meaning",
     "report-samples": "OUTPUT_SAMPLE — what the application actually produced",
     "shared-docs": "DOCUMENT — shared across applications",
-    "decisions": "OPERATOR_DECLARATION — accepted names and recorded meanings",
+    "decisions": "OPERATOR_DECLARATION for accepted names; a recorded meaning cites "
+                 "DOCUMENT or INTERVIEW",
     "access": "SCHEMA + CODE + UI_DEFINITION — the application itself",
     "vba": "CODE",
     "sql": "CODE",

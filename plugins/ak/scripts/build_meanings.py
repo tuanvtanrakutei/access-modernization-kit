@@ -66,8 +66,8 @@ HEADER = """# Business meaning, per table and per column. You own this file.
 #
 # For each entry:
 #   meaning         what it is for, in a sentence. This is the cell a reader sees.
-#   evidence_class  DOCUMENT, INTERVIEW or OPERATOR_DECLARATION. Nothing else - CODE
-#                   and SCHEMA cannot support a meaning, which is rule EC-01.
+#   evidence_class  DOCUMENT or INTERVIEW. Nothing else - CODE and SCHEMA cannot
+#                   support a meaning, which is rule EC-01.
 #   source          who said it and when: a document and a page, a meeting and a date,
 #                   or your own name.
 #   role            optional, tables only: master, transaction, work, log. Printed in
@@ -93,11 +93,11 @@ HEADER = """# Business meaning, per table and per column. You own this file.
 # whole kit is built around, and it applies to a careful reading as much as a careless
 # one. Ask the person instead and record their answer.
 #
-# `OPERATOR_DECLARATION` is accepted here, but do not reach for it: the class is
-# defined as a statement about the *inputs* - which file is the backend, which copy is
-# current - and `evidence-classes.yaml` says it cannot support a MEANING claim, while
-# rule EC-01 in the same file says it can. Until that is settled, an answer recorded as
-# INTERVIEW is one nothing downstream will argue with.
+# `OPERATOR_DECLARATION` is not accepted here, settled 2026-09-07 (backlog A18). The
+# class is a statement about the *inputs* - which file is the backend, which copy is
+# current - and it cannot carry what a table is for. If the answer is your own, that
+# does not make it a declaration about the inputs: record it the way the example above
+# does, with a name and a date. Your own name counts.
 #
 # A column may be keyed two ways. `出荷数量` alone is that column wherever it appears,
 # which is usually what you want; `受注データ.出荷数量` is that column in that table
@@ -367,8 +367,9 @@ def main() -> int:
     if added:
         print("Every added entry is blank, and blank is the honest state: no schema "
               "and no analysis can say what a table is for.")
-        print("Fill what you know, name a source for each - you may be the source, as "
-              "OPERATOR_DECLARATION - then re-run `$ak catalogues`.")
+        print("Fill what you know, name a source for each - you may be the source, "
+              "recorded as INTERVIEW with your name and the date - then re-run "
+              "`$ak catalogues`.")
     return 0
 
 

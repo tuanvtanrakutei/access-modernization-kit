@@ -6,7 +6,7 @@ phases: a phase reads what was supplied, and no volume of schema or code establi
 what a table is *for* - that is rule EC-01, and it is the finding this whole audit
 started from.
 
-It fills when DOCUMENT, INTERVIEW or OPERATOR_DECLARATION evidence arrives. Until this
+It fills when DOCUMENT or INTERVIEW evidence arrives. Until this
 file existed there was nowhere to put it, so an answer given in a meeting had no home
 and the column would have stayed empty however many documents turned up. That was the
 gap.
@@ -34,7 +34,13 @@ from pathlib import Path
 
 # What may be cited as a source, matching evidence-classes.yaml. A name is not a
 # source, and neither is an inference from code.
-VALID_CLASSES = ("DOCUMENT", "INTERVIEW", "OPERATOR_DECLARATION")
+#
+# `OPERATOR_DECLARATION` was accepted here until 2026-09-07 (backlog A18). The class
+# is a statement about the *inputs* - which file is the backend, which copy is current
+# - and its own entry in the class table has always said it cannot support a MEANING
+# claim; only EC-01's wording disagreed. An operator who knows the answer is still a
+# source, and a source who is a person is an INTERVIEW: their name and the date.
+VALID_CLASSES = ("DOCUMENT", "INTERVIEW")
 
 
 @dataclass

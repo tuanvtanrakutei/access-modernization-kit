@@ -32,7 +32,7 @@ $ak bilingual  --app-root .     # refresh the English names in the narratives
 | `report-samples/` | OUTPUT_SAMPLE | What the application actually produced, as opposed to what the code appears to write. |
 | `access/`, `vba/`, `sql/` | SCHEMA · CODE · UI_DEFINITION | The application itself. |
 | `shared-docs/` | DOCUMENT | Documents this application shares with others in the same estate. |
-| `decisions/` | OPERATOR_DECLARATION | Names and meanings **you** have settled. See below. |
+| `decisions/` | OPERATOR_DECLARATION · DOCUMENT · INTERVIEW | Names **you** have settled, and meanings that each cite a source. See below. |
 
 ### `documents/`
 
@@ -68,7 +68,7 @@ widths: those are the thing being read.
 | File | What it settles |
 |---|---|
 | `glossary.yaml` | The English name for each production name. Change any that is wrong and set `status: accepted`; an accepted name always wins over a composed one. |
-| `meanings.yaml` | Business meaning per table or column. **An entry must name its source** — `evidence_class` (DOCUMENT, INTERVIEW or OPERATOR_DECLARATION) and `source` — or it is ignored and the cell keeps reading `_needs DOCUMENT_`. |
+| `meanings.yaml` | Business meaning per table or column. **An entry must name its source** — `evidence_class` (DOCUMENT or INTERVIEW) and `source` — or it is ignored and the cell keeps reading `_needs DOCUMENT_`. |
 
 That last rule is the same discipline the kit applies to itself: a meaning with no
 source is the kind of claim that becomes a fact by repetition.
