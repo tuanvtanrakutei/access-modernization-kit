@@ -19,10 +19,12 @@ Target stack: Django + Django REST Framework + PostgreSQL. This document covers 
   - [Cursor Ordering With `.values()`](#cursor-ordering-with-values)
   - [Other Pagination Rules](#other-pagination-rules)
 - [7. ORM First, Raw SQL Second](#7-orm-first-raw-sql-second)
-- [8. Export And File Endpoints](#8-export-and-file-endpoints)
+- [8. Export, Import, And File Endpoints](#8-export-import-and-file-endpoints)
   - [8.1 Output Format Rule](#81-output-format-rule)
   - [8.2 Excel Specifics](#82-excel-specifics)
   - [8.3 Other Formats](#83-other-formats)
+  - [8.4 Import And Upload Endpoints](#84-import-and-upload-endpoints)
+  - [8.5 Two Kinds Of Import Failure Need Two Different Answers](#85-two-kinds-of-import-failure-need-two-different-answers)
 - [9. Standard API Response](#9-standard-api-response)
   - [9.1 Outcome To Status Mapping](#91-outcome-to-status-mapping)
   - [9.2 Rules](#92-rules)
@@ -154,9 +156,11 @@ Do not rely on the default ordering unless the key it uses is explicitly include
 - Treat relationship columns as scalar fields where the legacy schema did, and enforce integrity at the database level with real foreign keys.
 - Enforce integrity in application code only where the API or the legacy behavior requires it beyond what constraints express.
 
-## 8. Export And File Endpoints
+## 8. Export, Import, And File Endpoints
 
-Legacy Access reports were typically emitted with `DoCmd.OutputTo` or `DoCmd.TransferText`.
+Legacy Access reports were typically emitted with `DoCmd.OutputTo` or `DoCmd.TransferText`,
+and read back with the `acImport` variants of the same commands. Both directions are covered
+here: 8.1-8.3 for what this project writes, 8.4-8.5 for what it accepts.
 
 ### 8.1 Output Format Rule
 
@@ -185,6 +189,59 @@ Do not change a format opportunistically. Turning a legacy `.txt` into a `.csv` 
 - Match legacy column order, delimiter, line ending, and filename convention **exactly**. The comparison baseline is the legacy sample in the evidence output directory.
 - Quoting behavior counts. Legacy exports through an ODBC driver sometimes quote numeric columns that a modern writer would leave bare; that difference is a decision to record, not a detail to overlook.
 - For PDF, use `{{PDF_LIB}}`. Introducing another PDF library requires an issue-log entry first.
+
+### 8.4 Import And Upload Endpoints
+
+Access applications import as often as they export — `DoCmd.TransferText acImport`,
+`DoCmd.TransferSpreadsheet acImport`, or a form button that reads a fixed path off a share.
+Only some of those become upload endpoints: a batch that reads a known path stays a management
+command, while anything an operator picks by hand is an endpoint that receives a file.
+
+- **Allowlist the extensions and cap the size, in the serializer *and* in the parser.** The
+  serializer guards the HTTP path; the parser is also reached from tests, from management
+  commands, and from the next screen that reuses it.
+- **Decode in a fixed, recorded order:** `utf-8-sig` first, so a BOM written by a spreadsheet
+  is consumed instead of becoming part of the first column name; then the codepage the
+  operator's own spreadsheet writes on their machine — `cp932` on Japanese Windows, `cp1252` on
+  Western European; then bare `utf-8`. Note this is **not** `{{SOURCE_ENCODING}}`: that key
+  describes the legacy files extraction produced, which a pipeline may already have converted,
+  while this is what Excel writes today when someone picks "Save as CSV". A UTF-8-only reader
+  rejects the file the operator just produced.
+- **Match header columns by name, not by position.** An operator who reorders columns in a
+  spreadsheet has not broken the file. Ignore unknown columns; name the missing ones.
+- **Report the row number the operator can see** — the position in the file with the header
+  counting as row 1. A zero-based index into the data rows points at the wrong line.
+- **Skip wholly blank rows** without counting them and without erroring. Spreadsheets leave
+  them behind constantly.
+- **Reject over-length text instead of truncating it.** Silent truncation puts half a sentence
+  into a printed report and nothing in the system says so.
+- **Collect every problem, not the first.** Someone fixing a spreadsheet needs the whole list;
+  one error per round trip turns a ten-error file into ten uploads.
+- **Where the import replaces existing data, validate before opening the transaction**, so an
+  invalid file never begins a delete. The replacement itself is one `atomic` block.
+- **Offer a dry-run endpoint that writes nothing** whenever the import is destructive or large.
+  It is what lets the screen show the operator what will change before it changes.
+- **Reuse the export's column contract.** When the same table is already exported, import the
+  header list from that one constant. Two lists drift, and the drift stays invisible until a
+  round trip loses a column.
+
+### 8.5 Two Kinds Of Import Failure Need Two Different Answers
+
+An import fails in two unrelated ways, and giving them one status code makes the client guess.
+
+| Failure | Meaning | Answer |
+|---|---|---|
+| **Structural** | the file cannot be worked with at all — wrong extension, oversize, undecodable, a missing header column, no data rows | `422` with the reason. There is nothing to fix row by row |
+| **Per-row content** | the file is readable and some of its rows are invalid | `200` carrying `ok: false` and the full error list. The operator works through it as a table |
+
+The reason to separate them is what the client has to do next. A structural failure is a
+message; a row failure is a work list the screen renders as a table. Return both as `422` and
+the client must inspect the error body to decide which of the two to show — so eventually it
+shows the wrong one.
+
+One exception, and it is not a contradiction: on the endpoint that performs the **write**, a
+row-level failure *is* a `422`. By then the client has already asked to commit, there is no
+table to work through, and nothing was written.
 
 ## 9. Standard API Response
 

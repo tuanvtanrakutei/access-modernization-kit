@@ -93,5 +93,5 @@ def propose_migration(manifest_path: Path) -> dict[str, Any]:
         },
         "mapped_artifacts": artifacts, "ambiguous_roles": sorted(set(ambiguous)),
         "missing_mandatory_inputs": missing, "quarantined_paths": [],
-        "required_bundle_rebuild": True, "required_graphify_rebuild": True,
+        "required_bundle_rebuild": True,
     }

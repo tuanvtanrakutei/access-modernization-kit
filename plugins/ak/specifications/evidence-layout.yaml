@@ -1,0 +1,221 @@
+version: "1.0"
+
+# One layout, two ways to fill it. Runtime extraction and the shipped VBA exporter
+# must write the same container names and the same formats, so evidence produced on
+# a machine that has Access is interchangeable with evidence extracted here. Where
+# the two disagreed, field and index detail reached the bundle from one route only,
+# which silently made Phase 1 depend on runtime access.
+#
+# Consumers: scripts/extract_access.ps1, tools/ExportAccessObjects.bas,
+# scripts/build_import_manifest.py, adapters/imported_sources/adapter.py.
+
+containers:
+  forms:
+    kind: form
+    role: frontend
+    format: access-saveastext
+    extension: .txt
+    encoding: utf-8
+    description: One file per form, as Access SaveAsText writes it.
+  reports:
+    kind: report
+    role: frontend
+    format: access-saveastext
+    extension: .txt
+    encoding: utf-8
+    description: One file per report.
+  macros:
+    kind: macro
+    role: frontend
+    format: access-saveastext
+    extension: .txt
+    encoding: utf-8
+    description: One file per macro.
+  vba:
+    kind: vba
+    role: frontend
+    format: access-saveastext
+    extension: .txt
+    encoding: utf-8
+    description: One file per standalone module. Form and report code-behind travels
+      inside that object's own file, not here.
+  queries:
+    kind: access_sql
+    role: backend
+    format: sql-text
+    extension: .sql
+    encoding: utf-8
+    description: One file per saved query, the QueryDef SQL verbatim.
+  documents:
+    kind: document
+    role: documentation
+    description: Business documents. No runtime route exists; a person supplies these.
+  screenshots:
+    kind: screenshot
+    role: interface
+    description: Captured screens. No runtime route exists.
+  samples:
+    kind: sample
+    role: interface
+    description: Sample input files the application reads.
+  reports-out:
+    kind: report_output
+    role: interface
+    description: Sample outputs the application produces - printed reports, exports.
+  ui:
+    # `metadata` rather than a kind of its own. A new kind would have to be added to
+    # import-source-manifest.schema.json, to the bundle contribution shape, and to the
+    # component router - three more places to drift - and `metadata` already means
+    # exactly this: a file *about* the export rather than an exported object. What is
+    # lost is that the bundle cannot route it as UI evidence; a consumer reads it from
+    # the export package by path. Worth revisiting if it should become first-class.
+    kind: metadata
+    role: frontend
+    format: json
+    extension: .json
+    encoding: utf-8
+    description: >-
+      Per-control facts SaveAsText cannot yield: which label a control actually
+      displays, and whether it is visible. Access stores a button's caption on a
+      separate label control and records no link between the two, and a hidden
+      control is indistinguishable from a live one in definition text. Written by
+      ExportAccessObjects' control-inventory pass.
+
+# Container names other producers use for the same thing. Declared rather than
+# quietly accepted, so it is visible which tool a layout belongs to. msaccess-vcs
+# writes modules/ where this kit's exporter writes vba/; dropping the alias made a
+# perfectly good msaccess-vcs export fail to classify.
+container_aliases:
+  modules: vba
+
+# Structured schema detail. tables.json is the contract for BOTH routes: it is the
+# only shape carrying fields and indexes, and therefore the only one that can yield
+# field_inventory and key_index_inventory.
+schema_files:
+  tables:
+    path: schema/tables.json
+    format: json
+    required: true
+    supplies: [access_schema_inventory, field_inventory, key_index_inventory, boundary_inventory]
+    record:
+      name: string
+      source_table_name: string
+      connect: string
+      attributes: integer
+      fields: "[{name, type, size, required}]"
+      indexes: "[{name, primary, unique, fields[]}]"
+      read_error: string
+  relations:
+    path: schema/relations.json
+    format: json
+    required: false
+    supplies: [declared_relationship_inventory]
+
+# Legacy shape. Accepted so an export made before tables.json existed still imports,
+# but it carries no field or index detail, so it cannot supply what Phase 1 needs.
+deprecated_schema_files:
+  tables_text:
+    path: schema/tables.txt
+    format: text
+    supplies: []
+    warning: >-
+      schema/tables.txt carries no field or index detail, so field_inventory and
+      key_index_inventory cannot be derived from it. Re-export with a version of
+      ExportAccessObjects.bas that writes schema/tables.json.
+
+package_files:
+  producer_manifest:
+    path: import-source-manifest.yaml
+    generated_by: scripts/build_import_manifest.py
+    required: true
+    description: Declares every member so a truncated or altered package is refused
+      rather than imported as complete.
+  export_summary:
+    path: export-manifest.txt
+    kind: metadata
+    required: false
+    description: Object counts and skipped objects, written by the VBA exporter at the
+      package root. Recognized by name; it is not a misfiled member.
+
+# Organised by who owns it, not by the pipeline stage that produced it. An operator
+# used to meet seven top-level directories, four of which they never open, with the
+# six phase documents two levels down inside runs/<run-id>/outputs/. There are three
+# things now: the file you edit, what you supply, what you read - and .ak/, which the
+# kit owns and a person never opens.
+#
+# Evidence is not hidden by this. Nothing is found by browsing: an evidence item
+# cites a path, and a cited path resolves wherever it sits. What browsing produced
+# before was noise.
+#
+# contracts/workspace.py resolves both layouts, and is the only place that knows a
+# workspace written before 2.10.0 calls these sources/, acquired/, extracted/ and
+# runs/. A fallback repeated across fifteen call sites is one that gets missed in one.
+workspace:
+  operator_facing:
+    manifest.yaml:
+      purpose: The one file a person edits. Two decisions in it need a human before acquisition.
+    input:
+      purpose: Everything a person supplies.
+      contains:
+        access: Access databases - .mdb, .accdb, .adp. The only binaries a human places.
+        vba: Exported VBA, when a V2.1 project declares it at the fixed path.
+        sql: Exported SQL schema, queries and stored procedures.
+        documents: Business documents. Supplies DOCUMENT evidence, which no runtime route can.
+        shared-docs: Documents shared across the estate rather than owned by this app.
+        screenshots: Captured screens. Supplies SCREENSHOT evidence; no runtime route produces it.
+        samples: Real input files the application reads. The only class that settles an inbound format.
+        report-samples: >-
+          Real outputs the application produced. Settles an outbound contract.
+          Named for what it holds: `reports/` inside an export package already means
+          report definitions, and the old `reports-out` dodged that with a suffix
+          that told a reader nothing.
+        interviews: >-
+          Recorded answers from a named person on a named date. Carries findings
+          nothing else in the corpus can, and had no home before, so it had no shape.
+        decisions: Decisions a person made that the sources cannot state.
+        <ARTIFACT_ID>: >-
+          One imported export package per artifact, holding forms/, reports/, macros/,
+          vba/, queries/, schema/ plus its import-source-manifest.yaml. Placed by
+          whoever supplies the export, not by init.
+    output:
+      purpose: >-
+        Everything a person reads: the six phase documents, the derived HTML, the
+        README, and the registers. One directory holding the newest run, because a
+        run id in the path is a question a reader cannot answer. A later run replaces
+        it; every run's working state and evidence stay under .ak/runs/<run-id>/.
+  kit_owned:
+    # One rule, and it is the whole of it: evidence moves left to right, and each
+    # step has exactly one home.
+    .ak/snapshots/<acquisition-id>:
+      purpose: >-
+        Disposable copies of the declared databases. They exist because the original
+        must never be opened - opening mutates it - and are removed once extraction
+        has written its receipt. On a real split application they were 615 MB beside
+        587 MB of originals.
+      lifetime: Deleted after a VALID run. Kept on PARTIAL or BLOCKED, and by --keep-snapshots.
+      warning: Never cite one. The digest in the receipt is what proves what was read.
+    .ak/staging/<database-id>/<acquisition-id>:
+      purpose: What extraction read out of one artifact - definition text, schema, queries, and its receipt.
+      warning: Never hand-edited. Immutable once written; this is the evidence.
+    .ak/bundles/<date>-<digest>:
+      purpose: >-
+        A sealed, canonical view assembled from staging, and what every phase reads.
+        The directory is named for a person; the full SHA-256 bundle_id stays inside
+        bundle.json, where it is the content address it was always meant to be.
+    .ak/extracted:
+      purpose: >-
+        Everything derived from a bundle - component-index.json, module-plan/,
+        derived-extraction.json, the distilled ui-facts, and normalized/ holding
+        every source read into citable UTF-8 with a provenance header - XLSX,
+        DOCX, PPTX and text-layer PDF among them. It is not a document
+        inventory: whether DOCUMENT evidence exists is decided by what a person
+        put in input/documents, never by what the normalizer copied.
+        Regenerable; a phase cites it because re-running the derivation reproduces it.
+    .ak/runs/<run-id>:
+      purpose: One run's working state - tasks, handoffs, evidence fragments, QA.
+  legacy_layout:
+    note: >-
+      A workspace created before 2.10.0 uses sources/, shared-docs/, decisions/,
+      acquired/, extracted/ and runs/<run-id>/outputs/. Every accessor answers for it
+      unchanged, so upgrading the kit never strands a run in progress and nobody is
+      told to move a file.

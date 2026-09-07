@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+from datetime import date
 from pathlib import Path, PurePosixPath
 from typing import Any
 
@@ -17,7 +18,7 @@ class BundleError(ValueError):
 def _canonical_identity(value: dict[str, Any]) -> dict[str, Any]:
     required = (
         "app_id", "classification", "classification_rule_versions", "artifacts", "adapters",
-        "bundle_schema_version", "normalization_config",
+        "bundle_schema_version", "normalization_config", "assembly_version",
     )
     missing = [key for key in required if key not in value]
     if missing:
@@ -30,12 +31,42 @@ def _canonical_identity(value: dict[str, Any]) -> dict[str, Any]:
         "adapters": sorted(value["adapters"], key=lambda item: (item["id"], item["version"])),
         "bundle_schema_version": value["bundle_schema_version"],
         "normalization_config": value["normalization_config"],
+        # The code that did the assembling. Without it, two bundles built from one set
+        # of sources by two versions of the kit are the same bundle by name and
+        # different on disk, and the second one cannot be published at all.
+        "assembly_version": value["assembly_version"],
     }
 
 
 def compute_bundle_id(value: dict[str, Any]) -> str:
     encoded = json.dumps(_canonical_identity(value), ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8")
     return "bundle-" + hashlib.sha256(encoded).hexdigest()
+
+
+def bundle_dir_name(bundle_id: str, when: date | None = None) -> str:
+    """A directory a person can read, for an id that is a content address.
+
+    The id has to be the full digest - that is what makes it an address. Using it
+    as the directory name too gave every workspace a 71-character path nobody can
+    type, read aloud, or sort by recency; with two bundles present you could not
+    tell which was current without opening both. The date leads so the newest
+    sorts last, and eight digest characters keep it unique in practice while the
+    full id stays in bundle.json where it is actually consumed.
+    """
+    digest = bundle_id[len("bundle-"):] if bundle_id.startswith("bundle-") else bundle_id
+    return f"{(when or date.today()).isoformat()}-{digest[:8]}"
+
+
+def find_bundles(acquired_root: Path) -> list[Path]:
+    """Every bundle under a workspace, old layout and new.
+
+    `acquired/bundles/<date>-<digest>/` is what is written now;
+    `acquired/bundle-<64 hex>/` is what workspaces written before 2.9.0 carry. Both
+    are read, so upgrading the kit does not strand a workspace mid-investigation.
+    """
+    root = Path(acquired_root)
+    found = list((root / "bundles").glob("*")) + list(root.glob("bundle-*"))
+    return [path for path in found if (path / "bundle.json").is_file()]
 
 
 def verify_immutable(bundle_dir: Path, expected_hashes: dict[str, str]) -> None:

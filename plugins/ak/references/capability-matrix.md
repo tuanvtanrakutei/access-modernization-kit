@@ -1,11 +1,11 @@
 # Capability Matrix
 
-Python 3.10 or newer is required. Graphify is additionally required for Phase 1-6 and is installed on demand into a pinned kit-managed virtual environment; it is not installed into system Python or the app workspace. Other capabilities remain conditional on detected inputs.
+Python 3.10 or newer is required, plus PyYAML and jsonschema. Nothing else is installed on demand: fact derivation before Phase 1 is deterministic and stdlib-only. Other capabilities remain conditional on detected inputs.
 
 | Capability | Required when | Preferred integration | Fallback |
 |---|---|---|---|
 | Multi-agent runtime | More than one worker is requested | Runtime-native subagent tools | Execute task envelopes sequentially |
-| Graphify | Any Phase 1-6 or full run is requested | Pinned managed Graphify runtime plus Graphify skill | No fallback; block the phase with an explicit install/build/freshness/query status |
+| Fact derivation | Any Phase 1-6 or full run is requested | `$ak derive`, deterministic and stdlib-only | No fallback; a phase that cannot enumerate its own relationships is blocked |
 | XLSX processing | Japanese XLSX sources exist | Spreadsheet skill/runtime | Export worksheets to CSV with cell references preserved |
 | PDF text extraction | Japanese PDF sources exist | Runtime PDF/document reader | Local PDF text extractor |
 | OCR | PDF/image lacks a text layer | Tesseract or runtime OCR | Mark source unreadable and create an open question |
@@ -18,4 +18,4 @@ Python 3.10 or newer is required. Graphify is additionally required for Phase 1-
 | Clang AST | Deep semantic analysis of a supported compiled language is explicitly requested | Clang/libclang | Structural source analysis; not applicable to Access/VBA |
 | DOCX | Word artifacts exist | Document skill/runtime | Export to PDF or text while preserving source reference |
 
-Do not install CodeWiki, Neo4j, an OCR stack, pyodbc, Access/ACE, Clang, or a presentation runtime by default. Graphify alone is bootstrapped automatically when a phase is requested. Preflight must report the exact missing capability and the artifact it blocks. CodeWiki patterns are reimplemented as provider-neutral contracts without importing or vendoring that project.
+Do not install CodeWiki, Neo4j, an OCR stack, pyodbc, Access/ACE, Clang, or a presentation runtime by default. Nothing is bootstrapped automatically. Preflight must report the exact missing capability and the artifact it blocks. CodeWiki patterns are reimplemented as provider-neutral contracts without importing or vendoring that project.

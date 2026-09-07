@@ -36,12 +36,19 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--powershell", help="Override the PowerShell host used to drive the Access COM adapter")
     parser.add_argument("--allow-run-as-invoker", action="store_true", help="Set __COMPAT_LAYER=RunAsInvoker for the PowerShell host. Note this does not reach an out-of-process COM server: a RUNASADMIN-flagged Access still fails with 0x800702E4")
     parser.add_argument("--skip-runtime-check", action="store_true", help="Skip Access runtime discovery and use the default PowerShell host (restores pre-2.3 behavior)")
+    parser.add_argument("--snapshot-dir", help="Directory the snapshot copy is placed in. Defaults to a folder private to this extraction. A split Access application whose frontend opens its backend as a sibling needs both snapshots in one directory, which only the caller knows how to arrange.")
     parser.add_argument("--timeout", type=int, default=1800, help="Seconds to wait for the Access adapter before treating the run as hung (default: 1800)")
     parser.add_argument("--access-progid", default="Access.Application", help="COM ProgId for the Access host; version-qualify it (Access.Application.11) to pin one install")
     parser.add_argument("--dao-progid", default="DAO.DBEngine.36", help="COM ProgId for the DAO engine that reads schema without starting Access")
     parser.add_argument("--access-path", help="Declare the Access executable this run expects; a mismatch with the registered COM server is reported instead of silently using another install")
     parser.add_argument("--skip-object-export", action="store_true", help="Run only the DAO tier: full schema and object inventory, no exported definition text")
     parser.add_argument("--skip-object-inventory", action="store_true", help="Do not register forms, reports, macros or modules; use when an imported export of the same database supplies them")
+    parser.add_argument(
+        "--automation-security", choices=("force_disable", "allow"), default="force_disable",
+        help="force_disable suppresses macros so an unattended run cannot stall in the VBA "
+             "debugger. allow lets startup code run, which is required when that code relinks "
+             "stale table connections and the extraction has to reflect the working application",
+    )
     parser.add_argument("--visible-host", action="store_true", help="Show the Access host so an operator can dismiss dialogs a broken VBA reference raises. Marks the run attended")
     return parser.parse_args()
 
@@ -130,7 +137,15 @@ def main() -> int:
     if not re.fullmatch(r"[A-Za-z0-9_-]+", session_id):
         raise SystemExit("--session-id may contain only letters, digits, underscores, and hyphens")
     output = Path(args.output_dir).expanduser().resolve() / args.database_id / session_id
-    snapshot = output / "snapshot" / source.name
+    # A frontend that resolves its backend as a sibling - CurrentProject.Path plus a
+    # file name, the ordinary Access split pattern - cannot open it from a snapshot
+    # directory holding one database. The caller may point every database of one
+    # application at a shared directory so that layout survives.
+    snapshot_root = (
+        Path(args.snapshot_dir).expanduser().resolve() if args.snapshot_dir
+        else output / "snapshot"
+    )
+    snapshot = snapshot_root / source.name
     runtime, host = build_runtime_block(args)
     plan = {
         "schema_version": "2.1", "database_id": args.database_id, "session_id": session_id,
@@ -140,6 +155,21 @@ def main() -> int:
         "project_context": {}, "components": [],
         "warnings": ["The original database will never be opened; execution uses a copied snapshot.", "ADP extraction requires a compatible legacy Access runtime." if fmt == "adp" else "Access/ACE automation is required for executable extraction."],
     }
+    # A declared runtime that does not match the one COM will activate used to be
+    # recorded as matches: false inside the receipt and read by nobody, so the run
+    # proceeded against an install the operator had explicitly said it was not. The
+    # declaration only means something if violating it stops the run.
+    declared = runtime.get("declared_runtime", {})
+    if declared.get("requested_path") and declared.get("matches") is False:
+        registered = ", ".join(str(item) for item in declared.get("registered_paths") or []) or "none registered"
+        plan["status"] = "BLOCKED"
+        plan["warnings"].append(
+            f"Declared Access runtime {declared['requested_path']} is not the registered COM server "
+            f"({registered}). Register the declared install, correct runtime.access_path, or remove "
+            "the declaration to accept whichever install Windows resolves."
+        )
+        print(json.dumps(plan, ensure_ascii=False, indent=2))
+        return 3
     if runtime.get("runasadmin_detected"):
         plan["warnings"].append("The registered Access executable has a RunAsAdmin compatibility flag; use --allow-run-as-invoker if COM activation prompts for elevation.")
     if args.dry_run or not args.execute:
@@ -193,6 +223,7 @@ def main() -> int:
     if args.password_env:
         command += ["-PasswordEnvironment", args.password_env]
     command += ["-AccessProgId", args.access_progid, "-DaoProgId", args.dao_progid]
+    command += ["-AutomationSecurity", args.automation_security]
     if args.skip_object_export:
         command.append("-SkipObjectExport")
     if args.skip_object_inventory:

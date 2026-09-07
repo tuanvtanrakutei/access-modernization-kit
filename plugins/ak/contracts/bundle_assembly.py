@@ -66,6 +66,67 @@ def _merge_records(target: list[dict[str, Any]], incoming: list[dict[str, Any]])
     )
 
 
+# A table cannot appear twice in one database, nor a field twice in one table. The
+# flat schema inventories therefore have a natural key, and it is not `logical_id`:
+# two routes reading the same DAO schema describe the same table in two shapes, one
+# carrying `logical_id` and one not, so `_merge_records` files both as unkeyed and
+# keeps both.
+#
+# Observed on A05, where the frontend was acquired managed for its schema and
+# imported for its definition text: 22 tables, 161 fields and 46 index rows appeared
+# twice, and the duplicates were reported as coverage - 1,558 database records where
+# there were 1,327 - and as findings, 143 table objects of which 86 without a primary
+# key, against a true 121 and 76.
+SCHEMA_IDENTITY = {
+    "tables": ("database_id", "name"),
+    "fields": ("database_id", "table", "name"),
+    "indexes": ("database_id", "table", "name"),
+}
+
+# Present because a route recorded where it read the row, not because the row says
+# something different about the schema.
+PROVENANCE_KEYS = frozenset({
+    "logical_id", "id", "source_paths", "container", "module_hint", "depends_on",
+    "metadata", "kind",
+})
+
+
+def _dedupe_schema(records: list[dict[str, Any]], identity: tuple[str, ...]) -> None:
+    """Collapse rows describing the same schema element, unless they disagree.
+
+    Two readings that agree on every column they share are one fact reported twice,
+    and the row carrying more columns is kept. Two readings that disagree are a real
+    discrepancy about the schema: both are kept, so it shows up as a duplicate in the
+    catalogue rather than being resolved by whichever adapter happened to sort first.
+    """
+    groups: dict[tuple[Any, ...], list[dict[str, Any]]] = {}
+    order: list[tuple[Any, ...]] = []
+    for record in records:
+        if not all(field in record for field in identity):
+            key = (id(record),)
+        else:
+            key = tuple(record[field] for field in identity)
+        if key not in groups:
+            groups[key] = []
+            order.append(key)
+        groups[key].append(record)
+
+    collapsed: list[dict[str, Any]] = []
+    for key in order:
+        group = groups[key]
+        if len(group) == 1:
+            collapsed.extend(group)
+            continue
+        richest = max(group, key=len)
+        agrees = all(
+            record[column] == richest[column]
+            for record in group
+            for column in set(record) & set(richest) - PROVENANCE_KEYS
+        )
+        collapsed.extend([richest] if agrees else group)
+    records[:] = collapsed
+
+
 def _merge_sections(contributions: list[dict[str, Any]]) -> dict[str, Any]:
     from adapters.base import empty_sections
 
@@ -79,6 +140,8 @@ def _merge_sections(contributions: list[dict[str, Any]]) -> dict[str, Any]:
                 merged["evidence_sources"][key]["inventory"],
                 contribution["evidence_sources"][key]["inventory"]
             )
+    for key, identity in SCHEMA_IDENTITY.items():
+        _dedupe_schema(merged["databases"][key], identity)
     return merged
 
 
@@ -89,9 +152,33 @@ def _tree_hashes(root: Path) -> dict[str, str]:
     }
 
 
+def _assembly_version() -> str:
+    """A digest of the code that assembles a bundle, for the bundle's identity.
+
+    The identity derived from the source digests alone, so fixing a defect in this
+    module and re-running the same sources produced the same directory name with
+    different content - refused as `BUNDLE_PATH_CONFLICT`, a message that reads as
+    tampering when the cause was the kit's own code changing. Three bundles had to be
+    moved aside by hand in one session. A re-assembly by different code is a different
+    bundle, and both should be keepable.
+
+    Computed rather than declared. A version somebody has to remember to bump is wrong
+    exactly when it matters, because the defect being fixed is always the one that
+    changed the output. The cost is that a comment-only edit also yields a new id and
+    so a second directory; that is the cheaper mistake by a wide margin.
+
+    It covers this module and no more. The adapters state their own versions and are
+    already in the identity, and the schemas state theirs.
+    """
+    return hashlib.sha256(Path(__file__).resolve().read_bytes()).hexdigest()[:12]
+
+
 def _publish_bundle(staged: Path, target: Path) -> None:
     if target.exists():
         if _tree_hashes(target) != _tree_hashes(staged):
+            # Same sources, same assembling code, different bytes. Both of the causes
+            # the kit knows about are now in the identity, so this says what is left:
+            # something outside the kit wrote into a published bundle.
             raise ValueError("BUNDLE_PATH_CONFLICT")
         return
     staged.replace(target)
@@ -105,6 +192,7 @@ def assemble_bundle(
     profile_validation: dict[str, Any],
     phase_readiness: dict[str, Any],
     output_root: Path,
+    declared_capabilities: dict[str, list[str]] | None = None,
     schema_version: str = "2.7.3",
 ) -> dict[str, Any]:
     from adapters.base import validate_contribution
@@ -122,6 +210,7 @@ def assemble_bundle(
         "artifacts": _logical_artifacts(contributions),
         "adapters": [{"id": a, "version": v} for a, v in adapters],
         "bundle_schema_version": schema_version, "normalization_config": normalization_config,
+        "assembly_version": _assembly_version(),
     }
     bundle_id = bundle_contract.compute_bundle_id(identity)
     merged = _merge_sections(contributions)
@@ -138,11 +227,14 @@ def assemble_bundle(
             "samples": {"inventory": "evidence-sources/samples/inventory.json"},
         },
     }
-    provenance = _provenance(bundle_id, schema_version, contributions)
-    output = Path(output_root).expanduser().resolve()
+    provenance = _provenance(bundle_id, schema_version, contributions, declared_capabilities)
+    output = Path(output_root).expanduser().resolve() / "bundles"
     output.mkdir(parents=True, exist_ok=True)
-    bundle_dir = output / bundle_id
-    staged = Path(tempfile.mkdtemp(prefix=f".{bundle_id}.", dir=output))
+    bundle_dir = output / bundle_contract.bundle_dir_name(bundle_id)
+    # The staging prefix used the full id and produced a path long enough to hit the
+    # Windows limit on a deep workspace. Eight characters distinguish it just as well
+    # inside a directory that holds one temporary at a time.
+    staged = Path(tempfile.mkdtemp(prefix=f".{bundle_dir.name}.", dir=output))
     try:
         _write_layout(staged, merged, contributions, bundle_id, schema_version)
         _write_json(staged / "profile-validation.json", profile_validation)
@@ -194,8 +286,14 @@ def _write_text_records(root: Path, records: list[dict[str, Any]]) -> None:
 def _coverage(
     bundle_id: str, schema_version: str, merged: dict[str, Any], failures: list[dict[str, Any]],
 ) -> dict[str, Any]:
-    def counts(extracted: int, failed: int = 0) -> dict[str, int]:
-        return {"extracted": extracted, "skipped": 0, "failed": failed, "unsupported": 0}
+    def counts(extracted: int, failed: int = 0, skipped: int = 0) -> dict[str, int]:
+        return {"extracted": extracted, "skipped": skipped, "failed": failed, "unsupported": 0}
+
+    # "This object could not be read" and "this object was excluded on purpose" are
+    # different facts. Sharing one channel made a clean run report failures it never
+    # had; "failed" has to keep meaning evidence that should exist and does not.
+    excluded = sum(1 for item in failures if item.get("kind") == "exclusion")
+    unreadable = len(failures) - excluded
 
     return {
         "schema_version": schema_version,
@@ -205,12 +303,28 @@ def _coverage(
             "code": counts(sum(len(values) for values in merged["code"].values())),
             "ui": counts(sum(len(values) for values in merged["ui"].values())),
             "interface": counts(sum(len(values) for values in merged["interfaces"].values())),
-            "unclassified": counts(0, len(failures)),
+            "unclassified": counts(0, unreadable, excluded),
         },
     }
 
+def _capability_origins(contributions: list[dict[str, Any]]) -> dict[str, list[str]]:
+    """Which adapter established each capability.
+
+    The readiness verdict was persisted while the capabilities behind it were not, so
+    a later phase could read that Phase 1 was READY and still not know what had been
+    supplied - and would ask for it again.
+    """
+    origins: dict[str, set[str]] = {}
+    for contribution in contributions:
+        adapter = str(contribution.get("adapter_id", "unknown"))
+        for capability in contribution.get("provenance", {}).get("capabilities", []) or []:
+            origins.setdefault(str(capability), set()).add(adapter)
+    return {name: sorted(adapters) for name, adapters in sorted(origins.items())}
+
+
 def _provenance(
     bundle_id: str, schema_version: str, contributions: list[dict[str, Any]],
+    declared_capabilities: dict[str, list[str]] | None = None,
 ) -> dict[str, Any]:
     sources: list[dict[str, str]] = []
     for contribution in sorted(contributions, key=lambda item: item["adapter_id"]):
@@ -234,7 +348,15 @@ def _provenance(
             if origin:
                 source["exported_from"] = origin
             sources.append(source)
-    return {"schema_version": schema_version, "bundle_id": bundle_id, "sources": sources}
+    return {
+        "schema_version": schema_version, "bundle_id": bundle_id, "sources": sources,
+        # Which code assembled this. It is part of the identity, so it is already
+        # implied by the id; stated here because a digest cannot be read back, and
+        # "was this built before or after the deduplication fix" is a question people
+        # ask of a bundle they did not watch being built.
+        "assembly_version": _assembly_version(),
+        "capabilities": {**_capability_origins(contributions), **(declared_capabilities or {})},
+    }
 
 def _validate_json(path: Path, schema_name: str) -> None:
     schema_path = Path(__file__).resolve().parents[1] / "schemas" / schema_name

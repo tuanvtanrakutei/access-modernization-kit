@@ -1,8 +1,22 @@
 from __future__ import annotations
 
+import subprocess
+import sys
 from pathlib import Path
 
 import init_app
+
+PACKAGE = Path(__file__).resolve().parents[1]
+
+
+def run_init(app_root: Path, app_id: str, *extra: str) -> str:
+    result = subprocess.run(
+        [sys.executable, str(PACKAGE / "scripts" / "init_app.py"),
+         "--app-root", str(app_root), "--app-id", app_id,
+         "--name-en", "Test App", *extra],
+        capture_output=True, text=True, encoding="utf-8", errors="replace", check=False)
+    assert result.returncode == 0, result.stderr or result.stdout
+    return result.stdout
 
 
 def _sources(root: Path) -> Path:
@@ -97,9 +111,10 @@ def test_sql_outside_a_queries_folder_still_implies_a_server(tmp_path: Path) -> 
     assert classification["backend_kinds"] == ["sql_server"]
 
 
-# Graphify is a mandatory phase gate, and a V2.2 manifest that omitted the block read
-# as "not needed", so preflight skipped its runtime check without warning.
-def test_generated_v22_manifest_declares_the_graphify_gate() -> None:
+# A generated manifest declared a graph runtime, its version and its refresh policy.
+# None of it survives: derivation needs no runtime, no version pin and no policy, so a
+# manifest that still carried the block would be describing machinery that is gone.
+def test_generated_v22_manifest_declares_no_graph_runtime() -> None:
     import yaml
 
     text = init_app.manifest_v22_text(
@@ -108,11 +123,52 @@ def test_generated_v22_manifest_declares_the_graphify_gate() -> None:
         [],
     )
     data = yaml.safe_load(text)
-    assert data["graphify"]["enabled"] is True
-    assert data["graphify"]["required_before_phases"] is True
-    # Read from the package's own specification rather than repeated, so a generated
-    # manifest cannot drift from the runtime the kit installs.
-    spec = Path(init_app.__file__).resolve().parent.parent / "specifications" / "graphify-runtime.json"
-    import json
+    assert "graphify" not in data
+    assert set(data) == {"version", "app", "project", "artifacts"}
 
-    assert data["graphify"]["runtime_version"] == json.loads(spec.read_text(encoding="utf-8"))["version"]
+
+# --- the guide to input/ ------------------------------------------------------
+#
+# It belongs to the kit, not to a project: it explains what each evidence class can
+# establish, which is the same in every workspace. What a particular project still
+# needs is the evidence request in output/, regenerated as the run learns - so the
+# two must not merge, and this guide must name no project.
+
+
+def test_init_writes_the_input_guide(tmp_path: Path) -> None:
+    root = tmp_path / "T01"
+    run_init(root, "T01")
+    guide = root / "input" / "README.md"
+    assert guide.is_file(), "init must write input/README.md"
+    text = guide.read_text(encoding="utf-8")
+    assert "DOCUMENT" in text and "SCREENSHOT" in text and "SAMPLE_DATA" in text
+    assert "ExportAccessObjects" in text
+
+
+def test_the_guide_names_no_project(tmp_path: Path) -> None:
+    """A shared template carrying one project's counts is a template nobody trusts."""
+    text = (PACKAGE / "templates" / "input.README.md").read_text(encoding="utf-8")
+    for leaked in ("A05", "品揃支援", "受注データ", "L:"):
+        assert leaked not in text, f"the shared guide must not name {leaked!r}"
+
+
+def test_adopting_a_workspace_does_not_overwrite_an_edited_guide(tmp_path: Path) -> None:
+    """`init` refuses a workspace that already holds kit-owned files, so the case
+    that matters is adopting a directory somebody laid out by hand and annotated."""
+    root = tmp_path / "T02"
+    (root / "input").mkdir(parents=True)
+    guide = root / "input" / "README.md"
+    guide.write_text("notes I wrote myself\n", encoding="utf-8")
+    run_init(root, "T02", "--adopt-existing")
+    assert guide.read_text(encoding="utf-8") == "notes I wrote myself\n"
+
+
+def test_migrating_an_older_workspace_adds_the_guide(tmp_path: Path) -> None:
+    """A workspace created before the guide existed should gain one on migration."""
+    import migrate_workspace as migrate
+
+    root = tmp_path / "T03"
+    (root / "sources" / "access").mkdir(parents=True)
+    (root / "sources" / "access" / "x.mdb").write_text("db", encoding="utf-8")
+    migrate.apply(root, migrate.plan(root))
+    assert (root / "input" / "README.md").is_file()

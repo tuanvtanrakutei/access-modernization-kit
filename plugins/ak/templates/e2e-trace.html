@@ -1,23 +1,232 @@
 <!doctype html>
 <html lang="{{LANG}}">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>{{APP_ID}} E2E Trace</title>
-  <style>
-    body{font-family:Arial,sans-serif;margin:0;background:#071f18;color:#f5f7f6}main{max-width:1200px;margin:auto;padding:32px}.flow{display:grid;gap:16px}.step{background:#173b30;border-left:5px solid #b7f34b;border-radius:10px;padding:18px}.meta{color:#b8c8c1;font-size:.9rem}.evidence{color:#b7f34b}
-  </style>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>{{APP_ID}} — End-to-End Trace</title>
+<!--
+  CONTRACT, not decoration. A workflow list tells a reader which steps exist. This
+  page tells them what each step DID to the data - which rows appeared, which
+  changed, which went away - because that is the thing a replacement has to
+  reproduce and the thing a list cannot show.
+
+  Rules the renderer must hold to:
+
+  1. One trace follows one concrete unit of work end to end. Where a second,
+     independent cycle matters, add it as a further run of steps rather than
+     interleaving it - a reader must never have to work out which cycle a step
+     belongs to.
+  2. A step that happens OUTSIDE this application is marked `external` and says so
+     in its own words. The reference set got this wrong once, describing an upstream
+     system's batch as if the application produced it, and the correction needed an
+     errata entry. Mark the boundary.
+  3. Every data-state row carries a marker: new, upd, del, or unchanged. An
+     unchanged row is shown when it is the context that makes the change legible,
+     and omitted otherwise.
+  4. Sample values are labelled as illustrative unless they came from real evidence.
+     A plausible number a reader mistakes for a measurement is worse than no number.
+  5. Every step cites the evidence ids behind it. A step without one is not traced.
+-->
+<style>
+  :root{
+    --bg:#0f1419; --panel:#1a1f2b; --panel-2:#232a3a; --border:#334155;
+    --text:#e2e8f0; --muted:#94a3b8; --accent:#60a5fa; --app:#f59e0b;
+    --new:#34d399; --upd:#60a5fa; --del:#ef4444; --unc:#64748b;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;padding:20px;background:var(--bg);color:var(--text);line-height:1.55;font-size:13px;
+       font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Hiragino Sans","Yu Gothic",sans-serif}
+  h1{font-size:20px;margin:0 0 6px}
+  h2{font-size:14px;margin:18px 0 8px;color:var(--accent)}
+  .lede{color:var(--muted);font-size:12px;margin-bottom:12px}
+  code{background:var(--panel-2);padding:1px 5px;border-radius:3px;color:var(--accent);font-size:11.5px}
+
+  .subject{background:linear-gradient(180deg,#2a2010,#1a1810);border:1px solid var(--app);border-radius:8px;
+           padding:12px 16px;margin-bottom:16px;display:grid;grid-template-columns:repeat(3,1fr) 2fr;gap:16px;font-size:12px}
+  .subject .lbl{color:var(--muted);font-size:10.5px;text-transform:uppercase;letter-spacing:.5px}
+  .subject .val{color:var(--app);font-weight:600;font-size:13px;margin-top:2px}
+  .subject .items{font-size:11px;margin-top:2px}
+
+  .main{display:grid;grid-template-columns:260px 1fr;gap:16px;align-items:start}
+  .timeline{background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:12px;
+            position:sticky;top:16px;max-height:calc(100vh - 32px);overflow-y:auto}
+  .timeline h3{margin-top:0;color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:1px}
+  .step{padding:8px 10px;border-radius:4px;cursor:pointer;margin-bottom:4px;border-left:3px solid transparent;font-size:12px;transition:all .15s}
+  .step:hover{background:var(--panel-2)}
+  .step.active{background:var(--panel-2);border-left-color:var(--app)}
+  .step.external{border-left-color:var(--del);background:rgba(239,68,68,.04)}
+  .step.external.active{background:rgba(239,68,68,.12)}
+  .step.external .name::before{content:"⚠ ";color:var(--del)}
+  .step .time{color:var(--muted);font-size:10.5px}
+  .step .name{font-weight:600;margin-top:1px}
+  .step .form{color:var(--muted);font-size:10.5px;margin-top:1px}
+
+  .content{background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:16px 20px;min-height:600px}
+  .step-header{display:flex;align-items:baseline;gap:12px;margin-bottom:8px;padding-bottom:10px;border-bottom:1px solid var(--border)}
+  .step-header .num{background:var(--app);color:#000;font-weight:700;padding:3px 9px;border-radius:4px;font-size:13px}
+  .step-header .title{font-size:17px;font-weight:600}
+  .step-header .clock{color:var(--muted);font-size:12px;margin-left:auto}
+
+  .meta-row{display:flex;flex-wrap:wrap;gap:8px;margin:8px 0;font-size:11.5px}
+  .meta-tag{background:var(--panel-2);border:1px solid var(--border);padding:2px 8px;border-radius:3px;color:var(--muted)}
+  .meta-tag strong{color:var(--text)}
+  .tag{display:inline-block;padding:1px 6px;border-radius:3px;font-size:10.5px;margin-right:3px}
+  .tag-br{background:rgba(96,165,250,.18);color:var(--accent)}
+  .tag-wf{background:rgba(167,139,250,.18);color:#a78bfa}
+  .tag-risk{background:rgba(239,68,68,.18);color:var(--del)}
+
+  .action-block{background:rgba(96,165,250,.05);border-left:3px solid var(--accent);padding:10px 14px;border-radius:4px;margin:12px 0}
+  .risk-block{background:rgba(239,68,68,.06);border-left:3px solid var(--del);padding:10px 14px;border-radius:4px;margin:12px 0;font-size:12px}
+  .risk-block strong{color:var(--del)}
+  .external-block{background:rgba(239,68,68,.12);border:1px solid var(--del);border-radius:6px;padding:10px 12px;margin-bottom:10px}
+  .external-block strong{color:var(--del)}
+
+  .tables{display:flex;flex-direction:column;gap:12px;margin-top:16px}
+  .table-card{background:var(--panel-2);border:1px solid var(--border);border-radius:6px;overflow:hidden}
+  .tbl-head{background:rgba(245,158,11,.1);border-bottom:1px solid var(--border);padding:6px 12px;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+  .tbl-name{font-weight:600;color:var(--app);font-size:12.5px}
+  .tbl-meta{color:var(--muted);font-size:11px}
+  .tbl-body{overflow-x:auto}
+  .data-tbl{width:100%;border-collapse:collapse;font-size:11.5px}
+  .data-tbl th{background:rgba(0,0,0,.2);color:var(--muted);padding:5px 8px;text-align:left;font-weight:600;font-size:10.5px}
+  .data-tbl td{padding:5px 8px;border-top:1px solid var(--border);font-family:Consolas,Menlo,monospace;font-size:11px}
+  .row-new{background:rgba(52,211,153,.07)}
+  .row-new td:first-child::before{content:"＋";color:var(--new);margin-right:4px;font-weight:bold}
+  .row-upd{background:rgba(96,165,250,.07)}
+  .row-upd td:first-child::before{content:"↻";color:var(--upd);margin-right:4px}
+  .row-del{background:rgba(239,68,68,.07);text-decoration:line-through;color:var(--muted)}
+  .row-del td:first-child::before{content:"－";color:var(--del);margin-right:4px;font-weight:bold}
+  .row-unc td{color:var(--unc)}
+  .row-unc td:first-child::before{content:"・";color:var(--unc);margin-right:4px}
+
+  .legend-mini{display:flex;gap:14px;font-size:11px;color:var(--muted);margin:8px 0}
+  .legend-mini span::before{font-weight:bold;margin-right:4px}
+  .legend-mini .new::before{content:"＋";color:var(--new)}
+  .legend-mini .upd::before{content:"↻";color:var(--upd)}
+  .legend-mini .del::before{content:"－";color:var(--del)}
+  .legend-mini .unc::before{content:"・";color:var(--unc)}
+
+  .nav-btns{display:flex;gap:8px;margin-top:18px;padding-top:14px;border-top:1px solid var(--border)}
+  .nav-btns button{background:var(--panel-2);color:var(--text);border:1px solid var(--border);padding:7px 14px;border-radius:4px;cursor:pointer;font-size:12px}
+  .nav-btns button:hover{background:#2c344a;border-color:var(--accent)}
+  .nav-btns button:disabled{opacity:.4;cursor:not-allowed}
+  footer{color:var(--muted);font-size:10.5px;margin-top:24px;padding-top:10px;border-top:1px solid var(--border);text-align:center}
+</style>
 </head>
-<body><main>
-  <h1>{{APP_ID}} — End-to-End Trace</h1>
-  <p class="meta">Generated from Phase 4 and the verified traceability matrix.</p>
-  <section class="flow">
-    <!-- Repeat one .step per verified workflow step. Do not render unsupported inferred edges as facts. -->
-    <article class="step">
-      <h2>{{STEP_NUMBER}}. {{STEP_NAME}}</h2>
-      <p>{{USER_ACTION}} → {{SCREEN}} → {{PROCESSING}} → {{DATABASE_OR_FILE}} → {{OUTPUT}}</p>
-      <p class="evidence">{{EVIDENCE_STATUS}} · {{SOURCE_LOCATION}}</p>
-    </article>
-  </section>
-</main></body>
+<body>
+
+<h1>{{APP_ID}} — End-to-End Trace</h1>
+<p class="lede">
+  {{TRACE_SUMMARY}}<br>
+  Click a step to see the data as it stood at that moment. Related:
+  <a href="{{APP_ID}}_BoundaryMap.html" style="color:var(--accent)">Boundary Map</a>.
+</p>
+
+<!-- The concrete unit of work this trace follows. Say plainly whether the values are
+     real or illustrative; a reader will otherwise assume real. -->
+<div class="subject">{{SUBJECT_CARD}}</div>
+
+<div class="main">
+  <nav class="timeline"><h3>Timeline</h3><div id="steps"></div></nav>
+  <main class="content" id="content"></main>
+</div>
+
+<footer>
+  {{APP_ID}} · E2E Trace · run {{RUN_ID}} · generated {{GENERATED_AT}}<br>
+  Derived from Phase 4 and the verified traceability matrix after independent QA.
+</footer>
+
+<script>
+// One object per step, in order.
+//   num, time, name, form  - identity, shown in the timeline
+//   tags                   - BR-/WF-/risk identifiers; "external" marks a step
+//                            that happens outside this application
+//   desc, action, risks    - prose; risks may be null
+//   substeps               - optional ordered list for a multi-step pipeline
+//   tables                 - data state AFTER this step. Each: {name, meta, cols, rows}
+//                            where a row is [marker, ...cells] and marker is one of
+//                            "new" | "upd" | "del" | "unc".
+//   evidence               - evidence ids behind the step. Required.
+const steps = {{STEPS_JSON}};
+
+let current = 0;
+
+function isExternal(step) {
+  return (step.tags || []).some(t => /external|outside/i.test(t));
+}
+
+function renderTimeline() {
+  document.getElementById('steps').innerHTML = steps.map((s, i) => `
+    <div class="step ${i === current ? 'active' : ''} ${isExternal(s) ? 'external' : ''}" onclick="select(${i})">
+      <div class="time">${s.time || ''}</div>
+      <div class="name">${s.num}. ${s.name}</div>
+      <div class="form">${s.form || ''}</div>
+    </div>`).join('');
+}
+
+function renderTables(tables) {
+  return (tables || []).map(t => {
+    const cols = t.cols.map(c => `<th>${c}</th>`).join('');
+    const rows = t.rows.length
+      ? t.rows.map(r => `<tr class="row-${r[0]}"><td></td>${r.slice(1).map(v => `<td>${v}</td>`).join('')}</tr>`).join('')
+      : `<tr><td colspan="${t.cols.length + 1}" style="text-align:center;color:var(--muted);padding:14px">— no rows affected —</td></tr>`;
+    return `<div class="table-card">
+        <div class="tbl-head"><span class="tbl-name">${t.name}</span><span class="tbl-meta">${t.meta || ''}</span></div>
+        <div class="tbl-body"><table class="data-tbl"><thead><tr><th></th>${cols}</tr></thead><tbody>${rows}</tbody></table></div>
+      </div>`;
+  }).join('');
+}
+
+function renderContent() {
+  const s = steps[current];
+  const tags = (s.tags || []).map(t => {
+    const cls = t.startsWith('WF-') ? 'tag-wf' : (t.startsWith('BR-') ? 'tag-br' : 'tag-risk');
+    return `<span class="tag ${cls}">${t}</span>`;
+  }).join('');
+  const substeps = s.substeps
+    ? `<h2>Steps</h2><ol style="font-size:11.5px">${s.substeps.map(x => `<li><strong>${x.id}:</strong> ${x.desc}</li>`).join('')}</ol>`
+    : '';
+
+  document.getElementById('content').innerHTML = `
+    <div class="step-header">
+      <span class="num">${s.num}</span><span class="title">${s.name}</span>
+      <span class="clock">${s.time || ''}</span>
+    </div>
+    <div class="meta-row"><span class="meta-tag"><strong>Where:</strong> ${s.form || 'not established'}</span>${tags}</div>
+    ${isExternal(s) ? '<div class="external-block"><strong>⚠ Outside ' + '{{APP_ID}}' + ':</strong> this step is not this application\\'s processing. It is shown so the boundary is visible, not because the application performs it.</div>' : ''}
+    <p style="margin:10px 0">${s.desc}</p>
+    <div class="action-block"><strong>Action:</strong> ${s.action}</div>
+    ${s.risks ? `<div class="risk-block"><strong>⚠ Risk:</strong> ${s.risks}</div>` : ''}
+    ${substeps}
+    <h2>Data state</h2>
+    <div class="legend-mini">
+      <span class="new">inserted</span><span class="upd">updated</span>
+      <span class="del">deleted</span><span class="unc">unchanged (context)</span>
+    </div>
+    <div class="tables">${renderTables(s.tables)}</div>
+    <div class="meta-row" style="margin-top:14px">
+      <span class="meta-tag"><strong>Evidence:</strong> ${(s.evidence || []).join(', ') || 'NOT CITED — this step is not traced'}</span>
+    </div>
+    <div class="nav-btns">
+      <button onclick="select(${current - 1})" ${current === 0 ? 'disabled' : ''}>← Previous</button>
+      <button onclick="select(${current + 1})" ${current === steps.length - 1 ? 'disabled' : ''}>Next →</button>
+      <span style="margin-left:auto;color:var(--muted);font-size:11px;align-self:center">${current + 1} / ${steps.length}</span>
+    </div>`;
+}
+
+function select(i) {
+  if (i < 0 || i >= steps.length) return;
+  current = i;
+  renderTimeline();
+  renderContent();
+}
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'ArrowRight') select(current + 1);
+  if (e.key === 'ArrowLeft') select(current - 1);
+});
+
+select(0);
+</script>
+</body>
 </html>

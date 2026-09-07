@@ -1,7 +1,5 @@
-# This policy controls the immutable source inventory. It is independent of Git and Graphify.
 .git/
 runs/
-graphify-out/
 outputs/
 secrets/
 credentials/

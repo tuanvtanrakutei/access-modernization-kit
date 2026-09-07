@@ -13,7 +13,7 @@ def _manifest(tmp_path: Path, body: str) -> Path:
 
 # A V2.2 manifest declares its inputs as artifacts, not under `sources`. Reading only
 # the V2.1 shape reported every capability as unneeded - including Access itself on an
-# Access-only project, and including graphify, whose gate is documented as mandatory.
+# Access-only project, and including Access itself.
 def test_v22_artifacts_are_read_as_capability_needs(tmp_path: Path) -> None:
     manifest = _manifest(tmp_path, """
 version: '2.2'
@@ -37,14 +37,11 @@ artifacts:
   source_ref:
     type: local_path
     value: sources/access/data.mdb
-graphify:
-  enabled: true
 """.lstrip())
 
     needs = preflight.manifest_needs(manifest)
 
     assert needs["access"] is True
-    assert needs["graphify"] is True
     assert needs["adp"] is False
     assert needs["live_sql"] is False
 
@@ -95,15 +92,12 @@ sources:
   sql_server:
     live:
       enabled: true
-graphify:
-  enabled: true
 """.lstrip())
 
     needs = preflight.manifest_needs(manifest)
 
     assert needs["access"] is True
     assert needs["live_sql"] is True
-    assert needs["graphify"] is True
 
 
 # Discovery alone is not predictive: a registered, bitness-matched Access can still
@@ -197,12 +191,24 @@ def test_directory_export_package_counts_as_an_exported_source(tmp_path: Path) -
 # The mode describes which inputs were provided, nothing else. It used to be derived from
 # whether extraction was pending, so the same inputs read "mixed" before acquisition and
 # "export" afterwards.
+def _publish_bundle(app_root: Path) -> Path:
+    """A bundle is a directory carrying bundle.json, not a directory with the right name.
+
+    An aborted acquisition can leave the directory behind, and preflight reading the
+    name alone would report extraction already done.
+    """
+    bundle = app_root / "acquired" / "bundle-abc123"
+    bundle.mkdir(parents=True, exist_ok=True)
+    (bundle / "bundle.json").write_text('{"bundle_id": "bundle-abc123"}', encoding="utf-8")
+    return bundle
+
+
 def test_mode_does_not_change_once_a_bundle_exists(tmp_path: Path) -> None:
     manifest = _hybrid_workspace(tmp_path)
     before, _ = preflight.input_preconditions(manifest, {"access": True}, {})
     assert before["mode"] == "mixed"
     assert before["needs_extraction"] is True
-    (tmp_path / "acquired" / "bundle-abc123").mkdir(parents=True)
+    _publish_bundle(tmp_path)
     after, _ = preflight.input_preconditions(manifest, {"access": True}, {})
     assert after["mode"] == "mixed"
     assert after["needs_extraction"] is False
@@ -214,7 +220,7 @@ def test_mode_does_not_change_once_a_bundle_exists(tmp_path: Path) -> None:
 def test_published_bundle_satisfies_extracted_access(tmp_path: Path) -> None:
     manifest = _hybrid_workspace(tmp_path)
     assert preflight.input_preconditions(manifest, {"access": True}, {})[0]["present"]["extracted_access"] is False
-    (tmp_path / "acquired" / "bundle-abc123").mkdir(parents=True)
+    _publish_bundle(tmp_path)
     assert preflight.input_preconditions(manifest, {"access": True}, {})[0]["present"]["extracted_access"] is True
 
 

@@ -53,6 +53,10 @@ def test_assemble_writes_layout_and_lock(tmp_path: Path) -> None:
         "artifacts": [{"logical_id": "q1", "content_sha256": "a" * 64}],
         "adapters": [{"id": "imported_sources", "version": "1.0.0"}],
         "bundle_schema_version": data["schema_version"], "normalization_config": {"text": "utf-8-lf"},
+        # Read back from the bundle rather than restated, because the point of the
+        # field is that it changes whenever this module does.
+        "assembly_version": json.loads(
+            (bundle_dir / "provenance.json").read_text(encoding="utf-8"))["assembly_version"],
     })
     for output_name, schema_name in (
         ("provenance.json", "bundle-provenance.schema.json"),
@@ -196,3 +200,123 @@ def test_raw_binary_flag_is_still_rejected_inside_metadata(tmp_path: Path) -> No
         assert "carries a raw database binary" in str(exc)
         return
     raise AssertionError("a raw_binary marker must still be rejected")
+
+
+def test_two_routes_reading_one_schema_yield_one_table() -> None:
+    """A table read by both the managed and the imported route is one table.
+
+    A05's frontend was acquired managed for its schema and imported for its
+    definition text, and the same 22 tables, 161 fields and 46 indexes entered the
+    bundle twice. `_merge_records` cannot see it: the two routes describe a table in
+    two shapes, only one carrying a `logical_id`, so both are filed as unkeyed. The
+    duplicates were then reported as coverage - 1,558 database records against a true
+    1,327 - and as a finding, 143 table objects of which 86 lacked a primary key
+    against a true 121 and 76.
+    """
+    from bundle_assembly import _dedupe_schema
+
+    managed = {"database_id": "D", "name": "T", "attributes": 0, "connect": "",
+               "logical_id": "D:table:T", "kind": "table", "container": "data"}
+    imported = {"database_id": "D", "name": "T", "attributes": 0, "connect": ""}
+    rows = [imported, managed]
+    _dedupe_schema(rows, ("database_id", "name"))
+    assert len(rows) == 1
+    # The surviving row is the one carrying more, so nothing a route knew is lost.
+    assert rows[0]["logical_id"] == "D:table:T"
+
+    fields = [{"database_id": "D", "table": "T", "name": "f", "type": 10},
+              {"database_id": "D", "table": "T", "name": "f", "type": 10}]
+    _dedupe_schema(fields, ("database_id", "table", "name"))
+    assert len(fields) == 1
+
+
+def test_two_readings_that_disagree_are_both_kept() -> None:
+    """Disagreement about the schema is a finding, not something to resolve by rule.
+
+    Collapsing to whichever adapter sorted first would hide the one case where the
+    duplicate matters.
+    """
+    from bundle_assembly import _dedupe_schema
+
+    rows = [{"database_id": "D", "name": "T", "attributes": 0},
+            {"database_id": "D", "name": "T", "attributes": 1, "logical_id": "x"}]
+    _dedupe_schema(rows, ("database_id", "name"))
+    assert len(rows) == 2
+
+
+def test_a_row_without_the_identity_is_never_collapsed() -> None:
+    from bundle_assembly import _dedupe_schema
+
+    rows = [{"name": "T"}, {"name": "T"}]
+    _dedupe_schema(rows, ("database_id", "name"))
+    assert len(rows) == 2
+
+
+def test_the_assembling_code_is_part_of_the_bundle_identity() -> None:
+    """Same sources, different kit, different bundle.
+
+    The identity derived from the source digests alone, so fixing a defect in
+    `bundle_assembly` and re-running produced the same directory name with different
+    content - refused as `BUNDLE_PATH_CONFLICT`, which reads as tampering when the
+    cause is the kit's own code. Three bundles were moved aside by hand in one session
+    before this was understood.
+    """
+    identity = {
+        "app_id": "SYN", "classification": _classification(),
+        "classification_rule_versions": {"topology": "1.0.0"},
+        "artifacts": [{"logical_id": "q1", "content_sha256": "a" * 64}],
+        "adapters": [{"id": "imported_sources", "version": "1.0.0"}],
+        "bundle_schema_version": "2.7.3", "normalization_config": {"text": "utf-8-lf"},
+        "assembly_version": "aaaaaaaaaaaa",
+    }
+    after = dict(identity, assembly_version="bbbbbbbbbbbb")
+    assert (bundle_contract.compute_bundle_id(identity)
+            != bundle_contract.compute_bundle_id(after))
+    # And it is required, so a caller cannot go back to an identity without it.
+    incomplete = {k: v for k, v in identity.items() if k != "assembly_version"}
+    try:
+        bundle_contract.compute_bundle_id(incomplete)
+    except bundle_contract.BundleError as error:
+        assert "assembly_version" in str(error)
+        return
+    raise AssertionError("an identity with no assembly_version must be refused")
+
+
+def test_the_assembly_version_tracks_the_module_itself(tmp_path: Path) -> None:
+    """Computed from the source, not declared.
+
+    A version somebody has to remember to bump is wrong exactly when it matters: the
+    defect being fixed is always the one that changed the output. Editing this module
+    is what must change the answer, and nothing else.
+    """
+    import hashlib
+
+    import bundle_assembly
+    from bundle_assembly import _assembly_version
+
+    first = _assembly_version()
+    assert first == _assembly_version(), "stable while the file is unchanged"
+    assert len(first) == 12
+
+    # Recomputed here rather than by editing the module on disk: a test that rewrites
+    # a file in the repository leaves it damaged if the run is interrupted, and this
+    # says the same thing - the answer is that file's digest and nothing else.
+    source = Path(bundle_assembly.__file__).resolve().read_bytes()
+    assert first == hashlib.sha256(source).hexdigest()[:12]
+    assert first != hashlib.sha256(
+        source + b"# one more line of assembly code").hexdigest()[:12]
+
+
+def test_a_rebuilt_bundle_says_which_code_built_it(tmp_path: Path) -> None:
+    """Answerable from the bundle, which it was not before.
+
+    The id carries the version, but a digest cannot be read back out of a digest, and
+    "was this built before or after the deduplication fix" is a question people ask of
+    a bundle they did not watch being built.
+    """
+    from bundle_assembly import _assembly_version
+
+    out = _assemble_one(tmp_path, _contribution("imported_sources"))
+    provenance = json.loads(
+        (Path(out["bundle_dir"]) / "provenance.json").read_text(encoding="utf-8"))
+    assert provenance["assembly_version"] == _assembly_version()

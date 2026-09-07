@@ -1,6 +1,5 @@
 .git/
 runs/
-graphify-out/
 outputs/
 secrets/
 credentials/

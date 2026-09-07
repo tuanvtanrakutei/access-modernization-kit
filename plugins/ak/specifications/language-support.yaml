@@ -30,6 +30,6 @@ dialects:
   vba: ["ACCESS_VBA", "EXCEL_VBA", "VB6_COMPATIBLE", "UNKNOWN"]
 encodings:
   supported: ["UTF-8", "UTF-8-BOM", "UTF-16LE", "UTF-16BE", "CP932", "SHIFT_JIS", "WINDOWS-1252", "BINARY", "UNKNOWN"]
-graphify:
-  rule: "Run on extracted text and supported source files, never directly on Access database binaries."
-  vba_caveat: "Graphify may inventory VBA exports as files but does not provide a guaranteed VBA AST parser; keep line-backed evidence from the extraction layer."
+fact_derivation:
+  rule: "Derive from extracted text and the sealed bundle, never directly from Access database binaries."
+  vba_caveat: "Derivation matches names the sources state literally; it does not parse VBA. Every derived edge stays traceable to the line that produced it."

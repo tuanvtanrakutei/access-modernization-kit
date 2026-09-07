@@ -20,6 +20,15 @@ CONTRACTS = PACKAGE / "contracts"
 sys.path.insert(0, str(CONTRACTS))
 
 
+def _workspace(app_root: Path):
+    """The layout resolver: one place knows a pre-2.10.0 workspace names things
+    differently, so every caller asks instead of assuming."""
+    from workspace import Workspace
+
+    return Workspace(app_root)
+
+
+
 def package_version() -> str:
     return json.loads((PACKAGE / "specifications" / "package.json").read_text(encoding="utf-8"))["version"]
 
@@ -36,6 +45,20 @@ def configure_acquire_parser(commands: argparse._SubParsersAction) -> None:
     acquire.add_argument("--output-root", help="Output directory for acquisition bundle")
     acquire.add_argument("--authorize", action="append", default=[])
     acquire.add_argument("--acquisition-id", default=None)
+    acquire.add_argument(
+        "--keep-snapshots", action="store_true",
+        help="Keep the disposable database copies after a clean run. They are removed by "
+             "default: nothing reads them once extraction has written its receipt, and on a "
+             "real application they doubled the workspace.",
+    )
+    # The question an operator actually has is not "which mode is this" but "can this
+    # evidence carry the phases I came here for". Naming them makes acquisition answer
+    # it instead of leaving a blocked phase to be discovered in a file afterwards.
+    acquire.add_argument(
+        "--require-phases", default="",
+        help="Comma-separated phases this acquisition must reach, for example 1,2,3. "
+             "Reported by 'plan'; 'run' fails if the acquired evidence leaves one blocked.",
+    )
 
 def configure_collaboration_parser(commands: argparse._SubParsersAction) -> None:
     collaboration = commands.add_parser(
@@ -86,6 +109,94 @@ def parse_args() -> argparse.Namespace:
     commands = parser.add_subparsers(dest="command", required=True)
     commands.add_parser("validate", help="Validate this shared package without analyzing an app.")
 
+    citations = commands.add_parser(
+        "citations",
+        help="Check that every evidence id a phase document cites exists.",
+    )
+    citations.add_argument("--outputs", required=True, help="Directory holding the phase documents and evidence register.")
+    citations.add_argument("--json", action="store_true", help="Emit a machine-readable report.")
+
+    conformance = commands.add_parser(
+        "conformance",
+        help="Check a published phase document carries what the phase contract promises.",
+    )
+    conformance.add_argument("--outputs", required=True, help="Directory holding the phase documents.")
+    conformance.add_argument("--strict", action="store_true", help="Fail on evidence apparatus as well as content.")
+    conformance.add_argument("--group", choices=("content", "apparatus", "all"), default="all")
+    conformance.add_argument("--json", action="store_true", help="Emit a machine-readable report.")
+
+    clean = commands.add_parser(
+        "clean", help="Report, and optionally remove, what a workspace no longer needs.",
+    )
+    clean.add_argument("--app-root", required=True)
+    clean.add_argument("--delete", action="store_true", help="Actually remove; without it the command only reports.")
+    clean.add_argument("--json", action="store_true")
+
+    references = commands.add_parser(
+        "references",
+        help="List every source this analysis read, with the digest that says which copy.",
+    )
+    references.add_argument("--app-root", required=True)
+    references.add_argument("--app-id")
+    references.add_argument("--dry-run", action="store_true")
+
+    bilingual = commands.add_parser(
+        "bilingual",
+        help="Print the English name beside every production name in the narratives.",
+    )
+    bilingual.add_argument("--app-root", required=True)
+    bilingual.add_argument("--dry-run", action="store_true")
+
+    glossary = commands.add_parser(
+        "glossary",
+        help="Propose an English name for every production name, for a person to accept.",
+    )
+    glossary.add_argument("--app-root", required=True)
+    glossary.add_argument("--dry-run", action="store_true")
+
+    meanings = commands.add_parser(
+        "meanings",
+        help="List every table and column still needing a business meaning, blank, "
+             "for a person to fill.",
+    )
+    meanings.add_argument("--app-root", required=True)
+    meanings.add_argument(
+        "--top", type=int,
+        help="Only add the N highest-priority subjects per section.",
+    )
+    meanings.add_argument("--dry-run", action="store_true")
+
+    completeness = commands.add_parser(
+        "completeness",
+        help="Record each object's definition-text shape and compare it with the last "
+             "record and the other acquisition route.",
+    )
+    completeness.add_argument("--app-root", required=True)
+    completeness.add_argument(
+        "--dry-run", action="store_true", help="Report without updating the record.",
+    )
+
+    catalogues = commands.add_parser(
+        "catalogues",
+        help="Generate the exhaustive per-entity catalogues from the acquisition bundle.",
+    )
+    catalogues.add_argument("--app-root", required=True)
+    catalogues.add_argument("--app-id", help="Defaults to the manifest's app id.")
+    catalogues.add_argument(
+        "--dry-run", action="store_true", help="Report the sizes without writing.",
+    )
+
+    migrate = commands.add_parser(
+        "migrate-workspace",
+        help="Move a workspace laid out before 2.10.0 into input/, output/ and .ak/.",
+    )
+    migrate.add_argument("--workspace", required=True)
+    migrate.add_argument(
+        "--apply", action="store_true",
+        help="Perform the move; without it the command only prints what it would do.",
+    )
+    migrate.add_argument("--json", action="store_true")
+
     install = commands.add_parser("install", help="Install the skill for a non-Codex runtime.")
     install.add_argument("--runtime", choices=("codex", "claude", "generic"), required=True)
     install.add_argument("--project", help="Claude project directory; required for --runtime claude.")
@@ -125,13 +236,18 @@ def parse_args() -> argparse.Namespace:
         help="Actually activate and release Access so a READY status predicts whether extraction can run.",
     )
 
-    graphify = commands.add_parser("graphify", help="Prepare or validate the mandatory Graphify phase gate.")
-    graphify.add_argument("action", choices=("prepare", "check", "finalize"))
-    graphify.add_argument("--app-root", required=True)
-    graphify.add_argument("--phase", required=True, type=int, choices=range(1, 7))
-    graphify.add_argument("--runtime", choices=("codex", "claude", "generic"), default="generic")
-    graphify.add_argument("--no-install-missing", action="store_true")
-    graphify.add_argument("--dry-run", action="store_true")
+    derive = commands.add_parser(
+        "derive", help="Derive the relationships the sealed bundle states literally. Runs once, before the first phase.",
+    )
+    derive.add_argument("--app-root", required=True)
+    derive.add_argument("--dry-run", action="store_true", help="Report counts without writing.")
+
+    documents = commands.add_parser(
+        "documents", help="Normalize XLSX/DOCX/PPTX/PDF and legacy-encoded text into citable UTF-8 with provenance.",
+    )
+    documents.add_argument("--app-root", required=True)
+    documents.add_argument("--dry-run", action="store_true", help="Report planned sources without writing.")
+    documents.add_argument("--output", help="Also write the audit to this path.")
 
     profile = commands.add_parser("profile", help="Detect or validate a composable project classification.")
     profile_commands = profile.add_subparsers(dest="profile_action", required=True)
@@ -161,6 +277,16 @@ def parse_args() -> argparse.Namespace:
     bundle_approve.add_argument("--approved-at")
     bundle_approve.add_argument("--distribution-policy", choices=("local_only", "shared_path", "artifact_store", "git_allowed"), default="artifact_store")
     bundle_approve.add_argument("--output", required=True)
+    phase = commands.add_parser("phase", help="Report what evidence a phase still needs, and how to supply it.")
+    phase_commands = phase.add_subparsers(dest="phase_action", required=True)
+    phase_req = phase_commands.add_parser("requirements")
+    phase_req.add_argument("--app-root", required=True)
+    phase_req.add_argument("--phase", type=int, choices=range(1, 7), required=True)
+    phase_req.add_argument(
+        "--waive", action="append", default=[],
+        help="Proceed without a capability. Requires --reason and is recorded in the receipt.",
+    )
+    phase_req.add_argument("--reason", help="Why the waived evidence cannot be supplied.")
     configure_acquire_parser(commands)
     configure_collaboration_parser(commands)
     return parser.parse_args()
@@ -276,6 +402,75 @@ def main() -> int:
     args = parse_args()
     if args.command == "validate":
         return run("validate_structure.py", "--package", str(PACKAGE))
+    if args.command == "citations":
+        citation_args = ["--outputs", args.outputs]
+        if args.json:
+            citation_args.append("--json")
+        return run("validate_evidence_citations.py", *citation_args)
+    if args.command == "conformance":
+        conformance_args = ["--outputs", args.outputs, "--group", args.group]
+        if args.strict:
+            conformance_args.append("--strict")
+        if args.json:
+            conformance_args.append("--json")
+        return run("validate_phase_conformance.py", *conformance_args)
+    if args.command == "references":
+        reference_args = ["--app-root", args.app_root]
+        if args.app_id:
+            reference_args += ["--app-id", args.app_id]
+        if args.dry_run:
+            reference_args.append("--dry-run")
+        return run("build_references.py", *reference_args)
+
+    if args.command == "bilingual":
+        bilingual_args = ["--app-root", args.app_root]
+        if args.dry_run:
+            bilingual_args.append("--dry-run")
+        return run("annotate_bilingual.py", *bilingual_args)
+
+    if args.command == "glossary":
+        glossary_args = ["--app-root", args.app_root]
+        if args.dry_run:
+            glossary_args.append("--dry-run")
+        return run("build_glossary.py", *glossary_args)
+
+    if args.command == "meanings":
+        meaning_args = ["--app-root", args.app_root]
+        if args.top:
+            meaning_args += ["--top", str(args.top)]
+        if args.dry_run:
+            meaning_args.append("--dry-run")
+        return run("build_meanings.py", *meaning_args)
+
+    if args.command == "completeness":
+        completeness_args = ["--app-root", args.app_root]
+        if args.dry_run:
+            completeness_args.append("--dry-run")
+        return run("check_export_completeness.py", *completeness_args)
+
+    if args.command == "catalogues":
+        catalogue_args = ["--app-root", args.app_root]
+        if args.app_id:
+            catalogue_args += ["--app-id", args.app_id]
+        if args.dry_run:
+            catalogue_args.append("--dry-run")
+        return run("generate_catalogues.py", *catalogue_args)
+
+    if args.command == "migrate-workspace":
+        migrate_args = ["--workspace", args.workspace]
+        if args.apply:
+            migrate_args.append("--apply")
+        if args.json:
+            migrate_args.append("--json")
+        return run("migrate_workspace.py", *migrate_args)
+
+    if args.command == "clean":
+        clean_args = ["--app-root", args.app_root]
+        if args.delete:
+            clean_args.append("--delete")
+        if args.json:
+            clean_args.append("--json")
+        return run("clean_workspace.py", *clean_args)
     if args.command == "install":
         return install_skill(args)
     if args.command == "init":
@@ -293,18 +488,18 @@ def main() -> int:
         if getattr(args, "source", None):
             init_args.extend(["--source", args.source])
         return run("init_app.py", *init_args)
-    if args.command == "graphify":
-        graphify_args = [
-            args.action,
-            "--app-root", args.app_root,
-            "--phase", str(args.phase),
-            "--runtime", args.runtime,
-        ]
-        if args.no_install_missing:
-            graphify_args.append("--no-install-missing")
+    if args.command == "derive":
+        derive_args = ["--app-root", args.app_root]
         if args.dry_run:
-            graphify_args.append("--dry-run")
-        return run("graphify_phase_gate.py", *graphify_args)
+            derive_args.append("--dry-run")
+        return run("derive_graph_facts.py", *derive_args)
+    if args.command == "documents":
+        document_args = ["--app-root", args.app_root]
+        if args.dry_run:
+            document_args.append("--dry-run")
+        if args.output:
+            document_args.extend(["--output", args.output])
+        return run("normalize_documents.py", *document_args)
     if args.command == "profile":
         from classification import Classification
         from manifest_v22 import load_manifest
@@ -344,6 +539,22 @@ def main() -> int:
             )
         print_json(report)
         return 0
+    if args.command == "phase":
+        package_path = str(PACKAGE)
+        if package_path not in sys.path:
+            sys.path.insert(0, package_path)
+        from phase_evidence import phase_report
+
+        if args.waive and not args.reason:
+            print("ERROR: --waive requires --reason; an undocumented waiver is worse than a blocked phase")
+            return 2
+        report = phase_report(
+            Path(args.app_root).expanduser().resolve(), args.phase,
+            tuple(args.waive), args.reason,
+        )
+        print_json(report)
+        return 0 if report["status"] != "BLOCKED" else 2
+
     if args.command == "acquire":
         package_path = str(PACKAGE)
         if package_path not in sys.path:
@@ -385,21 +596,47 @@ def main() -> int:
         output_root = (
             Path(args.output_root).expanduser().resolve()
             if getattr(args, "output_root", None)
-            else manifest_path.parent / "acquired"
+            else _workspace(manifest_path.parent).acquired_root()
         )
         acquisition_id = getattr(args, "acquisition_id", None) or f"acquire-{uuid.uuid4().hex}"
         authorize = tuple(getattr(args, "authorize", []) or [])
+        required_phases = tuple(
+            item if item.startswith("phase") else f"phase{item}"
+            for item in (
+                part.strip() for part in str(getattr(args, "require_phases", "") or "").split(",")
+            )
+            if item
+        )
 
         if action == "plan":
-            print_json(plan_acquisition(manifest_path))
-            return 0
+            plan = plan_acquisition(manifest_path)
+            if required_phases:
+                plan["required_phases"] = {
+                    "requested": list(required_phases),
+                    "reachable": sorted(
+                        phase for phase in required_phases
+                        if plan["phase_outlook"]["if_content_present"].get(phase) != "BLOCKED"
+                    ),
+                    "unreachable": sorted(
+                        phase for phase in required_phases
+                        if plan["phase_outlook"]["if_content_present"].get(phase) == "BLOCKED"
+                    ),
+                }
+            print_json(plan)
+            return 0 if not plan.get("required_phases", {}).get("unreachable") else 2
         elif action == "run":
-            result = run_acquisition(manifest_path, output_root, authorize, acquisition_id)
+            result = run_acquisition(
+                manifest_path, output_root, authorize, acquisition_id, required_phases,
+                keep_snapshots=args.keep_snapshots,
+            )
             print_json(result)
             return 0 if result.get("bundle_id") else 2
 
         plan = plan_acquisition(manifest_path)
-        result = run_acquisition(manifest_path, output_root, authorize, acquisition_id)
+        result = run_acquisition(
+            manifest_path, output_root, authorize, acquisition_id, required_phases,
+            keep_snapshots=args.keep_snapshots,
+        )
         result["plan"] = plan
         print_json(result)
         return 0 if result.get("bundle_id") else 2

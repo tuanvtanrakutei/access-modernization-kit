@@ -133,6 +133,13 @@ appears exactly once in the tier classification. Beyond that, these are always i
   completely on partial failure.
 - **Output path**: for a report or export endpoint, PARITY-tier coverage of the generated
   artifact against the legacy sample.
+- **Input path**: for an import or upload endpoint, cover the encodings the operator's own
+  tools produce, a header row in a different column order, one case per row-level validation
+  rule, and — where the import replaces data — a **forced** mid-write failure proving the
+  rollback. Force it by patching the write to raise; a test that merely hopes for a partial
+  failure passes while the transaction boundary is missing. Where an export of the same table
+  exists, assert that the export re-imports unchanged: it is the cheapest guard against the
+  two column lists drifting apart.
 
 ## Recording Results
 

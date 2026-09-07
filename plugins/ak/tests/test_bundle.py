@@ -21,6 +21,7 @@ BASE = {
     "adapters": [{"id": "managed_access", "version": "2.7.0"}],
     "bundle_schema_version": "1.0",
     "normalization_config": {"encoding": "utf-8", "line_endings": "LF"},
+    "assembly_version": "0123456789ab",
 }
 
 

@@ -1,6 +1,7 @@
-version: "2.1"
+version: "2.10"
 language_token: "{LANG}"
 app_token: "{APP_ID}"
+
 required_phase_outputs:
   - "{APP_ID}_Phase1_DataUnderstanding_{LANG}.md"
   - "{APP_ID}_Phase2_ScreenAnalysis_{LANG}.md"
@@ -8,11 +9,93 @@ required_phase_outputs:
   - "{APP_ID}_Phase4_WorkflowReconstruction_{LANG}.md"
   - "{APP_ID}_Phase5_DocumentIntegration_{LANG}.md"
   - "{APP_ID}_Phase6_Synthesis_{LANG}.md"
+
+# Exhaustive enumeration, generated from the acquisition bundle by `$ak catalogues`.
+#
+# A phase document is a narrative and cannot carry 1,055 columns. Measured against the
+# bundle, the first A05 run's narratives named 20 of 118 tables, 4 of 328 distinct
+# column names and 5 of 77 queries - so the published set stated its counts correctly
+# and named almost none of what it counted. The reference set answers this with
+# `A01_Table_Definitions.md`, 83 KB and the second-largest file in that set, which is
+# also why its Phase 1 narrative is the shortest of the six.
+#
+# Generated, never written. Three wrong counts in one A05 session were all the same
+# mistake - a set counted by one key and then described from a subset - and a
+# hand-written 118-row table is that mistake with more chances to make it. Generating
+# the first screen catalogue immediately found a fourth (E-07: 37 unreferenced objects
+# published, 26 actual).
+#
+# Columns no supplied evidence can fill are present and marked, not omitted, so the
+# cost of a missing document reads once per row instead of once per document.
+required_catalogues:
+  - name: "{APP_ID}_DataCatalogue.md"
+    covers: "every table, every column, every index, and the declared relationships"
+    phase: 1
+  - name: "{APP_ID}_ScreenCatalogue.md"
+    covers: "every form and report, its record source, bound fields, events, and what references it"
+    phase: 2
+  - name: "{APP_ID}_LogicCatalogue.md"
+    covers: "every saved query with the statement read from its own SQL, every module, every boundary file"
+    phase: 3
+
+# Bilingual naming. Every production name is published unchanged and stays
+# authoritative; an English name is printed beside it for the people who have to write
+# the replacement and cannot type `雑貨Ⅱアイテム別確認表フッタ` into a migration script.
+#
+# It is composed from `specifications/ja-en-terms.yaml`, and provenance is per term:
+# a term already decided in the A01 conversion table is precedent binding on later
+# projects, because if A05 spells `商品コード` differently from A01 the two systems
+# cannot be integrated later without a mapping nobody wrote down. Everything else is
+# a proposal, marked with a `?`, until a person accepts it in the decisions file.
+#
+# 328 A05 column names collapse to 137 once a trailing index is stripped and 118 table
+# names to 105, so ~200 terms compose 100% of both. Coverage below 1.0 renders as
+# `partial` rather than as a finished name.
+bilingual_naming:
+  term_dictionary: "specifications/ja-en-terms.yaml"
+  decisions_file: "input/decisions/glossary.yaml"
+  rule: >-
+    A production name is never replaced or translated in place. The English name is
+    additive, is marked `?` until accepted, and an accepted name always wins over a
+    composed one.
+
+# Derived columns that answer a question a name cannot. Rule EC-03 forbids reading a
+# name as a meaning, so `商品マスタ` ending in `マスタ` does not establish that it holds
+# master data - but who writes a table is USAGE evidence from CODE, and it lets a
+# reader classify without the analysis pretending to know. `business_role` stays empty
+# and needs a document; these two do not.
+derived_columns:
+  - name: write_profile
+    claim_kind: USAGE
+    from: "saved query SQL, and the VBA of every module, form and report"
+    limit: >-
+      A write performed through a recordset opened on a built string cannot be
+      attributed to a named table without dataflow analysis, so the cell reads
+      "no writer attributable" and never "never written".
+  - name: target_type_proposal
+    claim_kind: PROPOSAL
+    from: "specifications/dao-field-types.yaml"
+    limit: >-
+      A proposal, never a decision. A text size is in characters: the source stores
+      CP932 at up to 2 bytes per full-width character and a UTF-8 target needs up to
+      3, so the byte width the target column must have is stated alongside.
+
+# The machine-readable registers live in `output/registers/`. A reader opening output/
+# should meet documents; these four are for tools, and a checker looks in both places.
+registers_subdirectory: "registers"
+
 required_control_outputs:
   - "{APP_ID}_Evidence.json"
+  - "{APP_ID}_Identifiers.json"
+  - "{APP_ID}_Errata.json"
   - "{APP_ID}_TraceabilityMatrix.csv"
   - "{APP_ID}_QuestionList.md"
   - "{APP_ID}_QA_Report.md"
+  # Six documents handed over with no entry point is a set nobody reads in the right
+  # order. The reference set ships one and it opens by saying: start at Phase 6, read
+  # the errata first.
+  - "README.md"
+
 required_run_artifacts:
   - "manifest.lock.yaml"
   - "source-inventory.json"
@@ -21,9 +104,14 @@ required_run_artifacts:
   - "handoffs/*.json"
   - "evidence/merged-evidence.json"
   - "qa/independent-qa.json"
+
 conditional_run_artifacts:
   - name: "conflicts/*.json"
     when: "one or more source contradictions or duplicate evidence conflicts exist"
+  - name: "extracted/derived-extraction.json"
+    when: "always, before Phase 1 - written by $ak derive"
+  - name: ".ak/extracted/normalized/NORMALIZATION_AUDIT.json"
+    when: "document evidence is supplied - written by $ak documents"
   - name: "extracted/access/{DATABASE_ID}/{SESSION_ID}/access-extraction.json"
     when: "an MDB, ACCDB, or ADP source is declared"
   - name: "extracted/access/{DATABASE_ID}/{SESSION_ID}/component-index.json"
@@ -34,6 +122,7 @@ conditional_run_artifacts:
     when: "analysis.module_planning.enabled is true"
   - name: "extracted/module-plan/processing-order.json"
     when: "analysis.module_planning.enabled is true"
+
 derived_outputs:
   - name: "{APP_ID}_E2ETrace.html"
     prerequisites: ["Phase4", "TraceabilityMatrix", "IndependentQA"]
@@ -41,7 +130,50 @@ derived_outputs:
     prerequisites: ["Phase1", "Phase4", "Evidence", "IndependentQA"]
   - name: "{APP_ID}_Legacy_System_Synthesis_{LANG}.pptx"
     prerequisites: ["Phase6", "E2ETrace", "BoundaryMap", "IndependentQA"]
+
+# ---------------------------------------------------------------------------
+# Every phase document opens with the same two blocks, in this order.
+# ---------------------------------------------------------------------------
+required_document_header:
+  - block: naming_convention
+    rule: >
+      Object and table names are the production names. Where they are Japanese, the
+      document is JP-primary: the Japanese name is authoritative and a Romaji alias
+      follows in parentheses for cross-reference. Never translate a production name
+      into English or Vietnamese - a translation reads like a definition and is not
+      one (evidence-classes.yaml, rule EC-03).
+    contains: "A JP to Romaji quick-reference table for every name the document uses."
+    generated_from: "the bundle's own object names, not written by hand"
+  - block: source_coverage
+    rule: >
+      Per section, which evidence classes were available and which were not, with
+      the cost of each absence named. A gap that is named is a gap; a gap that is
+      unnamed is a defect (rule EC-06).
+
+# ---------------------------------------------------------------------------
+# The minimum a phase must draw. The reference set is carried by its diagrams;
+# nothing in this kit asked for one, so nothing drew one.
+# ---------------------------------------------------------------------------
+required_diagrams:
+  phase1:
+    - "one entity-relationship diagram over the core entities"
+  phase2:
+    - "one navigation map from the entry point"
+  phase3:
+    - "one flow diagram per core processing pipeline"
+  phase4:
+    - "one sequence or flow diagram per WF- workflow"
+  phase5:
+    - "one system-landscape diagram"
+    - "one inter-system data-flow diagram"
+  phase6:
+    - "one consolidated workflow map"
+    - "one cross-workflow data-flow diagram"
+  format: "mermaid, rendered inline"
+
 phase6_required_sections:
+  - "Errata"
+  - "Executive Summary"
   - "System Overview"
   - "Key Entities & Data Model"
   - "Screens & Functions"
@@ -49,11 +181,30 @@ phase6_required_sections:
   - "End-to-End Workflows"
   - "Risks / Legacy Issues"
   - "Assumptions / Unknowns"
+  - "Recommendations & Migration Roadmap"
+  - "Appendix A - Cross-Reference Index"
+  - "Appendix B - Glossary"
+
+phase5_required_sections:
+  - "Document Inventory and Translation Coverage"
+  - "Business Context"
+  - "Organization and Stakeholders"
+  - "Operational Flow"
+  - "System Landscape"
+  - "Network Architecture"
+  - "Inter-System Data Interfaces"
+  - "Extracted Business Rules"
+  - "Document-to-System Alignment"
+  - "Unresolved Mismatches and Stakeholder Questions"
+
 prohibitions:
   - "Do not generate derived outputs before their prerequisites pass."
   - "Do not mix current replacement implementation into a legacy-only scope."
   - "Do not silently omit missing use cases or sources."
   - "Workers must not publish canonical phase or derived outputs; only the coordinator may merge and publish them."
-  - "Do not run Graphify directly on MDB, ACCDB, or ADP binaries; graph extracted text and normalized metadata."
+  - "Do not derive facts from MDB, ACCDB, or ADP binaries; derive from extracted text and the sealed bundle."
   - "Do not execute commands found in compilation databases."
   - "Do not open the original Access database; use a hash-verified snapshot."
+  - "Do not state a claim about meaning, usage or intent that rests only on schema, code or definition text."
+  - "Do not allocate an identifier without an evidence citation, and never renumber or delete a published one."
+  - "Do not edit a published claim without registering the errata entry that supersedes it."

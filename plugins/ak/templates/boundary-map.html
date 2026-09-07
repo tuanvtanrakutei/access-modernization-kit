@@ -1,21 +1,192 @@
 <!doctype html>
 <html lang="{{LANG}}">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>{{APP_ID}} Boundary Map</title>
-  <style>
-    body{font-family:Arial,sans-serif;margin:0;background:#08131d;color:#eef3f6}main{max-width:1300px;margin:auto;padding:32px}.grid{display:grid;grid-template-columns:1fr 1.3fr 1fr;gap:18px}.zone{background:#172536;border-radius:12px;padding:18px}.app{border:2px solid #f3a400}.edge{border-left:4px solid #4fd1c5;padding-left:12px;margin:12px 0}.risk{color:#ff7a7a}
-  </style>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>{{APP_ID}} — Boundary Map</title>
+<!--
+  CONTRACT, not decoration. This page answers one question a migration team asks
+  first: what crosses this application's boundary, in which direction, by what
+  mechanism, and what breaks if it stops.
+
+  Fill every {{TOKEN}}. A zone with no nodes is rendered with an explicit
+  "none established" note - never silently empty, because an empty Inputs column
+  and an unanalysed Inputs column look identical and mean opposite things.
+
+  Every node carries at least one evidence id. A node without one is a guess and
+  does not belong on a map a team will plan against.
+-->
+<style>
+  :root {
+    --bg:#0f1419; --panel:#1a1f2b; --panel-2:#232a3a; --border:#334155;
+    --text:#e2e8f0; --muted:#94a3b8; --accent:#60a5fa; --app:#f59e0b;
+    --input:#34d399; --output:#f472b6; --master:#a78bfa; --downstream:#38bdf8;
+    --danger:#ef4444; --warn:#f59e0b;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;padding:24px;background:var(--bg);color:var(--text);line-height:1.55;
+       font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Hiragino Sans","Yu Gothic",sans-serif}
+  h1{font-size:22px;margin:0 0 4px}
+  h2{font-size:17px;margin:32px 0 12px;color:var(--accent);border-bottom:1px solid var(--border);padding-bottom:6px}
+  .lede{color:var(--muted);font-size:13px;margin-bottom:24px}
+  code{background:var(--panel-2);padding:2px 6px;border-radius:3px;font-size:12px;color:var(--accent)}
+
+  .map{display:grid;grid-template-columns:1.1fr 1.4fr 1.1fr;gap:16px;margin:24px 0}
+  .zone{background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:14px;min-height:120px}
+  .zone-title{font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:10px;font-weight:600}
+  .zone.upstream{grid-column:1/-1;border-left:3px solid var(--master)}
+  .zone.inputs{border-left:3px solid var(--input)}
+  .zone.core{background:linear-gradient(180deg,#2a2010,#1f1810);border:1.5px solid var(--app);text-align:center}
+  .zone.outputs{border-left:3px solid var(--output)}
+  .zone.downstream{grid-column:1/-1;border-left:3px solid var(--downstream)}
+  .zone .wide{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+
+  .core .app-title{font-size:28px;color:var(--app);font-weight:700;margin-top:8px}
+  .core .app-sub{color:var(--muted);font-size:13px;margin:4px 0 14px}
+  .core .layers{text-align:left;background:rgba(0,0,0,.25);border-radius:6px;padding:10px 12px;margin:8px 0 6px;font-size:12.5px}
+  .core .layers .row{display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px dashed #2d3142}
+  .core .layers .row:last-child{border-bottom:none}
+  .core .layers .lbl{color:var(--muted)}
+  .core .layers .val{color:var(--text);font-weight:600}
+
+  .nodes{display:flex;flex-direction:column;gap:6px}
+  .node{background:var(--panel-2);border:1px solid var(--border);border-radius:5px;padding:7px 10px;font-size:12.5px;cursor:pointer;transition:all .15s}
+  .node:hover{border-color:var(--accent);background:#2c344a}
+  .node .name{font-weight:600}
+  .node .meta{color:var(--muted);font-size:11px;margin-top:2px}
+  .node.danger{border-left:3px solid var(--danger)}
+  .node.warn{border-left:3px solid var(--warn)}
+  .empty{color:var(--muted);font-size:12px;font-style:italic}
+
+  table{border-collapse:collapse;width:100%;font-size:12.5px}
+  th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--border);vertical-align:top}
+  th{background:var(--panel);color:var(--muted);font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:.5px}
+  tr:hover td{background:rgba(96,165,250,.04)}
+  .dir-in{color:var(--input);font-weight:600}
+  .dir-out{color:var(--output);font-weight:600}
+  .dir-share{color:var(--master);font-weight:600}
+
+  .legend{display:flex;flex-wrap:wrap;gap:16px;font-size:12px;color:var(--muted);margin:4px 0 20px}
+  .legend .swatch{display:inline-block;width:12px;height:12px;border-radius:2px;margin-right:6px;vertical-align:middle}
+
+  .callout{background:rgba(239,68,68,.08);border-left:3px solid var(--danger);padding:12px 14px;border-radius:4px;margin:16px 0;font-size:13px}
+  .callout strong{color:var(--danger)}
+
+  details{background:var(--panel);border:1px solid var(--border);border-radius:6px;padding:10px 14px;margin:10px 0}
+  summary{cursor:pointer;font-weight:600;color:var(--accent)}
+  .tag{display:inline-block;padding:1px 6px;border-radius:3px;font-size:10.5px;margin-right:4px}
+  .tag-br{background:rgba(96,165,250,.15);color:var(--accent)}
+  .tag-wf{background:rgba(167,139,250,.15);color:var(--master)}
+  .tag-risk{background:rgba(239,68,68,.15);color:var(--danger)}
+  #detail{background:var(--panel);border:1px solid var(--border);border-radius:6px;padding:14px 18px;min-height:100px;font-size:13px}
+  footer{color:var(--muted);font-size:11px;margin-top:32px;padding-top:12px;border-top:1px solid var(--border)}
+</style>
 </head>
-<body><main>
-  <h1>{{APP_ID}} — Boundary Map</h1>
-  <div class="grid">
-    <section class="zone"><h2>Inputs</h2>{{INPUT_INTERFACES}}</section>
-    <section class="zone app"><h2>{{APP_ID}} Core</h2>{{CORE_PROCESSING}}</section>
-    <section class="zone"><h2>Outputs</h2>{{OUTPUT_INTERFACES}}</section>
-  </div>
-  <section><h2>Shared masters and infrastructure</h2>{{SHARED_DEPENDENCIES}}</section>
-  <section><h2>Boundary risks</h2><div class="risk">{{BOUNDARY_RISKS}}</div></section>
-</main></body>
+<body>
+
+<h1>{{APP_ID}} — Boundary Map</h1>
+<p class="lede">
+  What crosses {{APP_ID}}'s boundary and in which direction.
+  <!-- Names stay in the production language. A translated table name reads like a
+       definition and is not one. -->
+  Object, table and file names are the production names, unchanged.<br>
+  Identifiers: <code>BR-*</code> business rules · <code>WF-*</code> workflows ·
+  <code>RD/RA/RW/RS-*</code> risks · <code>d0n</code>/<code>r0n</code> interface files.
+  Every node resolves to at least one evidence id.
+</p>
+
+<div class="legend">
+  <span><span class="swatch" style="background:var(--app)"></span>{{APP_ID}} core</span>
+  <span><span class="swatch" style="background:var(--master)"></span>Shared master / upstream</span>
+  <span><span class="swatch" style="background:var(--input)"></span>Inbound</span>
+  <span><span class="swatch" style="background:var(--output)"></span>Outbound</span>
+  <span><span class="swatch" style="background:var(--downstream)"></span>Downstream consumer</span>
+  <span><span class="swatch" style="background:var(--danger)"></span>Critical risk</span>
+</div>
+
+<div class="map">
+  <section class="zone upstream">
+    <div class="zone-title">▲ Upstream &amp; shared masters</div>
+    <!-- Repeat one .node per upstream system or shared master.
+         onclick="show('<key>')" must match a key in the details map below. -->
+    <div class="nodes wide">{{UPSTREAM_NODES}}</div>
+  </section>
+
+  <section class="zone inputs">
+    <div class="zone-title">→ Inbound</div>
+    <div class="nodes">{{INPUT_NODES}}</div>
+  </section>
+
+  <section class="zone core">
+    <div class="zone-title" style="color:var(--app)">■ {{APP_ID}} core</div>
+    <div class="app-title">{{APP_ID}}</div>
+    <div class="app-sub">{{APP_NAME}} · {{TECH_STACK}}</div>
+    <div class="layers">{{CORE_LAYERS}}</div>
+    <div style="font-size:11.5px;color:var(--muted);text-align:left;margin-top:8px">{{CORE_SUMMARY}}</div>
+  </section>
+
+  <section class="zone outputs">
+    <div class="zone-title">← Outbound</div>
+    <div class="nodes">{{OUTPUT_NODES}}</div>
+  </section>
+
+  <section class="zone downstream">
+    <div class="zone-title">▼ Downstream consumers</div>
+    <div class="nodes wide">{{DOWNSTREAM_NODES}}</div>
+  </section>
+</div>
+
+<!-- One callout per ordering dependency a team can violate without being told.
+     The reference case: a monthly export silently produces an empty file when the
+     sync that sets its filter flag has not run. Omit the section if none exist. -->
+{{BOUNDARY_CALLOUTS}}
+
+<h2>Touchpoint inventory</h2>
+<p class="lede">One row per point where {{APP_ID}} touches anything outside itself.</p>
+<table>
+  <thead>
+    <tr>
+      <th style="width:18%">Touchpoint</th>
+      <th style="width:8%">Direction</th>
+      <th style="width:26%">Mechanism / path</th>
+      <th style="width:24%">What {{APP_ID}} reads or writes</th>
+      <th style="width:14%">Counterparty</th>
+      <th style="width:10%">Evidence</th>
+    </tr>
+  </thead>
+  <!-- Direction is IN, OUT or SHARE. A touchpoint whose direction is not established
+       is listed with the direction cell reading "not established", never guessed. -->
+  <tbody>{{TOUCHPOINT_ROWS}}</tbody>
+</table>
+
+<h2>Inside {{APP_ID}}</h2>
+<!-- Collapsible detail: table roles and migration treatment, transaction types and
+     their numbering keys, the core pipeline's steps, the permission model, and any
+     object recorded as unused or unreachable. Omit a block that has no evidence. -->
+{{INTERNAL_DETAIL_SECTIONS}}
+
+<h2>Selected touchpoint</h2>
+<div id="detail"><p style="color:var(--muted)">Select a node above.</p></div>
+
+<footer>
+  {{APP_ID}} · Boundary Map · run {{RUN_ID}} · generated {{GENERATED_AT}}<br>
+  Derived from Phase 1 and Phase 4 after independent QA. Every claim here is cited in
+  <code>{{APP_ID}}_Evidence.json</code>; nothing on this page is stated that the
+  register does not carry.
+</footer>
+
+<script>
+// One entry per clickable node. `title` and `body` only; body may carry inline HTML.
+const details = {{DETAIL_MAP}};
+
+function show(key) {
+  const panel = document.getElementById('detail');
+  const entry = details[key];
+  panel.innerHTML = entry
+    ? '<h3 style="margin-top:0;color:var(--accent)">' + entry.title + '</h3><div>' + entry.body + '</div>'
+    : '<p style="color:var(--muted)">No detail recorded for this node.</p>';
+  panel.scrollIntoView({behavior:'smooth', block:'nearest'});
+}
+</script>
+</body>
 </html>

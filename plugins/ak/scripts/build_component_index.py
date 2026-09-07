@@ -6,9 +6,22 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import sys
 import re
 from datetime import datetime, timezone
 from pathlib import Path
+
+
+def _workspace(app_root):
+    """The layout resolver; one place knows a pre-2.10.0 workspace names things
+    differently, so every caller asks instead of assuming."""
+    contracts = str(Path(__file__).resolve().parent.parent / "contracts")
+    if contracts not in sys.path:
+        sys.path.insert(0, contracts)
+    from workspace import Workspace
+
+    return Workspace(app_root)
+
 
 
 TEXT_SUFFIXES = {".bas", ".cls", ".frm", ".vb", ".sql", ".txt", ".csv", ".md", ".ps1", ".vbs", ".bat", ".cmd", ".py", ".js", ".ts", ".c", ".cpp", ".h", ".hpp", ".cs", ".java"}
@@ -39,7 +52,7 @@ def kind_for(path: Path) -> str:
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--app-root", required=True)
-    parser.add_argument("--output", help="Default: <APP>/extracted/component-index.json")
+    parser.add_argument("--output", help="Default: the workspace's own extracted/component-index.json")
     parser.add_argument("--dry-run", action="store_true")
     return parser.parse_args()
 
@@ -55,7 +68,8 @@ def main() -> int:
     # extracted/access. Reading only the legacy root produced an index with zero table
     # components on every real project, so module decomposition - and the leaf-first
     # processing order the whole pipeline follows - was computed with no schema at all.
-    access_roots = [app_root / "acquired" / "staging", app_root / "extracted" / "access"]
+    space = _workspace(app_root)
+    access_roots = [space.staging_root(), app_root / "extracted" / "access"]
     selected_indexes: list[Path] = []
     for database_dir in sorted(
         path for root in access_roots if root.is_dir()
@@ -85,7 +99,8 @@ def main() -> int:
                 raise SystemExit(f"Conflicting component id: {item['id']}")
             components[item["id"]] = item
 
-    roots = [app_root / "sources", app_root / "shared-docs", app_root / "extracted" / "build-context"]
+    space = _workspace(app_root)
+    roots = [space.input_root(), space.extracted("build-context")]
     for path in sorted({candidate for root in roots if root.exists() for candidate in root.rglob("*") if candidate.is_file() and candidate.suffix.lower() in TEXT_SUFFIXES}):
         relative = path.relative_to(app_root).as_posix()
         if relative in referenced:
@@ -114,7 +129,8 @@ def main() -> int:
     if args.dry_run:
         print(rendered, end="")
         return 0
-    output = Path(args.output).expanduser().resolve() if args.output else app_root / "extracted" / "component-index.json"
+    output = (Path(args.output).expanduser().resolve() if args.output
+              else _workspace(app_root).extracted("component-index.json"))
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text(rendered, encoding="utf-8")
     print(f"Built deterministic app component index with {len(components)} components at {output}")

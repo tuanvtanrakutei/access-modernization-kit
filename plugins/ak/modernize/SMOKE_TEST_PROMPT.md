@@ -26,8 +26,7 @@ to produce a publishable Phase document.
 
 `plugins/ak/examples/minimal-app/` already exists for exactly this purpose:
 
-- `manifest.yaml` — `app.id: "DEMO"`, Graphify and multi-agent both enabled, 8 human
-  checkpoints declared.
+- `manifest.yaml` — `app.id: "DEMO"`, multi-agent enabled, 8 human checkpoints declared.
 - `sources/vba/DemoOrderForm.bas` — one tiny synthetic form.
 - `sources/sql/demo_orders.sql` — one tiny synthetic table.
 
@@ -36,10 +35,9 @@ Copy this directory into your scratch workspace as `DEMO/`. Edit **your copy** o
 
 - Set `multi_agent.human_checkpoints: []` and `multi_agent.max_parallel: 1` — a real smoke
   run should not stop and wait for input at 8 points.
-- Leave `graphify.enabled: true` — it is the mandatory phase gate; do not fake around it.
-  If Graphify's managed runtime needs to install on first use, let it — that itself is
-  part of what a real run exercises. If it fails or times out, that is a real finding, not
-  a blocker to route around.
+- Run `$ak derive` once after acquisition, before the first phase; do not fake around it.
+  It is deterministic and needs no runtime, so a failure there is a real finding about the
+  bundle, not a blocker to route around.
 
 ## Step 2 — Run the deterministic setup steps for real
 

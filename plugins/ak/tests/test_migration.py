@@ -18,4 +18,6 @@ def test_migration_proposes_without_rewriting() -> None:
     assert "candidate_classification" in report
     assert isinstance(report["mapped_artifacts"], list)
     assert report["required_bundle_rebuild"] is True
-    assert report["required_graphify_rebuild"] is True
+    # The proposal no longer promises a graph rebuild: there is no managed runtime to
+    # rebuild, and derivation runs from the bundle the same proposal already requires.
+    assert "required_graphify_rebuild" not in report

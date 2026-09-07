@@ -1,6 +1,5 @@
 # Generated and transient investigation state
 runs/
-graphify-out/
 outputs/drafts/
 outputs/render-cache/
 **/__pycache__/

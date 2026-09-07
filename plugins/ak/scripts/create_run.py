@@ -9,8 +9,21 @@ import hashlib
 import json
 import re
 import shutil
+import sys
 from datetime import datetime, timezone
 from pathlib import Path
+
+
+def _workspace(app_root):
+    """The layout resolver. One place knows a pre-2.10.0 workspace names things
+    differently; every caller asks rather than assumes."""
+    contracts = str(Path(__file__).resolve().parent.parent / "contracts")
+    if contracts not in sys.path:
+        sys.path.insert(0, contracts)
+    from workspace import Workspace
+
+    return Workspace(app_root)
+
 
 
 RUN_DIRS = (
@@ -24,7 +37,6 @@ RUN_DIRS = (
     "derived/e2e",
     "derived/boundary",
     "derived/presentation",
-    "graphify-out",
 )
 
 
@@ -148,12 +160,13 @@ def main() -> int:
     app_id = match.group(1)
     stamp = datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S")
     run_id = args.run_id or f"{app_id}-{stamp}"
-    run_root = app_root / "runs" / run_id
+    space = _workspace(app_root)
+    run_root = space.run_dir(run_id)
     package_root = Path(__file__).resolve().parent.parent
     package_version = json.loads((package_root / "specifications/package.json").read_text(encoding="utf-8"))["version"]
     waves = json.loads((package_root / "orchestration/waves.json").read_text(encoding="utf-8"))["waves"]
 
-    source_roots = [app_root / "sources", app_root / "shared-docs", app_root / "extracted"]
+    source_roots = [space.input_root(), space.owned("extracted")]
     ignore_file, include_patterns, inline_ignore_patterns = manifest_source_policy(manifest)
     ignore_path = app_root / ignore_file
     patterns = read_ignore_patterns(ignore_path) + [value.replace("\\", "/") for value in inline_ignore_patterns]

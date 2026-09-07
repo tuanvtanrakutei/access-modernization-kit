@@ -28,7 +28,42 @@
       "Read(//d/Anrakutei/a05/acquired/**)",
       "Bash(mv bundle-9531503db76f78a188b1b1e7d8a2ec363eb0374bc3a0f9685f0363bd7de72219 *)",
       "Bash(python plugins/ak/scripts/ak.py preflight --app-root /d/Anrakutei/a05)",
-      "Bash(python -m pytest plugins/ak/tests/test_preflight.py -q)"
+      "Bash(python -m pytest plugins/ak/tests/test_preflight.py -q)",
+      "Bash(python plugins/ak/scripts/create_run.py --help)",
+      "Bash(python plugins/ak/scripts/create_run.py --app-root /d/Anrakutei/a05 --runtime claude --max-parallel 1 --run-id A05-P1)",
+      "Bash(python \"C:/Users/USER/AppData/Local/Temp/claude/d--Anrakutei-access-modernization-kit/eab66c8b-5232-401d-9a96-55216bd6408b/scratchpad/p1_facts.py\")",
+      "Bash(cd /d/Anrakutei/a05 && echo \"=== mdb present? ===\" && ls -la sources/access/ 2>/dev/null && echo \"=== timestamps ===\" && stat -c '%y  %n' manifest.yaml graphify-out/graph.json graphify-out/CORPUS_AUDIT.json extracted/component-index.json runs/A05-P1 outputs/phase-01 2>/dev/null | sort)",
+      "Read(//d/Anrakutei/access-modernization-kit/**)",
+      "Bash(cd \"d:/Anrakutei/access-modernization-kit\" && sed -n '/^def discover_sources/,/^def manifest_v22_text/p' plugins/ak/scripts/init_app.py | head -80)",
+      "Bash(python plugins/ak/scripts/build_import_manifest.py --help)",
+      "Bash(python plugins/ak/scripts/ak.py acquire plan --manifest plugins/ak/examples/minimal-app/manifest.yaml)",
+      "Bash(python \"d:/Anrakutei/access-modernization-kit/plugins/ak/scripts/ak.py\" acquire plan --manifest A99/manifest.yaml)",
+      "Bash(cp A99/manifest.yaml A99/wrongmode.yaml)",
+      "Bash(python \"d:/Anrakutei/access-modernization-kit/plugins/ak/scripts/ak.py\" acquire run --manifest A99/wrongmode.yaml --output-root A99/acq --authorize access_snapshot_extract)",
+      "Bash(cp A99/manifest.yaml A99/contradict.yaml)",
+      "Bash(python \"d:/Anrakutei/access-modernization-kit/plugins/ak/scripts/ak.py\" acquire plan --manifest A99/contradict.yaml)",
+      "Bash(python \"d:/Anrakutei/access-modernization-kit/plugins/ak/scripts/ak.py\" acquire run --manifest A99/contradict.yaml --output-root A99/acq2 --authorize access_snapshot_extract)",
+      "Bash(python \"d:/Anrakutei/access-modernization-kit/plugins/ak/scripts/ak.py\" preflight --app-root A99)",
+      "Bash(python -m pytest plugins/ak/tests/test_acquisition_preview.py -q)",
+      "Bash(git add *)",
+      "Bash(git status *)",
+      "Bash(git commit *)",
+      "Bash(python \"d:/Anrakutei/access-modernization-kit/plugins/ak/scripts/ak.py\" acquire plan --manifest A99/manifest.yaml --require-phases 1,2,3)",
+      "Bash(echo \"exit=$?\")",
+      "Bash(python \"d:/Anrakutei/access-modernization-kit/plugins/ak/scripts/ak.py\" acquire plan --manifest A99/manifest.yaml --require-phases 1,4)",
+      "Bash(echo \"phase 1,2,3 -> exit=$?\")",
+      "Bash(echo \"phase 1,4   -> exit=$?\")",
+      "Bash(python -m pytest plugins/ak/tests/test_package_smoke.py -q -k \"declared_access_runtime\")",
+      "Bash(rm -rf /d/Anrakutei/stage2)",
+      "Bash(mkdir -p /d/Anrakutei/stage2)",
+      "Bash(cp -r /d/Anrakutei/a05/sources/access /d/Anrakutei/stage2/access)",
+      "Bash(cp -r /d/Anrakutei/a05/sources/screenshots /d/Anrakutei/stage2/screenshots)",
+      "Bash(cp -r /d/Anrakutei/a05/sources/documents /d/Anrakutei/stage2/documents)",
+      "Bash(python plugins/ak/scripts/ak.py init --root /d/Anrakutei/run2 --app-id A05 --name-en \"Product Assortment Support\" --source /d/Anrakutei/stage2 --runtime claude)",
+      "Read(//d/Anrakutei/run2/A05/**)"
+    ],
+    "additionalDirectories": [
+      "d:\\Anrakutei\\access-modernization-kit\\plugins\\ak\\scripts"
     ]
   }
 }

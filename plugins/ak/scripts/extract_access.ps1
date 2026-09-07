@@ -12,6 +12,11 @@ param(
     [string]$DaoProgId = 'DAO.DBEngine.36',
     # Skip the Access host entirely and keep only the DAO tier.
     [switch]$SkipObjectExport,
+    # msoAutomationSecurityForceDisable by default. Suppressing macros keeps an
+    # unattended run from stalling in the VBA debugger, and on an application whose
+    # startup code relinks stale table connections it also suppresses the repair the
+    # application depends on - so a faithful run needs to be able to allow them.
+    [ValidateSet('force_disable', 'allow')][string]$AutomationSecurity = 'force_disable',
     # Do not register forms, reports, macros, modules or queries at all. Use this when an
     # imported export of the same database supplies them: without it both adapters
     # describe the same objects and the bundle counts every one of them twice.
@@ -44,7 +49,14 @@ function Get-SafeName([string]$Name) {
     # sanitize had just created. Only characters Windows genuinely forbids in a file
     # name are replaced, and the digest is appended solely when the name had to be
     # altered or truncated, so it can no longer collide.
-    $illegal = [regex]::Escape(-join [System.IO.Path]::GetInvalidFileNameChars())
+    # Name the set rather than asking the host for it. `GetInvalidFileNameChars()`
+    # returns the *running* platform's set, and on Linux that is only NUL and `/`,
+    # so `q:x` came back unaltered there and `c_d-<digest>` on Windows - the same
+    # function producing two different names for one object. `evidence-layout.yaml`
+    # requires this script and `tools/ExportAccessObjects.bas` to write the same
+    # container names, the .bas already hard-codes this list, and an exported tree
+    # has to be checked out on Windows whatever host produced it.
+    $illegal = [regex]::Escape((-join (0..31 | ForEach-Object { [char]$_ })) + '<>:"/\|?*')
     $sanitized = ($Name -replace "[$illegal]", '_')
     $altered = $sanitized -ne $Name
     if ([string]::IsNullOrWhiteSpace($sanitized)) {
@@ -81,6 +93,45 @@ function Scrub-Export([string]$Path) {
     $text = Get-Content -Raw -LiteralPath $Path
     $text = Redact-Connection $text
     Set-Content -LiteralPath $Path -Value $text -Encoding UTF8
+}
+
+function Resolve-ActiveXClass([string]$ProgId) {
+    # A VBA reference resolves through the CLSID; embedding a control resolves through
+    # the ProgID and its TypeLib. Those can be registered into different registry
+    # views, so a reference reporting broken=false says nothing about whether the
+    # control will load. Read from this process, whose bitness matches the Access host.
+    $result = [ordered]@{ prog_id = $ProgId; registered = $false; clsid = ''; server = ''; server_exists = $false; type_lib = ''; type_lib_registered = $false }
+    $sep = [char]92
+    foreach ($classesRoot in @('HKLM:\SOFTWARE\Classes', 'HKCU:\SOFTWARE\Classes')) {
+        try {
+            $clsid = (Get-ItemProperty -Path ($classesRoot + $sep + $ProgId + $sep + 'CLSID') -ErrorAction Stop).'(default)'
+            if (-not [string]::IsNullOrWhiteSpace($clsid)) { break }
+        } catch { $clsid = '' }
+    }
+    if ([string]::IsNullOrWhiteSpace($clsid)) { return $result }
+    $result.registered = $true
+    $result.clsid = [string]$clsid
+    foreach ($hive in @('HKLM:\SOFTWARE\Classes\CLSID', 'HKCU:\SOFTWARE\Classes\CLSID')) {
+        $key = $hive + $sep + $clsid
+        try {
+            $server = (Get-ItemProperty -Path ($key + $sep + 'InprocServer32') -ErrorAction Stop).'(default)'
+            if (-not [string]::IsNullOrWhiteSpace($server)) {
+                $result.server = [string]$server
+                $result.server_exists = Test-Path -LiteralPath ([string]$server)
+            }
+        } catch {}
+        try {
+            $lib = (Get-ItemProperty -Path ($key + $sep + 'TypeLib') -ErrorAction Stop).'(default)'
+            if (-not [string]::IsNullOrWhiteSpace($lib)) { $result.type_lib = [string]$lib }
+        } catch {}
+        if ($result.server -ne '') { break }
+    }
+    if (-not [string]::IsNullOrWhiteSpace($result.type_lib)) {
+        # A control whose type library is registered only in the other view is exactly
+        # the defect this exists to catch, so the check has to read from here.
+        $result.type_lib_registered = (Test-Path -LiteralPath ('HKLM:\SOFTWARE\Classes\TypeLib' + $sep + $result.type_lib))
+    }
+    return $result
 }
 
 function Get-DbProperty($Database, [string]$Name) {
@@ -296,6 +347,41 @@ function Read-JetLayer($Database) {
     $projectContext['autoexec_present'] = $macroNames.Contains('AutoExec')
 }
 
+function Write-Extraction {
+    $tables | ConvertTo-Json -Depth 12 | Set-Content -LiteralPath (Join-Path $root 'schema/tables.json') -Encoding UTF8
+    $relations | ConvertTo-Json -Depth 12 | Set-Content -LiteralPath (Join-Path $root 'schema/relations.json') -Encoding UTF8
+    $generatedAt = [DateTime]::UtcNow.ToString('o')
+    $componentIndex = [ordered]@{ schema_version = '2.1'; app_id = $DatabaseId; generated_at = $generatedAt; components = $components }
+    $componentIndex | ConvertTo-Json -Depth 15 | Set-Content -LiteralPath (Join-Path $root 'component-index.json') -Encoding UTF8
+    $hash = $snapshotHash
+    $result = [ordered]@{
+        schema_version = '2.1'
+        database_id = $DatabaseId
+        session_id = $SessionId
+        source = [ordered]@{ path = '<ORIGINAL_REDACTED_BY_ADAPTER>'; format = [System.IO.Path]::GetExtension($snapshotPath).TrimStart('.').ToLowerInvariant(); sha256 = $hash }
+        snapshot = [ordered]@{ path = $snapshotPath; sha256 = $hash }
+        status = $status
+        runtime = [ordered]@{
+            adapter = 'extract_access.ps1'
+            access_automation = $automationUsed
+            runtime_tested = $true
+            # Which tier produced what, so a consumer can tell a names-only inventory
+            # from one carrying exported definitions.
+            dao_tier = [ordered]@{ prog_id = $DaoProgId; used = $daoUsed }
+            object_export_tier = [ordered]@{ prog_id = $AccessProgId; used = $automationUsed; skipped = [bool]$SkipObjectExport }
+        }
+        project_context = $projectContext
+        components = $components
+        # Field and index detail travels with the result, not only in schema/tables.json.
+        # The bundle adapter normalizes from this record alone, so detail left behind in
+        # a sibling file could never reach databases.fields / databases.indexes, and the
+        # capabilities Phase 1 requires stayed permanently unreachable.
+        tables = $tables
+        warnings = $warnings
+    }
+    $result | ConvertTo-Json -Depth 15 | Set-Content -LiteralPath (Join-Path $root 'access-extraction.json') -Encoding UTF8
+}
+
 # ---- Tier 1: DAO, read-only. No Access host means no AutoExec, no VBA project
 # load, and therefore none of the modal dialogs that can stall an unattended run.
 $daoEngine = $null
@@ -318,6 +404,20 @@ if (-not $isAdp) {
         if ($null -ne $daoEngine) { try { [void][System.Runtime.InteropServices.Marshal]::FinalReleaseComObject($daoEngine) } catch {} ; $daoEngine = $null }
     }
 }
+
+# A silent exclusion reads as "this is everything there was", so say what was
+# dropped and why.
+if ($skippedTables -gt 0) {
+    [void]$warnings.Add(('EXCLUDED: {0} non-model tables: Access temporary (~*) and auto-generated ImportErrors tables.' -f $skippedTables))
+}
+if ($skippedQueries -gt 0) {
+    [void]$warnings.Add(('EXCLUDED: {0} Access-generated hidden queries (~*) backing form and report record sources.' -f $skippedQueries))
+}
+
+# Persist what the DAO tier produced before starting a host that may hang. The
+# caller's timeout kills this process outright, so anything written only at the end
+# would be lost along with a complete, usable schema inventory.
+Write-Extraction
 
 # ---- Tier 2: the Access host, needed only to export object definition text and to
 # read VBA references. It is allowed to fail without costing the DAO tier's results.
@@ -348,7 +448,11 @@ try {
     # opened by automation rather than Access's own startup path. The defences that
     # actually hold are the DAO tier (no host at all), the timeout, and -VisibleHost
     # for a database that genuinely needs an operator.
-    try { $application.AutomationSecurity = 3 } catch { [void]$warnings.Add(('Could not force-disable automation macros: {0}' -f $_.Exception.Message)) }
+    if ($AutomationSecurity -eq 'force_disable') {
+        try { $application.AutomationSecurity = 3 } catch { [void]$warnings.Add(('Could not force-disable automation macros: {0}' -f $_.Exception.Message)) }
+    } else {
+        [void]$warnings.Add('Automation macros were allowed to run: startup code executed, so this extraction reflects what the application does on open rather than the file as it sits at rest.')
+    }
     if ($isAdp) {
         $application.OpenAccessProject($snapshotPath, $false)
     } else {
@@ -402,6 +506,38 @@ try {
             }
         }
     }
+    # Every ActiveX class a form or report embeds, taken from the definitions just
+    # exported. A class that will not resolve here will not load for an operator
+    # either, and nothing else in the receipt would say so.
+    $activexClasses = [System.Collections.Generic.HashSet[string]]::new()
+    foreach ($folder in @('forms', 'reports')) {
+        $dir = Join-Path $root $folder
+        if (-not (Test-Path -LiteralPath $dir)) { continue }
+        foreach ($file in Get-ChildItem -LiteralPath $dir -Filter *.txt -ErrorAction SilentlyContinue) {
+            try {
+                # Not preceded by a letter, because SaveAsText also writes
+                # OLEClass ="<localized display name>" beside the real Class ="<ProgID>".
+                # Matching that too reported a caption as an unloadable control.
+                foreach ($match in [regex]::Matches([string](Get-Content -Raw -LiteralPath $file.FullName), '(?<![A-Za-z])Class\s*=\s*"([^"]+)"')) {
+                    [void]$activexClasses.Add($match.Groups[1].Value)
+                }
+            } catch {}
+        }
+    }
+    $activex = @()
+    foreach ($cls in ($activexClasses | Sort-Object)) {
+        $resolved = Resolve-ActiveXClass $cls
+        $activex += $resolved
+        if (-not $resolved.registered) {
+            $status = 'PARTIAL'
+            [void]$warnings.Add(('ActiveX class {0} is embedded in an object but is not registered in the view this Access host reads; the object cannot load.' -f $cls))
+        } elseif (-not $resolved.server_exists) {
+            $status = 'PARTIAL'
+            [void]$warnings.Add(('ActiveX class {0} is registered but its server {1} is missing.' -f $cls, $resolved.server))
+        }
+    }
+    $projectContext['activex_controls'] = $activex
+
     try {
         foreach ($reference in $application.References) {
             [void]$references.Add([ordered]@{ name = [string]$reference.Name; guid = [string]$reference.Guid; major = [int]$reference.Major; minor = [int]$reference.Minor; full_path = [string]$reference.FullPath; broken = [bool]$reference.IsBroken })
@@ -428,46 +564,6 @@ try {
     }
 }
 }
-
-# A silent exclusion reads as "this is everything there was", so say what was
-# dropped and why.
-if ($skippedTables -gt 0) {
-    [void]$warnings.Add(('Excluded {0} non-model tables: Access temporary (~*) and auto-generated ImportErrors tables.' -f $skippedTables))
-}
-if ($skippedQueries -gt 0) {
-    [void]$warnings.Add(('Excluded {0} Access-generated hidden queries (~*) backing form and report record sources.' -f $skippedQueries))
-}
-$tables | ConvertTo-Json -Depth 12 | Set-Content -LiteralPath (Join-Path $root 'schema/tables.json') -Encoding UTF8
-$relations | ConvertTo-Json -Depth 12 | Set-Content -LiteralPath (Join-Path $root 'schema/relations.json') -Encoding UTF8
-$generatedAt = [DateTime]::UtcNow.ToString('o')
-$componentIndex = [ordered]@{ schema_version = '2.1'; app_id = $DatabaseId; generated_at = $generatedAt; components = $components }
-$componentIndex | ConvertTo-Json -Depth 15 | Set-Content -LiteralPath (Join-Path $root 'component-index.json') -Encoding UTF8
-$hash = $snapshotHash
-$result = [ordered]@{
-    schema_version = '2.1'
-    database_id = $DatabaseId
-    session_id = $SessionId
-    source = [ordered]@{ path = '<ORIGINAL_REDACTED_BY_ADAPTER>'; format = [System.IO.Path]::GetExtension($snapshotPath).TrimStart('.').ToLowerInvariant(); sha256 = $hash }
-    snapshot = [ordered]@{ path = $snapshotPath; sha256 = $hash }
-    status = $status
-    runtime = [ordered]@{
-        adapter = 'extract_access.ps1'
-        access_automation = $automationUsed
-        runtime_tested = $true
-        # Which tier produced what, so a consumer can tell a names-only inventory
-        # from one carrying exported definitions.
-        dao_tier = [ordered]@{ prog_id = $DaoProgId; used = $daoUsed }
-        object_export_tier = [ordered]@{ prog_id = $AccessProgId; used = $automationUsed; skipped = [bool]$SkipObjectExport }
-    }
-    project_context = $projectContext
-    components = $components
-    # Field and index detail travels with the result, not only in schema/tables.json.
-    # The bundle adapter normalizes from this record alone, so detail left behind in
-    # a sibling file could never reach databases.fields / databases.indexes, and the
-    # capabilities Phase 1 requires stayed permanently unreachable.
-    tables = $tables
-    warnings = $warnings
-}
-$result | ConvertTo-Json -Depth 15 | Set-Content -LiteralPath (Join-Path $root 'access-extraction.json') -Encoding UTF8
+Write-Extraction
 if ($status -eq 'BLOCKED') { exit 2 }
 exit 0

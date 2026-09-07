@@ -1,0 +1,284 @@
+# Evidence classes and the claims each one can support.
+#
+# The defect this file exists to close: every phase gate in this kit measured
+# whether an inventory could be computed, and an inventory can only be computed
+# from structural evidence. A phase whose gate is satisfied by structural evidence
+# alone can only make structural statements, so it reports counts where the
+# reference document reports business meaning - and reports READY while doing it.
+#
+# One real sentence from a real run states the problem exactly. A05 Phase 1 §2,
+# on seven identically shaped tables:
+#
+#   "Seven copies of one shape; purpose not established from schema alone."
+#
+# Correct, honest, and unavoidable: schema was all the gate required, so schema
+# was all the phase could say. This file makes the requirement explicit, so a run
+# is told what to go and fetch instead of passing without it.
+
+version: "2.9"
+
+# ---------------------------------------------------------------------------
+# What a statement asserts. Every evidence item's statement is one of these.
+# ---------------------------------------------------------------------------
+claim_kinds:
+  STRUCTURE:
+    means: "What exists and how it is wired: tables, columns, keys, objects, references, counts."
+    example: "121 tables carrying 1055 columns; 0 declared relationships."
+  BEHAVIOUR:
+    means: "What the code does when it runs: order of operations, conditions, effects."
+    example: "終了 exports 商品情報 via DoCmd.TransferText before DoCmd.Quit."
+  FORMAT:
+    means: "The byte-level shape of a file crossing the application's boundary."
+    example: "The .dat record is 14 bytes: category[1] + reserved[1] + product[7] + qty[5]."
+  MEANING:
+    means: "What a thing is for in the business."
+    example: "受注データ is the central order table the day's work runs on."
+  USAGE:
+    means: "Who uses it, when, how often, and whether it is still used at all."
+    example: "No.11 bulk order registration is no longer used; W08-W10 replaced it."
+  INTENT:
+    means: "Why it was built this way, and what a replacement must preserve."
+    example: "Confirm-before-print is deliberate; operators need to print against absent data."
+
+# ---------------------------------------------------------------------------
+# Evidence classes, and the claims each can and cannot carry.
+#
+# `supports`      - this class alone is sufficient.
+# `corroborates`  - strengthens a claim already supported by another class;
+#                   never sufficient on its own.
+# `cannot_support`- a claim of this kind sourced only from this class is a defect,
+#                   whatever the volume of it.
+# ---------------------------------------------------------------------------
+evidence_classes:
+
+  SCHEMA:
+    means: "Table, column, index and relationship metadata read from a database."
+    typical_source_types: ["RUNTIME", "SQL"]
+    typical_locations: ["databases/tables.json", "databases/fields.json", "databases/indexes.json"]
+    supports: [STRUCTURE]
+    cannot_support: [MEANING, USAGE, INTENT, FORMAT]
+    note: >
+      A table name is not a statement of its role. Translating 商品マスタ to
+      "product master" is a translation, not evidence. Grouping tables by a name
+      prefix is an interpretation and must be labelled one.
+
+  ENVIRONMENT:
+    means: >
+      The observed state of the machine, share or network the application runs on:
+      which paths exist, which drives are mapped, whether two files on disk are the
+      same file.
+    typical_source_types: ["RUNTIME"]
+    typical_locations: ["a directory listing", "a file comparison", "a drive mapping"]
+    supports: [STRUCTURE]
+    corroborates: [BEHAVIOUR, USAGE]
+    cannot_support: [MEANING, INTENT, FORMAT]
+    note: >
+      Added because three A05 findings had no class to sit in. Code can quote a path
+      but not say whether it resolves; only the environment can, and A05's four
+      hard-coded backend spellings turned out to be three that resolve to nothing
+      plus one that resolves to the wrong database (E-23). Two cautions. It goes
+      stale faster than any other class - a share is remapped and the evidence is
+      false with no change to the application - so an item of this class is worth
+      little without its observation date. And it describes one deployment: what is
+      true of the machine observed is not thereby true of every machine that runs
+      the application.
+
+  CODE:
+    means: "VBA, macro and SQL text as written."
+    typical_source_types: ["VBA", "SQL"]
+    typical_locations: ["vba/", "modules/", "macros/", "queries/"]
+    supports: [STRUCTURE, BEHAVIOUR]
+    corroborates: [FORMAT]
+    cannot_support: [MEANING, USAGE, INTENT]
+    note: >
+      Code shows what a reader accepts, which is not what the producer writes.
+      A format claim needs SAMPLE_DATA. Code also cannot say whether a path is
+      still taken: an unreferenced object is unreachable, not unused.
+
+  UI_DEFINITION:
+    means: "SaveAsText form and report definitions: record sources, bound fields, event procedures, embedded controls."
+    typical_source_types: ["VBA"]
+    typical_locations: ["forms/", "reports/", "extracted/ui-facts"]
+    supports: [STRUCTURE, BEHAVIOUR]
+    cannot_support: [MEANING, USAGE, INTENT]
+    note: >
+      Definition text carries binding and events but not layout as a human sees it,
+      not tab grouping, and not which operator opens which screen.
+
+  SCREENSHOT:
+    means: "An image of the application running."
+    typical_source_types: ["SCREENSHOT"]
+    typical_locations: ["sources/screenshots/"]
+    supports: [STRUCTURE]
+    corroborates: [MEANING, USAGE]
+    cannot_support: [BEHAVIOUR, FORMAT, INTENT]
+    note: >
+      One frame. It shows what is on screen - labels, grouping, visible controls,
+      tab structure the definition text does not carry - and nothing about what
+      happens next.
+
+  SAMPLE_DATA:
+    means: "A real file the application reads, as the producer actually wrote it."
+    typical_source_types: ["CSV", "TXT", "XLSX"]
+    typical_locations: ["sources/samples/"]
+    supports: [FORMAT]
+    corroborates: [BEHAVIOUR, STRUCTURE]
+    cannot_support: [MEANING, USAGE, INTENT]
+    note: >
+      The only class that settles an inbound format. The strongest finding in the
+      A01 reference - that the red/black flag column is ignored and the sign of the
+      quantity routes the row - came from ~4,000 sample rows, and no amount of code
+      reading would have established it.
+
+  OUTPUT_SAMPLE:
+    means: "A real file or printed report the application produced."
+    typical_source_types: ["CSV", "TXT", "XLSX", "REPORT", "PDF"]
+    typical_locations: ["sources/reports/"]
+    supports: [FORMAT]
+    corroborates: [BEHAVIOUR]
+    cannot_support: [MEANING, USAGE, INTENT]
+    note: >
+      Settles an outbound contract. Without one, every claim about what a
+      downstream system receives is a reading of the writer, not of the file.
+
+  DOCUMENT:
+    means: "Written by the business: training manual, function list, system diagram, specification, CRUD table."
+    typical_source_types: ["XLSX", "PDF", "TXT"]
+    typical_locations: ["sources/documents/", "shared-docs/"]
+    supports: [MEANING, USAGE, INTENT]
+    corroborates: [STRUCTURE, BEHAVIOUR, FORMAT]
+    cannot_support: []
+    note: >
+      A document's structural claims are claims, not observations. Where a document
+      and the code disagree, record both and open a DISC- entry; never let the
+      document silently win, and never let the code silently win either.
+
+  INTERVIEW:
+    means: "A recorded answer from a named person on a named date."
+    typical_source_types: ["STAKEHOLDER_DECISION", "TXT"]
+    typical_locations: ["sources/interviews/"]
+    supports: [MEANING, USAGE, INTENT]
+    corroborates: [STRUCTURE, BEHAVIOUR]
+    cannot_support: []
+    requires_attribution: true
+    note: >
+      Must name who and when, so a later contradiction can be taken back to them.
+      The A01 reference cites these directly - "Q&A ID-19 (Tanaka+Sekiya
+      2026-05-06)" - and they carry findings nothing else in the corpus could.
+
+  OPERATOR_DECLARATION:
+    means: "A statement the operator makes in the manifest about the project itself."
+    typical_source_types: ["OTHER"]
+    typical_locations: ["manifest.lock.yaml"]
+    supports: [STRUCTURE]
+    cannot_support: [BEHAVIOUR, FORMAT, MEANING, USAGE, INTENT]
+    note: >
+      Narrow by design: which artifact is the backend, which copy is current.
+      It is a declaration about the inputs, not a source of business knowledge.
+      An operator who knows what a table is for is not exempt from that: they are
+      a source, and the class for a source who is a person is INTERVIEW, named and
+      dated. Settled 2026-09-07 - EC-01 offered this class as a third route for a
+      MEANING claim until then, contradicting the line above it (backlog A18).
+
+# ---------------------------------------------------------------------------
+# The rules a phase gate and the conformance checker enforce.
+# ---------------------------------------------------------------------------
+rules:
+
+  - id: EC-01
+    rule: >
+      A MEANING, USAGE or INTENT claim requires DOCUMENT or INTERVIEW. No volume of
+      SCHEMA, CODE or UI_DEFINITION substitutes, and neither does an
+      OPERATOR_DECLARATION: a person answering from their own knowledge is an
+      INTERVIEW, named and dated.
+    on_violation: "The claim is downgraded to an open question naming the class needed."
+
+  - id: EC-02
+    rule: >
+      A FORMAT claim about a file the application reads requires SAMPLE_DATA; about
+      a file it writes, OUTPUT_SAMPLE. Code corroborates and never settles.
+    on_violation: "The claim is labelled INFERRED and the missing sample is requested."
+
+  - id: EC-03
+    rule: >
+      A name is not a meaning. Translating a Japanese object name into English is a
+      translation and carries no evidential weight about the object's role.
+    on_violation: "The statement is rejected; the object joins the meaning-not-established list."
+
+  - id: EC-04
+    rule: >
+      A document claim contradicted by code produces two observations and one
+      DISC- entry. Neither side is silently preferred.
+    on_violation: "A conflict record is required before either phase may publish."
+
+  - id: EC-05
+    rule: >
+      Absence of a reference is unreachability, not disuse. An object no code path
+      opens may still be reached from a navigation pane, a custom menu, or a copy
+      not analysed - a USAGE claim needs a USAGE-class source.
+    on_violation: "The claim is restated as reachability and the unexamined routes are named."
+
+  - id: EC-06
+    rule: >
+      Every phase document states, per section, which evidence classes it had and
+      which it lacked. A gap that is named is a gap; a gap that is unnamed is a
+      defect.
+    on_violation: "Source Coverage is incomplete and the phase fails conformance."
+
+# ---------------------------------------------------------------------------
+# Which classes each phase needs to make its characteristic claims. `required`
+# blocks the phase; `degraded_without` publishes with the named sections marked
+# not established.
+# ---------------------------------------------------------------------------
+phase_needs:
+
+  phase1:
+    characteristic_claim: "What the data is, and what it means to the business."
+    required: [SCHEMA]
+    degraded_without:
+      - class: DOCUMENT
+        or: INTERVIEW
+        costs: "Per-table business meaning. §2 and §3 become an inventory."
+      - class: CODE
+        costs: "Relationships enforced outside the schema (§4)."
+
+  phase2:
+    characteristic_claim: "What each screen is, how it is reached, and who uses it."
+    required: [UI_DEFINITION]
+    degraded_without:
+      - class: SCREENSHOT
+        costs: "Layout, grouping, tab structure, and control visibility (§3, §5)."
+      - class: DOCUMENT
+        or: INTERVIEW
+        costs: "Screen purpose and operator role; whether unreachable screens are dead."
+
+  phase3:
+    characteristic_claim: "What the processing does, step by step, and to which bytes."
+    required: [CODE]
+    degraded_without:
+      - class: SAMPLE_DATA
+        costs: "Every inbound file-format claim (§6). Formats stay INFERRED."
+      - class: OUTPUT_SAMPLE
+        costs: "Every outbound contract (§6)."
+
+  phase4:
+    characteristic_claim: "What an operator does end to end, and when."
+    required: [CODE, UI_DEFINITION]
+    degraded_without:
+      - class: DOCUMENT
+        or: INTERVIEW
+        costs: "Actor, timing, frequency and operational dependencies (§5). The workflows become code paths, not workflows."
+
+  phase5:
+    characteristic_claim: "What the business says the system does, and where that differs from the code."
+    required: [DOCUMENT]
+    degraded_without:
+      - class: INTERVIEW
+        costs: "Everything the documents do not record; unresolved mismatches cannot be closed."
+
+  phase6:
+    characteristic_claim: "One decision-grade account, with its corrections."
+    required: [PRIOR_PHASES]
+    degraded_without:
+      - class: INTERVIEW
+        costs: "Open decisions stay open; the roadmap is a proposal rather than an agreed sequence."

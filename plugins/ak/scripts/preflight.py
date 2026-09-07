@@ -22,7 +22,6 @@ MODULES = {
     "playwright": "Local browser automation",
 }
 EXECUTABLES = {
-    "graphify": "Persistent knowledge graph",
     "node": "Presentation or browser runtimes",
     "tesseract": "OCR for scanned Japanese sources",
     "powershell": "Access extraction adapter and Windows capability inspection",
@@ -71,7 +70,11 @@ def manifest_needs(path: Path | None) -> dict[str, bool]:
     # Without it a missing PyYAML silently downgraded every answer below to a text scan
     # and reported the guesses as facts, with nothing anywhere saying a package was
     # absent - the same class of defect as a failure that erases its own evidence.
-    needs = {"graphify": False, "xlsx": False, "pdf": False, "html": False, "pptx": False, "live_sql": False, "access": False, "adp": False, "compdb": False, "yaml_parsed": False}
+    # access_host is deliberately separate from access. Only the Access Application
+    # tier can require elevation; the DAO tier activates in-process and never does. An
+    # Access-only project that skips object export needs no host at all, and warning it
+    # about administrator rights trains operators to elevate runs that never needed it.
+    needs = {"xlsx": False, "pdf": False, "html": False, "pptx": False, "live_sql": False, "access": False, "access_host": False, "adp": False, "compdb": False, "yaml_parsed": False}
     if not path or not path.is_file():
         return needs
     text = path.read_text(encoding="utf-8", errors="ignore").lower()
@@ -85,7 +88,6 @@ def manifest_needs(path: Path | None) -> dict[str, bool]:
         analysis = data.get("analysis", {})
         build = analysis.get("build_context", {})
         derived = data.get("outputs", {}).get("derived", {})
-        needs["graphify"] = bool(data.get("graphify", {}).get("enabled"))
         needs["xlsx"] = ".xlsx" in text
         needs["pdf"] = ".pdf" in text
         needs["html"] = bool(derived.get("e2e_html") or derived.get("boundary_html"))
@@ -103,13 +105,16 @@ def manifest_needs(path: Path | None) -> dict[str, bool]:
             for item in artifacts
         )
         needs["access"] = bool(access_sources) or bool(access_artifacts)
+        # A V2.1 manifest has no per-artifact runtime, so it is assumed to start a host.
+        needs["access_host"] = bool(access_sources) or any(
+            not (item.get("runtime") or {}).get("skip_object_export") for item in access_artifacts
+        )
         needs["adp"] = any(
             isinstance(item, dict) and item.get("format") == "adp"
             for item in list(access_sources) + access_artifacts
         )
         needs["compdb"] = bool(build.get("compilation_databases") or build.get("compile_flags"))
     except (ImportError, AttributeError, TypeError, ValueError):
-        needs["graphify"] = "graphify:" in text
         needs["xlsx"] = ".xlsx" in text
         needs["pdf"] = ".pdf" in text
         template_match = re.search(r"(?m)^\s*presentation_template:\s*([^#\r\n]*)", text)
@@ -127,6 +132,12 @@ def manifest_needs(path: Path | None) -> dict[str, bool]:
             re.search(r"(?m)^\s*-?\s*kind:\s*[\"']?access_database", text)
         )
         needs["adp"] = bool(re.search(r"(?m)^\s*format:\s*[\"']?adp", text))
+        # Without a parser the per-artifact pairing cannot be established, so a host is
+        # assumed unless the text carries no enabled skip_object_export at all. Erring
+        # toward "a host may start" keeps the elevation warning rather than losing it.
+        needs["access_host"] = needs["access"] and not bool(
+            re.search(r"(?m)^\s*skip_object_export:\s*true\s*$", text)
+        )
         needs["compdb"] = "compile_commands.json" in text
     return needs
 
@@ -159,6 +170,21 @@ def windows_access_capabilities(verify_activation: bool = False) -> dict[str, ob
             provider.get("registered") for view in views.values() for provider in view.get("ace_providers", {}).values()
         ),
         "selected_host": report["selected_host"],
+        # Which Access will actually open the database. A bare ProgId resolves per
+        # machine, so on a host carrying more than one Office an operator could not
+        # see which install a run was about to use - the registry knew, and nothing
+        # reported it. Naming the executable and its version makes an unintended
+        # engine visible before the run rather than after.
+        "registered_access": [
+            {
+                "view": view_name,
+                "executable": entry.get("executable"),
+                "version": entry.get("version"),
+            }
+            for view_name, view in views.items()
+            for entry in [view.get("access", {})]
+            if entry.get("registered")
+        ],
         "runtime_status": report["status"],
         "runasadmin_detected": report["runasadmin_detected"],
         "activation_verified": bool(activation.get("tested")),
@@ -191,23 +217,13 @@ def _legacy_windows_access_capabilities() -> dict[str, bool | str]:
     return result
 
 
-def managed_graphify_capabilities() -> dict[str, object]:
-    """Inspect the isolated Graphify runtime without installing anything."""
-    try:
-        from graphify_runtime import load_spec, runtime_report
-
-        return runtime_report(load_spec())
-    except (ImportError, OSError, ValueError) as exc:
-        return {"status": "NOT_AVAILABLE", "error": str(exc), "install_policy": "auto_managed"}
-
-
 def manifest_source_paths(manifest: Path | None) -> dict[str, list[str]]:
     """Read declared source locations without assuming a fixed workspace layout."""
     defaults = {
-        "vba": ["sources/vba"],
-        "sql": ["sources/sql"],
-        "documents": ["sources/documents"],
-        "japanese_documents": ["shared-docs"],
+        "vba": ["input/vba", "sources/vba"],
+        "sql": ["input/sql", "sources/sql"],
+        "documents": ["input/documents", "sources/documents"],
+        "japanese_documents": ["input/shared-docs", "shared-docs"],
         # Export packages: a directory or .zip carrying forms, reports, macros, modules
         # and query SQL together, declared through their own producer manifest. There is
         # no conventional default location for these - they are always declared.
@@ -265,6 +281,20 @@ def manifest_source_paths(manifest: Path | None) -> dict[str, list[str]]:
         return defaults
 
 
+def _has_bundle(app_root: Path) -> bool:
+    """A published bundle, in any layout this kit has written.
+
+    Stronger evidence that extraction happened than the legacy extracted/access
+    path, which current acquisition does not write. Without it an app with a valid
+    bundle reported extracted_access false and was told to extract again.
+    """
+    for root in (app_root / ".ak" / "bundles", app_root / "acquired" / "bundles",
+                 app_root / "acquired"):
+        if root.is_dir() and any((item / "bundle.json").is_file() for item in root.iterdir() if item.is_dir()):
+            return True
+    return False
+
+
 def scan_app_sources(app_root: Path, declared: dict[str, list[str]]) -> dict[str, object]:
     def nonempty(rel: str) -> bool:
         candidate = app_root / rel
@@ -275,19 +305,19 @@ def scan_app_sources(app_root: Path, declared: dict[str, list[str]]) -> dict[str
     def existing(paths: list[str]) -> list[str]:
         return [path for path in paths if nonempty(path)]
 
-    access_dir = app_root / "sources" / "access"
-    access_db = access_dir.is_dir() and any(
-        item.is_file() and item.suffix.lower() in {".mdb", ".accdb", ".adp"} for item in access_dir.rglob("*")
+    access_db = any(
+        directory.is_dir() and any(
+            item.is_file() and item.suffix.lower() in {".mdb", ".accdb", ".adp"}
+            for item in directory.rglob("*")
+        )
+        for directory in (app_root / "input" / "access", app_root / "sources" / "access")
     )
     extracted = app_root / "extracted" / "access"
     # A published acquisition bundle is stronger evidence that extraction already
     # happened than the legacy extracted/access path, which current acquisition does
     # not write - it stages under acquired/. Without this an app with a valid bundle
     # still reported extracted_access false and was told to run extraction again.
-    acquired = app_root / "acquired"
-    bundled = acquired.is_dir() and any(
-        item.is_dir() and item.name.startswith("bundle-") for item in acquired.iterdir()
-    )
+    bundled = _has_bundle(app_root)
     vba_present = existing(declared["vba"])
     sql_present = existing(declared["sql"])
     document_present = existing(declared["documents"])
@@ -298,10 +328,10 @@ def scan_app_sources(app_root: Path, declared: dict[str, list[str]]) -> dict[str
         "sql": bool(sql_present),
         "source_packages": bool(package_present),
         "access_db": access_db,
-        "screenshots": nonempty("sources/screenshots"),
-        "reports": nonempty("sources/reports"),
+        "screenshots": nonempty("input/screenshots") or nonempty("sources/screenshots"),
+        "reports": nonempty("input/report-samples") or nonempty("sources/reports-out"),
         "documents": bool(document_present),
-        "samples": nonempty("sources/samples"),
+        "samples": nonempty("input/samples") or nonempty("sources/samples"),
         "shared_docs": bool(japanese_present),
         "extracted_access": (extracted.is_dir() and any(item.is_file() for item in extracted.rglob("*"))) or bundled,
         "acquisition_bundle": bundled,
@@ -318,7 +348,9 @@ def scan_app_sources(app_root: Path, declared: dict[str, list[str]]) -> dict[str
 
 def input_preconditions(manifest: Path | None, needs: dict[str, bool], access: dict[str, object]) -> tuple[dict[str, object], list[str]]:
     """Detect the input mode and report missing inputs as warnings, never failures."""
-    if not manifest or not (manifest.parent / "sources").is_dir():
+    if not manifest or not any(
+        (manifest.parent / name).is_dir() for name in ("input", "sources")
+    ):
         return {"mode": "unknown", "reason": "no app workspace beside the manifest"}, []
     app_root = manifest.parent
     declared = manifest_source_paths(manifest)
@@ -403,7 +435,6 @@ def main() -> int:
     modules = {name: importlib.util.find_spec(name) is not None for name in MODULES}
     executables = {name: shutil.which(name) is not None for name in EXECUTABLES}
     access = windows_access_capabilities(verify_activation=args.verify_access_activation)
-    graphify_runtime = managed_graphify_capabilities()
     skills = [] if args.skip_skill_scan else discover_skills()
 
     recommendations: list[str] = []
@@ -423,13 +454,9 @@ def main() -> int:
             "The manifest was pattern-matched rather than parsed, so the capability needs "
             "below are guesses. Install PyYAML for an accurate read."
         )
-    if needs["graphify"] and graphify_runtime.get("status") != "READY":
-        recommendations.append(
-            "The isolated Graphify runtime is not installed yet. The first Phase/run gate must bootstrap the pinned managed runtime, normalize a binary-free corpus, build or refresh the graph, and complete a phase query before analysis starts."
-        )
-    if needs["xlsx"] and not needs["graphify"] and not any("spreadsheet" in name.lower() for name in skills) and not modules["openpyxl"]:
+    if needs["xlsx"] and not any("spreadsheet" in name.lower() for name in skills) and not modules["openpyxl"]:
         recommendations.append("Enable a spreadsheet skill/runtime or install openpyxl for XLSX fallback.")
-    if needs["pdf"] and not needs["graphify"] and not modules["pypdf"]:
+    if needs["pdf"] and not modules["pypdf"]:
         recommendations.append("Use a runtime PDF reader; install pypdf only if a local fallback is needed.")
     if needs["pptx"] and not any("presentation" in name.lower() for name in skills):
         recommendations.append("Enable a presentation skill/runtime before requesting PPTX output.")
@@ -439,7 +466,13 @@ def main() -> int:
         recommendations.append("Install pyodbc and Microsoft ODBC Driver only after live SQL access is authorized.")
     if needs["access"] and not access["access_com_registered"]:
         recommendations.append("Access automation is not registered; keep existing exports or run snapshot extraction on a compatible Windows host with Microsoft Access/ACE.")
-    if needs["access"] and access["access_com_registered"] and not access.get("activation_verified"):
+    if needs["access"] and not needs["access_host"]:
+        recommendations.append(
+            "Every managed artifact declares runtime.skip_object_export, so acquisition runs through the DAO tier only: "
+            "no Access host is started, and no administrator rights or COM activation are required. Object definition text "
+            "will not be exported; supply it as an imported export package if Phase 2 and Phase 3 need the definitions."
+        )
+    if needs["access_host"] and access["access_com_registered"] and not access.get("activation_verified"):
         recommendations.append(
             "Access is registered but no activation was attempted, so this status does not predict whether extraction can run. "
             "Re-run with --verify-access-activation, or use the DAO-only tier (runtime.skip_object_export) which needs no Access host."
@@ -447,7 +480,7 @@ def main() -> int:
     # An elevation-flagged Access cannot be worked around from inside the process:
     # __COMPAT_LAYER=RunAsInvoker is set on the PowerShell host, while the COM server
     # is launched by the service and does not inherit it. Name the remedy that works.
-    if needs["access"] and access.get("runasadmin_detected"):
+    if needs["access_host"] and access.get("runasadmin_detected"):
         flags = ", ".join(
             f"{flag.get('hive')}:{flag.get('value')}" for flag in access.get("appcompat_flags", []) or []
         )
@@ -473,7 +506,6 @@ def main() -> int:
         "required": required,
         "modules": modules,
         "executables": executables,
-        "graphify_runtime": graphify_runtime,
         "access": access,
         "discovered_skills": skills,
         "manifest_needs": needs,

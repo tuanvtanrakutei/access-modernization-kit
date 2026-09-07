@@ -11,9 +11,10 @@ from pathlib import Path
 
 REQUIRED_FILES = (
     "requirements-dev.txt", ".codex-plugin/plugin.json", "skills/investigate/SKILL.md", "skills/investigate/agents/openai.yaml", "adapters/adapter-map.json",
-    "specifications/package.json", "specifications/graphify-runtime.json", "specifications/runtime-capabilities.yaml", "specifications/language-support.yaml",
+    "specifications/package.json", "specifications/runtime-capabilities.yaml", "specifications/language-support.yaml",
+    "specifications/evidence-classes.yaml", "specifications/identifier-scheme.yaml", "specifications/errata-contract.yaml",
     "specifications/senior-system-analyst-instruction.md", "specifications/evidence-policy.yaml", "specifications/output-contract.yaml",
-    "specifications/input-preconditions.md",
+    "specifications/input-preconditions.md", "specifications/evidence-layout.yaml",
     "schemas/manifest.schema.json", "schemas/evidence.schema.json", "schemas/traceability-row.schema.json", "schemas/task.schema.json",
     "schemas/handoff.schema.json", "schemas/conflict.schema.json", "schemas/run-state.schema.json", "schemas/source-inventory.schema.json", "schemas/work-package.schema.json", "schemas/review-receipt.schema.json", "schemas/contract-impact.schema.json",
     "schemas/access-extraction.schema.json", "schemas/component-index.schema.json", "schemas/module-tree.schema.json",
@@ -31,16 +32,16 @@ REQUIRED_FILES = (
     "tests/adapters/test_base.py", "tests/adapters/test_imported_sources.py", "tests/adapters/test_managed_access.py", "tests/adapters/test_msaccess_vcs.py", "tests/adapters/test_sql_server.py",
     "orchestration/roles.json", "orchestration/waves.json", "orchestration/merge-policy.json", "orchestration/conflict-policy.json", "orchestration/runtime-adapters.json",
     "references/manifest.example.yaml", "references/agent-compatibility.md", "references/presentation-guidance.md", "references/orchestration-guide.md",
-    "references/capability-matrix.md", "references/access-extraction-guide.md", "references/module-and-build-context.md", "references/graphify-phase-gate.md",
+    "references/capability-matrix.md", "references/access-extraction-guide.md", "references/module-and-build-context.md", "references/fact-derivation.md",
     "templates/phase1-data-understanding.md", "templates/phase2-screen-analysis.md", "templates/phase3-logic-processing.md",
     "templates/phase4-workflow-reconstruction.md", "templates/phase5-document-integration.md", "templates/phase6-synthesis.md",
     "templates/question-list.md", "templates/qa-report.md", "templates/traceability-matrix.csv", "templates/e2e-trace.html",
     "templates/recommended-optional-evidence.md",
     "templates/boundary-map.html", "templates/presentation-storyboard.md", "templates/task-envelope.json", "templates/agent-handoff.json",
-    "templates/conflict-record.json", "templates/worker-prompt.md", "templates/app.gitignore", "templates/app.graphifyignore", "templates/app.investigationignore",
+    "templates/conflict-record.json", "templates/worker-prompt.md", "templates/readme.md", "templates/app.gitignore", "templates/app.investigationignore",
     "scripts/init_app.py", "scripts/preflight.py", "scripts/create_run.py", "scripts/create_tasks.py", "scripts/extract_access.py",
-    "scripts/extract_access.ps1", "scripts/access_runtime.py", "scripts/parse_compilation_database.py", "scripts/build_component_index.py", "scripts/build_module_plan.py", "scripts/validate_handoffs.py",
-    "scripts/merge_evidence.py", "scripts/advance_run.py", "scripts/graphify_runtime.py", "scripts/normalize_graphify_corpus.py", "scripts/graphify_phase_gate.py", "scripts/collaboration_cli.py", "scripts/ak.py", "scripts/validate_structure.py",
+    "scripts/extract_access.ps1", "scripts/access_runtime.py", "scripts/parse_compilation_database.py", "scripts/build_component_index.py", "scripts/build_module_plan.py", "scripts/derive_graph_facts.py", "scripts/validate_handoffs.py",
+    "scripts/merge_evidence.py", "scripts/advance_run.py", "scripts/derive_graph_facts.py", "scripts/validate_evidence_citations.py", "scripts/validate_phase_conformance.py", "scripts/normalize_documents.py", "scripts/clean_workspace.py", "scripts/collaboration_cli.py", "scripts/ak.py", "scripts/validate_structure.py",
     "tools/ExportAccessObjects.bas",
     "fixtures/collaboration/two-contributor/bundle.lock.json", "fixtures/collaboration/two-contributor/expected-integration-order.json",
     "fixtures/collaboration/two-contributor/collaboration/work-packages/WP_SYN_SQL/work-package.json", "fixtures/collaboration/two-contributor/collaboration/work-packages/WP_SYN_UI/work-package.json",
@@ -48,12 +49,12 @@ REQUIRED_FILES = (
     "fixtures/collaboration/two-contributor/contract-fixture/work-package.json", "fixtures/collaboration/two-contributor/contract-fixture/contract-impact.json",
     "fixtures/collaboration/two-contributor/run/candidate-tasks/WP_SYN_SQL.json", "fixtures/collaboration/two-contributor/run/candidate-tasks/WP_SYN_UI.json",
     "tests/test_package_smoke.py", "examples/minimal-app/README.md", "examples/minimal-app/manifest.yaml",
-    "examples/minimal-app/.investigationignore", "examples/minimal-app/sources/vba/DemoOrderForm.bas",
-    "examples/minimal-app/sources/sql/demo_orders.sql", "examples/minimal-app/sources/sql/catalog.json",
+    "examples/minimal-app/.investigationignore", "examples/minimal-app/input/vba/DemoOrderForm.bas",
+    "examples/minimal-app/input/sql/demo_orders.sql", "examples/minimal-app/input/sql/catalog.json",
 )
 JSON_FILES = tuple(path for path in REQUIRED_FILES if path.endswith(".json"))
 REPOSITORY_FILES = (
-    ".gitignore", ".graphifyignore", ".gitattributes", "README.md", "LICENSE", "NOTICE", "CHANGELOG.md", "CONTRIBUTING.md", "SECURITY.md",
+    ".gitignore", ".gitattributes", "README.md", "LICENSE", "NOTICE", "CHANGELOG.md", "CONTRIBUTING.md", "SECURITY.md",
     "CODE_OF_CONDUCT.md", "THIRD_PARTY_NOTICES.md", "CITATION.cff", ".agents/plugins/marketplace.json",
     "docs/first-access-mdb-investigation.md", "docs/architecture/investigation-pipeline.md", "docs/architecture/extraction-bundle.md",
     "docs/collaboration/contributor-workflow.md", "docs/collaboration/application-team-workflow.md", "docs/collaboration/contract-changes.md",
@@ -71,7 +72,7 @@ MANIFEST_TOKENS = (
     'version: "2.1"', "app:", "id:", "scope:", "legacy_only:", "sources:", "access_databases:", "vba_exports:", "sql_server:",
     "japanese_documents:", "analysis:", "source_policy:", "ignore_file:", "build_context:", "compilation_databases:", "execute_commands: false",
     "module_planning:", 'strategy: "hierarchical_leaf_first"', "shared_context:", "outputs:", "languages:", "derived:", "presentation_pptx:",
-    "graphify:", 'input_policy: "extracted_text_and_supported_sources"', "multi_agent:", "coordinator_only_merge:", "independent_qa:", "phase_publication_sequential:",
+    "multi_agent:", "coordinator_only_merge:", "independent_qa:", "phase_publication_sequential:",
 )
 IGNORED_SCAN_DIRS = {
     ".git",
@@ -80,7 +81,6 @@ IGNORED_SCAN_DIRS = {
     ".ruff_cache",
     ".venv",
     "__pycache__",
-    "graphify-out",
     "node_modules",
     "venv",
 }
@@ -171,7 +171,7 @@ def validate_orchestration(root: Path, json_data: dict[str, object], errors: lis
             errors.append(f"Role cannot return required handoff: {role.get('id')}")
     if coverage != set(range(1, 7)):
         errors.append(f"Role phase coverage must be exactly 1-6, got {sorted(coverage)}")
-    required_roles = {"access_extractor", "build_context_analyzer", "module_decomposer", "graph_builder"}
+    required_roles = {"access_extractor", "build_context_analyzer", "module_decomposer", "fact_deriver"}
     if not required_roles.issubset(set(role_ids)):
         errors.append(f"Missing V2.1 preprocessing roles: {sorted(required_roles - set(role_ids))}")
     seen: set[str] = set()
@@ -190,12 +190,11 @@ def validate_orchestration(root: Path, json_data: dict[str, object], errors: lis
             errors.append(f"Wave {wave_id} has invalid max_parallel")
         seen.add(str(wave_id))
     try:
-        if not wave_ids.index("wave0_context_extraction") < wave_ids.index("wave0_module_decomposition") < wave_ids.index("gate_graph_phase1") < wave_ids.index("wave1_source_extraction"):
-            errors.append("Context extraction, module planning, and the Phase 1 Graphify gate must precede source-analysis fanout")
-        graph_gates = [wave_ids.index(f"gate_graph_phase{phase}") for phase in range(1, 7)]
+        if not wave_ids.index("wave0_context_extraction") < wave_ids.index("wave0_module_decomposition") < wave_ids.index("wave0_fact_derivation") < wave_ids.index("wave1_source_extraction"):
+            errors.append("Context extraction, module planning, and fact derivation must precede source-analysis fanout")
         publish_gates = [wave_ids.index(f"gate{phase}_publish_phase{phase}") for phase in range(1, 7)]
-        if any(graph_gates[index] >= publish_gates[index] for index in range(6)):
-            errors.append("Every phase publication must be preceded by its Graphify gate")
+        if publish_gates != sorted(publish_gates):
+            errors.append("Phase publications must appear in phase order")
         if not wave_ids.index("gate6_publish_phase6") < wave_ids.index("wave6_independent_qa") < wave_ids.index("wave7_derived_rendering"):
             errors.append("Independent QA must run after Phase 6 publication and before rendering")
     except ValueError:
@@ -230,7 +229,7 @@ def main() -> int:
             errors.append("SKILL.md frontmatter is missing or incorrect")
         if len(skill.splitlines()) > 500:
             errors.append("SKILL.md exceeds 500 lines")
-        for phrase in ("multi-agent", "coordinator", "independent QA", "scripts/create_run.py", "Access extraction", "leaf-first", "CodeWiki is not a dependency", "graphify_phase_gate.py check", "$ak help", "$ak init <APP_ID>", "$ak acquire <APP_ID>", "$ak render <APP_ID> [LANGUAGE]"):
+        for phrase in ("multi-agent", "coordinator", "independent QA", "scripts/create_run.py", "Access extraction", "leaf-first", "CodeWiki is not a dependency", "$ak derive", "$ak help", "$ak init <APP_ID>", "$ak acquire <APP_ID>", "$ak render <APP_ID> [LANGUAGE]"):
             if phrase not in skill:
                 errors.append(f"SKILL.md missing V2.1 term: {phrase}")
         if "TODO" in skill:
@@ -248,20 +247,10 @@ def main() -> int:
         inspiration = package_data.get("architecture_inspiration", {})
         if not isinstance(inspiration, dict) or inspiration.get("dependency") is not False or inspiration.get("vendored_code") is not False:
             errors.append("CodeWiki reference must remain non-dependency and non-vendored")
-    graphify_spec = load_json(root / "specifications/graphify-runtime.json", errors)
-    if isinstance(graphify_spec, dict):
-        graphify_version = graphify_spec.get("version")
-        if not isinstance(graphify_version, str) or not re.fullmatch(r"\d+\.\d+\.\d+", graphify_version):
-            errors.append("Managed Graphify version must be pinned to X.Y.Z")
-        if graphify_spec.get("managed_install") is not True or graphify_spec.get("system_python_mutation") is not False:
-            errors.append("Graphify runtime must be managed and must not mutate system Python")
-        manifest_example = (root / "references/manifest.example.yaml").read_text(encoding="utf-8")
-        if f'runtime_version: "{graphify_version}"' not in manifest_example:
-            errors.append("Manifest Graphify runtime_version must match specifications/graphify-runtime.json")
 
     publication_checks = {
         "README.md": ("Access Modernization Kit", "codex plugin add", "$ak init <APP_ID>"),
-        "docs/first-access-mdb-investigation.md": ("local Access MDB workspace", "--adopt-existing", "Graphify", "Phase 1"),
+        "docs/first-access-mdb-investigation.md": ("local Access MDB workspace", "--adopt-existing", "$ak derive", "Phase 1"),
         "LICENSE": ("Apache License", "Version 2.0, January 2004"),
         "NOTICE": ("Copyright 2026 Vo Ta Tuan", "vo-ta-tuan@anrakutei.vn"),
         "SECURITY.md": ("vo-ta-tuan@anrakutei.vn", "Do not open a public GitHub issue"),
@@ -296,7 +285,7 @@ def main() -> int:
     ignore_path = repository_root / ".gitignore"
     if ignore_path.is_file():
         ignore_text = ignore_path.read_text(encoding="utf-8")
-        for token in ("*.mdb", "*.accdb", "*.adp", ".env", "*.dsn", "graphify-out/"):
+        for token in ("*.mdb", "*.accdb", "*.adp", ".env", "*.dsn"):
             if token not in ignore_text:
                 errors.append(f".gitignore missing public-safety rule: {token}")
 

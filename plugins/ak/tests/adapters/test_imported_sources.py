@@ -227,3 +227,29 @@ def test_directory_rejects_declared_symlink(tmp_path: Path) -> None:
     result = adapter.acquire(adapter.plan(_request(tmp_path, artifact)))
     assert result.status == "INVALID"
     assert result.failures == ({"logical_id": "DIR_EXPORT", "reason": "PACKAGE_SYMLINK"},)
+
+
+def test_imported_record_states_its_database(tmp_path: Path) -> None:
+    """An imported record must name its database, because consumers key on it.
+
+    The A05 screen catalogue looks each object up by (database, kind, name). With
+    `database_id` absent from every imported record it missed all 51 forms and 63
+    reports and printed "Objects referenced by nothing (118)" - a headline that
+    reported a failed join as dead code.
+    """
+    raw = b"Option Explicit\n"
+    manifest = _package_manifest("modules/Order.bas", raw)
+    manifest["files"][0]["logical_id"] = "FRONTEND_DB:vba:modules/Order.bas"
+    manifest["files"][0]["object_name"] = "Order"
+    _write_zip(tmp_path / "export.zip", {
+        "import-source-manifest.yaml": yaml.safe_dump(manifest, sort_keys=False).encode(),
+        "modules/Order.bas": raw,
+    })
+    adapter = ImportedSourcesAdapter()
+    result = adapter.acquire(adapter.plan(_request(tmp_path, _zip_artifact())))
+    assert result.status == "VALID"
+    assert result.records[0]["database_id"] == "FRONTEND_DB"
+    # And under the name the managed route uses, for the same reason: the A05 logic
+    # catalogue reads `name` and every imported query and module carried only
+    # `object_name`, so 43 queries and 6 modules looked unreferenced.
+    assert result.records[0]["name"] == result.records[0]["object_name"]

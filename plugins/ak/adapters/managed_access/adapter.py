@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -29,11 +30,19 @@ class ManagedAccessAdapter:
         return CapabilityReport(self.adapter_id, self.adapter_version, not missing, missing, ("probe_is_read_only",))
 
     def plan(self, request: AcquisitionRequest) -> AcquisitionPlan:
+        # A frontend that opens its backend as a sibling needs the backend's snapshot
+        # to exist beside its own by the time it starts, so backends are acquired
+        # first. Without an order the frontend could run against a directory holding
+        # only itself, which is how a split application fails to open at all.
+        ordered = sorted(
+            request.artifacts,
+            key=lambda artifact: 0 if artifact.get("role") == "backend" else 1,
+        )
         operations = tuple({
             "artifact": artifact,
             "source": str((request.source_root / artifact["source_ref"]["value"]).resolve()),
             "output_subdir": artifact["id"],
-        } for artifact in request.artifacts)
+        } for artifact in ordered)
         return AcquisitionPlan(
             self.adapter_id, self.adapter_version,
             tuple(item["artifact"]["id"] for item in operations),
@@ -54,6 +63,9 @@ class ManagedAccessAdapter:
                 sys.executable, str(PACKAGE / "scripts" / "extract_access.py"),
                 "--database", operation["source"], "--database-id", artifact["id"],
                 "--output-dir", plan.runtime_output_root, "--session-id", plan.acquisition_id,
+                # One directory for every database of this application, so the sibling
+                # layout the app resolves against is reproduced inside the snapshot.
+                "--snapshot-dir", str(_snapshot_dir(plan)),
                 "--execute",
             ]
             # Runtime choices declared per artifact in the manifest. Without this the
@@ -97,6 +109,10 @@ class ManagedAccessAdapter:
             records.append(data)
             hashes[artifact["id"]] = data["source"]["sha256"]
         status = "BLOCKED" if failures and not records else ("PARTIAL" if failures or any(r["status"] == "PARTIAL" for r in records) else "VALID")
+        reclaimed = _reclaim_snapshots(plan, status)
+        if reclaimed:
+            records = [{**record, "snapshot_reclaimed_bytes": reclaimed} if index == 0 else record
+                       for index, record in enumerate(records)]
         return AcquisitionResult(plan.app_id, self.adapter_id, self.adapter_version, status, tuple(records), tuple(failures), hashes)
 
     def result_from_extraction(self, app_id: str, data: dict[str, Any]) -> AcquisitionResult:
@@ -110,7 +126,14 @@ class ManagedAccessAdapter:
             for component in extraction.get("components", []):
                 _route_component(sections, extraction["database_id"], component)
             _route_table_detail(sections, extraction["database_id"], extraction.get("tables", []))
-            failures.extend({"logical_id": extraction["database_id"], "reason": warning} for warning in extraction.get("warnings", []))
+            # An exclusion the extractor made on purpose is not a failure to extract
+            # something. Reported through the same channel it made coverage overstate
+            # failure by more than a third, and a clean run look damaged.
+            for warning in extraction.get("warnings", []):
+                entry = {"logical_id": extraction["database_id"], "reason": warning}
+                if str(warning).startswith("EXCLUDED:"):
+                    entry["kind"] = "exclusion"
+                failures.append(entry)
         contribution = {
             "adapter_id": self.adapter_id, "adapter_version": self.adapter_version, "app_id": result.app_id,
             "status": result.status, **sections, "failures": failures,
@@ -148,6 +171,10 @@ _RUNTIME_VALUE_FLAGS = {
     "powershell": "--powershell",
     "password_env": "--password-env",
     "timeout": "--timeout",
+    # Suppressing macros keeps an unattended run out of the VBA debugger, and on an
+    # application whose startup code relinks stale table connections it also suppresses
+    # the repair the application depends on. A faithful run has to be able to choose.
+    "automation_security": "--automation-security",
 }
 _RUNTIME_SWITCH_FLAGS = {
     "skip_object_export": "--skip-object-export",
@@ -156,6 +183,44 @@ _RUNTIME_SWITCH_FLAGS = {
     "allow_run_as_invoker": "--allow-run-as-invoker",
     "skip_runtime_check": "--skip-runtime-check",
 }
+
+
+def _snapshot_dir(plan: Any) -> Path:
+    """Where this acquisition's disposable copies live.
+
+    Falls back inside staging when a caller built a plan without a snapshot root -
+    older callers and hand-built test plans - so the change cannot silently write
+    to the workspace root.
+    """
+    root = plan.snapshot_root or str(Path(plan.runtime_output_root) / "_snapshots")
+    return Path(root) / plan.acquisition_id
+
+
+def _reclaim_snapshots(plan: Any, status: str) -> int:
+    """Remove the snapshots once the run that needed them has fully succeeded.
+
+    A snapshot exists because the original database must never be opened - opening
+    mutates it. Once extraction has written its receipt, nothing reads the copy
+    again, and on a real split application the pair was 615 MB sitting beside the
+    587 MB of originals: a workspace holding 1.2 GB to analyse 3 MB of text.
+
+    Deleting loses nothing. The originals are still in `sources/`, and the receipt
+    records the snapshot's SHA-256, so a later run can prove it read the same bytes.
+
+    Kept when the run did not fully succeed, because a PARTIAL or BLOCKED run is the
+    one somebody will investigate, and kept whenever `--keep-snapshots` is passed.
+    """
+    if plan.keep_snapshots or status != "VALID":
+        return 0
+    directory = _snapshot_dir(plan)
+    if not directory.is_dir():
+        return 0
+    size = sum(item.stat().st_size for item in directory.rglob("*") if item.is_file())
+    shutil.rmtree(directory, ignore_errors=True)
+    parent = directory.parent
+    if parent.is_dir() and not any(parent.iterdir()):
+        parent.rmdir()
+    return size
 
 
 def _runtime_flags(runtime: dict[str, Any]) -> list[str]:

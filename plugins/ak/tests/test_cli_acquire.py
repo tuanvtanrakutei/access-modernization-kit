@@ -101,6 +101,21 @@ def _copy_minimal_app(tmp_path: Path) -> Path:
     return target
 
 
+def _as_legacy_layout(app: Path) -> Path:
+    """The same fixture as a pre-2.10.0 workspace: input/ back to sources/.
+
+    The shipped example teaches the layout `init` creates now, so without this the
+    legacy path would lose its only end-to-end coverage through the real CLI - and
+    the whole point of reading both layouts is that a workspace mid-investigation
+    keeps working.
+    """
+    (app / "input").rename(app / "sources")
+    manifest = app / "manifest.yaml"
+    manifest.write_text(
+        manifest.read_text(encoding="utf-8").replace("input/", "sources/"), encoding="utf-8")
+    return app
+
+
 def test_minimal_app_preflight_and_acquisition_contract(tmp_path: Path) -> None:
     app = _copy_minimal_app(tmp_path)
     preflight = _run([
@@ -223,3 +238,19 @@ def test_init_with_source_discovery(tmp_path: Path) -> None:
     acq = _run(["acquire", str(app_root)], app_root)
     assert acq["status"] == "VALID"
     assert acq["bundle_id"].startswith("bundle-")
+
+
+def test_the_same_fixture_acquires_in_the_pre_2_10_layout(tmp_path: Path) -> None:
+    """Upgrading the kit must not strand a workspace that is already under way."""
+    app = _as_legacy_layout(_copy_minimal_app(tmp_path))
+    preflight = _run(["preflight", "--app-root", str(app), "--runtime", "generic"], app)
+    assert preflight["status"] == "PASS"
+    assert preflight["input_preconditions"]["present"]["vba"] is True
+
+    result = _run([
+        "acquire", "run", "--manifest", str(app / "manifest.yaml"),
+        "--output-root", str(app / "acquired"),
+    ], app)
+    assert result["status"] == "VALID"
+    # Written under the legacy root, and found there by every reader.
+    assert (app / "acquired" / "bundles").is_dir()

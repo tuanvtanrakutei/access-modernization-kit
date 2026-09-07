@@ -20,5 +20,4 @@ Compilation databases enrich compiled-language context only. They do not replace
 ## Ignore separation
 
 - `.gitignore` controls repository tracking and defaults raw Access databases/secrets to local-only.
-- `.graphifyignore` prevents binary/generated artifacts from entering Graphify while keeping extracted VBA/SQL visible.
 - `.investigationignore` alone controls the immutable source inventory. It excludes noise and secrets but intentionally keeps MDB/ACCDB/ADP sources.

@@ -1,0 +1,259 @@
+# Stable identifiers for what the investigation discovers.
+#
+# Evidence IDs answer "where did this come from". They are not enough. A rule
+# found in Phase 3 has to be citable by Phase 4, consolidated by Phase 6, and
+# checked for coverage by the modernization pipeline - and none of that is
+# possible if the rule has no name.
+#
+# The kit's phase templates carried bare "Rule ID" and "Workflow ID" columns with
+# no scheme behind them, so Phase 6's actual job - consolidation - had nothing to
+# consolidate. This file registers the vocabularies the reference document set
+# uses, and the rules that keep them trustworthy.
+
+version: "2.9"
+
+# ---------------------------------------------------------------------------
+# How identifiers are written and stored.
+# ---------------------------------------------------------------------------
+conventions:
+  in_prose: >
+    Bare, as the reference set writes them: `BR-ORD-06`, `WF-003`, `RD-01`. The
+    app is implied by the document.
+  in_registers: >
+    App-scoped: `A05::BR-ORD-06`. Two apps' registers can be merged without a
+    collision, and an identifier can never be read as belonging to the wrong app.
+  allocation: >
+    Sequential within a namespace, allocated by the phase that discovers the item,
+    starting at 01. Numbers are never reused and never renumbered - a published
+    identifier is a permanent address.
+  supersession: >
+    A finding that turns out wrong is not renumbered or deleted. It keeps its
+    identifier and gains an errata entry that supersedes it. See errata-contract.yaml.
+
+# ---------------------------------------------------------------------------
+# The vocabularies.
+# ---------------------------------------------------------------------------
+namespaces:
+
+  BR:
+    name: "Business rule"
+    # Two forms, both in the reference set. A rule that belongs to a business domain
+    # is scoped by that domain; a rule that exists only as a step of one workflow is
+    # scoped by the workflow, which is how the reference set's Phase 4 writes every
+    # rule it allocates. A single-letter domain is not permitted: BR-M01 and BR-D02
+    # gave one namespace two meanings, and nothing said which.
+    pattern: "^BR-(?:[A-Z]{2,6}|W[0-9]{3})-[0-9]{2}$"
+    example: "BR-ORD-06"
+    example_workflow_scoped: "BR-W001-03"
+    owned_by: [phase3, phase4, phase5]
+    consolidated_by: phase6
+    requires_evidence: true
+    domains:
+      AUTH: "Authentication and session"
+      ORD: "Order import, conversion and entry"
+      MOD: "Modification and cancellation"
+      PRICE: "Pricing"
+      SLIP: "Slip and document numbering"
+      DEL: "Delivery and logistics"
+      INV: "Inventory and stock"
+      RET: "Sales returns"
+      PUR: "Purchasing and receiving"
+      WGT: "Weight-based and measured quantities"
+      NET: "Downstream synchronisation"
+      BE: "Secondary channel"
+      EXT: "External sales"
+      INT: "Internal sales"
+      TRF: "Transfers"
+      EXC: "Exceptional movements"
+      MST: "Master data editing and period control"
+      SPL: "Special orders"
+      RPT: "Reporting and output"
+      MON: "Monthly close, cross-cutting dependencies"
+      DOC: "Rule stated by a document rather than observed in code"
+    note: >
+      Domains are extended per application, not invented per rule. A rule that
+      fits no domain is a sign the domain list needs one entry, not that the rule
+      should be filed under a near miss. The reference set writes two of these
+      without a separating dash - BR-M01, BR-D02 - beside the dashed BR-ORD-06.
+      One namespace with two shapes cannot be checked and has to be memorised, so
+      those two are MON and DOC here and take the same form as every other domain.
+    workflow_local_form:
+      pattern: "^BR-W[0-9]{3}-[0-9]{2}$"
+      example: "BR-W003-01"
+      means: "A rule that only holds inside one workflow. Promote to a BR-{DOMAIN} form if it turns out to be general."
+
+  WF:
+    name: "End-to-end workflow"
+    pattern: "^WF-[0-9]{3}[a-z]?$"
+    example: "WF-008b"
+    owned_by: [phase4]
+    requires_evidence: true
+    requires:
+      - "one sequence or flow diagram"
+      - "at least one BR- rule"
+      - "traceability rows covering every step"
+    note: "The lowercase suffix marks a variant that shares a trigger with its base workflow."
+
+  F:
+    name: "Screen, form or report"
+    pattern: "^F-[0-9]{3}$"
+    example: "F-003"
+    owned_by: [phase2]
+    requires_evidence: true
+    always_paired_with_object_name: true
+    note: >
+      An index, not an identifier. For an application whose objects are named in
+      Japanese, `F-014` tells a reader nothing on its own, so the object's real
+      name is written beside it everywhere it appears, and every downstream key -
+      registry rows, file names, module keys - uses the object name rather than the
+      index. This closes the `screen_S001` defect on the modernization side, where
+      a generated key carried no meaning back to the operator.
+
+  OB:
+    name: "Technical observation"
+    pattern: "^OB-[0-9]{2}$"
+    example: "OB-05"
+    owned_by: [phase1]
+    requires_evidence: true
+    note: "A property of the system worth carrying forward that is not yet a rule or a risk."
+
+  RD:
+    name: "Risk - data and integrity"
+    pattern: "^RD-[0-9]{2}$"
+    owned_by: [phase1, phase6]
+    requires_evidence: true
+    requires_severity: true
+  RA:
+    name: "Risk - application layer"
+    pattern: "^RA-[0-9]{2}$"
+    owned_by: [phase3, phase6]
+    requires_evidence: true
+    requires_severity: true
+  RW:
+    name: "Risk - workflow and operations"
+    pattern: "^RW-[0-9]{2}$"
+    owned_by: [phase4, phase6]
+    requires_evidence: true
+    requires_severity: true
+  RS:
+    name: "Risk - security and compliance"
+    pattern: "^RS-[0-9]{2}$"
+    owned_by: [phase5, phase6]
+    requires_evidence: true
+    requires_severity: true
+
+  DISC:
+    name: "Document-versus-code discrepancy"
+    pattern: "^DISC-[0-9]{2}$"
+    example: "DISC-05"
+    owned_by: [phase5]
+    requires_evidence: true
+    requires:
+      - "the document's claim, cited"
+      - "the observed code or data behaviour, cited"
+      - "a severity"
+    note: "Required by rule EC-04. Neither side is silently preferred."
+
+  UK:
+    name: "Unknown carried forward"
+    pattern: "^UK-[DSPWL][0-9]{2}$"
+    example: "UK-D03"
+    owned_by: [phase1, phase2, phase3, phase4, phase5]
+    requires_evidence: false
+    letters:
+      D: "Data - raised in Phase 1"
+      S: "Screens - raised in Phase 2"
+      L: "Logic - raised in Phase 3"
+      W: "Workflow - raised in Phase 4"
+      P: "Documents - raised in Phase 5"
+    requires:
+      - "why it matters"
+      - "what would settle it, named as an evidence class"
+      - "who can settle it"
+    note: >
+      An unknown states the evidence class that would close it, so the operator is
+      told what to fetch rather than that something is missing.
+
+  AS:
+    name: "Assumption carried forward"
+    pattern: "^AS-[0-9]{2}$"
+    example: "AS-07"
+    owned_by: [phase1, phase2, phase3, phase4, phase5, phase6]
+    requires_evidence: false
+    requires:
+      - "what breaks if it is wrong"
+
+  E:
+    name: "Errata entry"
+    pattern: "^E-[0-9]{2}$"
+    example: "E-01"
+    owned_by: [phase6]
+    requires_evidence: true
+    note: "Governed by errata-contract.yaml."
+
+  Q:
+    name: "Open question to a stakeholder"
+    pattern: "^Q[0-9]{1,3}$"
+    example: "Q12"
+    owned_by: [phase1, phase2, phase3, phase4, phase5]
+    requires_evidence: false
+    note: >
+      Lives in the question list. When answered, the answer becomes INTERVIEW-class
+      evidence with its own evidence ID, and the question is marked resolved
+      against it - the two are never the same record.
+
+  d:
+    name: "Inbound data file crossing the boundary"
+    pattern: "^d[0-9]{2}$"
+    example: "d05"
+    owned_by: [phase5]
+    requires_evidence: true
+    requires: ["name", "format", "source system", "path", "cadence"]
+
+  r:
+    name: "Outbound file, report or export"
+    pattern: "^r[0-9]{2}$"
+    example: "r19"
+    owned_by: [phase5]
+    requires_evidence: true
+    requires: ["name", "format", "destination", "path", "cadence"]
+
+# ---------------------------------------------------------------------------
+# Rules the conformance checker enforces.
+# ---------------------------------------------------------------------------
+rules:
+
+  - id: ID-01
+    rule: "Every allocated identifier in a namespace marked `requires_evidence` cites at least one evidence ID."
+    on_violation: "The phase fails conformance; the identifier is unsupported."
+
+  - id: ID-02
+    rule: "Every identifier cited by a document resolves to an allocation in the register."
+    on_violation: "A dangling identifier - the same defect class as a dangling evidence citation."
+
+  - id: ID-03
+    rule: "An identifier is allocated once and never renumbered, reused or deleted."
+    on_violation: "Two documents disagree about what an address means."
+
+  - id: ID-04
+    rule: >
+      Phase 6 consolidates rather than re-derives: every BR-, RD-, RA-, RW-, RS-,
+      UK- and AS- in Phase 6 must already exist in a prior phase, or be an E- entry
+      explaining why it is new.
+    on_violation: "Phase 6 has invented a finding rather than synthesised one."
+
+  - id: ID-05
+    rule: "A risk carries a severity from the declared set, and a mitigation or an explicit 'none proposed'."
+    severities: ["HIGH", "MEDIUM", "LOW"]
+
+  - id: ID-06
+    rule: "Every F- appears with the object's real name beside it, in every document and every generated key."
+    on_violation: "A reader cannot tell which screen is meant."
+
+# ---------------------------------------------------------------------------
+# Where allocations live.
+# ---------------------------------------------------------------------------
+register:
+  path: "runs/{RUN_ID}/outputs/{APP_ID}_Identifiers.json"
+  written_by: "the phase that allocates, appended never rewritten"
+  fields: ["id", "namespace", "phase", "title", "evidence_ids", "severity", "superseded_by", "created_at"]

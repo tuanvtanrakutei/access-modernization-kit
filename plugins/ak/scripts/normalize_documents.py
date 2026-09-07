@@ -1,5 +1,15 @@
 #!/usr/bin/env python3
-"""Build a deterministic, binary-free Graphify corpus for one app workspace."""
+"""Normalize an app workspace's sources into a deterministic, binary-free text corpus.
+
+Phase 5 requires DOCUMENT-class evidence, and a document the kit cannot read is a
+document the phase cannot cite. This reads XLSX, XLS, DOCX, PPTX and text-layer PDF,
+plus CP932/Shift-JIS text, into UTF-8 with a provenance header carrying the source
+path, its SHA-256 and the parser that produced the text - so an evidence item can
+name a worksheet cell or a PDF page and a reviewer can get back to the original.
+
+Scanned PDFs and images without a text layer are reported as OCR_REQUIRED rather
+than silently skipped, and Access binaries and disposable snapshots are never read.
+"""
 
 from __future__ import annotations
 
@@ -16,6 +26,18 @@ from pathlib import Path
 from typing import Callable
 
 
+def _workspace(app_root):
+    """The layout resolver. One place knows a pre-2.10.0 workspace names things
+    differently; every caller asks rather than assumes."""
+    contracts = str(Path(__file__).resolve().parent.parent / "contracts")
+    if contracts not in sys.path:
+        sys.path.insert(0, contracts)
+    from workspace import Workspace
+
+    return Workspace(app_root)
+
+
+
 BINARY_ACCESS = {".mdb", ".accdb", ".adp", ".laccdb", ".ldb"}
 TEXT_SUFFIXES = {
     ".bas", ".cls", ".frm", ".vb", ".sql", ".txt", ".md", ".mdx", ".qmd", ".rst",
@@ -27,12 +49,20 @@ TABULAR_SUFFIXES = {".csv", ".tsv"}
 DOCUMENT_SUFFIXES = {".pdf", ".xlsx", ".xls", ".docx", ".pptx"}
 IMAGE_SUFFIXES = {".png", ".jpg", ".jpeg", ".tif", ".tiff", ".bmp"}
 UNSUPPORTED_LEGACY = {".doc", ".ppt"}
+# Excluded by purpose, not by owner. `.ak` used to be in this list, and since the
+# 2.10.0 layout put everything the kit owns under `.ak/`, that excluded
+# `.ak/extracted/ui-facts` and `.ak/extracted/module-plan` - the distilled screen
+# facts that were deliberately added to the corpus so Phase 2 evidence reaches the
+# graph at all. Naming the purposes keeps the same exclusions without swallowing the
+# derived facts beside them.
 FORBIDDEN_PARTS = {
-    ".git", "runs", "outputs", "evidence", "decisions", "secrets", "credentials",
+    ".git", "output", "outputs", "evidence", "decisions", "secrets", "credentials",
+    # run state, which is the kit's bookkeeping and not evidence about the application
+    "runs",
     # acquisition output: staging receipts, the canonical bundle, and any bundle backup
-    # the operator keeps in the workspace. Graphify builds from the component index and
-    # declared sources - never from a serialised bundle.
-    "acquired",
+    # the operator keeps in the workspace. Normalization works from the component index
+    # and declared sources - never from a serialised bundle.
+    "acquired", "staging", "bundles", "snapshots",
 }
 FORBIDDEN_NAMES = {".env", ".dsn"}
 NORMALIZER_VERSION = "2.6.2"
@@ -62,18 +92,19 @@ def load_manifest(path: Path) -> dict:
     try:
         import yaml  # type: ignore[import-not-found]
     except ImportError as exc:
-        raise RuntimeError("PyYAML is required for Graphify corpus normalization") from exc
+        raise RuntimeError("PyYAML is required for document normalization") from exc
     return yaml.safe_load(path.read_text(encoding="utf-8")) or {}
 
 
 def output_dir_from(manifest: dict, app_root: Path) -> Path:
-    relative = str(manifest.get("graphify", {}).get("output_dir", "graphify-out"))
-    output = (app_root / relative).resolve()
-    try:
-        output.relative_to(app_root)
-    except ValueError as exc:
-        raise RuntimeError("graphify.output_dir must remain inside the app workspace") from exc
-    return output
+    """Fixed by the workspace layout, not by the manifest.
+
+    It was a manifest key, and a key an operator can set is a key an operator can
+    point outside the workspace. `specifications/evidence-layout.yaml` gives
+    everything derived from the bundle one home; normalized text lives there too.
+    """
+    del manifest
+    return _workspace(app_root).extracted("normalized").resolve()
 
 
 def declared_paths(manifest: dict) -> tuple[list[str], list[str]]:
@@ -122,7 +153,7 @@ def _v22_declared_paths(manifest: dict) -> tuple[list[str], list[str]]:
 
 
 def component_paths(app_root: Path) -> list[str]:
-    index = app_root / "extracted" / "component-index.json"
+    index = _workspace(app_root).extracted("component-index.json")
     if not index.is_file():
         return []
     try:
@@ -138,10 +169,64 @@ def component_paths(app_root: Path) -> list[str]:
     ]
 
 
+# A path recorded under the pre-2.10.0 layout, and where it lives now. The migration
+# rewrites cited paths this way; the component index is written once at extraction and
+# is not rewritten, so anything reading it has to do the same.
+_RELOCATIONS = (
+    ("acquired/snapshots/", ".ak/snapshots/"),
+    ("acquired/bundles/", ".ak/bundles/"),
+    ("acquired/bundle-", ".ak/bundles/bundle-"),
+    ("acquired/staging/", ".ak/staging/"),
+    ("extracted/", ".ak/extracted/"),
+    ("sources/reports-out/", "input/report-samples/"),
+    ("sources/", "input/"),
+    ("runs/", ".ak/runs/"),
+)
+
+# Derived inputs that may legitimately not exist yet, so their absence is not a gap.
+_OPTIONAL = ("component-index.json", "module-plan", "ui-facts")
+
+
+def _relocate(relative: str) -> str:
+    normalized = str(relative).replace("\\", "/")
+    for old, new in _RELOCATIONS:
+        if normalized.startswith(old):
+            return normalized.replace(old, new, 1)
+    return ""
+
+
+def _is_optional(relative: str) -> bool:
+    return any(name in str(relative).replace("\\", "/") for name in _OPTIONAL)
+
+
 def collect_sources(app_root: Path, manifest: dict) -> tuple[list[Path], list[Path], list[dict[str, str]], list[str]]:
     declared, access_declared = declared_paths(manifest)
     declared.extend(component_paths(app_root))
-    declared.extend(["manifest.yaml", "extracted/component-index.json", "extracted/module-plan"])
+    # extracted/ui-facts holds the distilled screen facts - record source, bound fields,
+    # embedded controls, event procedures - derived from definition text this corpus
+    # deliberately renounces. Without it no form or report evidence of any kind reached
+    # the graph, and Phase 2 was asking the graph about screens it had never seen.
+    space = _workspace(app_root)
+    declared.append("manifest.yaml")
+    declared.extend(
+        str(space.extracted(name).relative_to(app_root))
+        for name in ("component-index.json", "module-plan", "ui-facts")
+    )
+
+    # Everything a person put into an input directory. This is the whole reason those
+    # directories exist, and until now nothing read them: the corpus was built from
+    # manifest-declared artifacts and the component index only, so a document dropped
+    # into `input/documents/` - which is exactly where the evidence request tells an
+    # operator to put one - never reached the corpus, and Phase 5 stayed BLOCKED with
+    # the document sitting in the workspace.
+    #
+    # Person-supplied evidence is declared by being there. Asking an operator to also
+    # list it in the manifest would be asking them to do the kit's bookkeeping.
+    for name in ("documents", "screenshots", "samples", "report-samples",
+                 "interviews", "shared-docs"):
+        directory = space.input_dir(name)
+        if directory.is_dir():
+            declared.append(str(directory.relative_to(app_root)))
     files: set[Path] = set()
     excluded_access: set[Path] = set()
     gaps: list[dict[str, str]] = []
@@ -157,14 +242,27 @@ def collect_sources(app_root: Path, manifest: dict) -> tuple[list[Path], list[Pa
             files.add(candidate)
         elif candidate.is_dir():
             files.update(path for path in candidate.rglob("*") if path.is_file())
-        elif relative not in {"extracted/component-index.json", "extracted/module-plan"}:
-            gaps.append({"source_path": relative, "status": "MISSING", "detail": "Declared source does not exist"})
+        else:
+            # The component index records paths relative to the layout in force when it
+            # was written, so a workspace migrated to `input/` + `.ak/` carries an index
+            # full of `acquired/…` and `extracted/…`. Those resolve after the same
+            # rewrite the migration applies to cited paths; a path that still does not
+            # resolve is a real gap.
+            moved = _relocate(relative)
+            candidate = (app_root / moved).resolve() if moved else None
+            if candidate is not None and candidate.is_file():
+                files.add(candidate)
+            elif candidate is not None and candidate.is_dir():
+                files.update(path for path in candidate.rglob("*") if path.is_file())
+            elif not _is_optional(relative):
+                gaps.append({"source_path": relative, "status": "MISSING",
+                             "detail": "Declared source does not exist"})
 
     for relative in access_declared:
         candidate = (app_root / relative).resolve()
         if candidate.is_file():
             excluded_access.add(candidate)
-    access_root = app_root / "sources" / "access"
+    access_root = _workspace(app_root).input_dir("access")
     if access_root.is_dir():
         excluded_access.update(path for path in access_root.rglob("*") if path.is_file() and path.suffix.lower() in BINARY_ACCESS)
 
@@ -176,7 +274,7 @@ def collect_sources(app_root: Path, manifest: dict) -> tuple[list[Path], list[Pa
         if output in path.parents:
             continue
         if any(part.lower() in FORBIDDEN_PARTS for part in relative.parts) or path.name.lower() in FORBIDDEN_NAMES or path.suffix.lower() == ".dsn":
-            gaps.append({"source_path": relative.as_posix(), "status": "EXCLUDED_POLICY", "detail": "Secrets, credentials, run state, evidence, decisions, and outputs are not Graphify inputs"})
+            gaps.append({"source_path": relative.as_posix(), "status": "EXCLUDED_POLICY", "detail": "Secrets, credentials, run state, evidence, decisions, and outputs are never normalized"})
             continue
         if path.suffix.lower() in BINARY_ACCESS:
             excluded_access.add(path)
@@ -199,7 +297,7 @@ def _is_access_definition_text(path: Path) -> bool:
     controls (TextBox, SubForm, CommandButton...) with absolute coordinates - structural
     evidence valuable for an investigation but pointless as a knowledge-graph node: no
     semantic relationship, no call, no dependency, and no concept survives extraction.
-    Including them in the corpus consumes graph extraction tokens for zero meaningful
+    Including them in the corpus consumes reader effort for zero meaningful
     output. Their SHA-256 is recorded in the corpus audit, so renunciation is explicit.
 
     Only scans the first 200 bytes, so an unusually large header section is still
@@ -354,7 +452,7 @@ def normalize_pdf(path: Path) -> tuple[str, str, list[str]]:
         import fitz  # type: ignore[import-not-found]
     except ImportError as exc:
         raise RuntimeError("OCR_REQUIRED: PDF has no text layer and PyMuPDF is unavailable") from exc
-    with tempfile.TemporaryDirectory(prefix="ak-graphify-ocr-") as temp:
+    with tempfile.TemporaryDirectory(prefix="ak-ocr-") as temp:
         images: list[Path] = []
         document = fitz.open(path)
         try:
@@ -406,7 +504,7 @@ def destination_for(corpus: Path, app_root: Path, source: Path, suffix: str) -> 
 
 def provenance_header(relative: str, source_hash: str, parser: str) -> str:
     return (
-        "<!-- AK_GRAPHIFY_NORMALIZED\n"
+        "<!-- AK_NORMALIZED\n"
         f"source_path: {relative}\nsource_sha256: {source_hash}\nparser: {parser}\n"
         f"normalizer_version: {NORMALIZER_VERSION}\n-->\n\n"
     )
@@ -446,7 +544,7 @@ def main() -> int:
         return 0
 
     if corpus.is_symlink():
-        raise SystemExit(f"Refusing to replace symlinked Graphify corpus: {corpus}")
+        raise SystemExit(f"Refusing to replace symlinked corpus: {corpus}")
     if corpus.exists():
         shutil.rmtree(corpus)
     corpus.mkdir(parents=True)
@@ -482,7 +580,7 @@ def main() -> int:
             "source_path": path.relative_to(app_root).as_posix(),
             "source_sha256": sha256(path),
             "status": "EXCLUDED_BINARY",
-            "detail": "Access binaries and snapshots are never Graphify inputs",
+            "detail": "Access binaries and snapshots are never normalized",
         })
     entries.extend(initial_gaps)
     normalized = [entry for entry in entries if entry["status"] == "NORMALIZED"]
@@ -492,11 +590,17 @@ def main() -> int:
     ]
     fingerprint = hashlib.sha256(json.dumps(fingerprint_input, ensure_ascii=False, sort_keys=True).encode("utf-8")).hexdigest()
     gaps = [entry for entry in entries if entry["status"] not in {"NORMALIZED", "EXCLUDED_BINARY"}]
+    # Two different facts, separated. A policy exclusion and an absent text layer are
+    # decisions already taken; a declared source that is missing or unreadable is
+    # evidence that should be here and is not. Only the second is a gap in coverage,
+    # and only the second should make the status say so.
+    RENOUNCED = {"EXCLUDED_POLICY", "OCR_REQUIRED"}
+    unmet = [entry for entry in gaps if entry["status"] not in RENOUNCED]
     report = {
         "schema_version": "2.1",
         "normalizer_version": NORMALIZER_VERSION,
         "generated_at": datetime.now(timezone.utc).isoformat(),
-        "status": "READY_WITH_GAPS" if normalized and gaps else ("READY" if normalized else "BLOCKED"),
+        "status": "READY_WITH_GAPS" if normalized and unmet else ("READY" if normalized else "BLOCKED"),
         "app_root": str(app_root),
         "corpus_root": corpus.relative_to(app_root).as_posix(),
         "corpus_fingerprint": fingerprint,
@@ -505,11 +609,17 @@ def main() -> int:
         "excluded_access_binary_count": len(excluded_access),
         "excluded_access_definition_count": len(access_definitions),
         "binary_files_ingested": 0,
-        "gap_count": len(gaps),
+        # A source excluded on purpose is not a gap in coverage. Counting both through
+        # one number made a corpus that had ingested everything it meant to look
+        # two-thirds incomplete: on a real application 132 "gaps" were 81 definition
+        # files renounced by policy and 51 screenshots with no text layer, neither of
+        # which is evidence that should be there and is not.
+        "gap_count": len(unmet),
+        "excluded_by_policy_count": len(gaps) - len(unmet),
         "entries": entries,
     }
     graph_root.mkdir(parents=True, exist_ok=True)
-    audit_path = graph_root / "CORPUS_AUDIT.json"
+    audit_path = graph_root / "NORMALIZATION_AUDIT.json"
     audit_path.write_text(json.dumps(report, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     rendered = json.dumps(report, ensure_ascii=False, indent=2)
     print(rendered)

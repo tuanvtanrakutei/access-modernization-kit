@@ -26,21 +26,56 @@ import yaml
 
 MANIFEST_NAME = "import-source-manifest.yaml"
 
-# Directory name -> (declared kind, default role).
-CONTAINERS: dict[str, tuple[str, str]] = {
-    "forms": ("form", "frontend"),
-    "reports": ("report", "frontend"),
-    "macros": ("macro", "frontend"),
-    "vba": ("vba", "frontend"),
-    "modules": ("vba", "frontend"),
-    "queries": ("access_sql", "backend"),
-    "schema": ("metadata", "backend"),
-    "sql": ("sql_server", "backend"),
-    "sql-server": ("sql_server", "backend"),
-    "documents": ("document", "documentation"),
-    "screenshots": ("screenshot", "interface"),
-    "samples": ("sample", "interface"),
-}
+SPEC = Path(__file__).resolve().parent.parent / "specifications" / "evidence-layout.yaml"
+
+
+def _layout() -> dict[str, Any]:
+    """Read the one declaration of container names and formats.
+
+    The runtime extractor, the shipped VBA exporter and this importer used to carry
+    three private copies of the same layout, which is how they drifted: a `.txt`
+    written by one was classified as a stray sample by another.
+    """
+    return yaml.safe_load(SPEC.read_text(encoding="utf-8")) or {}
+
+
+def _containers() -> dict[str, tuple[str, str]]:
+    layout = _layout()
+    mapping = {
+        name: (str(entry["kind"]), str(entry.get("role", "interface")))
+        for name, entry in (layout.get("containers") or {}).items()
+    }
+    # Names another producer uses for the same container, declared in the spec so it
+    # is visible which tool each layout belongs to.
+    for alias, target in (layout.get("container_aliases") or {}).items():
+        if target in mapping:
+            mapping.setdefault(alias, mapping[target])
+    # Server-side exports are declared outside the Access container set.
+    mapping.setdefault("sql", ("sql_server", "backend"))
+    mapping.setdefault("sql-server", ("sql_server", "backend"))
+    # schema/ carries the structured files declared under schema_files; the container
+    # itself is metadata so an unexpected member there is still declared, not refused.
+    mapping.setdefault("schema", ("metadata", "backend"))
+    return mapping
+
+
+def _root_files() -> dict[str, str]:
+    """Files a known producer writes at the package root, recognized by name.
+
+    export-manifest.txt belongs to this kit's own exporter, and refusing it as
+    unclassified made the package its own exporter produced fail to import unless the
+    operator passed a flag that also lowered the bar for everything else.
+    """
+    layout = _layout()
+    return {
+        str(entry["path"]): str(entry.get("kind", "metadata"))
+        for entry in (layout.get("package_files") or {}).values()
+        if entry.get("path") and entry.get("kind")
+    }
+
+
+CONTAINERS: dict[str, tuple[str, str]] = _containers()
+ROOT_FILES: dict[str, str] = _root_files()
 # Kinds the adapter decodes as text; everything else is carried by reference only.
 TEXT_KINDS = {"vba", "access_sql", "sql_server", "form", "report", "macro", "metadata"}
 ENCODINGS = ("utf-8-sig", "utf-8", "cp932")
@@ -81,11 +116,15 @@ def detect_encoding(raw: bytes) -> str | None:
 
 
 def classify(relative: Path) -> tuple[str, str] | None:
-    """Classify by the nearest recognized container directory."""
+    """Classify by the nearest recognized container directory, or by a known root name."""
     for part in reversed(relative.parts[:-1]):
         entry = CONTAINERS.get(part.lower())
         if entry:
             return entry
+    if len(relative.parts) == 1:
+        kind = ROOT_FILES.get(relative.as_posix())
+        if kind:
+            return (kind, "documentation")
     return None
 
 

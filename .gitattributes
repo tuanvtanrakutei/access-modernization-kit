@@ -20,3 +20,9 @@ NOTICE text eol=lf
 *.mdb binary
 *.accdb binary
 *.adp binary
+
+# VBA modules are CRLF by convention, and the VBE importer can baulk at a
+# lone LF. Stored LF in the repository, checked out CRLF in the working tree,
+# so `git diff` stays clean and the file an operator imports into Access is
+# the shape Access expects.
+*.bas text eol=crlf
