@@ -31,7 +31,9 @@
     "{{TABLE_MAP_DOC}}",
     "{{EVIDENCE_CODE_DIR}}",
     "{{EVIDENCE_UI_DIR}}",
-    "{{EVIDENCE_OUTPUT_DIR}}"
+    "{{EVIDENCE_OUTPUT_DIR}}",
+    "{{EVIDENCE_INTERVIEW_DIR}}",
+    "{{EVIDENCE_DOCUMENT_DIR}}"
   ],
 
   "write_paths": [

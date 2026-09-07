@@ -33,6 +33,8 @@ Copy this file to your project's documentation root. Keep it under version contr
 | `EVIDENCE_CODE_DIR` | `{{EVIDENCE_CODE_DIR}}` | Exported forms, reports, VBA modules |
 | `EVIDENCE_UI_DIR` | `{{EVIDENCE_UI_DIR}}` | Screenshots of the legacy UI |
 | `EVIDENCE_OUTPUT_DIR` | `{{EVIDENCE_OUTPUT_DIR}}` | Legacy report output samples (PDF, Excel, text) |
+| `EVIDENCE_INTERVIEW_DIR` | `{{EVIDENCE_INTERVIEW_DIR}}` | Recorded answers from named people, dated - the only class besides a document that can carry a claim about meaning, usage or intent. `n/a` if none have been recorded, which is the honest value on a project that has only exports |
+| `EVIDENCE_DOCUMENT_DIR` | `{{EVIDENCE_DOCUMENT_DIR}}` | Business documents supplied for this application - operation manuals, data dictionaries, screen lists. `n/a` if none |
 | `AK_RUN_DIR` | `{{AK_RUN_DIR}}` | Root of a six-phase analysis run (contains `run-state.json`, and `Evidence.json` / `TraceabilityMatrix.csv` if the enriched tier was produced), or `n/a` if Stage 0 was manual export per `LEGACY_EVIDENCE.md` §6 |
 
 ## 3. Target Backend

@@ -80,6 +80,7 @@ Cite the item's `id` from the evidence register, not a hand-built path anchor. I
 | `source_sha256` | proof the cited source has not changed since the item was recorded |
 | `status` | `EXTRACTED` (read directly), `INFERRED` (reasoned from adjacent evidence), or `AMBIGUOUS` (sources conflict or evidence is thin) |
 | `source_language` | `EN` / `JA` / `VI`, so a reviewer knows what encoding or translation step applies |
+| `attribution` | who said it and when. `ak`'s `schemas/evidence.schema.json` requires it for an `INTERVIEW` item and enforces that with an `allOf`, so an answer in the register always names a person and a date; `question_id` names the `Q-` it closes. This is what a reviewer follows instead of a line number |
 
 **`status: AMBIGUOUS` promotes a finding automatically** — fold it into the Severity Ladder
 below as at least MEDIUM regardless of what the finding would otherwise classify as. The phase
@@ -106,11 +107,23 @@ which the phase documents reference but do not embed, even on a project with `Ev
 | Legacy output sample, paginated | `path page N` | `{{EVIDENCE_OUTPUT_DIR}}/order_report.pdf page 1` |
 | Screenshot, region matters | `path :: region description` | `{{EVIDENCE_UI_DIR}}/order_inquiry.png :: top toolbar` |
 | Screenshot, whole image | `path` | `{{EVIDENCE_UI_DIR}}/order_inquiry.png` |
+| Recorded interview answer, closing a numbered question | `path::Q-NNN` | `{{EVIDENCE_INTERVIEW_DIR}}/2026-09-07-operations.md::Q-19` |
+| Recorded interview answer, no question id | `path::person, YYYY-MM-DD` | `{{EVIDENCE_INTERVIEW_DIR}}/notes.md::Horiuchi, 2026-09-07` |
+| Business document, paginated | `path page N` | `{{EVIDENCE_DOCUMENT_DIR}}/operation_manual.pdf page 12` |
+| Business document, a named section | `path::section:Name` | `{{EVIDENCE_DOCUMENT_DIR}}/data_dictionary.xlsx::section:商品マスタ` |
 | Business flow section | `BF §N.M` | `BF §6.1` |
 | Screen plan section or row | `SP §N` / `SP §N row M` | `SP §4.2 row 7` |
 | Backend or frontend code | `path:line` | `{{BACKEND_ROOT}}/purchase/views/inquiry.py:23` |
 
 `::` separates a file from a sub-anchor. A bare `:` separates a file from a line number, following the convention editors understand.
+
+**An interview has to be written down to be citable, and that is the point rather than a
+limitation.** `ak`'s rule EC-01 makes `DOCUMENT` and `INTERVIEW` the only classes that can
+carry a claim about meaning, usage or intent - no volume of schema, code or definition text
+substitutes - so these are the anchors the most consequential claims in a business flow rest
+on. An answer that exists only in somebody's memory has no anchor, cannot be checked at G1,
+and reads identically to a guess. Record it in `{{EVIDENCE_INTERVIEW_DIR}}` with the person
+and the date, then cite the file.
 
 ## HIGH Confirmation Flow
 
