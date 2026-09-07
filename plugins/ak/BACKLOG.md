@@ -230,6 +230,28 @@ and so counted `Private Sub btn1_Click()` while skipping `Public Function 合計
 completeness check that under-counts procedures in a Japanese application is worse than
 none, and it took a test with a Japanese-named function to see it.
 
+**2026-09-07: the truncation produced a wrong answer, not a thin one.** A05's six
+inbound text files were traced for their consumers - which screen reads each one -
+across the bundle's 87 code objects. The trace found one reference each, all inside
+`本番テスト切替`, the production/test switch that cannot run, and none at all for two
+of the files. Read at face value that says no screen imports any of them.
+
+The real answer is that a single screen does: `メインメニュー`, through two buttons,
+`取り込み_Click` requiring `Order.txt`, `Dpshohin.csv` and `Dptenpo.csv`, and
+`取り込み幸松_Click` requiring `幸松受注.csv`, `２１受注.csv`, `２１商品.csv` and
+`Dptenpo.csv`. Both handlers begin past line 4,000 of a form the staging copy cut at
+1,642, so both were invisible. Re-running the same trace over `input/exports/` and the
+staging tree together reached 336 definitions and found them immediately.
+
+Two things this sharpens. First, the cost is not proportional to the fraction lost: a
+consumer trace returns *absence*, and absence from an incomplete corpus is
+indistinguishable from absence from a complete one - the reader has no signal that
+anything is missing. Second, the bundle carries **no** form definition text at all
+(`ui/forms/` holds only `inventory.json`), so any analysis reaching for form bodies is
+already outside the bundle and into `input/exports/`, where nothing has checked
+completeness. A completeness check that only ever runs at import would not have helped
+the trace; the figure needs to travel with the corpus so a later reader sees it.
+
 ### A16 - a bundle's identity ignores the code that assembled it
 
 **Observed 2026-09-04.** The bundle directory name and `bundle_id` derive from the
