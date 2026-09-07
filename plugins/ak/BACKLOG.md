@@ -455,6 +455,17 @@ against that one object rather than against the application as a whole.
 
 Closed entries name the commit that closed them and the run that proved it.
 
+- **A test read PowerShell's output in the host's locale, so it passed only where
+  the locale happened to fit** - `test_extract_ps1_safe_names_keep_the_original_object_name`
+  captured with `subprocess.run(text=True)`, which decodes using the host's preferred
+  encoding. The names under test are Japanese. On a cp932 workstation they decoded;
+  on the CI Windows runner, cp1252 raised `UnicodeDecodeError` inside subprocess's
+  reader thread, so `result.stdout` arrived as `None` and the failure surfaced as
+  `AttributeError: 'NoneType' object has no attribute 'splitlines'` - a message that
+  says nothing about encodings. The answer now crosses the pipe as base64 and is
+  decoded explicitly as UTF-8, and stderr is decoded with `errors="replace"` so a
+  failure path cannot raise the same way. What a console renders was never what this
+  test was about.
 - **The exporter asked the host which characters are illegal, so two hosts
   disagreed** - `Get-SafeName` in `extract_access.ps1` built its forbidden set from
   `[System.IO.Path]::GetInvalidFileNameChars()`, which returns the *running*

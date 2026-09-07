@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import base64
 import json
 import re
 import subprocess
@@ -362,16 +363,23 @@ def test_extract_ps1_safe_names_keep_the_original_object_name() -> None:
         "if ($m.Count -lt 2) { throw 'Get-SafeName/Get-NameDigest not found' };"
         "$m | ForEach-Object { Invoke-Expression $_.Value };"
         "$names = @('共通ルーチン','q受注データ','Form1','a/b','c:d','');"
-        "($names | ForEach-Object { Get-SafeName $_ }) -join [char]10"
+        "$out = ($names | ForEach-Object { Get-SafeName $_ }) -join [char]10;"
+        # Base64 so the answer crosses the pipe as ASCII. Written plainly, PowerShell
+        # emits it in the console code page and Python decodes it in the host locale:
+        # cp932 read the Japanese names fine, cp1252 on the CI runner raised
+        # UnicodeDecodeError inside subprocess's reader thread, which surfaced as
+        # `result.stdout is None` and a green suite everywhere the maintainer looked.
+        # The names are what is under test; how a console renders them is not.
+        "[Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes($out))"
     )
     result = subprocess.run(
         [powershell, "-NoProfile", "-NonInteractive", "-Command", command],
         check=False,
         capture_output=True,
-        text=True,
     )
-    assert result.returncode == 0, result.stderr
-    safe = [line.strip() for line in result.stdout.splitlines() if line.strip()]
+    assert result.returncode == 0, result.stderr.decode("utf-8", "replace")
+    payload = base64.b64decode(result.stdout.strip()).decode("utf-8")
+    safe = [line.strip() for line in payload.splitlines() if line.strip()]
     assert len(safe) == 6, safe
     assert len(set(safe)) == 6, f"safe names collide: {safe}"
     japanese, query, ascii_name, slash, colon, empty = safe
