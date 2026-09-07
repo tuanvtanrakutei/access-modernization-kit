@@ -12,6 +12,159 @@ that it should now work.
 
 ## Open
 
+### A19 - five of the six phases degrade without interview evidence, and all six run before any is collected
+
+**Observed 2026-09-07, reviewing where part 0's output actually goes.**
+`evidence-classes.yaml`'s `phase_evidence_needs` records, per phase, what the phase
+loses when a class is absent. Read down the `degraded_without` lists and one pattern
+is unmissable: phase 1, 2, 4, 5 and 6 all name `DOCUMENT` or `INTERVIEW`. Phase 3
+alone does not - it names `SAMPLE_DATA` and `OUTPUT_SAMPLE`, both artifacts rather
+than people.
+
+Phase 4's cost line is the sharpest of them: without `DOCUMENT` or `INTERVIEW`,
+"the workflows become code paths, not workflows."
+
+**There is no step that collects the class.** The command flow is `init` -> `assess`
+-> `acquire` -> `derive` -> `documents` -> `phase`/`run` -> `citations` -> `status`
+-> `render`. `$ak documents` normalizes documents that were already supplied; nothing
+in that sequence asks a person a question. `$ak meanings`, landed 2026-09-07, is the
+first thing in this kit that does, and it runs *after* the phases it would have fed.
+`orchestration/waves.json` then publishes all six strictly sequentially, so the order
+is not incidental - it is enforced.
+
+So the degradation is not a phase being written badly. It is a phase being required
+to publish before the class its own contract names, every time, by construction.
+
+**The same fact, seen from the other end.** `modernize/docs/LEGACY_EVIDENCE.md` 6.4
+records that phase 4's and phase 6's *content* is read by no script and cited by no
+Stage 1 instruction in the modernize pipeline - only their gate status matters. The
+two phases most dependent on evidence the pipeline never collects are also the two
+nobody downstream reads. Neither observation explains the other; both follow from the
+ordering.
+
+**What the six phases are actually for.** Two audiences were designed for - the
+modernize pipeline, and a stakeholder handover set - and a third was not written down:
+they are how a developer learns the system well enough to ask a useful question. That
+audience is real, and it is the strongest argument for keeping narrative at all. But
+A05 phase 1 section 2 marks the ceiling, and it was written *after* full extraction:
+"Seven copies of one shape; purpose not established from schema alone." Reading more
+does not cross EC-01. The phases make a developer able to ask; they do not make one
+able to answer.
+
+**What to change.**
+
+Phase 1 and phase 2's characteristic claims are STRUCTURE and UI_DEFINITION, and
+`$ak catalogues` already enumerates both at 100% where the narratives named 20 of 118
+tables (A14). Their enumerating half is now a second copy of a generated file; what
+is left is the meaning, which is exactly what they cannot supply unaided.
+
+Phase 3 is the only phase whose required class fully supports its characteristic
+claim - `CODE` `supports: [STRUCTURE, BEHAVIOUR]` - and the only one whose degradation
+list does not name a person. It should stay, and be the single LLM pass of part 0.
+
+Phases 4, 5 and 6 move after collection. Once they are downstream of an answer rather
+than upstream of one, there is no longer a reason for three documents where one brief
+would do.
+
+Add the collection step. `$ak meanings` is already the right shape and the wrong
+scope: the machine enumerates the blanks, ranks them by `write_profile` and reference
+count, a person fills them, and nothing is ever proposed. Generalize it past tables
+and columns to screens, workflows and boundaries, and the question set stays closed
+and countable - which is the property that keeps the collection from becoming an
+open-ended conversation, and the brief from growing past what someone actually
+answered.
+
+**What this does not settle.**
+
+*The anchor.* `TRACEBACK_GATES.md` anchors evidence as `file::Routine():start-end`.
+An answer has no line number. Unless `INTERVIEW` gets an anchor form of its own,
+G1 will report a coverage gap on precisely the claims with the best sources.
+
+*Who answered.* `contracts/meanings.py` requires a `source`, but nothing distinguishes
+the person who knows from the person who typed. A developer answering a MEANING
+question is INFERRED, not INTERVIEW, and the difference is invisible in the file.
+Related to A18, which has to be settled first: the file cannot say which classes may
+carry a meaning while its own two halves disagree.
+
+*The blast radius, which is smaller than it looks.* Exactly three places read phase
+output: `MASTER_WORKFLOW.md`'s pre-flight check on `phase_gates` for
+phase2/phase4/phase6, `scan_phase2_inventory.py` reading phase 2 section 1 to seed the
+registry, and `LEGACY_EVIDENCE.md` 6.1's enriched-tier table. Phase 4 and phase 6 can
+be demoted to optional deliverables today without touching any of the three.
+
+Found by asking where each phase document's content is read, rather than whether it
+was published - the question the gates do not ask, and the same blind spot as A13.
+
+### A18 - the class table and rule EC-01 disagree about OPERATOR_DECLARATION, in one file
+
+**Observed 2026-09-07, writing the meanings worklist.** `evidence-classes.yaml` defines
+`OPERATOR_DECLARATION` with `cannot_support: [BEHAVIOUR, FORMAT, MEANING, USAGE,
+INTENT]` and a note that reads "a declaration about the inputs, not a source of
+business knowledge". Forty lines below, in the same file, rule EC-01 says a MEANING,
+USAGE or INTENT claim "requires DOCUMENT, INTERVIEW **or OPERATOR_DECLARATION**".
+
+One of them has to go, and until one does the kit contradicts itself in a way that is
+now enforced: `_ec01_violations`, added 2026-09-04, evaluates `cannot_support`, so it
+would report as a violation exactly what the rule beside it permits. Nobody has hit
+this only because no register has carried an `OPERATOR_DECLARATION` item with
+`claim_kind: MEANING` yet.
+
+It reaches further than the taxonomy. `contracts/meanings.py` lists
+`OPERATOR_DECLARATION` in `VALID_CLASSES`, so a business meaning recorded that way in
+`meanings.yaml` is accepted and rendered into the catalogue today; and
+`build_references.py` describes `input/decisions/` as "OPERATOR_DECLARATION — accepted
+names and recorded meanings". Two parts of the kit are built on the permissive reading
+and one checker on the strict one.
+
+**Which is probably right.** The class note is the more considered of the two - it
+states a scope ("which artifact is the backend, which copy is current") and a reason.
+EC-01's third option reads like it was added to a list. If the strict reading wins,
+`VALID_CLASSES` should lose the class and the guidance should say what it now says:
+that an answer from a conversation is an INTERVIEW, named and dated. If the permissive
+reading wins, the class table needs a second `supports` line and the note needs
+rewriting, because "not a source of business knowledge" cannot stand beside it.
+
+Found the same way as every A13 instance: by using the apparatus rather than testing
+it. The worklist's header had to tell an operator which class to write, and there was
+no answer that both halves of one file agreed with.
+
+### A17 - the two tables that define a text link's columns are excluded as system tables
+
+**Observed 2026-09-04, on A05.** A05 links six delimited text files, every one of
+them declaring `FMT=Delimited;HDR=NO;IMEX=2` and `DSN=<spec name>`. With `HDR=NO`
+there is no header row, so the column meaning is positional, and the `DSN=` says
+where the positions are defined: `MSysIMEXSpecs` and `MSysIMEXColumns`, inside the
+MDB.
+
+The extractor excludes both, by name, as system tables - alongside `MSysObjects`,
+`MSysQueries` and the rest. For a text link with an IMEX spec those two are not
+system noise; **they are the boundary contract**, and they are the only copy of it
+that does not depend on the upstream file being reachable.
+
+That mattered here because the other record failed too. All six linked tables
+reported `read_error` - *"could not find the object 'order.txt'"* - with `columns: 0`,
+because the `L:` share was not mounted when the database was acquired. Access cannot
+enumerate a text link's columns without reading the file. So the layout of the entire
+inbound boundary was unreachable from a bundle that otherwise passed every gate, and
+Phase 3 §4 was published as inference on that basis.
+
+It was closed by supplying samples, which is the right evidence for a FORMAT claim
+under EC-02 and should stay that way. But the samples settled it only by luck: three
+of the six arrived carrying a header row and matching a headerless file
+column-for-column. Without that coincidence, six sample files with no header would
+have shown the *values* and still not named the columns.
+
+**What to change.** Exclude the `MSys*` tables as a default, not as a rule, and
+capture `MSysIMEXSpecs` and `MSysIMEXColumns` whenever any link's connect string
+contains `DSN=` - which is cheap to detect, since the connect strings are already
+read. Two consequences follow: a text link's declared columns become available as
+`SCHEMA` evidence independent of the file, and the more useful check becomes possible
+- comparing what the spec declares against what a supplied sample contains, which is
+where a sender that has quietly added a column shows up.
+
+Both tables are ordinary Jet tables and readable through DAO; `MSysIMEXColumns` has
+one row per column with its name, data type, position and width.
+
 ### A15 - an imported export's completeness is never checked, only its integrity
 
 **Observed 2026-09-04, on A05.** The imported-sources adapter verifies every file
@@ -34,6 +187,49 @@ mid-object. `メインメニュー` ended on a complete `End Sub`, so even that 
 fired here. The honest version of this entry is that **the check is not obvious**, and
 that the fallback until one exists is to re-export and diff, which is what found it.
 
+**Changed 2026-09-07, not closed.** `$ak completeness` records each object's
+definition-text shape - lines, `Begin`/`End` blocks, procedures - into
+`.ak/extracted/object-shapes.json`, and compares it against the last record and
+against the other acquisition route. It does not claim to be the missing check, and
+`contracts/export_completeness.py` says so where somebody reading it will see: one
+observation of a file cannot establish that the exporter wrote all of it, which is
+exactly why A05 got through. What changed is that the diff which found this now
+happens without anybody deciding to do it - the two routes' readings of `メインメニュー`
+sat in one workspace the whole time - and that a first export, which can be compared
+with nothing, leaves something for the second to disagree with. Disagreement is
+reported in both directions: A05's correction arrived as a *rise*, so a rule watching
+only for drops would have been silent at the moment the evidence appeared.
+
+**Run on A05 the same day, and it reproduces this entry's numbers unaided.** 207
+objects measured, 123 of them acquired by both routes, 71 cross-route disagreements.
+Among them, verbatim:
+
+    ROUTES  WINDOWS11_45D0FDDD:form:メインメニュー: procedure(s): 21 then, 45 now
+    ROUTES  WINDOWS11_45D0FDDD:form:メインメニュー: line(s): 1642 then, 4886 now
+
+21 of 45 and 1,642 of 4,886 are the figures at the top of this entry, arrived at by
+hand. The staging copy is still the first, incomplete export - 91,119 bytes, 1,642
+lines, ending on a clean `End Sub` - and the corrected one has been in the bundle
+since 2026-09-04. Both sat in the workspace the whole time. That is the part worth
+keeping: the evidence was never missing, only uncompared.
+
+One prediction in this entry is wrong, in the useful direction. It says a definition
+ending mid-object would not have fired, and that is right - the file ends on a complete
+`End Sub`. But **block balance does fire**: content was lost from the middle, not the
+end, so 27 staging objects report more `Begin` than `End`, `メインメニュー` among them at
+77 against 68. The heuristic dismissed as useless catches this after all, because it
+asks about the whole file rather than its last line.
+
+Closing this still wants the case it was written for - a fresh re-export imported and
+the difference named before a person looks - rather than the historical one it has just
+re-derived.
+
+Writing it also cost the check its own near-miss, which belongs here because it is the
+same class of defect as the one being fixed: the procedure pattern ended `[A-Za-z0-9_]`
+and so counted `Private Sub btn1_Click()` while skipping `Public Function 合計()`. A
+completeness check that under-counts procedures in a Japanese application is worse than
+none, and it took a test with a Japanese-named function to see it.
+
 ### A16 - a bundle's identity ignores the code that assembled it
 
 **Observed 2026-09-04.** The bundle directory name and `bundle_id` derive from the
@@ -47,6 +243,18 @@ The identity should include the assembly's own version, so a re-assembly of the 
 sources by different code is a different bundle and both can be kept. That also makes
 "which code produced this bundle" answerable from the bundle, which it currently is
 not.
+
+**Changed 2026-09-07, not closed.** `assembly_version` is in the identity, computed as
+a digest of `bundle_assembly.py` rather than declared: a version somebody has to
+remember to bump is wrong exactly when it matters, because the defect being fixed is
+always the one that changed the output. A comment-only edit therefore also yields a new
+id, which wastes a directory - the cheaper of the two mistakes by a wide margin.
+`provenance.json` states it too, since a digest cannot be read back out of an id and
+"was this built before or after the deduplication fix" is a real question about a
+bundle nobody watched being built. `BUNDLE_PATH_CONFLICT` now means what it always
+sounded like: both causes the kit knows about are in the identity, so what is left is
+something outside the kit writing into a published bundle. Closing this wants the
+re-assembly that used to fail.
 
 ### A13 - nothing checks the checkers against the contracts they enforce
 
