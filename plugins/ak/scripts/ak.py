@@ -154,6 +154,18 @@ def parse_args() -> argparse.Namespace:
     glossary.add_argument("--app-root", required=True)
     glossary.add_argument("--dry-run", action="store_true")
 
+    meanings = commands.add_parser(
+        "meanings",
+        help="List every table and column still needing a business meaning, blank, "
+             "for a person to fill.",
+    )
+    meanings.add_argument("--app-root", required=True)
+    meanings.add_argument(
+        "--top", type=int,
+        help="Only add the N highest-priority subjects per section.",
+    )
+    meanings.add_argument("--dry-run", action="store_true")
+
     catalogues = commands.add_parser(
         "catalogues",
         help="Generate the exhaustive per-entity catalogues from the acquisition bundle.",
@@ -411,6 +423,14 @@ def main() -> int:
         if args.dry_run:
             glossary_args.append("--dry-run")
         return run("build_glossary.py", *glossary_args)
+
+    if args.command == "meanings":
+        meaning_args = ["--app-root", args.app_root]
+        if args.top:
+            meaning_args += ["--top", str(args.top)]
+        if args.dry_run:
+            meaning_args.append("--dry-run")
+        return run("build_meanings.py", *meaning_args)
 
     if args.command == "catalogues":
         catalogue_args = ["--app-root", args.app_root]

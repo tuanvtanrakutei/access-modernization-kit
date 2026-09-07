@@ -914,6 +914,11 @@ def main() -> int:
         space.input_dir("decisions") / "meanings.yaml")
     for problem in meaning.incomplete:
         print(f"meanings.yaml: ignored, {problem}")
+    if meaning.unfilled:
+        # One line, not one per subject: these are the blank entries `$ak meanings`
+        # wrote, and a worklist is not a list of defects.
+        print(f"meanings.yaml: {len(meaning.unfilled)} subject(s) still blank, so "
+              f"their cells read {NEEDS_DOC}")
 
     written: list[str] = []
     catalogues = {

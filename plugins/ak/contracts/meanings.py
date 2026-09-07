@@ -19,10 +19,17 @@ this kit in one rule: an entry must name where the meaning came from, because
 "somebody said so at some point" is exactly the kind of claim that becomes a fact by
 repetition. An entry missing `source` is reported as incomplete and the cell keeps
 reading `_needs DOCUMENT_`.
+
+An entry nobody has touched yet is a different thing, and is counted rather than
+reported. `$ak meanings` writes a blank entry for every subject that needs one, so
+"no meaning; no source; no class" describes 1,176 A05 subjects on the first run - and
+a refusal printed 1,176 times is not a refusal anybody reads. The line is drawn at
+the first keystroke: an entry carrying *any* of the three fields is being worked on,
+and is held to all three.
 """
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 
 # What may be cited as a source, matching evidence-classes.yaml. A name is not a
@@ -55,6 +62,9 @@ class Meanings:
     tables: dict[str, Meaning]
     columns: dict[str, Meaning]
     incomplete: list[str]
+    # Subjects with a blank entry waiting to be filled. Counted, never listed: this is
+    # the worklist `$ak meanings` wrote, not a set of defects.
+    unfilled: list[str] = field(default_factory=list)
 
     def table(self, name: str) -> Meaning | None:
         entry = self.tables.get(name)
@@ -84,6 +94,7 @@ def load(path: Path) -> Meanings:
     tables: dict[str, Meaning] = {}
     columns: dict[str, Meaning] = {}
     incomplete: list[str] = []
+    unfilled: list[str] = []
     for section, target in (("tables", tables), ("columns", columns)):
         for subject, entry in (data.get(section) or {}).items():
             if not isinstance(entry, dict):
@@ -97,6 +108,11 @@ def load(path: Path) -> Meanings:
                 role=str(entry.get("role", "") or "").strip(),
             )
             if not meaning.is_complete:
+                if not (meaning.text or meaning.source or meaning.evidence_class):
+                    # A blank entry from the worklist. Nobody has claimed anything, so
+                    # there is nothing to refuse.
+                    unfilled.append(f"{section}/{subject}")
+                    continue
                 why = []
                 if not meaning.text:
                     why.append("no meaning")
@@ -108,4 +124,4 @@ def load(path: Path) -> Meanings:
                 incomplete.append(f"{section}/{subject}: " + "; ".join(why))
                 continue
             target[str(subject)] = meaning
-    return Meanings(tables, columns, incomplete)
+    return Meanings(tables, columns, incomplete, unfilled)

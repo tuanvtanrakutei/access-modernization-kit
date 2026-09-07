@@ -134,3 +134,56 @@ tables:
     loaded = m.load(path)
     assert loaded.tables == {}
     assert any("not a mapping" in problem for problem in loaded.incomplete)
+
+
+def test_a_blank_entry_is_counted_not_refused(tmp_path: Path) -> None:
+    """`$ak meanings` writes 1,176 of these on its first run over A05.
+
+    A refusal printed 1,176 times is not a refusal anybody reads, so a blank entry is
+    counted as work outstanding rather than reported as a defect. The cell still reads
+    `_needs DOCUMENT_` either way - what changes is whether the real refusals below are
+    visible among them.
+    """
+    path = write(tmp_path / "meanings.yaml", """
+tables:
+  受注データ:
+    meaning: ""
+    evidence_class: ""
+    source: ""
+""")
+    loaded = m.load(path)
+    assert loaded.table("受注データ") is None
+    assert loaded.incomplete == []
+    assert loaded.unfilled == ["tables/受注データ"]
+
+
+def test_the_first_keystroke_makes_an_entry_answerable(tmp_path: Path) -> None:
+    """Anything typed into an entry holds it to all three fields.
+
+    Otherwise a half-written entry - a meaning somebody started and did not source -
+    would hide among the blanks, which is the one case the count must not swallow.
+    """
+    path = write(tmp_path / "meanings.yaml", """
+tables:
+  受注データ:
+    meaning: Orders, I think.
+    evidence_class: ""
+    source: ""
+""")
+    loaded = m.load(path)
+    assert loaded.unfilled == []
+    assert any("no source" in problem for problem in loaded.incomplete)
+
+
+def test_a_source_with_no_meaning_is_reported_too(tmp_path: Path) -> None:
+    """The mirror case: somebody named a document and never wrote the sentence."""
+    path = write(tmp_path / "meanings.yaml", """
+columns:
+  出荷数量:
+    meaning: ""
+    evidence_class: DOCUMENT
+    source: function list v3 p.12
+""")
+    loaded = m.load(path)
+    assert loaded.unfilled == []
+    assert any("no meaning" in problem for problem in loaded.incomplete)

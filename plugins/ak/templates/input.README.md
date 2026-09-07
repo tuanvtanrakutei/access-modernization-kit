@@ -73,6 +73,20 @@ widths: those are the thing being read.
 That last rule is the same discipline the kit applies to itself: a meaning with no
 source is the kind of claim that becomes a fact by repetition.
 
+Neither file is one you start from a blank page. `$ak glossary` proposes a name for
+every production name, and `$ak meanings` writes a **blank** entry for every table and
+column that still needs a meaning, ordered so the ones the application actually uses
+come first, each with what the kit knows beside it — who writes the table, how many
+objects name it. Run `$ak meanings --top 50` to start somewhere; a later run adds the
+rest and never touches what you have written.
+
+The asymmetry is deliberate. A name can be proposed because it is composed from terms
+that were themselves decided; a meaning cannot be composed from anything, so the tool
+offers you the question and never the answer. **You may be the answer** — if you know
+what a table is for, write it with `evidence_class: OPERATOR_DECLARATION` and your
+name and the date. That is a real claim with somebody answerable for it, which is all
+the rule has ever asked for.
+
 ---
 
 ## Getting more out of Access
