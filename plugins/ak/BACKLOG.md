@@ -470,7 +470,8 @@ Closed entries name the commit that closed them and the run that proved it.
   source, and the class for a source who is a person is `INTERVIEW`, named and dated.
   The refusal costs an operator nothing, which is why it is safe: the identical sentence
   is accepted the moment it carries a name and a date, and that is what the test
-  demonstrates. Proven by `test_a_meaning_declared_by_the_operator_is_refused` and by
+  demonstrates. `9019814`. Proven by
+  `test_a_meaning_declared_by_the_operator_is_refused` and by
   `test_a_rule_may_not_offer_a_class_its_own_table_forbids`, which compares EC-01's
   prose against the table it sits beside and fails against the wording just removed -
   the A13 check applied inside a single file, which is what was missing.
