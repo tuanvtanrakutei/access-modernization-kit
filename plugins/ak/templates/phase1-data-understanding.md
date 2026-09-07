@@ -64,34 +64,50 @@ a translation reads like a definition and is not one.
 
 ## 2. Table and Column Inventory
 
-### 2.1 By role
+<!-- The inventory is `{{APP_ID}}_DataCatalogue.md`, generated from the bundle:
+     every table, every column, every index, the declared relationships. Do not
+     restate it here. Measured against A05's bundle, the first run's narrative named
+     20 of 118 tables, 4 of 328 distinct column names and 5 of 77 queries - every
+     aggregate figure correct, and almost nothing that was counted named (A14). A
+     narrative cannot carry 1,055 columns, and a second copy carrying a sixth of
+     them is worse than a citation, because it reads like the whole set.
+
+     Quote every figure below from the catalogue instead of counting again. Two
+     counts of one thing is how E-07 reached publication - 37 unreferenced objects
+     published against 26 actual - and the reconciliation nobody has written yet.
+
+     What the data *means* is not here and is not dropped: it is section 3, which
+     already asks for the entities the business runs on and what a replacement must
+     preserve. This section is the shape of the set and the rule behind a grouping;
+     section 3 is the claim about what any of it is for. -->
+
+### 2.1 Shape of the set
+
+| | Count | Read from |
+|---|---:|---|
+| Tables | | `{{APP_ID}}_DataCatalogue.md` |
+| Columns | | `{{APP_ID}}_DataCatalogue.md` |
+| Without a primary key | | `{{APP_ID}}_DataCatalogue.md` |
+| Business meaning recorded | | `input/decisions/meanings.yaml` |
+| Business meaning not established | | the catalogue's marked cells |
+
+<!-- The last two rows are the honest half of this section and must never be omitted
+     to make the phase look complete. The second set is not listed here either: `$ak
+     meanings` writes it, ranked by who writes the table and how many objects name
+     it, so an operator can start somewhere rather than at a blank page of 1,176. -->
+
+### 2.2 By role
 
 <!-- Grouping by name prefix or connect string is an INTERPRETATION, not something
      the database declares. Say which rule produced the grouping and label the
-     result as interpreted. -->
+     result as interpreted. A `role` a person actually sourced lives in
+     `meanings.yaml` and the catalogue prints it; this section is for the rule that
+     produced a grouping, not for a second copy of the rows. -->
 
-| Role | Tables | Without a primary key | How they were identified |
-|---|---:|---:|---|
+| Role | Tables | Without a primary key | How they were identified | Interpreted or sourced |
+|---|---:|---:|---|---|
 
-### 2.2 Per table
-
-<!-- One row per table. `Business meaning` is a MEANING claim: it needs a DOCUMENT
-     or INTERVIEW citation, or it does not go here. Do not paraphrase the table's
-     own name into the meaning column - rule EC-03. -->
-
-| Table | Cols | Primary key | Business meaning | Evidence |
-|---|---:|---|---|---|
-
-### 2.3 Meaning not established
-
-<!-- Every table absent from §2.2 appears here. This list is the honest half of the
-     inventory and must never be omitted to make the phase look complete. Say which
-     evidence class would settle each - that is what the operator goes and fetches. -->
-
-| Table | Shape | What would settle it |
-|---|---|---|
-
-### 2.4 Naming conventions the application uses
+### 2.3 Naming conventions the application uses
 
 <!-- Prefixes, suffixes, dated snapshots, numbered duplicates - the application's
      own vocabulary, which a migration has to decide what to do with. -->
