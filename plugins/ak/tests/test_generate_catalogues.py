@@ -355,6 +355,39 @@ def test_a_clean_application_says_so_rather_than_showing_an_empty_table(
     assert "Every table and query named in a saved query or a screen record "            "source exists" in logic
 
 
+def test_a_recorded_screen_meaning_reaches_the_catalogue(workspace: Path) -> None:  # noqa: F811
+    """`Business purpose` was hard-coded to the marker, so the column could not change.
+
+    Tables and columns have been fillable from `meanings.yaml` since that file existed;
+    screens could not, so every row of this catalogue asserted a gap rather than
+    reporting one - and `$ak meanings` had nothing to write a screen entry into. A
+    column that cannot change is worse than a missing column, because it looks answered
+    when somebody answers it and it is not.
+    """
+    screens = build(workspace)["T01_ScreenCatalogue.md"]
+    assert catalogues.NEEDS_DOC in screens
+
+    target = workspace / "input" / "decisions" / "meanings.yaml"
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_text("""
+screens:
+  "form メインメニュー":
+    meaning: The startup form; every day's work begins by choosing a task here.
+    evidence_class: INTERVIEW
+    source: 業務課 (堀内), 2026-09-07, asked by Vo Ta Tuan
+""", encoding="utf-8")
+
+    screens = build(workspace)["T01_ScreenCatalogue.md"]
+    assert "every day's work begins by choosing a task here" in screens
+    # The citation travels with it - a meaning without its source is the claim this
+    # kit exists to refuse.
+    assert "INTERVIEW: 業務課 (堀内), 2026-09-07" in screens
+    # A form and a report share a name in this fixture; only the form was answered.
+    row = next(line for line in screens.splitlines()
+               if "ピッキングリスト" in line and line.startswith("|"))
+    assert catalogues.NEEDS_DOC in row
+
+
 # --- the table has to be a table --------------------------------------------
 
 

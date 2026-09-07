@@ -117,6 +117,11 @@ HEADER = """# Business meaning, per table and per column. You own this file.
 BLANK = {"meaning": "", "evidence_class": "", "source": ""}
 BLANK_TABLE = {"role": "", **BLANK}
 
+# The sections this tool writes. Anything else in the file is carried through as text
+# by `unmanaged()` - a real A05 file had a sourced `system:` section that a rewrite
+# from the parsed sections would have deleted.
+MANAGED_SECTIONS = ("tables", "columns", "screens")
+
 
 def quote(text: str) -> str:
     """YAML-safe key. Quoted always, because `No` is a boolean in YAML 1.1."""
@@ -134,11 +139,12 @@ def render(value: Any) -> str:
 def existing(path: Path) -> dict[str, dict[str, dict[str, Any]]]:
     """Every entry already in the file, per section. Kept verbatim."""
     if not path.is_file():
-        return {"tables": {}, "columns": {}}
+        return {section: {} for section in MANAGED_SECTIONS}
     import yaml
 
     data = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
-    found: dict[str, dict[str, dict[str, Any]]] = {"tables": {}, "columns": {}}
+    found: dict[str, dict[str, dict[str, Any]]] = {
+        section: {} for section in MANAGED_SECTIONS}
     for section in found:
         for subject, entry in (data.get(section) or {}).items():
             if isinstance(entry, dict):
@@ -146,7 +152,6 @@ def existing(path: Path) -> dict[str, dict[str, dict[str, Any]]]:
     return found
 
 
-MANAGED_SECTIONS = ("tables", "columns")
 TOP_LEVEL_KEY = re.compile(r"^([A-Za-z_][A-Za-z0-9_-]*):")
 
 
@@ -231,6 +236,61 @@ def table_subjects(bundle: Path, writes: Any,
         if sql_contract.is_work_table(name):
             note += "; work table by naming convention, which is not a guarantee"
         subjects.append((name, note, (-names_it, -len(writers), -max(counts), name)))
+    return subjects
+
+
+def screen_subjects(bundle: Path, facts_dir: Path,
+                    referenced: dict[tuple[str, str, str], int],
+                    ) -> list[tuple[str, str, tuple]]:
+    """Every form and report, with what the definition already says about it.
+
+    Keyed `"{kind} {name}"`. A form and a report may share a name - A05 has two objects
+    called the same thing - so keying by name alone would make them one question and
+    silently drop one, which is the duplicate-key defect the table section already had
+    to be fixed for.
+
+    The note is USAGE and STRUCTURE evidence informing the question, not answering it.
+    A person filling in a form with 14 event procedures that 3 objects open knows it is
+    worth getting right; one with no record source and nothing opening it knows to ask
+    whether it is still reachable at all.
+    """
+    facts: dict[tuple[str, str, str], dict] = {}
+    for path in sorted(facts_dir.glob("*.md")) if facts_dir.is_dir() else []:
+        parsed = catalogues.parse_fact(path.read_text(encoding="utf-8"))
+        if parsed:
+            facts[(parsed["database"], parsed["kind"], parsed["name"])] = parsed
+
+    grouped: dict[tuple[str, str], list[str]] = defaultdict(list)
+    for kind, container in (("form", "forms"), ("report", "reports")):
+        for item in catalogues.rows_of(catalogues.read_json(
+                bundle / "ui" / container / "inventory.json")):
+            if item.get("name"):
+                grouped[(kind, str(item["name"]))].append(
+                    str(item.get("database_id", "")))
+
+    subjects = []
+    for (kind, name), databases in grouped.items():
+        databases = sorted(set(databases))
+        opens = sum(referenced.get((database, kind, name), 0)
+                    for database in databases)
+        events = bound = 0
+        sources: set[str] = set()
+        for database in databases:
+            fact = facts.get((database, kind, name)) or {}
+            events = max(events, len(fact.get("event_procedures") or []))
+            bound = max(bound, len(fact.get("bound_fields") or []))
+            if fact.get("record_source"):
+                sources.add(str(fact["record_source"]))
+        where = (f"in {len(databases)} databases ({', '.join(databases)}); "
+                 if len(databases) > 1 else "")
+        source = (f"record source `{'` or `'.join(sorted(sources))}`"
+                  if sources else "no record source declared")
+        note = (f"{kind}; {where}{source}; {bound} bound field(s); "
+                f"{events} event procedure(s); opened by {opens} object(s)")
+        if not opens:
+            note += ("; no code path opens it, which is unreachability and not disuse "
+                     "- a navigation pane or a custom menu may still reach it (EC-05)")
+        subjects.append((f"{kind} {name}", note, (-opens, -events, -bound, kind, name)))
     return subjects
 
 
@@ -335,6 +395,7 @@ def main() -> int:
     sections = {
         "tables": table_subjects(bundle, writes, referenced, fields),
         "columns": column_subjects(fields, catalogues.load_types()),
+        "screens": screen_subjects(bundle, facts_dir, referenced),
     }
 
     lines = [HEADER.rstrip(), ""]
@@ -365,8 +426,8 @@ def main() -> int:
     print(f"\nwrote {target}")
     added = sum(c["added"] for c in summary.values())
     if added:
-        print("Every added entry is blank, and blank is the honest state: no schema "
-              "and no analysis can say what a table is for.")
+        print("Every added entry is blank, and blank is the honest state: no schema, "
+              "no definition text and no analysis can say what a thing is for.")
         print("Fill what you know, name a source for each - you may be the source, "
               "recorded as INTERVIEW with your name and the date - then re-run "
               "`$ak catalogues`.")

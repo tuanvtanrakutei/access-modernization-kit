@@ -265,6 +265,18 @@ def column_meaning(meaning: Any, table: str, column: str) -> str:
     return escape(entry.cite()) if entry else NEEDS_DOC
 
 
+def screen_meaning(meaning: Any, kind: str, name: str) -> str:
+    """What a form or report is for. Hard-coded to the marker until 2.10.
+
+    Tables and columns could be filled from `meanings.yaml` since that file existed;
+    screens could not, so every row of this catalogue's `Business purpose` column read
+    `_needs DOCUMENT_` whatever anybody recorded. A column that cannot change is not a
+    gap being reported, it is a gap being asserted.
+    """
+    entry = meaning.screen(kind, name)
+    return escape(entry.cite()) if entry else NEEDS_DOC
+
+
 def target_proposal(field: dict, types: dict[int, dict[str, str]]) -> str:
     """A proposed target type, marked as a proposal, with the byte trap called out.
 
@@ -604,7 +616,7 @@ def data_catalogue(app_id: str, bundle: Path, types: dict[int, dict[str, str]],
 
 
 def screen_catalogue(app_id: str, bundle: Path, facts_dir: Path,
-                     derived: dict | None, naming: Any) -> str:
+                     derived: dict | None, naming: Any, meaning: Any) -> str:
     forms = rows_of(read_json(bundle / "ui" / "forms" / "inventory.json"))
     reports = rows_of(read_json(bundle / "ui" / "reports" / "inventory.json"))
     macros = rows_of(read_json(bundle / "ui" / "macros" / "inventory.json"))
@@ -658,7 +670,8 @@ def screen_catalogue(app_id: str, bundle: Path, facts_dir: Path,
                 f"{('`' + escape(source) + '`') if source else '**none declared**'} | "
                 f"{len(bound)} | {len(events)} | "
                 f"{('`' + '`, `'.join(escape(c) for c in controls) + '`') if controls else '—'} | "
-                f"{referenced.get((database, kind, name), 0)} | {NEEDS_DOC} |"
+                f"{referenced.get((database, kind, name), 0)} | "
+                f"{screen_meaning(meaning, kind, name)} |"
             )
         out.append("")
 
@@ -926,7 +939,7 @@ def main() -> int:
         f"{app_id}_DataCatalogue.md": data_catalogue(
             app_id, bundle, types, sql, naming, writes, meaning),
         f"{app_id}_ScreenCatalogue.md": screen_catalogue(
-            app_id, bundle, space.extracted("ui-facts"), derived, naming),
+            app_id, bundle, space.extracted("ui-facts"), derived, naming, meaning),
         f"{app_id}_LogicCatalogue.md": logic_catalogue(
             app_id, bundle, derived, sql, naming),
     }
