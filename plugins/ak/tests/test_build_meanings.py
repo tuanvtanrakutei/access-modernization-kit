@@ -155,3 +155,74 @@ def test_the_file_it_writes_parses_as_yaml(workspace: Path) -> None:  # noqa: F8
     data = yaml.safe_load(run(workspace))
     assert "No" in data["tables"], "an unquoted No is the boolean False in YAML 1.1"
     assert "受注 # 仮" in data["tables"], "a # would otherwise start a comment"
+
+
+def test_a_section_this_tool_does_not_manage_survives(workspace: Path) -> None:  # noqa: F811
+    """Found by running the first version against the real A05 workspace.
+
+    Its `meanings.yaml` carried a third section, `system:`, holding a sourced
+    DOCUMENT-class statement of what the whole application is for, plus a note saying
+    why the per-table meanings below it were still empty. Rewriting the file from its
+    parsed `tables` and `columns` would have deleted both without a word - a tool that
+    destroys sourced evidence while helping you record more of it.
+    """
+    target = workspace / "input" / "decisions" / "meanings.yaml"
+    target.parent.mkdir(parents=True, exist_ok=True)
+    io.open(target, "w", encoding="utf-8", newline="\n").write("""
+tables:
+
+# --- recorded 2026-09-03 from the supplied system inventory ---
+# The document is a system inventory, not a data dictionary, which is why the
+# per-table meanings are still empty.
+
+system:
+  A05:
+    meaning: Printing the lists used by 入出庫課 and 運送課.
+    evidence_class: DOCUMENT
+    source: SMSシステム一覧 20241015.xlsx, row 11
+""")
+    text = run(workspace)
+    assert "system:" in text
+    assert "Printing the lists used by 入出庫課" in text
+    # The comment explaining it travels with it: it is often the only record of why
+    # the entry reads the way it does.
+    assert "not a data dictionary" in text
+    # And the managed sections were still filled in alongside.
+    assert '"受注データ":' in text
+
+
+def test_an_unmanaged_section_still_parses_after_a_rewrite(workspace: Path) -> None:  # noqa: F811
+    import yaml
+
+    target = workspace / "input" / "decisions" / "meanings.yaml"
+    target.parent.mkdir(parents=True, exist_ok=True)
+    io.open(target, "w", encoding="utf-8", newline="\n").write(
+        "system:\n  A05:\n    meaning: x\n    evidence_class: DOCUMENT\n"
+        "    source: y\n")
+    data = yaml.safe_load(run(workspace))
+    assert data["system"]["A05"]["source"] == "y"
+    assert "tables" in data and "columns" in data
+
+
+def test_one_name_in_two_databases_is_one_entry(workspace: Path) -> None:  # noqa: F811
+    """`contracts/meanings.py` resolves a table meaning by name alone.
+
+    Emitting one key per database put a duplicate key in the YAML, where the last
+    silently wins. On the real A05 workspace that turned 121 subjects into 118 entries
+    and lost three tables' notes - `商品情報` among them, which the evidence request has
+    an open question about precisely because it exists in both databases.
+    """
+    import yaml
+
+    tables = workspace / ".ak" / "bundles" / "bundle-abc" / "databases" / "tables.json"
+    io.open(tables, "w", encoding="utf-8", newline="\n").write(
+        '[{"database_id": "%s", "name": "商品情報", "kind": "table", "metadata": {}},'
+        ' {"database_id": "%s", "name": "商品情報", "kind": "table", "metadata": {}}]'
+        % (BE, FE))
+    text = run(workspace)
+    assert text.count('  "商品情報":') == 1
+    data = yaml.safe_load(text)
+    assert len(data["tables"]) == 1
+    # And the note says it is in both, which is the fact that makes it worth asking.
+    assert any("in 2 databases" in line and BE in line and FE in line
+               for line in text.splitlines() if line.strip().startswith("#"))

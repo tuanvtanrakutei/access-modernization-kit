@@ -82,10 +82,14 @@ rest and never touches what you have written.
 
 The asymmetry is deliberate. A name can be proposed because it is composed from terms
 that were themselves decided; a meaning cannot be composed from anything, so the tool
-offers you the question and never the answer. **You may be the answer** — if you know
-what a table is for, write it with `evidence_class: OPERATOR_DECLARATION` and your
-name and the date. That is a real claim with somebody answerable for it, which is all
-the rule has ever asked for.
+offers you the question and never the answer.
+
+**An answer from a conversation counts.** Record it as `INTERVIEW` with who said it and
+when — a name and a date is the whole requirement, and a remark at somebody's desk is
+an interview if you write down whose remark it was. What does *not* count is what you
+worked out from reading the code: that is CODE, and rule EC-01 says no volume of it
+establishes what a table is for, however careful the reading. Ask, then record the
+answer.
 
 ---
 

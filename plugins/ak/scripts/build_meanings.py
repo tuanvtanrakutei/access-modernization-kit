@@ -37,6 +37,7 @@ from __future__ import annotations
 
 import argparse
 import io
+import re
 import sys
 from collections import defaultdict
 from pathlib import Path
@@ -76,17 +77,27 @@ HEADER = """# Business meaning, per table and per column. You own this file.
 # That is the rule this kit exists to enforce: "somebody said so at some point" is how
 # a guess becomes a fact by repetition.
 #
-# You may be the source. If you know what a table is for - from working the business,
-# from a conversation, from reading the code closely - write it with
-# `evidence_class: OPERATOR_DECLARATION` and your name and today's date. That is a
-# real claim with somebody answerable for it, and it is what the class is for. What is
-# not allowed is a meaning with nobody behind it.
+# What you know from a conversation is INTERVIEW, and it counts. Name who said it and
+# when - that is the whole requirement, and it is met by a name and a date. A meeting,
+# a phone call and a passing remark at somebody's desk are all interviews if you write
+# down whose remark it was.
 #
 #   商品マスタ:
 #     role: master
 #     meaning: One row per sellable product; discontinued rows are kept, not deleted.
-#     evidence_class: OPERATOR_DECLARATION
-#     source: Vo Ta Tuan, 2026-09-07, confirmed with 業務課
+#     evidence_class: INTERVIEW
+#     source: 業務課 (堀内), 2026-09-07, asked by Vo Ta Tuan
+#
+# What you worked out from reading the code is NOT a meaning. Code is CODE, and rule
+# EC-01 says no volume of it establishes what a table is for - that is the finding this
+# whole kit is built around, and it applies to a careful reading as much as a careless
+# one. Ask the person instead and record their answer.
+#
+# `OPERATOR_DECLARATION` is accepted here, but do not reach for it: the class is
+# defined as a statement about the *inputs* - which file is the backend, which copy is
+# current - and `evidence-classes.yaml` says it cannot support a MEANING claim, while
+# rule EC-01 in the same file says it can. Until that is settled, an answer recorded as
+# INTERVIEW is one nothing downstream will argue with.
 #
 # A column may be keyed two ways. `出荷数量` alone is that column wherever it appears,
 # which is usually what you want; `受注データ.出荷数量` is that column in that table
@@ -95,7 +106,9 @@ HEADER = """# Business meaning, per table and per column. You own this file.
 # The comment above a blank entry is what the kit knows - who writes it, what names
 # it. It is there to inform your sentence, not to be it.
 #
-# Re-running keeps every entry. It does not keep comments you write between them.
+# Re-running keeps every entry, and keeps any section other than `tables` and
+# `columns` exactly as you wrote it, comments and all. What it does not keep is a
+# comment you write between the entries of those two sections.
 """
 
 # `role` is offered for tables because the header names four and a person who has
@@ -133,6 +146,49 @@ def existing(path: Path) -> dict[str, dict[str, dict[str, Any]]]:
     return found
 
 
+MANAGED_SECTIONS = ("tables", "columns")
+TOP_LEVEL_KEY = re.compile(r"^([A-Za-z_][A-Za-z0-9_-]*):")
+
+
+def unmanaged(path: Path) -> str:
+    """The raw text of every top-level section this tool does not manage.
+
+    Found by running the first version of this script against the real A05 workspace,
+    where `meanings.yaml` carried a third section - `system:` - holding a sourced,
+    DOCUMENT-class statement of what the whole application is for, and a note saying
+    why the per-table meanings below it were still empty. Rewriting the file from its
+    parsed `tables` and `columns` would have deleted both without a word.
+
+    Copied as text rather than re-serialised, so the comments inside a section survive
+    with it. A comment in a person-owned file is often the only record of why an entry
+    reads the way it does, and the entry costs less to re-derive than the reason does.
+    """
+    if not path.is_file():
+        return ""
+    lines = path.read_text(encoding="utf-8").splitlines()
+    starts = [(index, match.group(1)) for index, line in enumerate(lines)
+              if (match := TOP_LEVEL_KEY.match(line))]
+    kept: list[str] = []
+    for position, (index, key) in enumerate(starts):
+        if key in MANAGED_SECTIONS:
+            continue
+        # Walk back over the comment block attached to the section, so the note that
+        # explains it travels with it. Blank lines are crossed, because a note is
+        # usually separated from its section by one and the first version of this
+        # stopped there - which lost the A05 note saying why the tables below were
+        # empty, on the very run it was written to protect. Only a comment starting at
+        # column 0 counts: an indented `# note` belongs to the entry above it.
+        first = index
+        while first and (not lines[first - 1].strip()
+                         or lines[first - 1].startswith("#")):
+            first -= 1
+        while first < index and not lines[first].strip():
+            first += 1
+        end = starts[position + 1][0] if position + 1 < len(starts) else len(lines)
+        kept.append("\n".join(lines[first:end]).rstrip())
+    return "\n\n".join(kept)
+
+
 def is_blank(entry: dict[str, Any]) -> bool:
     """Nobody has touched it. Matches the rule in `contracts/meanings.py`."""
     return not any(str(entry.get(key, "") or "").strip()
@@ -147,21 +203,34 @@ def table_subjects(bundle: Path, writes: Any,
     for field in fields:
         columns[(field.get("database_id", ""), field.get("table", ""))] += 1
 
-    subjects = []
+    # Grouped by name, not by (database, name). `contracts/meanings.py` resolves a
+    # table meaning by name alone, so two same-named tables are one question - and
+    # emitting one key per database put a duplicate key in the YAML, where the last
+    # silently wins. On A05 that lost three tables' notes, `商品情報` among them, which
+    # is a table the evidence request has an open question about precisely *because*
+    # it exists in both databases.
+    grouped: dict[str, list[dict[str, Any]]] = defaultdict(list)
     for table in catalogues.rows_of(catalogues.read_json(bundle / "databases" / "tables.json")):
-        database, name = table.get("database_id", ""), table.get("name", "")
-        if not name:
-            continue
-        names_it = referenced.get((database, "table", name), 0)
+        if table.get("name"):
+            grouped[str(table["name"])].append(table)
+
+    subjects = []
+    for name, tables in grouped.items():
+        databases = sorted({str(t.get("database_id", "")) for t in tables})
+        names_it = sum(referenced.get((database, "table", name), 0)
+                       for database in databases)
         writers = writes.of(name)
-        note = (f"{columns[(database, name)]} column(s); {writes.summary(name)}; "
+        counts = sorted({columns[(str(t.get("database_id", "")), name)] for t in tables})
+        widths = " or ".join(str(count) for count in counts)
+        where = (f"in {len(databases)} databases ({', '.join(databases)}); "
+                 if len(databases) > 1 else "")
+        note = (f"{where}{widths} column(s); {writes.summary(name)}; "
                 f"named by {names_it} object(s)")
-        if (table.get("metadata") or {}).get("linked"):
+        if any((t.get("metadata") or {}).get("linked") for t in tables):
             note += "; linked, so it lives in another file"
         if sql_contract.is_work_table(name):
             note += "; work table by naming convention, which is not a guarantee"
-        subjects.append((name, note, (-names_it, -len(writers),
-                                      -columns[(database, name)], name)))
+        subjects.append((name, note, (-names_it, -len(writers), -max(counts), name)))
     return subjects
 
 
@@ -276,6 +345,10 @@ def main() -> int:
                                    args.top, blank)
         lines += rendered + [""]
         summary[section] = counts
+
+    carried = unmanaged(target)
+    if carried:
+        lines += [carried, ""]
 
     for section, counts in summary.items():
         print(f"{section:8s} {counts['total']:5d} subject(s), {counts['filled']:4d} "
