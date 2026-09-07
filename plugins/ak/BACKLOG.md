@@ -102,14 +102,26 @@ the LogicCatalogue's boundary section; the PPTX keeps phase 6, which a presentat
 genuinely renders. This is the ordering rule this entry had to be corrected for
 missing, discharged before the phases move rather than after.
 
+`cbd1afb` - `DOCUMENT` and `INTERVIEW` have anchor forms, the two directories they
+need are declared and wired into the group envelope, and the rule is stated where the
+forms are: an answer only in somebody's memory has no anchor and cannot pass G1.
+
 Phase 3 is untouched and stays that way: it is the one phase whose required class
 supports its characteristic claim.
 
 **What this does not settle.**
 
-*The anchor.* `TRACEBACK_GATES.md` anchors evidence as `file::Routine():start-end`.
-An answer has no line number. Unless `INTERVIEW` gets an anchor form of its own,
-G1 will report a coverage gap on precisely the claims with the best sources.
+*The anchor - settled by `cbd1afb`, and this entry had it half wrong.* The concern
+was right: `TRACEBACK_GATES.md` had a form for twelve evidence types and none for
+`DOCUMENT` or `INTERVIEW`, which EC-01 makes the only two that can carry a claim about
+meaning - so G1 did check coverage by an anchor that the best-sourced claims had no way
+to produce. The stated reason was wrong. An answer does not lack a line number for want
+of a format; `schemas/evidence.schema.json` has carried `source_type: INTERVIEW`,
+`evidence_class: INTERVIEW` and an `attribution` object all along, with an `allOf`
+making `person` and `recorded_on` mandatory. The register was ahead of the gate spec.
+What was missing was the row, the mention of `attribution` in the field table, and any
+directory for either class to live in - `PROJECT_CONFIG.md` declared CODE, UI and
+OUTPUT and nowhere to put a recorded answer.
 
 *Who answered.* `contracts/meanings.py` requires a `source`, but nothing distinguishes
 the person who knows from the person who typed. A developer answering a MEANING
