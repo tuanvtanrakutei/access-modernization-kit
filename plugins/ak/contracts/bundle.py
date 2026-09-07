@@ -18,7 +18,7 @@ class BundleError(ValueError):
 def _canonical_identity(value: dict[str, Any]) -> dict[str, Any]:
     required = (
         "app_id", "classification", "classification_rule_versions", "artifacts", "adapters",
-        "bundle_schema_version", "normalization_config",
+        "bundle_schema_version", "normalization_config", "assembly_version",
     )
     missing = [key for key in required if key not in value]
     if missing:
@@ -31,6 +31,10 @@ def _canonical_identity(value: dict[str, Any]) -> dict[str, Any]:
         "adapters": sorted(value["adapters"], key=lambda item: (item["id"], item["version"])),
         "bundle_schema_version": value["bundle_schema_version"],
         "normalization_config": value["normalization_config"],
+        # The code that did the assembling. Without it, two bundles built from one set
+        # of sources by two versions of the kit are the same bundle by name and
+        # different on disk, and the second one cannot be published at all.
+        "assembly_version": value["assembly_version"],
     }
 
 

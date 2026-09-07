@@ -152,9 +152,33 @@ def _tree_hashes(root: Path) -> dict[str, str]:
     }
 
 
+def _assembly_version() -> str:
+    """A digest of the code that assembles a bundle, for the bundle's identity.
+
+    The identity derived from the source digests alone, so fixing a defect in this
+    module and re-running the same sources produced the same directory name with
+    different content - refused as `BUNDLE_PATH_CONFLICT`, a message that reads as
+    tampering when the cause was the kit's own code changing. Three bundles had to be
+    moved aside by hand in one session. A re-assembly by different code is a different
+    bundle, and both should be keepable.
+
+    Computed rather than declared. A version somebody has to remember to bump is wrong
+    exactly when it matters, because the defect being fixed is always the one that
+    changed the output. The cost is that a comment-only edit also yields a new id and
+    so a second directory; that is the cheaper mistake by a wide margin.
+
+    It covers this module and no more. The adapters state their own versions and are
+    already in the identity, and the schemas state theirs.
+    """
+    return hashlib.sha256(Path(__file__).resolve().read_bytes()).hexdigest()[:12]
+
+
 def _publish_bundle(staged: Path, target: Path) -> None:
     if target.exists():
         if _tree_hashes(target) != _tree_hashes(staged):
+            # Same sources, same assembling code, different bytes. Both of the causes
+            # the kit knows about are now in the identity, so this says what is left:
+            # something outside the kit wrote into a published bundle.
             raise ValueError("BUNDLE_PATH_CONFLICT")
         return
     staged.replace(target)
@@ -186,6 +210,7 @@ def assemble_bundle(
         "artifacts": _logical_artifacts(contributions),
         "adapters": [{"id": a, "version": v} for a, v in adapters],
         "bundle_schema_version": schema_version, "normalization_config": normalization_config,
+        "assembly_version": _assembly_version(),
     }
     bundle_id = bundle_contract.compute_bundle_id(identity)
     merged = _merge_sections(contributions)
@@ -325,6 +350,11 @@ def _provenance(
             sources.append(source)
     return {
         "schema_version": schema_version, "bundle_id": bundle_id, "sources": sources,
+        # Which code assembled this. It is part of the identity, so it is already
+        # implied by the id; stated here because a digest cannot be read back, and
+        # "was this built before or after the deduplication fix" is a question people
+        # ask of a bundle they did not watch being built.
+        "assembly_version": _assembly_version(),
         "capabilities": {**_capability_origins(contributions), **(declared_capabilities or {})},
     }
 
