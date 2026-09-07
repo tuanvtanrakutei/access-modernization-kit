@@ -455,6 +455,23 @@ against that one object rather than against the application as a whole.
 
 Closed entries name the commit that closed them and the run that proved it.
 
+- **The exporter asked the host which characters are illegal, so two hosts
+  disagreed** - `Get-SafeName` in `extract_access.ps1` built its forbidden set from
+  `[System.IO.Path]::GetInvalidFileNameChars()`, which returns the *running*
+  platform's set. On Windows that is nine punctuation characters plus the control
+  range; on Linux it is NUL and the path separator. One object named `c:d` exported as
+  `c_d-256d2ec0` under Windows PowerShell and as `c:d` under pwsh.
+  `specifications/evidence-layout.yaml` requires this script and
+  `tools/ExportAccessObjects.bas` to write the same container names, and the .bas has
+  always named its list outright - so the two agreed only when the host happened to be
+  Windows, which was every host anybody ran it on. It surfaced as CI red on `main`
+  since 2026-08-10, ubuntu only, for four weeks. `f2ae159` names the Windows set
+  instead of asking, which is what the function's own comment already claimed it did.
+  Proven by `test_both_exporters_forbid_the_same_characters`, which compares the set
+  the .ps1 declares against the list the .bas replaces and fails against the version
+  it replaced - that one declared nothing to compare, which is why four weeks passed.
+  A13's shape once more: two copies of one policy, and nothing checking them against
+  each other.
 - **The class table and rule EC-01 disagreed about `OPERATOR_DECLARATION`, in one
   file** (A18) - the class declared `cannot_support: [BEHAVIOUR, FORMAT, MEANING,
   USAGE, INTENT]` under a note reading "a declaration about the inputs, not a source of
