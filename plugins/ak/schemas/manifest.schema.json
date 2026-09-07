@@ -322,6 +322,22 @@
             }
           },
           "additionalProperties": false
+        },
+        "phases": {
+          "type": "object",
+          "description": "Which requestable phase documents this project asked for. Phases 1-3 are not listed: an acquisition supports them unaided. Phases 4-6 each degrade without DOCUMENT or INTERVIEW evidence that nothing upstream collects, so they are asked for rather than assumed (backlog A19). Omitting a key requests the phase, so a manifest written before this existed behaves unchanged; setting one to false makes its gate read NOT_REQUESTED for the whole run - which is not NOT_APPLICABLE, a status reserved for a phase the evidence rules out.",
+          "properties": {
+            "phase4": {
+              "type": "boolean"
+            },
+            "phase5": {
+              "type": "boolean"
+            },
+            "phase6": {
+              "type": "boolean"
+            }
+          },
+          "additionalProperties": false
         }
       },
       "additionalProperties": false

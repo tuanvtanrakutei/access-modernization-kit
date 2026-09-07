@@ -113,10 +113,18 @@ def main() -> int:
     state["status"] = "COMPLETED" if next_wave is None else "RUNNING"
     if next_wave:
         state["wave_status"][next_wave] = "RUNNING"
+    # A phase the manifest did not ask for keeps `NOT_REQUESTED` all the way through.
+    # Advancing past its gate has to work - `wave6_independent_qa` depends on
+    # `gate6_publish_phase6`, so a run that skipped phase 6 could otherwise never
+    # reach QA or rendering - but marking it `PUBLISHED` would record a document
+    # nobody wrote. The wave graph is unchanged; only what the traversal writes is.
     for phase in READY_AFTER.get(args.wave, ()):
-        state["phase_gates"][phase] = "READY"
+        if state["phase_gates"].get(phase) != "NOT_REQUESTED":
+            state["phase_gates"][phase] = "READY"
     if args.wave in PUBLISH_PHASES:
-        state["phase_gates"][f"phase{PUBLISH_PHASES[args.wave]}"] = "PUBLISHED"
+        phase = f"phase{PUBLISH_PHASES[args.wave]}"
+        if state["phase_gates"].get(phase) != "NOT_REQUESTED":
+            state["phase_gates"][phase] = "PUBLISHED"
     state["updated_at"] = datetime.now(timezone.utc).isoformat()
     state_path.write_text(json.dumps(state, indent=2) + "\n", encoding="utf-8")
     print(json.dumps(preview, indent=2))

@@ -330,6 +330,14 @@ outputs:
     e2e_html: true
     boundary_html: true
     presentation_pptx: false  # optional; enable only when a presentation is required
+  # Phases 4-6 are asked for, not assumed: each degrades without DOCUMENT or INTERVIEW
+  # evidence that nothing upstream collects. Set one to `false` and its gate reads
+  # NOT_REQUESTED for the whole run. Phases 1-3 are not listed - an acquisition can
+  # support them unaided.
+  phases:
+    phase4: true
+    phase5: true
+    phase6: true
   refresh_policy: "before_each_phase"
   corpus_policy: "binary_free_normalized"
 multi_agent:

@@ -156,6 +156,7 @@ def test_every_prerequisite_names_an_artifact_the_contract_declares(contract: di
     the moment phases 4-6 move.
     """
     declared: list[str] = list(contract["required_phase_outputs"])
+    declared += list(contract["requestable_phase_outputs"])
     declared += list(contract["required_control_outputs"])
     declared += [entry["name"] for entry in contract["required_catalogues"]]
     declared += list(contract["required_run_artifacts"])

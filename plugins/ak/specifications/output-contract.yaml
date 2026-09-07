@@ -2,10 +2,34 @@ version: "2.10"
 language_token: "{LANG}"
 app_token: "{APP_ID}"
 
+# Phases 1-3 are what an acquisition can support unaided: their characteristic claims
+# are STRUCTURE, UI_DEFINITION and BEHAVIOUR, and `evidence-classes.yaml` gives SCHEMA,
+# CODE and UI_DEFINITION as sufficient for each.
 required_phase_outputs:
   - "{APP_ID}_Phase1_DataUnderstanding_{LANG}.md"
   - "{APP_ID}_Phase2_ScreenAnalysis_{LANG}.md"
   - "{APP_ID}_Phase3_LogicProcessing_{LANG}.md"
+
+# Phases 4-6 are asked for, not assumed. Every one of them degrades without DOCUMENT or
+# INTERVIEW evidence, and phase 4's own entry in `phase_evidence_needs` says what the
+# degradation is: "the workflows become code paths, not workflows". Nothing upstream of
+# them collects that evidence, so a run that has not collected any is producing a
+# document its own contract says it cannot support (backlog A19).
+#
+# Declared in the manifest as `outputs.phases`, the way `presentation_pptx` has been
+# declared since 2.8. Default is requested, so a manifest that says nothing behaves as
+# it always has - a project chooses to skip, and nothing chooses on its behalf.
+#
+# A phase not asked for carries `NOT_REQUESTED` in `run-state.json` from creation to
+# the end of the run. That is deliberately not `NOT_APPLICABLE`, which means the
+# *evidence* ruled the phase out. That one is provable by a `not_applicable_when`
+# rule - `schemas/classification-rule.schema.json` declares the mechanism and
+# `contracts/phase_readiness.py` ranks the status - and no profile currently ships such
+# a rule, so it is reachable in principle and unused in practice. Which is a second
+# reason not to borrow it here: an operator declining a deliverable and evidence
+# excluding one are different claims, and a status with no producer cannot be made to
+# mean the first.
+requestable_phase_outputs:
   - "{APP_ID}_Phase4_WorkflowReconstruction_{LANG}.md"
   - "{APP_ID}_Phase5_DocumentIntegration_{LANG}.md"
   - "{APP_ID}_Phase6_Synthesis_{LANG}.md"

@@ -284,6 +284,23 @@ stay correct because they name the actual phases whose *content* this pipeline r
 or whose *gate* it needs as a readiness signal for Stage 1 (Phase 4, Phase 6) — not because of
 how many gates happen to be implied by which other gates this month.
 
+**Updated 2026-09-07: a fourth status.** `ak` now treats phases 4-6 as requestable rather
+than assumed - `outputs.phases` in the manifest, defaulting to requested - because each of
+them degrades without DOCUMENT or INTERVIEW evidence that nothing upstream of them collects
+(backlog A19). A phase a project did not ask for carries `NOT_REQUESTED` in `run-state.json`
+from creation onwards, and pre-flight treats that as **satisfied**, not as a blocker: the
+project said it does not produce that document, and this pipeline reads neither phase 4's nor
+phase 6's content anyway.
+
+That is deliberately not `NOT_APPLICABLE`, which `ak` reserves for a phase the *evidence*
+rules out - provable by a `not_applicable_when` rule, a mechanism its schema declares and no
+profile currently uses. An operator declining a deliverable and evidence excluding one are
+different claims and must not read the same, so pre-flight must not collapse them either.
+
+The reasoning above still holds for the three names. What changed is that two of the three
+can now legitimately never reach `PUBLISHED`, so a check that only accepts `PUBLISHED` would
+stop a screen that has everything it needs.
+
 Separately: `phase4-workflow-reconstruction.md` and `phase6-synthesis.md`'s **content** is
 currently read by no script and cited by no Stage 1 instruction in this pipeline — only their
 *gate status* matters mechanically. An agent doing Stage 1 work may still find it useful
