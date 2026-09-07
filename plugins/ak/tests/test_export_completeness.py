@@ -217,3 +217,24 @@ def test_an_object_that_stops_being_readable_is_named(tmp_path: Path) -> None:
     # the same silence this file exists to break.
     code, output = run(root)
     assert code == 1 and "MISSING" in output
+
+
+def test_a_binary_print_settings_block_is_an_opener() -> None:
+    """Access writes print settings as `PrtMip = Begin` / hex / `End`.
+
+    Counting the closer and not the opener reports an excess of `End` on every object
+    that has ever been near a printer. On the first real run over A05 that called
+    nearly every form truncated - a check that fires on everything is one nobody reads,
+    and it would have buried the twenty-seven objects that are genuinely unbalanced.
+    """
+    text = ('Begin Form\n'
+            '    PrtMip = Begin\n'
+            '        0x6c00000000000000\n'
+            '    End\n'
+            '    Begin Label\n'
+            '    End\n'
+            'End\n')
+    shape = completeness.shape_of(text)
+    # `Begin Form`, `PrtMip = Begin`, `Begin Label` - three openers, three closers.
+    assert shape.blocks == 3 and shape.block_ends == 3
+    assert shape.balanced

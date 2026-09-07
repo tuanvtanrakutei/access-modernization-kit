@@ -47,7 +47,13 @@ from typing import Any
 # A SaveAsText definition nests `Begin`/`End` blocks, one per control. `End` alone on
 # its line is the block terminator; `End Sub`, `End If` and the rest are VBA and are
 # not counted here, which is why the pattern anchors to the end of the line.
-BEGIN_RE = re.compile(r"(?m)^[ \t]*Begin\b")
+#
+# A block is opened two ways, and missing the second called nearly every A05 form
+# truncated on the first real run. Access writes its binary print settings as
+# `PrtMip = Begin` / hex lines / `End` - five such properties on a typical form - so a
+# pattern matching only a bare `Begin` counts the closers and not the openers, and
+# reports an excess of `End` on every object that has ever been near a printer.
+BEGIN_RE = re.compile(r"(?m)^[ \t]*(?:[A-Za-z_][A-Za-z0-9_]*[ \t]*=[ \t]*)?Begin\b")
 END_RE = re.compile(r"(?m)^[ \t]*End[ \t]*$")
 
 # `Declare` is excluded because an API declaration is a `Function` with no body and no
