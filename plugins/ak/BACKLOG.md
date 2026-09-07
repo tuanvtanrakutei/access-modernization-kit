@@ -12,6 +12,42 @@ that it should now work.
 
 ## Open
 
+### A20 - `NOT_APPLICABLE` is ranked, schema-declared, and produced by nothing
+
+**Observed 2026-09-07, while giving a declined phase its own status.**
+`contracts/phase_readiness.py` ranks `NOT_APPLICABLE` alongside `READY`, and
+`_set_status` gives it a special case - it wins even against a worse status, which is
+the right behaviour for "this phase does not apply here". `compute_readiness` produces
+it from a rule carrying `not_applicable_when`, and `classification-rule.schema.json`
+declares that field.
+
+No profile ships such a rule. `profiles/backend.yaml`, `frontend.yaml`,
+`source-availability.yaml` and `topology.yaml` between them contain the string nowhere,
+so the status is reachable in principle and has never been reached.
+
+**Why it matters rather than being tidy.** A phase that genuinely does not apply is a
+real case the kit was built to handle: a data-only application has no screens, so
+phase 2 is not a gap to report but a phase to mark inapplicable. Today that case
+arrives as `BLOCKED` for want of `ui_object_inventory`, which reads as a missing input
+somebody should go and fetch. The operator is told to supply evidence that cannot
+exist.
+
+It also came close to costing something. A19's requestable phases needed a status for
+"the operator declined this deliverable", and `NOT_APPLICABLE` was the obvious
+candidate - already ranked, already special-cased, apparently free. Borrowing it would
+have merged a choice with a finding, and because nothing else produces the status, the
+choice would quietly have become the only thing it ever meant. `NOT_REQUESTED` exists
+instead (`c501268`).
+
+**What to change.** Either write the rules - `data_only_proof` is already a capability
+the profiles know, and it is exactly the proof that phase 2 does not apply - or delete
+the mechanism and say in `phase_readiness.py` that non-applicability is not modelled.
+The first is better; the second is honest. What should not stay is a third state the
+code ranks, the schema declares, the tests never see, and no input can reach.
+
+Found the same way as most of A13: by needing the apparatus for something and reading
+what it actually does. `RANK` looked like proof the case was handled.
+
 ### A19 - five of the six phases degrade without interview evidence, and all six run before any is collected
 
 **Observed 2026-09-07, reviewing where part 0's output actually goes.**
@@ -111,6 +147,14 @@ forms are: an answer only in somebody's memory has no anchor and cannot pass G1.
 reporting one and could not have changed if anybody answered it. Ranked the same way -
 by what opens it, how many events it carries - and EC-05 written into the note of any
 screen nothing opens.
+
+`c501268` - phases 4, 5 and 6 are requestable rather than assumed, declared in
+`outputs.phases` and defaulting to requested. A declined phase carries `NOT_REQUESTED`
+for the whole run; the wave graph is untouched, because optionality belongs in run
+state the way `presentation_pptx`'s does. This makes the demotion possible without
+performing it: the default is deliberately unchanged, and choosing it is not a
+maintenance decision. It also turned up [[A20]] - `NOT_APPLICABLE` is ranked and
+produced by nothing - which is the status this work would have borrowed.
 
 Phase 3 is untouched and stays that way: it is the one phase whose required class
 supports its characteristic claim.
