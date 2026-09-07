@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import io
 import json
+import re
 import sys
 from pathlib import Path
 
@@ -352,3 +353,47 @@ def test_a_clean_application_says_so_rather_than_showing_an_empty_table(
     logic = build(workspace)["T01_LogicCatalogue.md"]
     assert "SQL naming an object that does not exist (0)" in logic
     assert "Every table and query named in a saved query or a screen record "            "source exists" in logic
+
+
+# --- the table has to be a table --------------------------------------------
+
+
+CELL_SPLIT = re.compile(r"(?<!\\)\|")
+
+
+def table_widths(text: str) -> list[tuple[int, list[int]]]:
+    """Every markdown table in the document, as (line number, cell counts per row)."""
+    tables: list[tuple[int, list[int]]] = []
+    current: list[int] = []
+    start = 0
+    for number, line in enumerate(text.splitlines(), 1):
+        stripped = line.strip()
+        if stripped.startswith("|") and stripped.endswith("|"):
+            if not current:
+                start = number
+            current.append(len(CELL_SPLIT.split(stripped.strip("|"))))
+            continue
+        if current:
+            tables.append((start, current))
+            current = []
+    if current:
+        tables.append((start, current))
+    return tables
+
+
+def test_every_generated_row_has_as_many_cells_as_its_header(workspace: Path) -> None:
+    """A row wider than its header does not render as a wider row - it renders wrong.
+
+    The screen catalogue emitted ten cells per row under a nine-column header: the
+    English name was written per row and never declared, so every column from
+    `Database` rightwards was reading under its neighbour's title and `Business
+    meaning` fell off the end. The generator is the one part of this kit that cannot
+    be wrong about enumeration - it exists because the narratives were (A14) - and
+    nothing checked the shape of what it wrote.
+    """
+    for name, text in build(workspace).items():
+        for line, widths in table_widths(text):
+            assert len(set(widths)) == 1, (
+                f"{name}: table at line {line} has rows of {sorted(set(widths))} "
+                f"cells; a header and its rows must agree"
+            )

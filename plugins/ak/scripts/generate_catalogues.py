@@ -639,9 +639,10 @@ def screen_catalogue(app_id: str, bundle: Path, facts_dir: Path,
         out += [
             f"## {kind.capitalize()}s ({len(items)})",
             "",
-            "| No. | Object (production name) | Database | Record source | Bound fields | "
-            "Event procedures | Embedded controls | Referenced by | Business purpose |",
-            "|---:|---|---|---|---:|---:|---|---:|---|",
+            "| No. | Object (production name) | English (proposed) | Database | "
+            "Record source | Bound fields | Event procedures | Embedded controls | "
+            "Referenced by | Business purpose |",
+            "|---:|---|---|---|---|---:|---:|---|---:|---|",
         ]
         for number, item in enumerate(sorted(items, key=lambda i: (i.get("database_id", ""),
                                                                    i.get("name", ""))), 1):
