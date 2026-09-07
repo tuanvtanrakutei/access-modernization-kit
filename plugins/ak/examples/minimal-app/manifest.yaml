@@ -69,6 +69,10 @@ outputs:
     e2e_html: false
     boundary_html: false
     presentation_pptx: false
+  phases:
+    phase4: true
+    phase5: true
+    phase6: true
 multi_agent:
   enabled: true
   preferred_runtime: "generic"

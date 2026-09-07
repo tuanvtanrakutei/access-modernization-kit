@@ -126,8 +126,10 @@ Run once per screen, before Stage 1. These reads are independent — batch them 
 3. **Determine `doc_mode`, `be_mode`, `fe_mode`** and announce them.
 4. **Grep `Known_Issues.md`** for the screen name and module. List every row with status `open` or `in_progress`. Pay particular attention to `traceability` rows from prior gate runs — they affect coverage decisions in this run. If any row is a blocker, stop and ask.
 5. **Verify evidence.** If `{{AK_RUN_DIR}}` is not `n/a`, read `{{AK_RUN_DIR}}/run-state.json` → `phase_gates` for this screen's module before judging anything by hand:
-   - Any of phase2/phase4/phase6 is `PENDING` or `REJECTED` for this screen → stop. Stage 1 needs the phase output, not a work-in-progress or rejected one.
-   - All relevant phases are `PUBLISHED` → proceed. If the enriched artifacts (`Evidence.json`, `TraceabilityMatrix.csv`, `<bundle_id>/phase-readiness.json`, `<bundle_id>/coverage.json`) are present, prefer them per `LEGACY_EVIDENCE.md` §6.1; if only `phase_gates` is present, that alone satisfies this step.
+   - `phase2` is not `PUBLISHED` → stop. This pipeline reads its content, so a work-in-progress or rejected one is not something to plan a screen from.
+   - `phase4` or `phase6` is `PENDING` or `REJECTED` → stop. A phase somebody started and has not finished is not a readiness signal.
+   - `phase4` or `phase6` is `NOT_REQUESTED` → **proceed.** The project declared in `outputs.phases` that it does not produce that document, and this pipeline reads neither one's content (§6.4). Say so in the pre-flight line: a screen planned without phase 6 must not read the same as one planned with it.
+   - Otherwise `PUBLISHED` → proceed. If the enriched artifacts (`Evidence.json`, `TraceabilityMatrix.csv`, `<bundle_id>/phase-readiness.json`, `<bundle_id>/coverage.json`) are present, prefer them per `LEGACY_EVIDENCE.md` §6.1; if only `phase_gates` is present, that alone satisfies this step.
    - State in the pre-flight announcement which tier was used — `phase_gates` only, or enriched. A screen that silently used the weaker signal must not read the same as one that used the stronger.
 
    If `{{AK_RUN_DIR}}` is `n/a`, Stage 0 was manual export: verify per `LEGACY_EVIDENCE.md` for `{{LEGACY_VARIANT}}` — at minimum the sufficiency rule in §7.
