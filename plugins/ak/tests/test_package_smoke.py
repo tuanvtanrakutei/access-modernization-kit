@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -382,6 +383,39 @@ def test_extract_ps1_safe_names_keep_the_original_object_name() -> None:
     # altered name distinct from any other name that sanitized to the same string.
     assert slash.startswith("a_b-") and colon.startswith("c_d-"), (slash, colon)
     assert empty.startswith("object-"), empty
+
+
+def test_both_exporters_forbid_the_same_characters() -> None:
+    """`evidence-layout.yaml`: the two routes must write the same container names.
+
+    They did not. `extract_access.ps1` asked the running platform for its invalid set
+    via `GetInvalidFileNameChars()`, which on Linux is only NUL and `/`, so one object
+    named `c:d` became `c:d` under pwsh and `c_d-256d2ec0` under Windows PowerShell -
+    the same function, two names, and CI red on ubuntu only. The .bas had always named
+    its list outright. Nothing compared the two, which is what this does.
+    """
+    ps1 = (SCRIPTS / "extract_access.ps1").read_text(encoding="utf-8")
+    bas = (PACKAGE / "tools" / "ExportAccessObjects.bas").read_text(encoding="utf-8")
+
+    declared = re.search(r"""\$illegal = \[regex\]::Escape\(.*?\+ '(.*?)'\)""", ps1)
+    assert declared, "extract_access.ps1 no longer declares its own invalid set"
+    ps1_chars = set(declared.group(1))
+
+    listed = re.search(r'bad = Array\((.*?)\)', bas)
+    assert listed, "ExportAccessObjects.bas no longer lists its replaced characters"
+    # A VBA literal for one double quote is four of them, so unwrap the outer pair
+    # before unescaping the inner one - stripping every quote turns `""""` into "".
+    bas_chars = set()
+    for item in listed.group(1).split(","):
+        item = item.strip()
+        if item.startswith("vb"):
+            continue
+        assert item.startswith('"') and item.endswith('"'), item
+        bas_chars.add(item[1:-1].replace('""', '"'))
+
+    assert bas_chars == ps1_chars, (sorted(bas_chars), sorted(ps1_chars))
+    # The .bas names CR, LF and TAB separately; the .ps1 covers them with 0..31.
+    assert "0..31" in ps1
 
 
 def test_vba_export_tool_present() -> None:

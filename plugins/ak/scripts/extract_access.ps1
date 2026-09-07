@@ -49,7 +49,14 @@ function Get-SafeName([string]$Name) {
     # sanitize had just created. Only characters Windows genuinely forbids in a file
     # name are replaced, and the digest is appended solely when the name had to be
     # altered or truncated, so it can no longer collide.
-    $illegal = [regex]::Escape(-join [System.IO.Path]::GetInvalidFileNameChars())
+    # Name the set rather than asking the host for it. `GetInvalidFileNameChars()`
+    # returns the *running* platform's set, and on Linux that is only NUL and `/`,
+    # so `q:x` came back unaltered there and `c_d-<digest>` on Windows - the same
+    # function producing two different names for one object. `evidence-layout.yaml`
+    # requires this script and `tools/ExportAccessObjects.bas` to write the same
+    # container names, the .bas already hard-codes this list, and an exported tree
+    # has to be checked out on Windows whatever host produced it.
+    $illegal = [regex]::Escape((-join (0..31 | ForEach-Object { [char]$_ })) + '<>:"/\|?*')
     $sanitized = ($Name -replace "[$illegal]", '_')
     $altered = $sanitized -ne $Name
     if ([string]::IsNullOrWhiteSpace($sanitized)) {
