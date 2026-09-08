@@ -605,8 +605,8 @@ Closed entries name the commit that closed them and the run that proved it.
   because two joins of the same two tables disagreeing about a layout is precisely the
   defect that catalogue cell exists to report.
 
-  **Proven on A05 2026-09-08**, against the backend export of that date assembled through
-  the imported route and the six files on the share:
+  Written `b8d1af3`, and **proven on A05 2026-09-08** against the backend export of that
+  date assembled through the imported route and the six files on the share:
 
       元受注データ      order.txt      cp932  spec 26  file 26  no header row               StartRow=0
       元受注データ幸松  幸松受注.CSV   utf-8  spec 26  file 26  the declared names, in order  StartRow=1
