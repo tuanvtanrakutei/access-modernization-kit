@@ -406,3 +406,58 @@ def test_the_instruction_asks_for_a_dated_folder_beside_the_last_one() -> None:
                 if 'ExportAccessObjects "D:' in l)
     assert "YYYY-MM-DD" in line, line
     assert "beside the last one rather than over it" in BAS.read_text(encoding="utf-8")
+
+
+# --- what the 2026-09-08 A05 frontend run turned up --------------------------
+
+def test_the_exporter_leaves_itself_out_of_the_corpus() -> None:
+    """It is imported into the database to run, so without a guard it exports itself.
+
+    A05's 2026-09-08 frontend export carried seven modules against the previous six,
+    the extra one being this file. Small as contamination goes, and then measured as if
+    it were the application's: `$ak completeness` records its shape and `$ak meanings`
+    asks what it is for. Found by running the export, which is the only way this file
+    ever gets checked.
+    """
+    text = BAS.read_text(encoding="utf-8")
+    attribute = next(l for l in text.splitlines() if l.startswith("Attribute VB_Name"))
+    declared = next(l for l in text.splitlines()
+                    if l.startswith("Private Const MODULE_NAME"))
+    # The guard has to name this file's actual module name, or it guards nothing.
+    name = attribute.split("=", 1)[1].strip().strip('"')
+    assert f'"{name}"' in declared, (attribute, declared)
+    assert "If ao.Name <> MODULE_NAME Then" in text
+
+
+def test_the_gate_fires_on_the_connect_strings_a05_actually_has() -> None:
+    """The six links are in the *backend*, and their specification names carry spaces.
+
+    `DSN=Order ﾘﾝｸの定義2` - a space and half-width katakana. The exporter's gate strips
+    spaces before searching, which is what lets `; DSN =` match, and it also strips the
+    space inside the name; harmless, because the gate only looks for `;DSN=`. The
+    catalogue's extraction keeps the space, because there it is part of the name it has
+    to join on.
+    """
+    real = [
+        "Text;DSN=Order ﾘﾝｸの定義2;FMT=Delimited;HDR=NO;IMEX=2;DATABASE=L:" + chr(92) + "品揃支援",
+        "Text;DSN=幸松受注 ﾘﾝｸの定義;FMT=Delimited;HDR=NO;IMEX=2;DATABASE=L:" + chr(92) + "品揃支援",
+        "Text;DSN=DPTENPO ﾘﾝｸの定義;FMT=Delimited;HDR=NO;IMEX=2;DATABASE=L:" + chr(92) + "品揃支援",
+    ]
+    for connect in real:
+        # The exporter's gate, evaluated as VBA evaluates it.
+        assert (";" + connect.replace(" ", "")).upper().find(";DSN=") >= 0, connect
+        # And the catalogue keeps the name whole, spaces included.
+        layout = catalogues.declared_layout(connect, {})
+        assert "not in the database" in layout, connect
+    assert "`Order ﾘﾝｸの定義2`" in catalogues.declared_layout(real[0], {})
+
+
+def test_a_frontend_with_no_dsn_link_is_a_real_case_not_a_failure() -> None:
+    """A05's frontend has two linked tables, both to the backend .mdb, neither with a
+    DSN - so `no link declares DSN=` in its manifest is the right answer and has to be
+    distinguishable from the read having failed.
+    """
+    assert catalogues.declared_layout(
+        ";DATABASE=L:" + chr(92) + "新品揃支援" + chr(92) + "XP" + chr(92) + "品揃支援data.mdb", {}) == ""
+    text = BAS.read_text(encoding="utf-8")
+    assert 'IIf(anyDsnLink, CStr(nImexRows), "no link declares DSN=")' in text

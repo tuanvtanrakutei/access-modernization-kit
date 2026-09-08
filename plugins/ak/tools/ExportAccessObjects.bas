@@ -6,6 +6,10 @@ Option Explicit
 ' JSON-building lines unreadable. One constant, used by the specification export.
 Private Const Q As String = """"
 
+' This file's own module name, so the export can leave itself out of the corpus.
+' Kept beside the Attribute at the top of the file, which is where it comes from.
+Private Const MODULE_NAME As String = "modExportAccess"
+
 ' =============================================================================
 ' Access Modernization Kit - manual Access export
 ' =============================================================================
@@ -95,8 +99,16 @@ Public Sub ExportAccessObjects(ByVal OutRoot As String)
     For Each ao In CurrentProject.AllMacros
         If TrySaveAsText(acMacro, ao.Name, UniquePath(OutRoot & "\macros", ao.Name, "txt"), "macro") Then nMacro = nMacro + 1
     Next
+    ' This module is imported into the database to run the export, so without the
+    ' guard it exports itself: A05's 2026-09-08 frontend export carried seven
+    ' modules against the previous six, the extra one being this file. Small as
+    ' contamination goes, but it is then measured as if it were the application's
+    ' - `$ak completeness` records its shape and `$ak meanings` asks what it is
+    ' for.
     For Each ao In CurrentProject.AllModules
-        If TrySaveAsText(acModule, ao.Name, UniquePath(OutRoot & "\vba", ao.Name, "txt"), "module") Then nModule = nModule + 1
+        If ao.Name <> MODULE_NAME Then
+            If TrySaveAsText(acModule, ao.Name, UniquePath(OutRoot & "\vba", ao.Name, "txt"), "module") Then nModule = nModule + 1
+        End If
     Next
 
     Dim db As DAO.Database, qd As DAO.QueryDef
