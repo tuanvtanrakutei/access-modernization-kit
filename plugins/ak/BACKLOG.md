@@ -156,7 +156,7 @@ performing it: the default is deliberately unchanged, and choosing it is not a
 maintenance decision. It also turned up [[A20]] - `NOT_APPLICABLE` is ranked and
 produced by nothing - which is the status this work would have borrowed.
 
-`__BOUNDARY__` - the collection step reaches boundary files, which was the last subject
+`55c4a02` - the collection step reaches boundary files, which was the last subject
 kind this entry named that a bundle can enumerate. The boundary table had no column for
 what a file is *for* at all: it carried the path, the direction and the declared format,
 and nothing about who sends it, how often, or what happens when it does not arrive.
