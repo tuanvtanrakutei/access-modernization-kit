@@ -637,7 +637,7 @@ Closed entries name the commit that closed them and the run that proved it.
   because nothing verified an embedded control can load, and a finding about the
   application is something a person must act on.
 
-  **Proven on A05 2026-09-08, twice, because one run could only show half of it:**
+  `e442040`, and **proven on A05 2026-09-08 twice, because one run shows half of it:**
 
       backend, nothing wrong          failed 0  skipped 4  (2 notes, 4 exclusion lines)
       frontend, two real failures     failed 2  skipped 1  (1 note)
