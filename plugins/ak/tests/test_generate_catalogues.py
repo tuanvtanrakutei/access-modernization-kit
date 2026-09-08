@@ -461,6 +461,93 @@ tables:
     assert "linked from the share rather than stored here" in row
 
 
+# --- the figure has to travel with the corpus (A15) -------------------------
+
+A05_MAIN_MENU = {
+    "database_id": FE, "kind": "form", "name": "メインメニュー",
+    # The corrected export, in the bundle since 2026-09-04.
+    "bundle": {"lines": 4886, "characters": 200000, "blocks": 114,
+               "block_ends": 114, "procedures": 45, "procedure_ends": 45},
+    # The first, incomplete one, still in staging: content lost from the middle, so it
+    # ends on a clean `End Sub` and only the block balance shows it.
+    "staging": {"lines": 1642, "characters": 91119, "blocks": 77,
+                "block_ends": 68, "procedures": 21, "procedure_ends": 21},
+}
+A05_SEARCH = {
+    "database_id": FE, "kind": "form", "name": "商品検索",
+    "bundle": {"lines": 120, "characters": 4000, "blocks": 8, "block_ends": 8,
+               "procedures": 3, "procedure_ends": 3},
+}
+
+
+def record_shapes(workspace: Path, *entries: dict) -> None:  # noqa: F811
+    write(workspace / ".ak" / "extracted" / "object-shapes.json",
+          {"objects": {f"{e['database_id']}:{e['kind']}:{e['name']}": e for e in entries}})
+
+
+def test_an_unmeasured_corpus_says_so_where_a_reader_will_see_it(
+    workspace: Path,  # noqa: F811
+) -> None:
+    """A consumer trace returns absence, and absence reads the same either way.
+
+    On A05 that turned "one screen imports every inbound file" into "no screen imports
+    any of them" - both handlers begin past line 4,000 of a form the staging copy cut
+    at 1,642 - and nothing in the output hinted that anything was missing.
+    """
+    screens = build(workspace)["T01_ScreenCatalogue.md"]
+    assert "Definition-text completeness was not measured" in screens
+    assert "$ak completeness" in screens
+
+
+def test_a_disagreement_is_named_in_the_headline_and_in_the_row(
+    workspace: Path,  # noqa: F811
+) -> None:
+    record_shapes(workspace, A05_MAIN_MENU, A05_SEARCH)
+    screens = build(workspace)["T01_ScreenCatalogue.md"]
+
+    assert "1 of 2 object(s) have a definition text" in screens
+    row = next(line for line in screens.splitlines()
+               if line.startswith("|") and "メインメニュー" in line and "form" not in line[:6])
+    # Block balance fires even though the file ends cleanly, which is the whole point.
+    assert "77 Begin against 68 End" in row
+    # And both routes' readings are compared, in the direction A05 actually moved: the
+    # correction arrived as a rise, so a rule watching only for drops says nothing.
+    assert "21 then, 45 now" in row
+
+
+def test_an_object_the_routes_agree_on_reports_its_size(workspace: Path) -> None:  # noqa: F811
+    """Saying the size is what makes a later disagreement visible at all."""
+    record_shapes(workspace, A05_SEARCH)
+    screens = build(workspace)["T01_ScreenCatalogue.md"]
+    assert "none is unbalanced and the routes agree" in screens
+    row = next(line for line in screens.splitlines()
+               if line.startswith("|") and "商品検索" in line)
+    assert "120 line(s), balanced" in row
+
+
+def test_an_object_with_no_record_says_nothing_rather_than_guessing(
+    workspace: Path,  # noqa: F811
+) -> None:
+    record_shapes(workspace, A05_SEARCH)
+    screens = build(workspace)["T01_ScreenCatalogue.md"]
+    row = next(line for line in screens.splitlines()
+               if line.startswith("|") and "ピッキングリスト" in line)
+    assert catalogues.NOT_EXTRACTED in row
+
+
+def test_an_unreadable_record_does_not_stop_the_catalogue(workspace: Path) -> None:  # noqa: F811
+    """Trading one silence for a louder one would be the wrong repair.
+
+    A catalogue that fails to generate over a malformed side file tells a reader
+    nothing about the corpus either, and is harder to recover from.
+    """
+    target = workspace / ".ak" / "extracted" / "object-shapes.json"
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_text("{not json", encoding="utf-8")
+    screens = build(workspace)["T01_ScreenCatalogue.md"]
+    assert "Definition-text completeness was not measured" in screens
+
+
 # --- the table has to be a table --------------------------------------------
 
 
