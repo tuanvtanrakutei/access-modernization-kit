@@ -12,35 +12,42 @@ that it should now work.
 
 ## Open
 
-### A21 - the VBA exporter reads the same connect strings and not the specifications
+### A22 - a table excluded by its shape leaves no record of its shape
 
-**Observed 2026-09-08, closing A17.** `extract_access.ps1` now reads `MSysIMEXSpecs`
-and `MSysIMEXColumns` whenever a link declares `DSN=`, so a text link's declared column
-layout reaches the bundle as `interfaces/imex-specs.json`.
-`tools/ExportAccessObjects.bas` does not, and it exports the same tables' `connect`
-strings into `schema	ables.txt` - so it produces the links without the layout they
-point at.
+**Observed 2026-09-08, in A05's backend export.** Both acquisition routes drop a table
+whose fields are exactly Text/Text/Long as an Access ImportErrors table. The rule is
+deliberate and the reason is good: this frontend carried 210 of them against 21 real
+tables, and identifying them by name fails because the name is localized and one
+legitimate table matched the Japanese word for "error".
 
-`specifications/evidence-layout.yaml` opens by saying the two routes "must write the
-same container names and the same formats, so evidence produced on a machine that has
-Access is interchangeable with evidence extracted here", and names exactly this failure:
-"Where the two disagreed, field and index detail reached the bundle from one route only,
-which silently made Phase 1 depend on runtime access." This is that, for the inbound
-boundary.
+Shape has its own false positives, and the backend export lists two candidates among its
+17 exclusions:
 
-**Why it was not fixed in the same change.** No test in this repository can execute VBA.
-The last defect in that file - `JsonEscape` shipping raw control characters instead of
-the two-character sequences - was found when a person imported the module into Access
-and saw red, and `tests/test_export_bas.py` exists because nothing else could have
-caught it. Writing DAO recordset code that no run proves would be closing an entry by
-reasoning, which this backlog's own header refuses.
+    集計分類マスタ
+    雑貨Ⅱ集計分類マスタ
 
-**What to change.** Add the same read to the exporter, keyed on the same condition, and
-prove it by importing the module into Access on a database that has a saved import
-specification. The A05 frontend has six. Until then the imported-sources route yields no
-`imex_specs`, which the bundle-contribution schema permits on purpose - the key is
-optional, and its absence means "not read", not "no layout declared".
+Both read as business masters - "aggregation category master" - not as import residue.
+The other 15 are unambiguous: 12 `MSys*`, one `~TMPCLP144831`, and two whose names
+actually do end in an error word (`Sheet1$_インポート エラー`,
+`商品情報_エクスポート エラー`).
 
+**The defect is not the rule; it is that the exclusion cannot be reviewed.** Both routes
+record only the *name*. `export-manifest.txt` lists it, and `extract_access.ps1` does not
+even do that - it increments a counter. So neither the operator nor a later reader can
+tell `Error / Field / Row` from `分類コード / 分類名 / 表示順`, and the two tables above
+are absent from the bundle entirely: `tables.json` has no row for either, so their shape
+is recorded nowhere at all. An exclusion whose evidence is destroyed by the exclusion
+cannot be checked, only trusted.
+
+**What to change.** Record the three field names beside the excluded name, in both
+routes. That is enough for a person to see in one line whether the rule was right, costs
+one string per excluded table, and does not touch the rule - which should not move until
+somebody who knows the application says whether those two tables are real. If they are,
+the rule needs a second condition; the obvious candidate is that a genuine ImportErrors
+table's three fields are named `Error`, `Field` and `Row` in *some* locale, and 210 of
+them in one database share that naming while a business master does not.
+
+Found by reading an export manifest, which is the first time anybody had a reason to.
 ### A19 - five of the six phases degrade without interview evidence, and all six run before any is collected
 
 **Observed 2026-09-07, reviewing where part 0's output actually goes.**
@@ -532,6 +539,47 @@ against that one object rather than against the application as a whole.
 
 Closed entries name the commit that closed them and the run that proved it.
 
+- **The VBA exporter read the same connect strings and not the specifications** (A21)
+  - `extract_access.ps1` gained the two tables that declare a text link's columns in
+  A17, and `tools/ExportAccessObjects.bas` did not, so it produced the links without the
+  layout they point at. `evidence-layout.yaml` names that failure in its opening note.
+
+  Written `213f4c2`, and **proven on A05 2026-09-08 by the operator running it**, which
+  is the only way a file no test here can execute ever gets checked. Two runs, and both
+  answers were needed:
+
+      frontend  品揃支援（windows11専用）.mdb  imex_specification_rows=no link declares DSN=
+      backend   品揃支援data.mdb              imex_specification_rows=184
+
+  The frontend answer is correct, not a failure: its two linked tables both point at the
+  backend `.mdb` and neither declares a DSN. The backend holds all six text links, and
+  `schema/imex-specs.json` came back 30,861 bytes - `MSysIMEXSpecs` 8 rows,
+  `MSysIMEXColumns` 176, both `status: read`.
+
+  What that recovers is exactly what A17 said was lost. Every one of the six links sits
+  in the bundle with `columns: 0` and `read_error: True`, because the `L:` share was
+  unmounted when the database was acquired and Access cannot enumerate a text link's
+  columns without reading the file. All six now resolve:
+
+      元受注データ      Order ﾘﾝｸの定義2      26 column(s)
+      元受注データ幸松  幸松受注 ﾘﾝｸの定義    26 column(s)
+      元受注データ酒    ２１受注 ﾘﾝｸの定義    26 column(s)
+      元商品マスタ      DPSHOHIN ﾘﾝｸの定義   28 column(s)
+      元商品マスタ酒    ２１商品 ﾘﾝｸの定義    29 column(s)
+      元店舗マスタ      DPTENPO ﾘﾝｸの定義     9 column(s)
+
+  Two specifications name no current link - `Order ﾘﾝｸの定義` beside the `2`-suffixed one
+  the link actually uses, and `新規受注 ﾘﾝｸの定義`. A recreated link and an abandoned
+  one, which a migration wants to know about and neither route reported before.
+
+  The run also found `d4b5558`: the exporter exported itself, because it has to be
+  imported into the database to run. Seven modules against the previous six, the extra
+  one being the kit's own file - measured afterwards as if it were the application's.
+
+  Not closed by reasoning: the gate's behaviour on real strings could be checked here
+  (`DSN=Order ﾘﾝｸの定義2` carries a space and half-width katakana, and both routes fire
+  on all six), but that the VBA compiles, that DAO reads these two tables, and that 184
+  rows come back could only be answered in Access.
 - **The two tables that define a text link's columns were excluded as system tables**
   (A17) - A05 links six delimited text files, each declaring
   `FMT=Delimited;HDR=NO;IMEX=2` and `DSN=<spec name>`. `HDR=NO` means no header row, so a
