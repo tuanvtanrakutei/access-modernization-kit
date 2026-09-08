@@ -44,6 +44,19 @@ column. Where neither signal is present the reading is `UNKNOWN` and nothing is
 reported, because "no header" and "a header this cannot recognise" are then the same
 observation.
 
+**What is calibrated on one application, and what stops it being wrong elsewhere.**
+A05 has one value of every declaration that matters here, so three shapes it does not
+have are guarded rather than assumed. A link declaring anything but `FMT=Delimited` is
+reported and not read: a fixed-width layout has no separators, and counting them would
+report one field per record on every feed of such an application. A link declaring
+`HDR=YES` has Access reading the header itself, so there the *absence* of a header is
+the finding and its presence is not. And a specification whose columns do not carry
+distinct `Start` values - a version naming that column differently would give every
+column zero - has no order to compare positionally, so the names are compared as a set
+and no position is named. The encoding ladder is the kit's own, shared with seven other
+readers here; a feed arriving in a Western code page would decode as CP932 rather than
+fail, which is why every line of the report names the codec it read the file with.
+
 **What this does not answer.** Not whether the import works. A05's product feed
 disagrees three ways - 29 fields in the file, 28 in the specification, 30 columns in
 the destination table - and the third number is out of reach from here:
@@ -62,7 +75,7 @@ import re
 from collections import Counter
 from dataclasses import dataclass
 from pathlib import PurePosixPath, PureWindowsPath
-from typing import Any, Iterable
+from typing import Any, Iterable, Iterator
 
 # The DAO type codes that constrain a value to a number, from
 # `specifications/dao-field-types.yaml`. Boolean, date, time and timestamp are left
@@ -76,8 +89,6 @@ NUMERIC_TYPES = frozenset({2, 3, 4, 5, 6, 7, 16, 19, 20, 21})
 # *strips* a BOM - it decodes a BOM-less UTF-8 file just as happily - so the codec a
 # file is reported under is `utf-8` unless a BOM was actually there.
 ENCODINGS = ("utf-8-sig", "utf-8", "cp932")
-
-DSN = re.compile(r"(?i)(?:^|;)\s*DSN\s*=\s*([^;]+)")
 
 DECLARED = "DECLARED"
 REORDERED = "REORDERED"
@@ -119,9 +130,23 @@ class Specification:
 
         Access stores this as text and this kit has only ever seen `,`. Anything else
         is reported rather than guessed at, because a wrong delimiter turns every
-        following number in this module into fiction.
+        following number in this module into fiction. A tab-delimited application is
+        the case to expect here: if its `FieldSeparator` arrives as the two characters
+        `\\t`, this reports that string rather than parsing the file as one field.
         """
         return self.separator if len(self.separator) == 1 else ""
+
+    @property
+    def order_known(self) -> bool:
+        """Whether `Start` actually establishes an order for these columns.
+
+        A05's do - 0, 8, 40, 82, 133 - and three of its files confirm it. A version
+        that names the column something else, or a specification carrying one column,
+        gives every column the same `Start`, and then a positional comparison would
+        report every name as moved. Nothing is claimed about order in that case.
+        """
+        starts = [column.start for column in self.columns]
+        return len(starts) < 2 or len(set(starts)) == len(starts)
 
 
 @dataclass(frozen=True)
@@ -165,12 +190,37 @@ class Sample:
 
 @dataclass(frozen=True)
 class Feed:
-    """A link that names an import specification, and the file it points at."""
+    """A link that names an import specification, and the file it points at.
+
+    The connect string's own declarations travel with it, because two of them decide
+    whether a comparison means anything and A05 has one value of each: `FMT=Delimited`
+    (a fixed-width link's fields are not separated at all, so counting separators would
+    report one field per record on every one of them) and `HDR=NO` (with `HDR=YES`
+    Access reads the header itself, and calling that "the names are imported as a
+    record" would be a false finding).
+    """
 
     table: str
     database_id: str
     spec_name: str
     file_name: str
+    declared_format: str = ""
+    header_declared: str = ""
+
+    @property
+    def expects_header(self) -> bool:
+        return self.header_declared.strip().upper() == "YES"
+
+    @property
+    def is_delimited(self) -> bool:
+        """Whether the link declares the one format this compares.
+
+        An undeclared format is treated as delimited: every text link this kit has seen
+        declares `FMT=`, a specification with a field separator describes a delimited
+        file, and refusing to read the file on a missing declaration would turn the
+        common case into silence.
+        """
+        return self.declared_format.strip().lower() in ("", "delimited")
 
 
 @dataclass(frozen=True)
@@ -244,10 +294,20 @@ def specifications(records: Iterable[dict]) -> dict[str, Specification]:
     return found
 
 
+def declared(connect: str, key: str) -> str:
+    """One `KEY=value` a connect string declares, if it declares it.
+
+    Values are taken to the next `;` and not split further: A05's specification names
+    carry spaces and half-width katakana (`DSN=Order ﾘﾝｸの定義2`), so anything narrower
+    would cut them.
+    """
+    match = re.search(rf"(?i)(?:^|;)\s*{key}\s*=\s*([^;]+)", connect or "")
+    return match.group(1).strip() if match else ""
+
+
 def specification_name(connect: str) -> str:
     """The specification a link's connect string names, if it names one."""
-    match = DSN.search(connect or "")
-    return match.group(1).strip() if match else ""
+    return declared(connect, "DSN")
 
 
 def base_name(value: str) -> str:
@@ -279,6 +339,8 @@ def feeds(rows: Iterable[dict]) -> list[Feed]:
             database_id=str(row.get("database_id") or meta.get("database_id") or ""),
             spec_name=spec,
             file_name=base_name(str(source)),
+            declared_format=declared(connect, "FMT"),
+            header_declared=declared(connect, "HDR"),
         ))
     return found
 
@@ -317,19 +379,26 @@ def numeric_like(value: str) -> bool:
     return True
 
 
-def records_of(text: str, delimiter: str, quote: str) -> list[list[str]]:
+def records_of(text: str, delimiter: str, quote: str) -> Iterator[list[str]]:
     """The file's records, honouring the text delimiter the specification declares.
 
     Splitting on the separator instead would break every quoted field containing one,
     and a quoted newline would turn one record into two - which is the difference
     between a field count and a guess.
+
+    Yielded rather than collected. A05's largest sample is 3.5 MB and 15,305 records,
+    but a "sample" is whatever an operator copied off a share, and holding a list of
+    lists for one of those is the multiplier that turns a large file into a failure
+    instead of a slow answer.
     """
     stream = io.StringIO(text, newline="")
     if quote:
         reader = csv.reader(stream, delimiter=delimiter, quotechar=quote)
     else:
         reader = csv.reader(stream, delimiter=delimiter, quoting=csv.QUOTE_NONE)
-    return [row for row in reader if row]
+    for row in reader:
+        if row:
+            yield row
 
 
 def header_reading(spec: Specification, row: list[str]) -> Header:
@@ -344,6 +413,16 @@ def header_reading(spec: Specification, row: list[str]) -> Header:
     if not names or not cells:
         return Header(UNKNOWN, "no declared columns to compare with")
 
+    same_set = (set(cell for cell in cells if cell)
+                == set(name for name in names if name))
+    if not spec.order_known:
+        # `Start` establishes no order for these columns, so a positional reading would
+        # report every name as moved. The names can still be compared as a set.
+        if same_set:
+            return Header(DECLARED, "the declared names; the specification does not "
+                                    "state what order they are in")
+        return _renamed_or_data(spec, names, cells, positional=False)
+
     overlap = min(len(cells), len(names))
     matched = [index for index in range(overlap) if cells[index] == names[index]]
     if overlap and len(matched) == overlap:
@@ -352,16 +431,31 @@ def header_reading(spec: Specification, row: list[str]) -> Header:
             detail += f" for the first {overlap} of {len(names)}"
         return Header(DECLARED, detail)
 
-    if set(cell for cell in cells if cell) == set(name for name in names if name):
+    if same_set:
         return Header(REORDERED, "the declared names, in a different order")
 
+    return _renamed_or_data(spec, names, cells, positional=True)
+
+
+def _renamed_or_data(spec: Specification, names: list[str], cells: list[str],
+                     positional: bool) -> Header:
+    """A first record that is not the declared names: a header, data, or unreadable.
+
+    Two signals, and one of them survives a sender renaming every column: a column the
+    specification declares numeric cannot hold text in a data record. `positional` is
+    false when `Start` established no order, and then the differences are not listed -
+    a position this cannot place is a position it must not name.
+    """
+    overlap = min(len(cells), len(names))
+    matched = [index for index in range(overlap)
+               if positional and cells[index] == names[index]]
     numeric = [index for index, column in enumerate(spec.columns)
                if column.data_type in NUMERIC_TYPES and index < len(cells)]
     non_numeric = [index for index in numeric if not numeric_like(cells[index])]
 
     differences = tuple(
         f"position {index + 1}: declared `{names[index]}`, file `{cells[index]}`"
-        for index in range(overlap) if cells[index] != names[index]
+        for index in range(overlap) if positional and cells[index] != names[index]
     )
     if matched or non_numeric:
         why = (f"{len(non_numeric)} column(s) declared numeric hold text"
@@ -386,22 +480,52 @@ def sample_of(raw: bytes, spec: Specification) -> Sample:
                       header=Header(UNKNOWN, "the file was not parsed"),
                       problem="the specification's field separator is not one "
                               f"character: {spec.separator!r}")
-    rows = records_of(text, delimiter, spec.quote)
-    counted = Counter(len(row) for row in rows)
+    counted: Counter[int] = Counter()
     first_at: dict[int, int] = {}
-    for number, row in enumerate(rows, start=1):
-        first_at.setdefault(len(row), number)
+    first_row: list[str] = []
+    total = 0
+    for row in records_of(text, delimiter, spec.quote):
+        total += 1
+        if total == 1:
+            first_row = row
+        counted[len(row)] += 1
+        first_at.setdefault(len(row), total)
     widths = tuple(sorted(
         (Width(fields, records, first_at[fields]) for fields, records in counted.items()),
         key=lambda width: (-width.records, width.fields),
     ))
-    return Sample(codec=codec, bom=bom, records=len(rows), widths=widths,
-                  header=header_reading(spec, rows[0] if rows else []))
+    return Sample(codec=codec, bom=bom, records=total, widths=widths,
+                  header=header_reading(spec, first_row))
 
 
-def disagreements(spec: Specification, sample: Sample) -> list[Finding]:
-    """Everything this pair says that does not agree, in the order to read it."""
+def format_problem(feed: Feed | None) -> Finding | None:
+    """The declaration that has to be read before the file is.
+
+    A fixed-width link's fields are not separated at all, so parsing one on a field
+    separator reports a single field per record - on every feed of such an application,
+    which is a check nobody would read a second time. Its layout is in the `Start` and
+    `Width` of the same specification rows and nothing here reads them that way yet.
+    """
+    if feed is None or feed.is_delimited:
+        return None
+    return Finding("FORMAT", f"the link declares FMT={feed.declared_format}, and this "
+                   "compares delimited files only - a fixed-width layout is declared "
+                   "by Start and Width, which nothing here reads yet")
+
+
+def disagreements(spec: Specification, sample: Sample,
+                  feed: Feed | None = None) -> list[Finding]:
+    """Everything this pair says that does not agree, in the order to read it.
+
+    `feed` carries the link's own declarations and changes what may be concluded. A05
+    has one value of each - `FMT=Delimited` and `HDR=NO` - so it exercises neither
+    branch, and an application with the other value would be reported wrongly by a
+    check calibrated on this one.
+    """
     found: list[Finding] = []
+    unreadable = format_problem(feed)
+    if unreadable is not None:
+        return [unreadable]
     if sample.problem:
         return [Finding("UNREADABLE", sample.problem)]
     if not sample.records:
@@ -423,6 +547,15 @@ def disagreements(spec: Specification, sample: Sample) -> list[Finding]:
         if header.differences:
             says += " - " + "; ".join(header.differences[:3])
         found.append(Finding("HEADER", says))
+
+    # With `HDR=YES` Access reads the header itself, so a header row is what the link
+    # asked for and its absence is the finding rather than its presence.
+    if feed is not None and feed.expects_header:
+        if header.verdict == DATA:
+            found.append(Finding("HEADER", "the link declares HDR=YES and the file "
+                                 "carries no header row, so its first record of data "
+                                 "is read as the column names"))
+        return found
 
     if spec.start_row == 0 and header.present:
         found.append(Finding("STARTROW", "StartRow=0 and the file carries a header "

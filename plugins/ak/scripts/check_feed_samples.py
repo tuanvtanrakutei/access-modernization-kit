@@ -56,18 +56,20 @@ def rows_of(data: Any) -> list[dict]:
     return []
 
 
-def supplied_samples(root: Path) -> dict[str, Path]:
+def supplied_samples(root: Path) -> dict[str, list[Path]]:
     """Every file under `input/samples/`, by lowercased name.
 
     Walked rather than listed, because an operator collecting files from several
-    senders puts them in a folder each, and the link names only the file.
+    senders puts them in a folder each, and the link names only the file. Every match
+    is kept: two senders both supplying `order.txt` is exactly the case where picking
+    one would compare the declaration against the wrong file and say it agreed.
     """
-    found: dict[str, Path] = {}
+    found: dict[str, list[Path]] = {}
     if not root.is_dir():
         return found
     for path in sorted(root.rglob("*")):
         if path.is_file():
-            found.setdefault(path.name.lower(), path)
+            found.setdefault(path.name.lower(), []).append(path)
     return found
 
 
@@ -119,7 +121,8 @@ def main() -> int:
 
     print(f"{len(declared)} link(s) name an import specification, "
           f"{len(specs)} specification(s) in the bundle, "
-          f"{len(on_disk)} file(s) under {samples_root}")
+          f"{sum(len(paths) for paths in on_disk.values())} file(s) under "
+          f"{samples_root}")
 
     lines: list[str] = []
     findings: list[tuple[str, str, str]] = []
@@ -129,9 +132,17 @@ def main() -> int:
     for feed in sorted(declared, key=lambda item: (item.database_id, item.table)):
         where = f"{feed.table} ({feed.file_name or 'no file named'})"
         spec = specs.get(feed.spec_name)
-        path = on_disk.get(feed.file_name.lower()) if feed.file_name else None
-        if path is not None:
+        matches = on_disk.get(feed.file_name.lower(), []) if feed.file_name else []
+        if matches:
             claimed.add(feed.file_name.lower())
+        if len(matches) > 1:
+            findings.append(("AMBIGUOUS", where, "more than one file under "
+                             "input/samples carries this name, and the link says "
+                             "nothing about which: " + ", ".join(
+                                 path.relative_to(samples_root).as_posix()
+                                 for path in matches)))
+            continue
+        path = matches[0] if matches else None
         if spec is None:
             findings.append(("NO SPEC", where, f"the link names `{feed.spec_name}`, "
                              "which this bundle does not carry - the layout of a "
@@ -143,19 +154,23 @@ def main() -> int:
                              "is under input/samples, so nothing checks the "
                              "declaration (EC-02)"))
             continue
+        unreadable = feeds_contract.format_problem(feed)
+        if unreadable is not None:
+            findings.append((unreadable.tag, where, unreadable.says))
+            continue
         sample = feeds_contract.sample_of(path.read_bytes(), spec)
         read.append((spec, sample))
         lines.append(f"  {describe(feed, spec, sample)}")
-        for finding in feeds_contract.disagreements(spec, sample):
+        for finding in feeds_contract.disagreements(spec, sample, feed):
             findings.append((finding.tag, where, finding.says))
 
     for name in sorted(set(on_disk) - claimed):
-        # Relative to the samples root, because the walk goes into subfolders an
-        # operator collecting from several senders makes, and a bare file name would
-        # not tell them which one to look in.
-        findings.append(("UNCLAIMED",
-                         on_disk[name].relative_to(samples_root).as_posix(),
-                         "no link in this bundle names this file"))
+        for path in on_disk[name]:
+            # Relative to the samples root, because the walk goes into subfolders an
+            # operator collecting from several senders makes, and a bare file name
+            # would not tell them which one to look in.
+            findings.append(("UNCLAIMED", path.relative_to(samples_root).as_posix(),
+                             "no link in this bundle names this file"))
 
     spread = feeds_contract.encoding_spread(read)
     if spread:

@@ -644,6 +644,37 @@ Closed entries name the commit that closed them and the run that proved it.
   check cannot reach, which is why the header comparison is part of the check rather
   than a refinement of it.
 
+  **Calibrated on one application, then guarded against it.** Every declaration this
+  check reads has exactly one value across A05's six feeds, so the question "what does
+  a second application get" has four answers that had to be built rather than assumed.
+  Each is a false finding avoided, which is worse than a missing check - A22 in this
+  same list is a rule whose false positives cannot be reviewed.
+
+  - a link declaring anything but `FMT=Delimited` is reported and not read. A
+  fixed-width layout has no separators, so counting them reports one field per record -
+  on *every* feed of such an application. Its layout is in the `Start` and `Width` of
+  the same rows, which nothing here reads yet;
+  - `HDR=YES` has Access reading the header itself, so there a header is what the link
+  asked for: the `StartRow=0` finding is suppressed and the *absence* of a header
+  becomes the finding instead;
+  - a specification whose columns carry no distinct `Start` - which is what a version
+  naming that column differently would produce - has no order to compare, so the names
+  are compared as a set and no position is named;
+  - two files of one name under `input/samples`, which is what collecting from several
+  senders into a folder each produces, are reported rather than one of them silently
+  chosen. Comparing a declaration against the wrong file and reporting agreement is the
+  worst outcome available here.
+
+  The encoding ladder is inherited rather than chosen - the same `("utf-8-sig",
+  "utf-8", "cp932")` seven other readers in this kit use - and it does not fail on a
+  Western code page, it decodes it as CP932. That is why every line of the report names
+  the codec the file was read with rather than leaving it implicit.
+
+  Two runs answer the question directly. A05's output is byte-identical with the guards
+  in place, and the shipped `examples/minimal-app` - client/server, SQL Server backend,
+  exported-only sources, no Access text link anywhere - reports `nothing to compare` and
+  exits 0 rather than reporting six absences of something it never had.
+
   It does not answer whether the import works. A05's product feed disagrees three ways -
   29 in the file, 28 in the specification, 30 columns in the destination table - and the
   third number is unreachable from here: `メインメニュー.取り込み_Click` builds the
