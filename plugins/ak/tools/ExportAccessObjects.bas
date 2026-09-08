@@ -60,7 +60,9 @@ Private Const MODULE_NAME As String = "modExportAccess"
 '                       link names one, which export-manifest.txt states rather than
 '                       leaving it to be inferred from a missing file.
 '                       System (MSys*), temp (~*), and Access ImportErrors
-'                       tables are excluded; their count/names go in the manifest.
+'                       tables are excluded; the manifest carries the count, the
+'                       names, and for a shape-based exclusion the three field
+'                       names it was decided on.
 '   export-manifest.txt object counts and the list of skipped objects
 '
 ' Every object is exported independently: a single failing object is recorded
@@ -121,11 +123,25 @@ Public Sub ExportAccessObjects(ByVal OutRoot As String)
 
     Dim td As DAO.TableDef, sb As String, nExcluded As Long, excludedNames As String
     Dim anyDsnLink As Boolean, nImexRows As Long
+    Dim nKeptShape As Long, keptShapeNames As String
     For Each td In db.TableDefs
         If IsSystemOrJunkTable(td) Then
             nExcluded = nExcluded + 1
-            excludedNames = excludedNames & "  " & td.Name & vbCrLf
+            ' The three field names beside the name, for the tables excluded by shape.
+            ' An exclusion whose evidence the exclusion destroys can only be trusted:
+            ' with the name alone nobody can tell エラー / フィールド / 行 from
+            ' 集計分類コード / 集計分類名 / 配送分類コード. Backlog A22.
+            excludedNames = excludedNames & "  " & td.Name
+            If HasImportErrorsShape(td) Then excludedNames = excludedNames & ": " & FieldShapeText(td)
+            excludedNames = excludedNames & vbCrLf
         Else
+            ' Kept, and worth saying so: after the field-name condition the excluded
+            ' list holds only genuine error tables, and nothing else would show how
+            ' close a real master came to being dropped.
+            If HasImportErrorsShape(td) Then
+                nKeptShape = nKeptShape + 1
+                keptShapeNames = keptShapeNames & "  " & td.Name & ": " & FieldShapeText(td) & vbCrLf
+            End If
             If nTable > 0 Then sb = sb & "," & vbCrLf
             sb = sb & TableSchemaJson(td)
             If LinkDeclaresDsn(td) Then anyDsnLink = True
@@ -158,6 +174,9 @@ Public Sub ExportAccessObjects(ByVal OutRoot As String)
               "skipped=" & mSkipCount & vbCrLf
     If nExcluded > 0 Then
         summary = summary & vbCrLf & "EXCLUDED tables (system / temp / Access ImportErrors):" & vbCrLf & excludedNames
+    End If
+    If nKeptShape > 0 Then
+        summary = summary & vbCrLf & "KEPT tables with the ImportErrors shape but not its field names:" & vbCrLf & keptShapeNames
     End If
     If mSkipCount > 0 Then
         summary = summary & vbCrLf & "SKIPPED (kind" & vbTab & "name" & vbTab & "error):" & vbCrLf & mSkipped
@@ -229,19 +248,101 @@ Private Function IsSystemOrJunkTable(ByVal td As Object) As Boolean
     ' Exclude non-model tables from the schema export:
     '  - MSys*  : Access system tables
     '  - ~*     : temporary/work tables
-    '  - Access auto-generated ImportErrors tables (exactly 3 fields:
-    '    Error(Text 255) / Field(Text 255) / Row(Long); dbText=10, dbLong=4).
+    '  - Access auto-generated ImportErrors tables: the shape below AND the field
+    '    names Access gives them. Shape alone dropped two business masters out of
+    '    A05's backend - 集計分類コード / 集計分類名 / 配送分類コード is Text/Text/Long
+    '    too - and recorded nothing but their names, so the exclusion could only be
+    '    trusted, never reviewed. Backlog A22.
     Dim n As String
     n = td.name
     If Left$(n, 4) = "MSys" Then IsSystemOrJunkTable = True: Exit Function
     If Left$(n, 1) = "~" Then IsSystemOrJunkTable = True: Exit Function
+    If HasImportErrorsShape(td) Then IsSystemOrJunkTable = HasImportErrorsFieldNames(td)
+End Function
+
+Private Function HasImportErrorsShape(ByVal td As Object) As Boolean
+    ' Exactly Error(Text 255) / Field(Text 255) / Row(Long); dbText=10, dbLong=4.
     On Error Resume Next
     If td.Fields.Count = 3 Then
         If td.Fields(0).Type = 10 And td.Fields(1).Type = 10 And td.Fields(2).Type = 4 Then
-            IsSystemOrJunkTable = True
+            HasImportErrorsShape = True
         End If
     End If
     On Error GoTo 0
+End Function
+
+Private Function HasImportErrorsFieldNames(ByVal td As Object) As Boolean
+    ' Access names these three fields for Error/Field/Row in the UI language that
+    ' created the table. Both spellings A05 carries are here, and the identical list
+    ' is in scripts/extract_access.ps1: tests/test_import_errors_rule.py holds the two
+    ' against each other, because the two routes drifting apart is what A21 was.
+    '
+    ' The field names, never the table name: that one is user-editable and localized,
+    ' and this corpus already has a legitimate table matching the Japanese word for
+    ' "error". Written as code points because a .bas file's own encoding is whatever
+    ' the editor that saved it used, and a mojibake literal would silently stop
+    ' matching; the trailing & keeps &H884C a Long rather than a negative Integer.
+    Dim jaError As String, jaField As String, jaRow As String
+    jaError = ChrW(&H30A8&) & ChrW(&H30E9&) & ChrW(&H30FC&)
+    jaField = ChrW(&H30D5&) & ChrW(&H30A3&) & ChrW(&H30FC&) & ChrW(&H30EB&) & ChrW(&H30C9&)
+    jaRow = ChrW(&H884C&)
+    If FieldNamesAre(td, "Error", "Field", "Row") Then HasImportErrorsFieldNames = True: Exit Function
+    If FieldNamesAre(td, jaError, jaField, jaRow) Then HasImportErrorsFieldNames = True
+End Function
+
+Private Function FieldNamesAre(ByVal td As Object, ByVal first As String, ByVal second As String, ByVal third As String) As Boolean
+    ' vbTextCompare rather than =: in an East Asian locale it also treats a half-width
+    ' ｴﾗｰ and a full-width エラー as the one name they are on screen, which is what the
+    ' PowerShell route gets from NFKC.
+    On Error Resume Next
+    FieldNamesAre = (StrComp(td.Fields(0).name, first, vbTextCompare) = 0 _
+                     And StrComp(td.Fields(1).name, second, vbTextCompare) = 0 _
+                     And StrComp(td.Fields(2).name, third, vbTextCompare) = 0)
+    On Error GoTo 0
+End Function
+
+Private Function FieldShapeText(ByVal td As Object) As String
+    ' The three field names with their Access types, so an exclusion can be reviewed
+    ' from the manifest alone. "type = 10" tells a reader nothing; "Text" does.
+    On Error Resume Next
+    Dim s As String, i As Long
+    For i = 0 To td.Fields.Count - 1
+        If i > 0 Then s = s & " / "
+        s = s & td.Fields(i).name & "(" & DaoTypeName(CLng(td.Fields(i).Type)) & ")"
+    Next
+    FieldShapeText = s
+    On Error GoTo 0
+End Function
+
+Private Function DaoTypeName(ByVal daoType As Long) As String
+    ' Enough of specifications/dao-field-types.yaml to make that line readable. An
+    ' unmapped code prints as its own number rather than being guessed at.
+    Select Case daoType
+        Case 1: DaoTypeName = "Boolean"
+        Case 2: DaoTypeName = "Byte"
+        Case 3: DaoTypeName = "Integer"
+        Case 4: DaoTypeName = "Long"
+        Case 5: DaoTypeName = "Currency"
+        Case 6: DaoTypeName = "Single"
+        Case 7: DaoTypeName = "Double"
+        Case 8: DaoTypeName = "Date"
+        Case 9: DaoTypeName = "Binary"
+        Case 10: DaoTypeName = "Text"
+        Case 11: DaoTypeName = "LongBinary"
+        Case 12: DaoTypeName = "Memo"
+        Case 15: DaoTypeName = "GUID"
+        Case 16: DaoTypeName = "BigInt"
+        Case 17: DaoTypeName = "VarBinary"
+        Case 18: DaoTypeName = "Char"
+        Case 19: DaoTypeName = "Numeric"
+        Case 20: DaoTypeName = "Decimal"
+        Case 21: DaoTypeName = "Float"
+        Case 22: DaoTypeName = "Time"
+        Case 23: DaoTypeName = "TimeStamp"
+        Case 101: DaoTypeName = "Attachment"
+        Case 109: DaoTypeName = "ComplexText"
+        Case Else: DaoTypeName = "type " & daoType
+    End Select
 End Function
 
 Private Function JsonEscape(ByVal s As String) As String

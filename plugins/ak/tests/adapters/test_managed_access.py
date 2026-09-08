@@ -281,3 +281,27 @@ def test_receipt_is_read_even_with_a_byte_order_mark(monkeypatch, tmp_path: Path
     result = ManagedAccessAdapter().acquire(plan)
     assert result.status == "VALID"
     assert result.source_hashes["FRONTEND"] == "a" * 64
+
+
+# A22 gave the shape exclusion an evidence trail, and the trail arrives through the
+# warning channel: an `EXCLUDED:` summary, one `EXCLUDED table <name>: <fields>` line
+# per table dropped, and one `KEPT table ...` per table the second condition saved.
+# Only the summary carried the marker this router matched, so 210 of those lines on one
+# A05 frontend would have been filed as objects that could not be read - which is the
+# defect the router was written to fix, in the code that fixed it.
+def test_an_exclusion_with_its_evidence_is_still_an_exclusion() -> None:
+    adapter = ManagedAccessAdapter()
+    data = _extraction(warnings=[
+        "EXCLUDED: 3 non-model tables: Access temporary (~*) and auto-generated "
+        "ImportErrors tables.",
+        "EXCLUDED table Sheet1$_x: A(Text) / B(Text) / C(Long) - Access ImportErrors "
+        "shape and field names",
+        "KEPT table M: X(Text) / Y(Text) / Z(Long) - the ImportErrors shape, but not "
+        "its field names",
+        "Could not read table T: no read definitions permission",
+    ])
+    failures = adapter.normalize(adapter.result_from_extraction("SYN", data))["failures"]
+    kinds = [entry.get("kind") for entry in failures]
+    assert kinds == ["exclusion", "exclusion", "observation", None]
+    # And every reason survives in full: the field names are the whole point of the line.
+    assert "A(Text) / B(Text) / C(Long)" in failures[1]["reason"]
