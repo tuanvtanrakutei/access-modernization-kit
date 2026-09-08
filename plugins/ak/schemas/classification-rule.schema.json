@@ -21,10 +21,9 @@
     "affects": {
       "type": "object",
       "additionalProperties": false,
-      "patternProperties": {"^phase[1-6]$": {"enum": ["READY", "LIMITED", "BLOCKED", "NOT_APPLICABLE"]}}
+      "patternProperties": {"^phase[1-6]$": {"enum": ["READY", "LIMITED", "BLOCKED"]}}
     },
     "allow_limited_when": {"type": "array", "items": {"type": "string"}},
-    "not_applicable_when": {"type": "array", "items": {"type": "string"}},
     "applies_when_satisfied": {"type": "boolean"},
     "description": {"type": "string"}
   }

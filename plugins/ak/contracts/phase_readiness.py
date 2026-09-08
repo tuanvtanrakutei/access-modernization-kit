@@ -7,7 +7,34 @@ import evidence_classes
 from classification import Classification, resolve_classification
 
 PHASES = tuple(f"phase{i}" for i in range(1, 7))
-RANK = {"READY": 0, "NOT_APPLICABLE": 0, "LIMITED": 1, "BLOCKED": 2}
+# Non-applicability is not modelled, and this is where somebody will come looking.
+#
+# `NOT_APPLICABLE` used to sit here at rank 0 beside READY, with a special case in
+# `_set_status` and a `not_applicable_when` field in `classification-rule.schema.json`
+# to produce it. No profile ever shipped such a rule, and searching for one found that
+# none can be written: the claim is about an application and the evidence is not.
+#
+#   - `data_only_proof` declares one *database* data-only. The capability set is flat
+#     and carries no database scope, so in a split application it cannot distinguish a
+#     data-only backend - whose frontend holds every screen - from an application with
+#     no screens at all. A phase2 rule keyed on it would mark screen analysis
+#     inapplicable for an application full of screens.
+#   - No `frontend_format` means "no frontend": mdb, accdb, adp, mde, accde, exported
+#     all have one. A classified application always has screens.
+#   - A monolith declared data-only is not an application. It is a database, and this
+#     kit would not be pointed at one.
+#   - The remaining cases are degradations, not exclusions: `compiled_only` makes
+#     phase 3 LIMITED, a text-only backend makes phase 1 BLOCKED for want of a field
+#     inventory. Both mean "less can be said", which the ranking already carries.
+#
+# What it would take to bring it back: capabilities scoped per database, so a proof can
+# say *which* database it is about. Until then a status nothing produces is a trap - it
+# looked available for reuse when phases 4-6 needed one for "the operator declined this"
+# (backlog A19), and borrowing it would have made a choice indistinguishable from a
+# finding. `NOT_REQUESTED` exists in `run-state.json` for that, and deliberately not
+# here: readiness answers what the evidence supports, and a declined deliverable is not
+# evidence. Backlog A20.
+RANK = {"READY": 0, "LIMITED": 1, "BLOCKED": 2}
 NON_WAIVABLE_RULES = {
     "backend.unknown_boundary.blocks_ready",
 }
@@ -43,7 +70,7 @@ def _missing(require: dict[str, list[str]], capabilities: set[str]) -> list[str]
 
 
 def _set_status(target: dict[str, Any], status: str, rule_id: str, reason: str) -> None:
-    if RANK[status] > RANK[target["status"]] or status == "NOT_APPLICABLE":
+    if RANK[status] > RANK[target["status"]]:
         target["status"] = status
     if rule_id not in target["rule_ids"]:
         target["rule_ids"].append(rule_id)
@@ -98,12 +125,6 @@ def compute_readiness(
         elif rule.get("applies_when_satisfied"):
             for phase, status in rule.get("affects", {}).items():
                 _set_status(result[phase], status, rule_id, "intrinsic_profile_limit")
-
-        proof = set(rule.get("not_applicable_when", []))
-        if proof and proof.issubset(present_capabilities):
-            for phase, status in rule.get("affects", {}).items():
-                if status == "NOT_APPLICABLE":
-                    _set_status(result[phase], status, rule_id, "positive_non_applicability_proof")
 
     classes: dict[str, list[str]] = {}
     if package_root is not None:

@@ -167,10 +167,12 @@ def requested_phases(text: str) -> dict[str, bool]:
 def initial_phase_gates(text: str) -> dict[str, str]:
     """`PENDING` for a phase that was asked for, `NOT_REQUESTED` for one that was not.
 
-    Not `NOT_APPLICABLE`: that status is for a phase the *evidence* rules out, provable
-    by a `not_applicable_when` rule that no profile currently ships (backlog A20). An
-    operator declining a deliverable is a different claim, and reading identically would
-    let a choice look like a finding.
+    There is no evidence-based counterpart to borrow. `NOT_APPLICABLE` existed for a
+    phase the evidence rules out, and was removed once it turned out no rule could
+    produce it - the claim is about an application and the capability that would prove
+    it is about one database (backlog A20, and the note in
+    `contracts/phase_readiness.py`). An operator declining a deliverable is a different
+    claim from evidence excluding one, and this status carries only the first.
 
     Declining is reversible. Set the key back to `true` and the next `advance_run`
     promotes the gate to `PENDING`; nothing here is one-way, because a project that

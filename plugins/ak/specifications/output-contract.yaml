@@ -31,14 +31,13 @@ required_phase_outputs:
 # never un-published by a manifest edit, because the document exists and run state
 # denying it would be the same lie as marking a declined phase published.
 #
-# `NOT_REQUESTED` is deliberately not `NOT_APPLICABLE`, which means the *evidence* ruled
-# the phase out. That one is provable by a `not_applicable_when` rule -
-# `schemas/classification-rule.schema.json` declares the mechanism and
-# `contracts/phase_readiness.py` ranks the status - and no profile currently ships such
-# a rule, so it is reachable in principle and unused in practice (backlog A20). Which is
-# a second reason not to borrow it: an operator declining a deliverable and evidence
-# excluding one are different claims, and a status with no producer cannot be made to
-# mean the first without becoming only that.
+# `NOT_REQUESTED` says the operator declined a deliverable. There is no counterpart for
+# "the evidence rules this phase out", and deliberately not: `NOT_APPLICABLE` existed
+# for that and was removed once it turned out no rule could produce it - the claim is
+# about an application and the capability that would prove it is about one database
+# (backlog A20). Readiness answers what the evidence supports; a declined deliverable is
+# not evidence, which is why this status lives in run state and not in
+# `contracts/phase_readiness.py`.
 requestable_phase_outputs:
   - "{APP_ID}_Phase4_WorkflowReconstruction_{LANG}.md"
   - "{APP_ID}_Phase5_DocumentIntegration_{LANG}.md"
