@@ -84,8 +84,9 @@ answer either.
 
 ### A22 - a table excluded by its shape leaves no record of its shape
 
-**Observed 2026-09-08, in A05's backend export. The managed route is done and proven;
-the exporter half is written and unproven, which is the only thing keeping this open.**
+**Observed 2026-09-08, in A05's backend export. The managed route is done and proven
+in `6910551`; the exporter half is written and unproven, which is the only thing
+keeping this open.**
 
 Both acquisition routes drop a table whose fields are exactly Text/Text/Long as an
 Access ImportErrors table. The rule is deliberate and the reason is good: A05's July
