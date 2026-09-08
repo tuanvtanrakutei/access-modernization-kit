@@ -11,6 +11,7 @@
     "runtime": {"type": "object"}, "project_context": {"type": "object"},
     "components": {"type": "array", "items": {"type": "object"}},
     "tables": {"type": "array", "items": {"type": "object"}, "description": "Per-table schema detail: fields, indexes, and link target. Optional, so extractions written before this key existed still validate."},
+    "imex_specs": {"type": "array", "items": {"type": "object"}, "description": "The import/export specification tables a text link points at, read only when some link declares DSN=. Every field of every row, because these column names are Access own and naming a subset is how a version difference would silently drop the layout that a text link with HDR=NO has nowhere else (backlog A17)."},
     "warnings": {"type": "array", "items": {"type": "string"}}
   },
   "additionalProperties": false

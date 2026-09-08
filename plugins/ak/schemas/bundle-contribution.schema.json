@@ -31,7 +31,8 @@
     "interfaces": {
       "type": "object", "additionalProperties": false,
       "required": ["linked_tables", "file_interfaces", "connections_redacted"],
-      "properties": {"linked_tables": {"type": "array"}, "file_interfaces": {"type": "array"}, "connections_redacted": {"type": "array"}}
+      "properties": {"linked_tables": {"type": "array"}, "file_interfaces": {"type": "array"}, "connections_redacted": {"type": "array"},
+                     "imex_specs": {"type": "array", "description": "The import/export specification tables a text link points at. Not required: a contribution from a route that does not read them, or from an adapter written before backlog A17, is still valid and means none were read - which is different from a link having no declared layout."}}
     },
     "evidence_sources": {
       "type": "object", "additionalProperties": false,

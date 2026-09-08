@@ -756,12 +756,64 @@ def parse_fact(text: str) -> dict[str, Any] | None:
     return parsed
 
 
+def imex_columns(records: list[dict]) -> dict[str, list[str]]:
+    """How many columns each import specification declares, by specification name.
+
+    The join `MSysIMEXSpecs` to `MSysIMEXColumns` on `SpecID` is done here rather than
+    in the extractor, because here it can be tested. The extractor emits every field of
+    every row without interpreting them, so a version whose column names differ still
+    reaches the bundle and shows up as an unjoinable spec rather than as nothing.
+
+    Why it is worth having at all: a text link declaring `HDR=NO` has no header row, so
+    its columns are positional and the specification is the only declaration of what
+    those positions mean. On A05 all six links reported `read_error` with `columns: 0`
+    because the share was unmounted at acquisition - Access cannot enumerate a text
+    link's columns without reading the file - so this was the only copy of the inbound
+    boundary's layout that did not depend on the file being reachable. Backlog A17.
+    """
+    specs: dict[str, str] = {}
+    columns: dict[str, list[str]] = defaultdict(list)
+    for record in records:
+        if record.get("status") != "read":
+            continue
+        for row in record.get("rows") or []:
+            keys = {str(key).lower(): value for key, value in row.items()}
+            spec_id = str(keys.get("specid") or "")
+            if not spec_id:
+                continue
+            if record.get("table") == "MSysIMEXSpecs":
+                name = str(keys.get("specname") or "")
+                if name:
+                    specs[spec_id] = name
+            else:
+                field = str(keys.get("fieldname") or "")
+                if field:
+                    columns[spec_id].append(field)
+    return {name: columns.get(spec_id, []) for spec_id, name in specs.items()}
+
+
+def declared_layout(connect: str, imex: dict[str, list[str]]) -> str:
+    """What the link's own specification says its columns are, if it names one."""
+    match = re.search(r"(?i)(?:^|;)\s*DSN\s*=\s*([^;]+)", connect or "")
+    if not match:
+        return ""
+    name = match.group(1).strip()
+    fields = imex.get(name)
+    if fields is None:
+        # The link names a specification the database does not hold. That is a finding:
+        # the layout of a headerless file is declared nowhere, so a sample is the only
+        # remaining route (EC-02).
+        return f"`{escape(name)}` **not in the database**"
+    return f"`{escape(name)}`: {len(fields)} column(s)"
+
+
 def logic_catalogue(app_id: str, bundle: Path, derived: dict | None,
                     sql: Any, naming: Any, meaning: Any) -> str:
     queries = rows_of(read_json(bundle / "code" / "access-sql" / "inventory.json"))
     modules = rows_of(read_json(bundle / "code" / "vba" / "inventory.json"))
     interfaces = rows_of(read_json(bundle / "interfaces" / "file-interfaces.json"))
     linked = rows_of(read_json(bundle / "interfaces" / "linked-tables.json"))
+    imex = imex_columns(rows_of(read_json(bundle / "interfaces" / "imex-specs.json")))
 
     referenced = reference_counts(derived)
     verbs = {(q.get("database_id", ""), q.get("name", "")): query_verb(bundle, q)
@@ -896,8 +948,8 @@ def logic_catalogue(app_id: str, bundle: Path, derived: dict | None,
             "Every declared inbound and outbound file. A format claim about any of "
             f"these needs one real sample ({NOT_EXTRACTED} means the declaration says "
             "nothing about it).", "",
-            "| File or link | Database | Direction | Declared format | What it is for |",
-            "|---|---|---|---|---|"]
+            "| File or link | Database | Direction | Declared format | Declared columns | What it is for |",
+            "|---|---|---|---|---|---|"]
     for row in sorted(linked, key=lambda r: str(r.get("name", ""))):
         connect = (row.get("connect") or (row.get("metadata") or {}).get("connect") or "")
         # A linked table's meaning is asked once, in the `tables:` section, because a
@@ -905,6 +957,7 @@ def logic_catalogue(app_id: str, bundle: Path, derived: dict | None,
         # second question about the same subject.
         out.append(f"| `{escape(row.get('name'))}` | {escape(row.get('database_id'))} | "
                    f"inbound link | `{escape(connect) or NOT_EXTRACTED}` | "
+                   f"{declared_layout(connect, imex) or NOT_EXTRACTED} | "
                    f"{table_meaning(meaning, str(row.get('name') or ''))} |")
     for row in sorted(interfaces, key=lambda r: str(r.get("name", r.get("path", "")))):
         name = str(row.get("name") or row.get("path") or "")
@@ -912,6 +965,7 @@ def logic_catalogue(app_id: str, bundle: Path, derived: dict | None,
                    f"{escape(row.get('database_id'))} | "
                    f"{escape(row.get('direction') or NEEDS_DOC)} | "
                    f"`{escape(row.get('format')) or NOT_EXTRACTED}` | "
+                   f"{declared_layout(str(row.get('connect') or ''), imex) or NOT_EXTRACTED} | "
                    f"{boundary_meaning(meaning, name)} |")
     return "\n".join(out) + "\n"
 
