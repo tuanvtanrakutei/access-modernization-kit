@@ -71,6 +71,12 @@ class Meanings:
     # - A05 has two objects called the same thing - so the kind is part of the key, the
     # same reason `generate_catalogues.py` keys objects by kind.
     screens: dict[str, Meaning]
+    # Files crossing the application's boundary, keyed by file name. Linked tables are
+    # deliberately absent: a linked table is a table, it already carries a `tables:`
+    # entry whose note reads "linked, so it lives in another file", and asking again
+    # here would be one subject asked twice - which is the duplication this whole line
+    # of work exists to remove.
+    boundaries: dict[str, Meaning]
     incomplete: list[str]
     # Subjects with a blank entry waiting to be filled. Counted, never listed: this is
     # the worklist `$ak meanings` wrote, not a set of defects.
@@ -78,6 +84,11 @@ class Meanings:
 
     def table(self, name: str) -> Meaning | None:
         entry = self.tables.get(name)
+        return entry if entry and entry.is_complete else None
+
+    def boundary(self, name: str) -> Meaning | None:
+        """What a file crossing the boundary is for, and who sends or reads it."""
+        entry = self.boundaries.get(name)
         return entry if entry and entry.is_complete else None
 
     def screen(self, kind: str, name: str) -> Meaning | None:
@@ -102,17 +113,18 @@ class Meanings:
 def load(path: Path) -> Meanings:
     """Read the decisions file. A missing file means nothing is recorded yet."""
     if not path.is_file():
-        return Meanings({}, {}, {}, [])
+        return Meanings({}, {}, {}, {}, [])
     import yaml
 
     data = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
     tables: dict[str, Meaning] = {}
     columns: dict[str, Meaning] = {}
     screens: dict[str, Meaning] = {}
+    boundaries: dict[str, Meaning] = {}
     incomplete: list[str] = []
     unfilled: list[str] = []
     for section, target in (("tables", tables), ("columns", columns),
-                            ("screens", screens)):
+                            ("screens", screens), ("boundaries", boundaries)):
         for subject, entry in (data.get(section) or {}).items():
             if not isinstance(entry, dict):
                 incomplete.append(f"{section}/{subject}: not a mapping")
@@ -141,4 +153,4 @@ def load(path: Path) -> Meanings:
                 incomplete.append(f"{section}/{subject}: " + "; ".join(why))
                 continue
             target[str(subject)] = meaning
-    return Meanings(tables, columns, screens, incomplete, unfilled)
+    return Meanings(tables, columns, screens, boundaries, incomplete, unfilled)

@@ -169,6 +169,47 @@ def test_a_screen_note_carries_what_the_definition_already_says(
     assert body.lstrip().startswith('meaning: ""')
 
 
+def test_a_boundary_file_is_asked_about_and_a_linked_table_is_not(
+    workspace: Path,  # noqa: F811
+) -> None:
+    """The last subject kind A19 named that a bundle can actually enumerate.
+
+    Linked tables are excluded on purpose. A linked table is a table: the fixture's
+    `元受注データ` already has a `tables:` entry whose note reads "linked, so it lives in
+    another file", so asking again here would be one subject asked twice - the
+    duplication this whole line of work exists to remove. Checked against the fixture
+    rather than assumed.
+    """
+    text = run(workspace)
+    boundaries = text.split("boundaries:", 1)[1]
+    assert '"order.txt":' in boundaries
+    assert '"shipping.dat":' in boundaries
+    assert "元受注データ" not in boundaries
+    # And it is still asked once, in the section that owns it.
+    assert '"元受注データ":' in text.split("tables:", 1)[1].split("columns:", 1)[0]
+
+
+def test_an_outbound_file_is_asked_about_first(workspace: Path) -> None:  # noqa: F811
+    """A file this application writes is a contract somebody downstream depends on.
+
+    Getting an inbound file wrong breaks this application's next run, which is visible
+    here. Getting an outbound one wrong breaks theirs, which is not.
+    """
+    boundaries = run(workspace).split("boundaries:", 1)[1]
+    assert boundaries.index('"shipping.dat":') < boundaries.index('"order.txt":')
+
+
+def test_a_boundary_note_carries_the_declaration_and_names_what_it_omits(
+    workspace: Path,  # noqa: F811
+) -> None:
+    boundaries = run(workspace).split("boundaries:", 1)[1]
+    assert "inbound; format `Delimited;HDR=NO`" in boundaries
+    assert "outbound; no format declared" in boundaries
+    assert "declared at `L:/out/shipping.dat`" in boundaries
+    # The note says what a declaration cannot cover, which is the question to ask.
+    assert "who sends it, how often" in boundaries
+
+
 def test_a_sourced_meaning_outlives_its_table(workspace: Path) -> None:  # noqa: F811
     """A meaning somebody obtained is not dropped because a bundle stopped listing it.
 

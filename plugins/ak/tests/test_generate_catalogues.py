@@ -68,7 +68,14 @@ def workspace(tmp_path: Path) -> Path:
     write(bundle / "interfaces" / "linked-tables.json", [
         {"database_id": BE, "name": "元受注データ", "connect": "Text;DATABASE=L:\\x"},
     ])
-    write(bundle / "interfaces" / "file-interfaces.json", [])
+    # Two boundary files, one each way. The outbound one declares no format, which is
+    # the normal state: a declaration says where a file goes, not what is in it.
+    write(bundle / "interfaces" / "file-interfaces.json", [
+        {"database_id": FE, "name": "order.txt", "path": "L:/in/order.txt",
+         "direction": "inbound", "format": "Delimited;HDR=NO"},
+        {"database_id": FE, "name": "shipping.dat", "path": "L:/out/shipping.dat",
+         "direction": "outbound"},
+    ])
     write(bundle / "ui" / "forms" / "inventory.json", [
         {"database_id": FE, "name": "メインメニュー", "kind": "form"},
         {"database_id": FE, "name": "商品検索", "kind": "form"},
@@ -386,6 +393,59 @@ screens:
     row = next(line for line in screens.splitlines()
                if "ピッキングリスト" in line and line.startswith("|"))
     assert catalogues.NEEDS_DOC in row
+
+
+def test_a_recorded_boundary_meaning_reaches_the_catalogue(workspace: Path) -> None:  # noqa: F811
+    """The boundary table had no column for what a file is for at all.
+
+    It carried the path, the direction and the declared format - everything a
+    declaration states. Who sends the file, how often, and what happens when it does
+    not arrive are USAGE and INTENT, and there was nowhere for an answer to them to go.
+    """
+    logic = build(workspace)["T01_LogicCatalogue.md"]
+    assert "| What it is for |" in logic
+    row = next(line for line in logic.splitlines() if "`order.txt`" in line)
+    assert catalogues.NEEDS_DOC in row
+
+    target = workspace / "input" / "decisions" / "meanings.yaml"
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_text("""
+boundaries:
+  "order.txt":
+    meaning: Yesterday's orders from the warehouse system; absent means the night job failed.
+    evidence_class: INTERVIEW
+    source: 業務課 (堀内), 2026-09-08, asked by Vo Ta Tuan
+""", encoding="utf-8")
+
+    logic = build(workspace)["T01_LogicCatalogue.md"]
+    row = next(line for line in logic.splitlines() if "`order.txt`" in line)
+    assert "absent means the night job failed" in row
+    assert "INTERVIEW: 業務課 (堀内), 2026-09-08" in row
+    # The other file was not answered, and says so.
+    other = next(line for line in logic.splitlines() if "`shipping.dat`" in line)
+    assert catalogues.NEEDS_DOC in other
+
+
+def test_a_linked_table_shows_the_meaning_it_already_has(workspace: Path) -> None:  # noqa: F811
+    """One subject, one question. A linked table's row reads the `tables:` answer.
+
+    Giving the boundary table its own question for a linked table would have been the
+    obvious symmetry and the wrong one: the same file would appear twice in
+    `meanings.yaml` with no way for a reader to know which answer wins.
+    """
+    target = workspace / "input" / "decisions" / "meanings.yaml"
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_text("""
+tables:
+  "元受注データ":
+    meaning: The previous day's orders, linked from the share rather than stored here.
+    evidence_class: DOCUMENT
+    source: operations manual, page 4
+""", encoding="utf-8")
+    logic = build(workspace)["T01_LogicCatalogue.md"]
+    row = next(line for line in logic.splitlines()
+               if "元受注データ" in line and "inbound link" in line)
+    assert "linked from the share rather than stored here" in row
 
 
 # --- the table has to be a table --------------------------------------------

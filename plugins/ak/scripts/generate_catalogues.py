@@ -265,6 +265,18 @@ def column_meaning(meaning: Any, table: str, column: str) -> str:
     return escape(entry.cite()) if entry else NEEDS_DOC
 
 
+def boundary_meaning(meaning: Any, name: str) -> str:
+    """What a file crossing the boundary is for. The table had no column for it.
+
+    It carried the path, the direction and the declared format - everything a
+    declaration states, and nothing about who sends the file, how often, or what
+    happens when it does not arrive. Those are USAGE and INTENT claims, so the column
+    reads the marker until a document or an interview fills it.
+    """
+    entry = meaning.boundary(name)
+    return escape(entry.cite()) if entry else NEEDS_DOC
+
+
 def screen_meaning(meaning: Any, kind: str, name: str) -> str:
     """What a form or report is for. Hard-coded to the marker until 2.10.
 
@@ -745,7 +757,7 @@ def parse_fact(text: str) -> dict[str, Any] | None:
 
 
 def logic_catalogue(app_id: str, bundle: Path, derived: dict | None,
-                    sql: Any, naming: Any) -> str:
+                    sql: Any, naming: Any, meaning: Any) -> str:
     queries = rows_of(read_json(bundle / "code" / "access-sql" / "inventory.json"))
     modules = rows_of(read_json(bundle / "code" / "vba" / "inventory.json"))
     interfaces = rows_of(read_json(bundle / "interfaces" / "file-interfaces.json"))
@@ -884,17 +896,23 @@ def logic_catalogue(app_id: str, bundle: Path, derived: dict | None,
             "Every declared inbound and outbound file. A format claim about any of "
             f"these needs one real sample ({NOT_EXTRACTED} means the declaration says "
             "nothing about it).", "",
-            "| File or link | Database | Direction | Declared format |",
-            "|---|---|---|---|"]
+            "| File or link | Database | Direction | Declared format | What it is for |",
+            "|---|---|---|---|---|"]
     for row in sorted(linked, key=lambda r: str(r.get("name", ""))):
         connect = (row.get("connect") or (row.get("metadata") or {}).get("connect") or "")
+        # A linked table's meaning is asked once, in the `tables:` section, because a
+        # linked table is a table. This cell reads it from there rather than opening a
+        # second question about the same subject.
         out.append(f"| `{escape(row.get('name'))}` | {escape(row.get('database_id'))} | "
-                   f"inbound link | `{escape(connect) or NOT_EXTRACTED}` |")
+                   f"inbound link | `{escape(connect) or NOT_EXTRACTED}` | "
+                   f"{table_meaning(meaning, str(row.get('name') or ''))} |")
     for row in sorted(interfaces, key=lambda r: str(r.get("name", r.get("path", "")))):
-        out.append(f"| `{escape(row.get('name') or row.get('path'))}` | "
+        name = str(row.get("name") or row.get("path") or "")
+        out.append(f"| `{escape(name)}` | "
                    f"{escape(row.get('database_id'))} | "
                    f"{escape(row.get('direction') or NEEDS_DOC)} | "
-                   f"`{escape(row.get('format')) or NOT_EXTRACTED}` |")
+                   f"`{escape(row.get('format')) or NOT_EXTRACTED}` | "
+                   f"{boundary_meaning(meaning, name)} |")
     return "\n".join(out) + "\n"
 
 
@@ -941,7 +959,7 @@ def main() -> int:
         f"{app_id}_ScreenCatalogue.md": screen_catalogue(
             app_id, bundle, space.extracted("ui-facts"), derived, naming, meaning),
         f"{app_id}_LogicCatalogue.md": logic_catalogue(
-            app_id, bundle, derived, sql, naming),
+            app_id, bundle, derived, sql, naming, meaning),
     }
     if args.dry_run:
         for name, text in catalogues.items():
