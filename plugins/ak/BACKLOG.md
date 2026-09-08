@@ -12,6 +12,36 @@ that it should now work.
 
 ## Open
 
+### A25 - an extractor's own notes are counted as objects that could not be read
+
+**Observed 2026-09-08, on the bundle that proved A22.** `coverage.json` for a clean
+managed acquisition of A05's backend reports `unclassified: failed=2`. Nothing failed.
+The two entries are the extractor telling the operator what it did:
+
+    6 linked table(s) declare a DSN; read the import specification tables for their column layout
+    Object definition export was skipped; the inventory carries names only
+
+Every warning the extractor emits travels one channel and the bundle classifies it by
+its opening word. `EXCLUDED` is an exclusion and, since A22, `KEPT ` is an observation;
+a warning that begins with neither is counted as evidence that should exist and does
+not. A note has no marker, so a note is a failure.
+
+This is the same defect the marker was introduced to fix, one layer along.
+`bundle_assembly._coverage`'s comment states the rule it is meant to keep - "`failed`
+has to keep meaning evidence that should exist and does not" - and two of these appear
+on *every* managed acquisition, so the floor for a perfect run is two failures.
+
+**What to change.** The extractor's informational lines need a marker of their own,
+the way the exclusions have one, and the router needs to read it. The care is in the
+list: `Could not read table X: ...` must keep landing as a failure, `PARTIAL` status
+must still mean something, and a marker convention that is easy to forget is a defect
+generator - the next person adding a warning gets it wrong by default. Worth
+considering whether the extractor should emit a structured `notes` array instead, which
+the schema permits alongside `warnings` and which cannot be misread by prefix at all.
+
+Not urgent and not cosmetic: it is two phantom failures on every run, and a reader who
+learns to ignore `failed=2` is a reader who will ignore `failed=3`.
+
 ### A24 - a sample that contradicts its declaration is reported to a terminal and nowhere else
 
 **Observed 2026-09-08, on the run that closed A23.** `$ak samples` prints the
@@ -54,55 +84,71 @@ answer either.
 
 ### A22 - a table excluded by its shape leaves no record of its shape
 
-**Observed 2026-09-08, in A05's backend export.** Both acquisition routes drop a table
-whose fields are exactly Text/Text/Long as an Access ImportErrors table. The rule is
-deliberate and the reason is good: this frontend carried 210 of them against 21 real
-tables, and identifying them by name fails because the name is localized and one
-legitimate table matched the Japanese word for "error".
+**Observed 2026-09-08, in A05's backend export. The managed route is done and proven;
+the exporter half is written and unproven, which is the only thing keeping this open.**
 
-Shape has its own false positives, and the backend export lists two candidates among its
-17 exclusions:
+Both acquisition routes drop a table whose fields are exactly Text/Text/Long as an
+Access ImportErrors table. The rule is deliberate and the reason is good: A05's July
+frontend carried **208** of them against **22** real tables (the first note said 210 and
+21; these are measured), and identifying them by *table* name fails because the name is
+localized and one legitimate table matched the Japanese word for "error".
 
-    集計分類マスタ
-    雑貨Ⅱ集計分類マスタ
+Shape has its own false positives, and the backend export listed two among its 17
+exclusions - `集計分類マスタ` and `雑貨Ⅱ集計分類マスタ`, both reading as business
+masters. **The defect was not the rule; it was that the exclusion could not be
+reviewed.** Both routes recorded only the *name*: `export-manifest.txt` listed it and
+`extract_access.ps1` did not even do that, it incremented a counter. So nobody could
+tell `Error / Field / Row` from a real master's three columns, and the two tables were
+absent from the bundle entirely - `tables.json` had no row for either, so their shape
+was recorded nowhere at all. An exclusion whose evidence is destroyed by the exclusion
+can only be trusted.
 
-Both read as business masters - "aggregation category master" - not as import residue.
-The other 15 are unambiguous: 12 `MSys*`, one `~TMPCLP144831`, and two whose names
-actually do end in an error word (`Sheet1$_インポート エラー`,
-`商品情報_エクスポート エラー`).
+**What the four runs measured.** Recording the field names first, then reading them:
 
-**The defect is not the rule; it is that the exclusion cannot be reviewed.** Both routes
-record only the *name*. `export-manifest.txt` lists it, and `extract_access.ps1` does not
-even do that - it increments a counter. So neither the operator nor a later reader can
-tell `Error / Field / Row` from `分類コード / 分類名 / 表示順`, and the two tables above
-are absent from the bundle entirely: `tables.json` has no row for either, so their shape
-is recorded nowhere at all. An exclusion whose evidence is destroyed by the exclusion
-cannot be checked, only trusted.
+    A05 backend, 4 tables of that shape
+      Sheet1$_インポート エラー      エラー(Text) / フィールド(Text) / 行(Long)
+      商品情報_エクスポート エラー   エラー(Text) / フィールド(Text) / 行(Long)
+      集計分類マスタ                集計分類コード(Text) / 集計分類名(Text) / 配送分類コード(Long)
+      雑貨Ⅱ集計分類マスタ           集計分類コード(Text) / 集計分類名(Text) / 配送分類コード(Long)
 
-**Verified 2026-09-08: both are real, and the mechanism is a GROUP BY.** The entry
-first said this needed somebody who knows the application. It did not - the corpus
-answers it. `集計分類マスタ` is referenced 56 times across 11 files including five forms
-and `メインメニュー`; `雑貨Ⅱ集計分類マスタ` 18 times, and there is a form named
-`雑貨Ⅱ集計分類設定` whose whole purpose is maintaining it.
+    A05 July frontend, 208 tables of that shape
+      all 208                       エラー / フィールド / 行
 
-And `アイス確認表` shows where the shape comes from:
+That is the second condition, and the 208 are what make it safe: Access's own field
+names, one triple across every genuine error table in this corpus, and a person never
+types them. The rule is now shape **and** naming, NFKC-folded so a half-width `ｴﾗｰ` is
+the same name, with the English triple beside the Japanese one.
 
-    sql = "select ... from 商品マスタ where 酒ＦＬＧ = -1 group by Ｐ分類,Ｐ分類名 "
-    SCDB.Execute sql
-    DoCmd.OpenForm "集計分類..."
+Proven end to end through a real managed acquisition of the backend, `$ak acquire`:
+`databases/tables.json` went from 99 tables to **101**, the two error tables are
+excluded and each carries its three field names, and `coverage.json` reports them as
+skipped rather than failed. Two `KEPT table ...` lines record the two masters that the
+shape rule would still have dropped - without them the tightening is invisible, because
+afterwards the excluded list holds only genuine error tables.
 
-The table is a derived aggregation of two text columns plus a count. Three fields,
-Text/Text/Long - identical to an ImportErrors table, and not by coincidence: **any
-`GROUP BY` of two text columns with a count will be excluded**, in either route.
+**One correction to this entry's own reasoning.** It said the mechanism was a `GROUP BY`
+of two text columns plus a count, and that `アイス確認表`'s
+`group by Ｐ分類,Ｐ分類名` produced these tables. The measurement does not support that:
+the masters' columns are `集計分類コード / 集計分類名 / 配送分類コード` - a delivery
+category *code*, not a count, and not the `Ｐ分類` names that query groups by. They are
+maintained masters that happen to be three columns wide. The general claim survives
+untouched and is worth keeping: any `GROUP BY` of two text columns with a count would
+have been excluded too, by the same rule, in either route.
 
-**What to change.** Two things, and the first holds whatever happens to the rule. Record
-the three field names beside the excluded name, in both routes - one string per excluded
-table, and enough for a person to see in one line whether the rule was right. Then give
-the rule a second condition: a genuine ImportErrors table's three fields are named
-`Error`, `Field` and `Row` in some locale, and the 210 in one A05 frontend share that
-naming, while `Ｐ分類 / Ｐ分類名 / <count>` does not.
+**What is left, and it needs a person in Access.** `tools/ExportAccessObjects.bas` has
+the same list and the same two conditions, and writes the field names into
+`export-manifest.txt` beside every shape-based exclusion plus a `KEPT tables ...`
+section. No test in this repository can execute VBA, so none of that is proven. To
+close: run the exporter on A05's backend and paste the manifest's `EXCLUDED` and `KEPT`
+sections. It should read 17 exclusions minus the two masters, `集計分類マスタ` and
+`雑貨Ⅱ集計分類マスタ` in the `KEPT` section with their three columns, and the two error
+tables still excluded with `エラー / フィールド / 行` beside each name.
 
-Found by reading an export manifest, which is the first time anybody had a reason to.
+The cost of the change is deliberate: 208 warning lines from that frontend, one per
+excluded table, which reach the bundle as 208 `exclusion` entries in
+`extraction-failures.json`. A summary collapsing them would hide the single business
+master among two hundred error tables, which is the exact case this exists for.
+
 ### A19 - five of the six phases degrade without interview evidence, and all six run before any is collected
 
 **Observed 2026-09-07, reviewing where part 0's output actually goes.**

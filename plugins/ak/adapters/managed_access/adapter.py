@@ -136,10 +136,19 @@ class ManagedAccessAdapter:
             # An exclusion the extractor made on purpose is not a failure to extract
             # something. Reported through the same channel it made coverage overstate
             # failure by more than a third, and a clean run look damaged.
+            #
+            # Three markers now, because A22 gave the exclusion an evidence trail: the
+            # `EXCLUDED:` summary, one `EXCLUDED table <name>: <fields>` line per table
+            # the shape rule dropped, and one `KEPT table ...` line per table it nearly
+            # did. Matching only the summary would have filed 210 of those lines as
+            # unreadable objects on one A05 frontend - the exact defect this comment is
+            # about, in the code that fixed it.
             for warning in extraction.get("warnings", []):
                 entry = {"logical_id": extraction["database_id"], "reason": warning}
-                if str(warning).startswith("EXCLUDED:"):
+                if str(warning).startswith("EXCLUDED"):
                     entry["kind"] = "exclusion"
+                elif str(warning).startswith("KEPT "):
+                    entry["kind"] = "observation"
                 failures.append(entry)
         contribution = {
             "adapter_id": self.adapter_id, "adapter_version": self.adapter_version, "app_id": result.app_id,

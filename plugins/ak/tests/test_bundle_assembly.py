@@ -320,3 +320,40 @@ def test_a_rebuilt_bundle_says_which_code_built_it(tmp_path: Path) -> None:
     provenance = json.loads(
         (Path(out["bundle_dir"]) / "provenance.json").read_text(encoding="utf-8"))
     assert provenance["assembly_version"] == _assembly_version()
+
+
+def test_coverage_counts_a_recorded_fact_as_neither_failed_nor_excluded(
+    tmp_path: Path,
+) -> None:
+    """`failed` has to keep meaning evidence that should exist and does not.
+
+    The failure channel carries three kinds of thing now: an object that could not be
+    read, an exclusion the extractor made on purpose, and - since A22 gave the shape
+    rule an evidence trail - an observation about a table it *kept*. Counting the last
+    of those as a failure by subtracting only the one named kind would report a clean
+    run as damaged, which is what this channel already did once.
+    """
+    contribution = _contribution("managed_access")
+    contribution["failures"] = [
+        {"logical_id": "DATA", "reason": "EXCLUDED: 3 non-model tables", "kind": "exclusion"},
+        {"logical_id": "DATA", "reason": "EXCLUDED table X: A(Text) / B(Text) / C(Long)",
+         "kind": "exclusion"},
+        {"logical_id": "DATA", "reason": "KEPT table M: X(Text) / Y(Text) / Z(Long)",
+         "kind": "observation"},
+        {"logical_id": "DATA", "reason": "Could not read table T: no permission"},
+    ]
+    out = assemble_bundle(
+        app_id="SYN", classification=_classification(), rule_versions={"topology": "1.0.0"},
+        contributions=[contribution], normalization_config={"text": "utf-8-lf"},
+        profile_validation={"status": "VALID"}, phase_readiness={"phase1": {"status": "LIMITED"}},
+        output_root=tmp_path,
+    )
+    coverage = json.loads(
+        (Path(out["bundle_dir"]) / "coverage.json").read_text(encoding="utf-8"))
+    unclassified = coverage["object_types"]["unclassified"]
+    assert unclassified["failed"] == 1, "only the unreadable table"
+    assert unclassified["skipped"] == 2, "both exclusion lines"
+    # And the observation is in the file, so the trail survives whatever it is counted as.
+    failures = json.loads((Path(out["bundle_dir"]) / "failures"
+                           / "extraction-failures.json").read_text(encoding="utf-8"))
+    assert any(entry.get("kind") == "observation" for entry in failures)

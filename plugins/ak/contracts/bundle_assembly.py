@@ -297,8 +297,11 @@ def _coverage(
     # "This object could not be read" and "this object was excluded on purpose" are
     # different facts. Sharing one channel made a clean run report failures it never
     # had; "failed" has to keep meaning evidence that should exist and does not.
+    # Counted by what an entry declares itself to be, not by subtracting the one kind
+    # that had a name. An entry carrying any kind is a fact the extractor chose to
+    # record; only an unclassified one is evidence that should exist and does not.
     excluded = sum(1 for item in failures if item.get("kind") == "exclusion")
-    unreadable = len(failures) - excluded
+    unreadable = sum(1 for item in failures if not item.get("kind"))
 
     return {
         "schema_version": schema_version,

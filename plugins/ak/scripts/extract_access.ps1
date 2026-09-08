@@ -31,6 +31,86 @@ param(
 
 $ErrorActionPreference = 'Stop'
 
+# Enough of specifications/dao-field-types.yaml to make an exclusion line readable.
+# `type = 10` tells a reviewer nothing; `Text` tells them what Access shows in the
+# designer. An unmapped code prints as its own number rather than being guessed at,
+# and tests/test_import_errors_rule.py holds this against the specification.
+$daoTypeNames = @{
+    1 = 'Boolean'; 2 = 'Byte'; 3 = 'Integer'; 4 = 'Long'; 5 = 'Currency'; 6 = 'Single';
+    7 = 'Double'; 8 = 'Date'; 9 = 'Binary'; 10 = 'Text'; 11 = 'LongBinary'; 12 = 'Memo';
+    15 = 'GUID'; 16 = 'BigInt'; 17 = 'VarBinary'; 18 = 'Char'; 19 = 'Numeric';
+    20 = 'Decimal'; 21 = 'Float'; 22 = 'Time'; 23 = 'TimeStamp'; 101 = 'Attachment';
+    109 = 'ComplexText'
+}
+
+function Format-FieldShape($Fields) {
+    # Field names with their Access types, in the order the table declares them.
+    $parts = @()
+    foreach ($field in $Fields) {
+        $name = if ($daoTypeNames.ContainsKey($field.type)) { $daoTypeNames[$field.type] } else { ('type {0}' -f $field.type) }
+        $parts += ('{0}({1})' -f $field.name, $name)
+    }
+    return ($parts -join ' / ')
+}
+
+# The three field names Access gives an ImportErrors table, in the UI language that
+# created it. Measured on A05's backend, where both spellings exist: its two genuine
+# error tables read `エラー / フィールド / 行` and its two business masters caught by
+# the same shape read `集計分類コード / 集計分類名 / 配送分類コード`.
+#
+# The field names, not the table name. The table name is user-editable and localized,
+# and this corpus already has a legitimate table matching the Japanese word for
+# "error"; these three names are Access's own and a person never types them. Add a
+# locale here rather than loosening the comparison. The identical list is in
+# tools/ExportAccessObjects.bas and tests/test_import_errors_rule.py holds the two
+# against each other, because two routes drifting apart is what A21 was.
+#
+# Spelled as code points because Windows PowerShell reads a BOM-less script in the
+# host's ANSI code page: this file's Japanese *comments* already arrive mojibake there
+# and nobody notices, and a literal doing the same would silently stop matching.
+# `-join` on each, not `+` between code points: `[char] + [char], [char]` binds the
+# comma tighter and PowerShell then renders `string + array` as one space-separated
+# string, which turned this list into a single element that matched nothing. The run
+# on A05's backend is what found it.
+$importErrorsFieldNames = @(
+    @('Error', 'Field', 'Row'),
+    @(
+        (-join ([char]0x30A8, [char]0x30E9, [char]0x30FC)),
+        (-join ([char]0x30D5, [char]0x30A3, [char]0x30FC, [char]0x30EB, [char]0x30C9)),
+        (-join ([char]0x884C))
+    )
+)
+
+function Normalize-AccessName([string]$Name) {
+    # What Access object identity means here: NFKC and case-folded, so a half-width
+    # `ｴﾗｰ` and a full-width `エラー` are the one name they are on screen. The kit
+    # already decided this for the import manifest's conflict key.
+    if ($null -eq $Name) { return '' }
+    return ([string]$Name).Normalize([System.Text.NormalizationForm]::FormKC).Trim().ToLowerInvariant()
+}
+
+function Test-ImportErrorsShape($Fields) {
+    # Exactly Error(Text) / Field(Text) / Row(Long): dbText=10, dbLong=4.
+    if ($null -eq $Fields -or @($Fields).Count -ne 3) { return $false }
+    $three = @($Fields)
+    return ($three[0].type -eq 10 -and $three[1].type -eq 10 -and $three[2].type -eq 4)
+}
+
+function Test-ImportErrorsNaming($Fields) {
+    # The second condition. Shape alone dropped two business masters out of A05's
+    # backend and recorded nothing but their names, so nobody could see it had.
+    $three = @($Fields)
+    if ($three.Count -ne 3) { return $false }
+    $actual = @($three | ForEach-Object { Normalize-AccessName $_.name })
+    foreach ($candidate in $importErrorsFieldNames) {
+        $expected = @($candidate | ForEach-Object { Normalize-AccessName $_ })
+        if ($actual[0] -eq $expected[0] -and $actual[1] -eq $expected[1] -and $actual[2] -eq $expected[2]) {
+            return $true
+        }
+    }
+    return $false
+}
+
 function Get-NameDigest([string]$Name) {
     $sha1 = [System.Security.Cryptography.SHA1]::Create()
     try {
@@ -183,6 +263,16 @@ $application = $null
 $automationUsed = $false
 $skippedTables = 0
 $skippedQueries = 0
+# One line per table the shape rule drops, carrying its three field names. An
+# exclusion whose evidence is destroyed by the exclusion can only be trusted, never
+# reviewed: with the name alone nobody can tell `Error / Field / Row`, which is
+# Access's own bookkeeping, from `Ｐ分類 / Ｐ分類名 / 件数`, which is a business master.
+# Backlog A22.
+$excludedByShape = [System.Collections.ArrayList]::new()
+# And one line per table the shape rule *would* have dropped before it had a second
+# condition. Without these the tightening is invisible: after it, the excluded list
+# holds only genuine error tables, and nothing shows how close a real master came.
+$keptDespiteShape = [System.Collections.ArrayList]::new()
 $macroNames = [System.Collections.Generic.HashSet[string]]::new()
 $database = $null
 $status = 'EXTRACTED'
@@ -298,15 +388,29 @@ function Read-JetLayer($Database) {
                 $indexes += [ordered]@{ name = [string]$index.Name; primary = [bool]$index.Primary; unique = [bool]$index.Unique; fields = $indexFields }
             }
             # Access creates an ImportErrors table for every failed import, and a
-            # long-lived application accumulates hundreds of them: this frontend
-            # carried 210 against 21 real tables, which would have inflated the
+            # long-lived application accumulates hundreds of them: A05's July frontend
+            # carried 208 against 22 real tables, which would have inflated the
             # bundle's own table inventory tenfold. They are identified by shape -
-            # exactly Error(Text)/Field(Text)/Row(Long) - not by name, because the
-            # name is localized and one legitimate table here also matched the
-            # Japanese word for "error". Same rule as tools/ExportAccessObjects.bas.
-            if ($fields.Count -eq 3 -and $fields[0].type -eq 10 -and $fields[1].type -eq 10 -and $fields[2].type -eq 4) {
+            # exactly Error(Text)/Field(Text)/Row(Long) - and never by table name,
+            # because that name is localized and one legitimate table here also
+            # matched the Japanese word for "error".
+            #
+            # All 208 of them share one field-name triple, `エラー / フィールド / 行`,
+            # measured 2026-09-08. That is what makes the second condition safe: it
+            # keeps every one of those exclusions and returns the two masters.
+            #
+            # Shape alone is not enough either, and A05's backend proves it: two
+            # business masters have exactly that shape and were dropped, leaving no
+            # record but their names, so the exclusion could only be trusted. The
+            # field names decide it, and both routes carry the same list. Backlog A22.
+            $hasErrorsShape = Test-ImportErrorsShape $fields
+            if ($hasErrorsShape -and (Test-ImportErrorsNaming $fields)) {
                 $script:skippedTables++
+                [void]$script:excludedByShape.Add(('EXCLUDED table {0}: {1} - Access ImportErrors shape and field names' -f $tableName, (Format-FieldShape $fields)))
             } else {
+                if ($hasErrorsShape) {
+                    [void]$script:keptDespiteShape.Add(('KEPT table {0}: {1} - the ImportErrors shape, but not its field names' -f $tableName, (Format-FieldShape $fields)))
+                }
                 [void]$tables.Add([ordered]@{ name = $tableName; source_table_name = $sourceTableName; connect = $connect; attributes = [int]$table.Attributes; fields = $fields; indexes = $indexes; read_error = '' })
                 # connect belongs on the component too. The bundle builds its linked-table
                 # records from components, not from the tables array, so omitting it left the
@@ -477,6 +581,16 @@ if (-not $isAdp) {
 # dropped and why.
 if ($skippedTables -gt 0) {
     [void]$warnings.Add(('EXCLUDED: {0} non-model tables: Access temporary (~*) and auto-generated ImportErrors tables.' -f $skippedTables))
+}
+# Every shape-excluded table names its own three fields, so the rule can be reviewed
+# rather than trusted. One line each, however many there are: a summary that collapsed
+# them would hide the single business master among two hundred error tables, which is
+# the exact case this exists for.
+foreach ($excluded in $excludedByShape) {
+    [void]$warnings.Add($excluded)
+}
+foreach ($kept in $keptDespiteShape) {
+    [void]$warnings.Add($kept)
 }
 if ($skippedQueries -gt 0) {
     [void]$warnings.Add(('EXCLUDED: {0} Access-generated hidden queries (~*) backing form and report record sources.' -f $skippedQueries))
