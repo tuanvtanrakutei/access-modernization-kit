@@ -16,7 +16,7 @@ from typing import Any
 import evidence_requirements
 import workspace as workspace_contract
 from classification import Classification
-from manifest_v22 import load_manifest
+from manifest_v22 import REQUESTABLE_PHASES, load_manifest, requested_phases
 
 PACKAGE = Path(__file__).resolve().parents[1]
 PROFILES = PACKAGE / "profiles"
@@ -114,6 +114,23 @@ def phase_report(
         manifest.classification.topology, manifest.classification.frontend_format,
         manifest.classification.source_availability, tuple(manifest.classification.backend_kinds),
     )
+    # A phase the project declined is not a phase to report evidence for. Without this
+    # the same manifest answered two ways: `outputs.phases` said phase 6 is not
+    # produced, and this report said phase 6 is READY - so an operator reading it would
+    # go and supply evidence for a document nobody was going to write.
+    if f"phase{phase}" in REQUESTABLE_PHASES and not requested_phases(
+            manifest_path.read_text(encoding="utf-8")).get(f"phase{phase}", True):
+        return {
+            "phase": f"phase{phase}", "status": "NOT_REQUESTED",
+            "reasons": [
+                f"manifest outputs.phases declines phase{phase}; no evidence is needed "
+                f"for a document this project does not produce. Set it to true and "
+                f"re-run `$ak advance` to request it - the gate promotes, and nothing "
+                f"already published is affected."
+            ],
+            "satisfied": [], "missing": [], "waived": [],
+        }
+
     bundle_dir = newest_bundle(app_root)
     present, origin = supplied_capabilities(bundle_dir) if bundle_dir else (set(), {})
 

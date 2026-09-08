@@ -292,6 +292,12 @@ from creation onwards, and pre-flight treats that as **satisfied**, not as a blo
 project said it does not produce that document, and this pipeline reads neither phase 4's nor
 phase 6's content anyway.
 
+The declaration is reversible, which matters for reading a `NOT_REQUESTED` gate: it means
+"not asked for as of now", not "ruled out". Setting the manifest key back to `true` promotes
+the gate on the next advance, so a screen planned today without phase 6 may sit beside one
+planned next week with it. Say which in the pre-flight announcement rather than leaving a
+reader to assume the run was uniform.
+
 That is deliberately not `NOT_APPLICABLE`, which `ak` reserves for a phase the *evidence*
 rules out - provable by a `not_applicable_when` rule, a mechanism its schema declares and no
 profile currently uses. An operator declining a deliverable and evidence excluding one are

@@ -145,43 +145,36 @@ def language_metadata(relative: Path, category: str) -> tuple[str, str, str]:
     return mapping.get(suffix, "NONE"), "UNKNOWN", "NOT_ATTEMPTED"
 
 
-# Which phase documents this project asked for. Phases 1-3 are not askable: their
-# characteristic claims are STRUCTURE, UI_DEFINITION and BEHAVIOUR, and the classes
-# that support those are what an acquisition produces. Phases 4-6 are, because each
-# degrades without DOCUMENT or INTERVIEW evidence that nothing upstream collects -
-# phase 4's own contract says the workflows "become code paths, not workflows" - so a
-# run that has not collected any is producing a document it cannot support (A19).
-#
-# Declared like `presentation_pptx`, which has been optional and off by default since
-# 2.8: the operator says what they want rendered, and the run records what was asked.
-# Default is every phase, so a manifest that says nothing behaves as it always has.
+# The declaration itself lives in `contracts/manifest_v22.py`, where a contract can
+# reach it too: `phase_evidence` has to answer for a phase the project declined, and a
+# contract importing a script would be the wrong way round.
+def _manifest_contract():
+    contracts = str(Path(__file__).resolve().parent.parent / "contracts")
+    if contracts not in sys.path:
+        sys.path.insert(0, contracts)
+    import manifest_v22
+
+    return manifest_v22
+
+
 REQUESTABLE_PHASES = ("phase4", "phase5", "phase6")
 
 
 def requested_phases(text: str) -> dict[str, bool]:
-    """`outputs.phases` from the manifest, defaulting to every phase requested."""
-    import yaml
-
-    try:
-        data = yaml.safe_load(text) or {}
-    except yaml.YAMLError:
-        data = {}
-    declared = ((data.get("outputs") or {}).get("phases") or {}) if isinstance(data, dict) else {}
-    requested = {f"phase{number}": True for number in range(1, 7)}
-    if isinstance(declared, dict):
-        for phase in REQUESTABLE_PHASES:
-            if phase in declared:
-                requested[phase] = bool(declared[phase])
-    return requested
+    return _manifest_contract().requested_phases(text)
 
 
 def initial_phase_gates(text: str) -> dict[str, str]:
     """`PENDING` for a phase that was asked for, `NOT_REQUESTED` for one that was not.
 
     Not `NOT_APPLICABLE`: that status is for a phase the *evidence* rules out, provable
-    by a `not_applicable_when` rule that no profile currently ships. An operator
-    declining a deliverable is a different claim, and reading identically would let a
-    choice look like a finding.
+    by a `not_applicable_when` rule that no profile currently ships (backlog A20). An
+    operator declining a deliverable is a different claim, and reading identically would
+    let a choice look like a finding.
+
+    Declining is reversible. Set the key back to `true` and the next `advance_run`
+    promotes the gate to `PENDING`; nothing here is one-way, because a project that
+    changes its mind should not have to start a new run.
     """
     return {phase: ("PENDING" if wanted else "NOT_REQUESTED")
             for phase, wanted in requested_phases(text).items()}
