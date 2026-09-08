@@ -12,7 +12,8 @@
     "components": {"type": "array", "items": {"type": "object"}},
     "tables": {"type": "array", "items": {"type": "object"}, "description": "Per-table schema detail: fields, indexes, and link target. Optional, so extractions written before this key existed still validate."},
     "imex_specs": {"type": "array", "items": {"type": "object"}, "description": "The import/export specification tables a text link points at, read only when some link declares DSN=. Every field of every row, because these column names are Access own and naming a subset is how a version difference would silently drop the layout that a text link with HDR=NO has nowhere else (backlog A17)."},
-    "warnings": {"type": "array", "items": {"type": "string"}}
+    "warnings": {"type": "array", "items": {"type": "string"}, "description": "Something a person must act on, whether the fault is the kit's - a table that would not read - or the application's - an ActiveX control that cannot load."},
+    "notes": {"type": "array", "items": {"type": "string"}, "description": "What the run chose to do, so a reader can weigh the evidence it produced: which optional tier was skipped, whether startup macros were allowed to run. These travelled as warnings, and the bundle counted a warning carrying no marker as an object that could not be read - so a clean managed acquisition reported two failures, every time (backlog A25). Optional, so extractions written before this key existed still validate."}
   },
   "additionalProperties": false
 }

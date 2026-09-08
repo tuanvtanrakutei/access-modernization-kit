@@ -305,3 +305,37 @@ def test_an_exclusion_with_its_evidence_is_still_an_exclusion() -> None:
     assert kinds == ["exclusion", "exclusion", "observation", None]
     # And every reason survives in full: the field names are the whole point of the line.
     assert "A(Text) / B(Text) / C(Long)" in failures[1]["reason"]
+
+
+# A25: what a run *did* is not a failure to extract anything. Both of these appear on
+# every managed acquisition in this configuration, so before `notes` existed the floor
+# for a perfect run was two failures - and a reader who learns to ignore `failed=2`
+# will ignore `failed=3`.
+def test_a_note_about_the_run_is_never_a_failure() -> None:
+    adapter = ManagedAccessAdapter()
+    data = _extraction(
+        notes=[
+            "6 linked table(s) declare a DSN; read the import specification tables "
+            "for their column layout",
+            "Object definition export was skipped; the inventory carries names only.",
+        ],
+        warnings=["Could not read table T: no read definitions permission"],
+    )
+    failures = adapter.normalize(adapter.result_from_extraction("SYN", data))["failures"]
+    assert [entry.get("kind") for entry in failures] == [None, "note", "note"]
+    assert all(entry["logical_id"] == "DATA" for entry in failures)
+
+
+def test_an_extraction_written_before_the_notes_channel_still_reads() -> None:
+    """Its notes are in `warnings` and still count as failures.
+
+    That is the old answer, and the honest one: a record written months ago cannot be
+    re-classified after the fact by matching prose, and guessing at it would put the
+    prefix convention back with none of the guarantees.
+    """
+    adapter = ManagedAccessAdapter()
+    data = _extraction(warnings=["Object definition export was skipped; the inventory "
+                                 "carries names only."])
+    data.pop("notes", None)
+    failures = adapter.normalize(adapter.result_from_extraction("SYN", data))["failures"]
+    assert [entry.get("kind") for entry in failures] == [None]

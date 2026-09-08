@@ -137,12 +137,20 @@ class ManagedAccessAdapter:
             # something. Reported through the same channel it made coverage overstate
             # failure by more than a third, and a clean run look damaged.
             #
-            # Three markers now, because A22 gave the exclusion an evidence trail: the
+            # Three markers, because A22 gave the exclusion an evidence trail: the
             # `EXCLUDED:` summary, one `EXCLUDED table <name>: <fields>` line per table
             # the shape rule dropped, and one `KEPT table ...` line per table it nearly
-            # did. Matching only the summary would have filed 210 of those lines as
+            # did. Matching only the summary would have filed 208 of those lines as
             # unreadable objects on one A05 frontend - the exact defect this comment is
             # about, in the code that fixed it.
+            #
+            # An unmarked warning stays a failure, and that default is now correct
+            # rather than merely convenient: what a run *did* travels in `notes`, so
+            # nothing informational is left relying on a prefix somebody has to
+            # remember. Prefixes stay for the two kinds that have their own count, and
+            # for extractions written before `notes` existed - those carry their notes
+            # in `warnings` and still read as failures, which is the old answer and
+            # the honest one for a record this cannot re-classify after the fact.
             for warning in extraction.get("warnings", []):
                 entry = {"logical_id": extraction["database_id"], "reason": warning}
                 if str(warning).startswith("EXCLUDED"):
@@ -150,6 +158,9 @@ class ManagedAccessAdapter:
                 elif str(warning).startswith("KEPT "):
                     entry["kind"] = "observation"
                 failures.append(entry)
+            for note in extraction.get("notes", []):
+                failures.append({"logical_id": extraction["database_id"],
+                                 "reason": note, "kind": "note"})
         contribution = {
             "adapter_id": self.adapter_id, "adapter_version": self.adapter_version, "app_id": result.app_id,
             "status": result.status, **sections, "failures": failures,

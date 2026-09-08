@@ -12,36 +12,6 @@ that it should now work.
 
 ## Open
 
-### A25 - an extractor's own notes are counted as objects that could not be read
-
-**Observed 2026-09-08, on the bundle that proved A22.** `coverage.json` for a clean
-managed acquisition of A05's backend reports `unclassified: failed=2`. Nothing failed.
-The two entries are the extractor telling the operator what it did:
-
-    6 linked table(s) declare a DSN; read the import specification tables for their column layout
-    Object definition export was skipped; the inventory carries names only
-
-Every warning the extractor emits travels one channel and the bundle classifies it by
-its opening word. `EXCLUDED` is an exclusion and, since A22, `KEPT ` is an observation;
-a warning that begins with neither is counted as evidence that should exist and does
-not. A note has no marker, so a note is a failure.
-
-This is the same defect the marker was introduced to fix, one layer along.
-`bundle_assembly._coverage`'s comment states the rule it is meant to keep - "`failed`
-has to keep meaning evidence that should exist and does not" - and two of these appear
-on *every* managed acquisition, so the floor for a perfect run is two failures.
-
-**What to change.** The extractor's informational lines need a marker of their own,
-the way the exclusions have one, and the router needs to read it. The care is in the
-list: `Could not read table X: ...` must keep landing as a failure, `PARTIAL` status
-must still mean something, and a marker convention that is easy to forget is a defect
-generator - the next person adding a warning gets it wrong by default. Worth
-considering whether the extractor should emit a structured `notes` array instead, which
-the schema permits alongside `warnings` and which cannot be misread by prefix at all.
-
-Not urgent and not cosmetic: it is two phantom failures on every run, and a reader who
-learns to ignore `failed=2` is a reader who will ignore `failed=3`.
-
 ### A24 - a sample that contradicts its declaration is reported to a terminal and nowhere else
 
 **Observed 2026-09-08, on the run that closed A23.** `$ak samples` prints the
@@ -641,6 +611,52 @@ against that one object rather than against the application as a whole.
 
 Closed entries name the commit that closed them and the run that proved it.
 
+- **An extractor's own notes were counted as objects that could not be read** (A25)
+  - `coverage.json` for a clean managed acquisition of A05's backend reported
+  `unclassified: failed=2`. Nothing had failed. The two entries were the extractor
+  saying what it did - it read the specification tables a link asked for, and the
+  object-export tier was skipped because the caller asked for that. Every diagnostic
+  travelled one channel, the bundle classified it by its opening word, and a line with
+  no marker was counted as evidence that should exist and does not.
+
+  Fixed as a second collection rather than a third prefix, and that is the whole
+  decision: a prefix convention puts the burden on whoever writes the next diagnostic,
+  and its default is "failure". The rule the two channels encode is in
+  `access-extraction.schema.json` and at the declaration in `extract_access.ps1`:
+
+      warnings  something a person must act on, whether the fault is the kit's - a
+                table that would not read - or the application's - an ActiveX control
+                that cannot load, which is a finding and not noise
+      notes     what this run chose to do, so a reader can weigh the evidence it made
+
+  Four of the extractor's twenty diagnostics moved: the two above, plus the two that
+  record a run's fidelity - `Access host ran visible` and `Automation macros were
+  allowed to run`. Both of those say what happened rather than what went wrong, and
+  both change how a reader should weigh the result, which is exactly what a note is
+  for. The other sixteen stay warnings, including the two ActiveX findings: A11 exists
+  because nothing verified an embedded control can load, and a finding about the
+  application is something a person must act on.
+
+  `e442040`, and **proven on A05 2026-09-08 twice, because one run shows half of it:**
+
+      backend, nothing wrong          failed 0  skipped 4  (2 notes, 4 exclusion lines)
+      frontend, two real failures     failed 2  skipped 1  (1 note)
+
+  The frontend is the half that matters as much: its two linked tables point at
+  `L:\新品揃支援\XP\品揃支援data.mdb`, which does not exist, and they still read as
+  failures. `failed` now means what it says in both directions.
+
+  An extraction written before this channel existed keeps its notes in `warnings` and
+  they still count as failures. That is deliberate: a record from months ago cannot be
+  re-classified by matching prose after the fact, and guessing at it would reinstate
+  the prefix convention with none of its guarantees. `notes` is optional in the schema
+  for the same reason - `additionalProperties: false` means the key had to be declared
+  before the extractor could emit it at all.
+
+  Twelve tests. The ones that matter read the shipped script and hold every one of its
+  twenty `Add(` calls against the rule - a first version of that parser anchored on the
+  closing paren and read 17, because three sit inside an inline `catch { ... }`, which
+  would have let a diagnostic change channel unnoticed.
 - **Nothing compared an import specification with the sample it describes** (A23)
   - A17 named the useful check and did not build it; A21 made it possible by proving both
   acquisition routes read `MSysIMEXSpecs` and `MSysIMEXColumns`. Both halves then existed
