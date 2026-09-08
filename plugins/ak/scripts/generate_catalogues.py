@@ -45,6 +45,7 @@ sys.path.insert(0, str(PACKAGE / "contracts"))
 
 import bilingual as bilingual_contract  # noqa: E402
 import export_completeness as completeness_contract  # noqa: E402
+import feed_samples as feeds_contract  # noqa: E402
 import meanings as meanings_contract  # noqa: E402
 import sql_relationships as sql_contract  # noqa: E402
 import workspace as workspace_contract  # noqa: E402
@@ -857,34 +858,22 @@ def imex_columns(records: list[dict]) -> dict[str, list[str]]:
     because the share was unmounted at acquisition - Access cannot enumerate a text
     link's columns without reading the file - so this was the only copy of the inbound
     boundary's layout that did not depend on the file being reachable. Backlog A17.
+
+    The join itself is `contracts/feed_samples.specifications`, which is also what
+    `$ak samples` reads a supplied file through. Two joins of the same two tables
+    disagreeing about a layout is precisely the class of defect this cell exists to
+    make visible, so there is one. It orders columns by `Start` - the file's own column
+    order, which only that command needs - and this cell uses the count.
     """
-    specs: dict[str, str] = {}
-    columns: dict[str, list[str]] = defaultdict(list)
-    for record in records:
-        if record.get("status") != "read":
-            continue
-        for row in record.get("rows") or []:
-            keys = {str(key).lower(): value for key, value in row.items()}
-            spec_id = str(keys.get("specid") or "")
-            if not spec_id:
-                continue
-            if record.get("table") == "MSysIMEXSpecs":
-                name = str(keys.get("specname") or "")
-                if name:
-                    specs[spec_id] = name
-            else:
-                field = str(keys.get("fieldname") or "")
-                if field:
-                    columns[spec_id].append(field)
-    return {name: columns.get(spec_id, []) for spec_id, name in specs.items()}
+    return {name: spec.names
+            for name, spec in feeds_contract.specifications(records).items()}
 
 
 def declared_layout(connect: str, imex: dict[str, list[str]]) -> str:
     """What the link's own specification says its columns are, if it names one."""
-    match = re.search(r"(?i)(?:^|;)\s*DSN\s*=\s*([^;]+)", connect or "")
-    if not match:
+    name = feeds_contract.specification_name(connect)
+    if not name:
         return ""
-    name = match.group(1).strip()
     fields = imex.get(name)
     if fields is None:
         # The link names a specification the database does not hold. That is a finding:
