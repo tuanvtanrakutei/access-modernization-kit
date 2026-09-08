@@ -9,7 +9,7 @@ PROFILES = PACKAGE / "profiles"
 sys.path.insert(0, str(PACKAGE / "contracts"))
 
 from classification import Classification  # noqa: E402
-from phase_readiness import compute_readiness  # noqa: E402
+from phase_readiness import RANK, compute_readiness  # noqa: E402
 
 PHASES = tuple(f"phase{i}" for i in range(1, 7))
 
@@ -39,10 +39,41 @@ def test_compiled_frontend_is_limited_for_phase3() -> None:
     assert result["phase3"]["status"] == "LIMITED"
 
 
-def test_not_applicable_requires_positive_proof() -> None:
+def test_non_applicability_is_not_modelled_and_says_where_to_read_why() -> None:
+    """This used to assert that no phase comes back `NOT_APPLICABLE` without proof.
+
+    It passed, and it passed vacuously: no profile ever shipped a
+    `not_applicable_when` rule, so nothing could produce the status under any input.
+    Searching for a rule to write found that none can be - the claim is about an
+    application and `data_only_proof`, the capability that would prove it, is about one
+    database, and the capability set carries no database scope. So the status went
+    (backlog A20), and this asserts the two things a reader needs: that it is gone, and
+    that the reasoning is where they will look for it.
+    """
     classification = Classification("split_file", "mdb", "full", ("access_file",))
     result = compute_readiness(classification, PROFILES, set())
-    assert all(result[phase]["status"] != "NOT_APPLICABLE" for phase in PHASES)
+    assert all(result[phase]["status"] in RANK for phase in PHASES)
+    assert "NOT_APPLICABLE" not in RANK
+
+    source = (PACKAGE / "contracts" / "phase_readiness.py").read_text(encoding="utf-8")
+    assert "Non-applicability is not modelled" in source, (
+        "the note explaining why the status is absent is gone, so its absence now "
+        "reads as an oversight and the next person will re-add it"
+    )
+    assert "data_only_proof" in source, "the note no longer names what was tried"
+
+
+def test_no_profile_rule_asks_for_a_status_the_ranking_lost() -> None:
+    """A rule declaring `NOT_APPLICABLE` would now be schema-invalid and silently inert.
+
+    `_set_status` indexes `RANK`, so a status outside it raises rather than misbehaving
+    - but a rule that never fires would not reach it. This checks the profiles rather
+    than trusting the schema to have been applied to them.
+    """
+    for path in sorted((PACKAGE / "profiles").glob("*.yaml")):
+        text = path.read_text(encoding="utf-8")
+        assert "NOT_APPLICABLE" not in text, path.name
+        assert "not_applicable_when" not in text, path.name
 
 
 def test_security_integrity_waiver_is_rejected() -> None:

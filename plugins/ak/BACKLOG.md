@@ -12,42 +12,6 @@ that it should now work.
 
 ## Open
 
-### A20 - `NOT_APPLICABLE` is ranked, schema-declared, and produced by nothing
-
-**Observed 2026-09-07, while giving a declined phase its own status.**
-`contracts/phase_readiness.py` ranks `NOT_APPLICABLE` alongside `READY`, and
-`_set_status` gives it a special case - it wins even against a worse status, which is
-the right behaviour for "this phase does not apply here". `compute_readiness` produces
-it from a rule carrying `not_applicable_when`, and `classification-rule.schema.json`
-declares that field.
-
-No profile ships such a rule. `profiles/backend.yaml`, `frontend.yaml`,
-`source-availability.yaml` and `topology.yaml` between them contain the string nowhere,
-so the status is reachable in principle and has never been reached.
-
-**Why it matters rather than being tidy.** A phase that genuinely does not apply is a
-real case the kit was built to handle: a data-only application has no screens, so
-phase 2 is not a gap to report but a phase to mark inapplicable. Today that case
-arrives as `BLOCKED` for want of `ui_object_inventory`, which reads as a missing input
-somebody should go and fetch. The operator is told to supply evidence that cannot
-exist.
-
-It also came close to costing something. A19's requestable phases needed a status for
-"the operator declined this deliverable", and `NOT_APPLICABLE` was the obvious
-candidate - already ranked, already special-cased, apparently free. Borrowing it would
-have merged a choice with a finding, and because nothing else produces the status, the
-choice would quietly have become the only thing it ever meant. `NOT_REQUESTED` exists
-instead (`c501268`).
-
-**What to change.** Either write the rules - `data_only_proof` is already a capability
-the profiles know, and it is exactly the proof that phase 2 does not apply - or delete
-the mechanism and say in `phase_readiness.py` that non-applicability is not modelled.
-The first is better; the second is honest. What should not stay is a third state the
-code ranks, the schema declares, the tests never see, and no input can reach.
-
-Found the same way as most of A13: by needing the apparatus for something and reading
-what it actually does. `RANK` looked like proof the case was handled.
-
 ### A19 - five of the six phases degrade without interview evidence, and all six run before any is collected
 
 **Observed 2026-09-07, reviewing where part 0's output actually goes.**
@@ -563,6 +527,40 @@ against that one object rather than against the application as a whole.
 
 Closed entries name the commit that closed them and the run that proved it.
 
+- **`NOT_APPLICABLE` was ranked, schema-declared, and produced by nothing** (A20) -
+  `phase_readiness.py` ranked it at 0 beside `READY`, `_set_status` special-cased it so
+  it won even against a worse status, and `classification-rule.schema.json` declared the
+  `not_applicable_when` field that fed it. No profile ever shipped such a rule, and
+  `test_not_applicable_requires_positive_proof` asserted the status never appears - which
+  passed, vacuously, because nothing could produce it under any input.
+
+  This entry preferred writing the rules to deleting the mechanism. **Writing them turned
+  out not to be possible**, which is the part worth recording. `data_only_proof` declares
+  one *database* data-only and the capability set is flat, carrying no database scope - so
+  in a split application a `phase2` rule keyed on it cannot tell a data-only backend,
+  whose frontend holds every screen, from an application with no screens at all. It would
+  mark screen analysis inapplicable for an application full of screens. No
+  `frontend_format` means "no frontend" either: mdb, accdb, adp, mde, accde and exported
+  all have one, so a classified application always has screens. A monolith declared
+  data-only is not an application but a database, which this kit is never pointed at. The
+  remaining candidates are degradations rather than exclusions - `compiled_only` makes
+  phase 3 LIMITED, a text-only backend makes phase 1 BLOCKED for want of a field
+  inventory - and the ranking already carries "less can be said".
+
+  So the second option, the honest one: the status, its special case, the schema field and
+  both enum entries are gone, and `phase_readiness.py` now opens with the note explaining
+  what was tried and what it would take to bring it back - capabilities scoped per
+  database, so a proof can say which one it is about. `__A20__`. Two tests hold it: one
+  asserts the status is absent *and* that the note explaining why is still there, because
+  an unexplained absence is what gets re-added; the other checks the profiles rather than
+  trusting the schema to have been applied to them.
+
+  It had already nearly cost something. A19's requestable phases needed a status for "the
+  operator declined this deliverable" and this one looked free. Borrowing it would have
+  made a choice indistinguishable from a finding, and since nothing else produced the
+  status, the choice would have become the only thing it ever meant. `NOT_REQUESTED`
+  exists in run state instead, and the distinction is now structural rather than a rule
+  somebody has to remember.
 - **A test read PowerShell's output in the host's locale, so it passed only where
   the locale happened to fit** - `test_extract_ps1_safe_names_keep_the_original_object_name`
   captured with `subprocess.run(text=True)`, which decodes using the host's preferred

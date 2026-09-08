@@ -231,28 +231,19 @@ def test_not_requested_is_not_the_status_the_evidence_produces() -> None:
     """
     import phase_readiness
 
-    assert "NOT_APPLICABLE" in phase_readiness.RANK
     assert "NOT_REQUESTED" not in phase_readiness.RANK, (
         "NOT_REQUESTED must not enter the readiness ranking: readiness answers what "
         "the evidence supports, and a declined deliverable is not evidence"
     )
+    # There is nothing left to be confused with. `NOT_APPLICABLE` was the candidate
+    # this status was careful not to borrow, and it has since been removed for being
+    # unreachable (A20) - so the distinction is now structural rather than a rule
+    # somebody has to remember.
+    assert "NOT_APPLICABLE" not in phase_readiness.RANK
     schema = json.loads(
         (PACKAGE / "schemas" / "classification-rule.schema.json").read_text(
             encoding="utf-8"))
-    assert "not_applicable_when" in json.dumps(schema), (
-        "the mechanism NOT_APPLICABLE depends on is no longer declared, so that status "
-        "has neither a producer nor a way to gain one"
-    )
-    producers = [
-        path.name
-        for path in sorted((PACKAGE / "profiles").rglob("*.yaml"))
-        if "not_applicable_when" in path.read_text(encoding="utf-8")
-    ]
-    assert not producers, (
-        f"{producers} now produce NOT_APPLICABLE. That is an improvement, and this "
-        "assertion is the note saying it used to be unreachable - re-read the two "
-        "statuses' comments before deleting it"
-    )
+    assert "not_applicable_when" not in json.dumps(schema)
 
 
 def test_the_contract_declares_which_phases_are_requestable() -> None:

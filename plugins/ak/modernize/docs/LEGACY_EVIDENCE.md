@@ -298,10 +298,11 @@ the gate on the next advance, so a screen planned today without phase 6 may sit 
 planned next week with it. Say which in the pre-flight announcement rather than leaving a
 reader to assume the run was uniform.
 
-That is deliberately not `NOT_APPLICABLE`, which `ak` reserves for a phase the *evidence*
-rules out - provable by a `not_applicable_when` rule, a mechanism its schema declares and no
-profile currently uses. An operator declining a deliverable and evidence excluding one are
-different claims and must not read the same, so pre-flight must not collapse them either.
+`NOT_REQUESTED` means the operator declined the deliverable, and there is no status meaning
+"the evidence rules this phase out" - `ak` had one and removed it once it turned out no rule
+could produce it (its backlog A20). So a `NOT_REQUESTED` gate is always a choice somebody
+made, never a finding, and pre-flight should read it that way: ask whether the project wants
+the document, not whether the analysis could have written it.
 
 The reasoning above still holds for the three names. What changed is that two of the three
 can now legitimately never reach `PUBLISHED`, so a check that only accepts `PUBLISHED` would

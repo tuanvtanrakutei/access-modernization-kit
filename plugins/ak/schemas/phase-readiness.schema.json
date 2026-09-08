@@ -22,7 +22,7 @@
     "phase": {
       "type": "object", "required": ["status", "reasons", "rule_ids"], "additionalProperties": false,
       "properties": {
-        "status": {"enum": ["READY", "LIMITED", "BLOCKED", "NOT_APPLICABLE"]},
+        "status": {"enum": ["READY", "LIMITED", "BLOCKED"]},
         "reasons": {"type": "array", "items": {"type": "string"}},
         "rule_ids": {"type": "array", "items": {"type": "string"}}
       }
