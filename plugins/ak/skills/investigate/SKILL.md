@@ -161,6 +161,7 @@ User action -> screen/form -> VBA event -> processing/query -> table/file -> out
 - A name is not a meaning. Translating a Japanese object name is a translation and carries no evidential weight about what the object is for.
 - Absence of a reference is unreachability, not disuse. An object no code path opens may still be reached from a navigation pane, a custom menu, or a copy not analysed - say which routes were not examined, every time the figure is quoted.
 - A format claim about a file the application reads needs a real sample of it. Code shows what a reader accepts, which is not what the producer writes.
+- Where a link declares an import specification (`DSN=`), run `$ak samples --app-root <PATH>`: it reads each supplied file through the specification its link names and reports a field-count difference, a header whose names are not the declared ones, and a `StartRow` that disagrees with the file having a header. A disagreement is a question for the operations team - the declaration describes neither end by itself - so publish both numbers and whose reading each is, never one of them as the format.
 - Where a class is missing, name what the document loses by it. `$ak phase requirements` reports this per phase; carry it into the document's Source Coverage block rather than leaving the reader to infer it.
 
 ## Give every finding an address

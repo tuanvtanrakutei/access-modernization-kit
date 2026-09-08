@@ -12,41 +12,45 @@ that it should now work.
 
 ## Open
 
-### A23 - nothing compares an import specification with the sample it describes
+### A24 - a sample that contradicts its declaration is reported to a terminal and nowhere else
 
-**Observed 2026-09-08, minutes after A21 made it possible.** A17 predicted the useful
-check and did not build it: "comparing what the spec declares against what a supplied
-sample contains, which is where a sender that has quietly added a column shows up."
-Both halves now exist for the first time - the specifications from A21, and six real
-files an operator placed on the share - and nothing in the kit puts them side by side.
-`input/samples/` is inventoried and hashed; no reader opens a sample's bytes.
+**Observed 2026-09-08, on the run that closed A23.** `$ak samples` prints the
+disagreement and exits 1. Nothing carries it any further, and three places that should
+hold it do not:
 
-Run by hand it took one pass and found something on the first application it saw:
+- `LogicCatalogue`'s boundary table has a `Declared columns` column, filled from the
+  specification, and no column for what the supplied file actually contains. So the
+  published document states `DPSHOHIN ﾘﾝｸの定義: 28 column(s)` next to a file carrying
+  29 and reads as though nothing contradicted it;
+- the bundle's `evidence-sources/samples/inventory.json` records a sample's name, size
+  and SHA-256. Integrity, again, and nothing a later reader can use: not the encoding,
+  not the field count, not whether a header row is present. The one evidence class that
+  can settle a FORMAT claim reaches a phase document as a hash;
+- `$ak citations` and `$ak conformance` can only resolve a claim to an evidence id, and
+  no id is minted for a reading that exists as terminal output.
 
-    order.txt      spec 26   file 26 fields   header: none         agree
-    Dptenpo.csv    spec  9   file  9 fields   header: none         agree
-    ２１受注.CSV     spec 26   file 26 fields   header: 26, in order agree
-    ２１商品.CSV     spec 29   file 29 fields   header: 29, in order agree
-    幸松受注.CSV     spec 26   file 26 fields   header: 26, in order agree
-    Dpshohin.csv   spec 28   file 29 fields   header: none         DISAGREE
+**The register already has the shape**, which is what makes this worth doing rather
+than arguing about. An `evidenceItem` carries `statement`, `source_path`,
+`source_sha256`, `evidence_class` and `claim_kind`, so "`Dpshohin.csv` carries 29
+fields where `DPSHOHIN ﾘﾝｸの定義` declares 28" is expressible today as SAMPLE_DATA
+supporting a FORMAT claim, with the file's own digest beside it.
 
-Three of the six carry a header row whose column names are **identical to the declared
-names, in order** - which is independent confirmation that A21's read is correct and
-that sorting the specification by `Start` reproduces the file's real column order.
+**What to build, and the trade-off to decide first.** Either the check writes a record
+under `.ak/extracted/` that `generate_catalogues` reads - the `$ak completeness` shape,
+one command measuring and another publishing - or the catalogue reads `input/samples/`
+itself. The first risks a catalogue publishing a stale reading, which is worse than
+publishing none, so a record has to carry the run that produced it and the digest of
+the file it read, and the catalogue has to say **not measured** where the digest no
+longer matches. The second cannot go stale and makes every catalogue run re-read every
+sample, which on A05 is 5.7 MB and on an application supplying a year of feeds is not.
 
-**What to build.** Read `input/samples/`, tolerating both encodings the same files
-already arrive in - three of A05's six are CP932 and three are UTF-8 without a BOM, and
-the existing `("utf-8-sig", "utf-8", "cp932")` ladder covers all of them. Then report
-three things per feed: a field-count difference against the specification, a header
-whose names differ from the declared ones, and a `StartRow` that disagrees with whether
-the file actually has a header. The third matters because `StartRow` differs *within*
-this one application - three feeds skip a row and three do not - so a rule assuming one
-answer would be wrong half the time.
-
-Worth noting what a count check alone would have missed and what it caught. It caught
-`Dpshohin.csv`. It would not catch a sender that renamed a column without changing the
-count, which is why the header comparison is part of the check rather than a refinement
-of it.
+Two facts from the same run that currently live in no document. A05's six inbound
+files arrive in **two encodings** - three CP932 and three UTF-8, none with a BOM - and
+no specification declares one: `MSysIMEXSpecs.FileType` is 0 for all eight, and what
+that field says about encoding is not established here. An importer written against
+either half corrupts the other. And `StartRow` differs within the one application,
+three feeds skipping a row and three not, so the migration's importer cannot carry one
+answer either.
 
 ### A22 - a table excluded by its shape leaves no record of its shape
 
@@ -590,6 +594,62 @@ against that one object rather than against the application as a whole.
 
 Closed entries name the commit that closed them and the run that proved it.
 
+- **Nothing compared an import specification with the sample it describes** (A23)
+  - A17 named the useful check and did not build it; A21 made it possible by proving both
+  acquisition routes read `MSysIMEXSpecs` and `MSysIMEXColumns`. Both halves then existed
+  for the first time - the specifications, and six real files an operator placed on the
+  share - and `input/samples/` was inventoried and hashed with no reader ever opening a
+  sample's bytes. `contracts/feed_samples.py` and `$ak samples` put them side by side.
+
+  The join lives in one place now: `generate_catalogues.imex_columns` delegates to it,
+  because two joins of the same two tables disagreeing about a layout is precisely the
+  defect that catalogue cell exists to report.
+
+  **Proven on A05 2026-09-08**, against the backend export of that date assembled through
+  the imported route and the six files on the share:
+
+      元受注データ      order.txt      cp932  spec 26  file 26  no header row               StartRow=0
+      元受注データ幸松  幸松受注.CSV   utf-8  spec 26  file 26  the declared names, in order  StartRow=1
+      元受注データ酒    ２１受注.CSV   utf-8  spec 26  file 26  the declared names, in order  StartRow=1
+      元商品マスタ      dpshohin.csv   cp932  spec 28  file 29  no header row               StartRow=0
+      元商品マスタ酒    ２１商品.CSV   utf-8  spec 29  file 29  the declared names, in order  StartRow=1
+      元店舗マスタ      dptenpo.csv    cp932  spec  9  file  9  no header row               StartRow=0
+
+      FIELDS    元商品マスタ (dpshohin.csv): the specification declares 28 column(s),
+                the file carries 29
+
+  Three of the six carry a header row whose names are the declared names **in order** -
+  26, 29 and 26 of them - which is independent confirmation that sorting the
+  specification by `Start` reproduces the file's real column order. `MSysIMEXColumns`
+  returns those rows in no useful order; A05's first row is column 20 of 26.
+
+  What the run added to what the entry predicted:
+
+  - the three feeds that carry a header are the three arriving as UTF-8, and the three
+  without one are CP932. No specification declares an encoding - `FileType` is 0 for all
+  eight - so an importer has to detect it. Reported once at the application level rather
+  than per feed, because it is one decision for whoever writes the replacement;
+  - run against A05's own live workspace, whose newest bundle predates A17, the same
+  command reports six `NO SPEC` lines rather than six agreements. That is the correct
+  reading of that bundle and the reason the proving run used a bundle carrying the
+  specifications.
+
+  **What it must not claim, and this is tested.** Where a first record cannot be told
+  apart from data - an all-text specification, no declared name matching - the reading
+  is `UNKNOWN` and *nothing* is reported: "no header" and "a header this cannot
+  recognise" are the same observation, and a `StartRow` finding built on the difference
+  would be an invention about the sender. A header is recognised two ways, its cells
+  equalling the declared names or a column declared numeric holding text, and the second
+  is what would still catch a sender who renamed every column - the case a field-count
+  check cannot reach, which is why the header comparison is part of the check rather
+  than a refinement of it.
+
+  It does not answer whether the import works. A05's product feed disagrees three ways -
+  29 in the file, 28 in the specification, 30 columns in the destination table - and the
+  third number is unreachable from here: `メインメニュー.取り込み_Click` builds the
+  statement as `"INSERT INTO " & マスタ名 & " SELECT * FROM 元" & マスタ名`, so the
+  destination never appears as a literal for any reader to resolve. The published
+  disagreement also stops at the terminal, which is [[A24]].
 - **The VBA exporter read the same connect strings and not the specifications** (A21)
   - `extract_access.ps1` gained the two tables that declare a text link's columns in
   A17, and `tools/ExportAccessObjects.bas` did not, so it produced the links without the
