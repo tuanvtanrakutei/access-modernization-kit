@@ -275,7 +275,7 @@ end, so 27 staging objects report more `Begin` than `End`, `メインメニュ�
 77 against 68. The heuristic dismissed as useless catches this after all, because it
 asks about the whole file rather than its last line.
 
-**Changed `__A15__`: the figure now travels with the corpus.** The 2026-09-07 note
+**Changed `2026-09-08 by `acca7d5``: the figure now travels with the corpus.** The 2026-09-07 note
 below says a completeness check that only ever runs at import would not have helped the
 consumer trace, and that is what was still true: `object-shapes.json` was written by
 `$ak completeness` and read by nothing but its own tests. So a reader tracing a screen's
