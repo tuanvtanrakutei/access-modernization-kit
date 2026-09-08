@@ -373,3 +373,36 @@ def test_a_malformed_exporter_file_is_left_alone_rather_than_half_read() -> None
         "kind": "metadata", "logical_id": "FRONT_1111:schema/imex-specs.json",
         "path": "FRONT_1111/schema/imex-specs.json", "text": "{not json"})
     assert sections["interfaces"]["imex_specs"] == []
+
+
+# --- an instruction an operator follows has to name the current layout --------
+
+GUIDE = PACKAGE / "references" / "access-extraction-guide.md"
+
+
+def test_the_run_instruction_names_the_layout_the_kit_uses_now() -> None:
+    """Both places told an operator to write into `<APP>/sources/<DATABASE_ID>`.
+
+    2.10 moved every supplied input under `input/`, and an export package now lives at
+    `input/exports/<DATABASE_ID>-<DATE>` - which is where A05's is. The instruction was
+    not updated with the layout, so it sent an operator to a directory the workspace
+    stopped answering on. Found by an operator reading it, not by a check, which is why
+    there is now a check.
+    """
+    for path in (BAS, GUIDE):
+        line = next(l for l in path.read_text(encoding="utf-8").splitlines()
+                    if 'ExportAccessObjects "D:' in l)
+        assert "input" in line, f"{path.name}: {line}"
+        assert "exports" in line, f"{path.name}: {line}"
+        assert "sources" not in line, f"{path.name} still names the pre-2.10 path: {line}"
+
+
+def test_the_instruction_asks_for_a_dated_folder_beside_the_last_one() -> None:
+    """`$ak completeness` compares an export against the previous reading of the same
+    object. Overwriting the previous export removes the thing it compares against, and
+    A15's whole finding came from two readings of one form sitting side by side.
+    """
+    line = next(l for l in BAS.read_text(encoding="utf-8").splitlines()
+                if 'ExportAccessObjects "D:' in l)
+    assert "YYYY-MM-DD" in line, line
+    assert "beside the last one rather than over it" in BAS.read_text(encoding="utf-8")

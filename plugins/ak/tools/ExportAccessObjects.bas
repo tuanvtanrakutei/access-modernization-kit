@@ -26,7 +26,14 @@ Private Const Q As String = """"
 '      Alternatively: Insert > Module, then paste this whole file.
 '   4. Press Ctrl+G for the Immediate window and run, replacing the path:
 '
-'          ExportAccessObjects "D:\Anrakutei\<APP>\sources\<DATABASE_ID>"
+'          ExportAccessObjects "D:\Anrakutei\<APP>\input\exports\<DATABASE_ID>-<YYYY-MM-DD>"
+'
+'      A NEW dated folder each time, beside the last one rather than over it.
+'      `$ak completeness` compares an export with the previous reading of the
+'      same object, and overwriting removes the thing it compares against.
+'      The path was `<APP>\sources\<DATABASE_ID>` until 2.10 moved every
+'      supplied input under `input/`; a workspace created before that still
+'      answers on the old path and `contracts/workspace.py` knows which.
 '
 ' OUTPUT (created under the folder you pass)
 '   forms\      one .txt per form      (SaveAsText)

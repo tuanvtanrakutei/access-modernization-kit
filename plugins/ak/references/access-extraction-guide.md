@@ -51,7 +51,7 @@ When the runtime extractor cannot run — no Access on the host, activation bloc
 4. **Run it from the Immediate window (`Ctrl+G`),** replacing the path with a per-database folder under the app `sources`:
 
    ```text
-   ExportAccessObjects "D:\Anrakutei\<APP>\sources\<DATABASE_ID>"
+   ExportAccessObjects "D:\Anrakutei\<APP>\input\exports\<DATABASE_ID>-<YYYY-MM-DD>"
    ```
 
 5. For a **split database, export each `.mdb` separately** (Access opens one database at a time): run the exporter once per file into its own folder, e.g. `sources\<APP>_FRONTEND` and `sources\<APP>_DATA`.
