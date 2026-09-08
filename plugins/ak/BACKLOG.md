@@ -35,7 +35,7 @@ and saw red, and `tests/test_export_bas.py` exists because nothing else could ha
 caught it. Writing DAO recordset code that no run proves would be closing an entry by
 reasoning, which this backlog's own header refuses.
 
-**Written `__A21__`, not proven.** `tools/ExportAccessObjects.bas` now reads both
+**Written `2026-09-08 by `213f4c2``, not proven.** `tools/ExportAccessObjects.bas` now reads both
 tables when any link declares `DSN=` and writes `schema/imex-specs.json` in the shape
 the runtime route emits, and `adapters/imported_sources` expands it into
 `interfaces/imex_specs` - without that second half the exporter would write a file
