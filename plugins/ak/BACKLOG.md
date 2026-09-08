@@ -550,7 +550,7 @@ Closed entries name the commit that closed them and the run that proved it.
   So the second option, the honest one: the status, its special case, the schema field and
   both enum entries are gone, and `phase_readiness.py` now opens with the note explaining
   what was tried and what it would take to bring it back - capabilities scoped per
-  database, so a proof can say which one it is about. `__A20__`. Two tests hold it: one
+  database, so a proof can say which one it is about. ``5613363``. Two tests hold it: one
   asserts the status is absent *and* that the note explaining why is still there, because
   an unexplained absence is what gets re-added; the other checks the profiles rather than
   trusting the schema to have been applied to them.
