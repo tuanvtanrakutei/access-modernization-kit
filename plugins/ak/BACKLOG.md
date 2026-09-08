@@ -275,6 +275,19 @@ end, so 27 staging objects report more `Begin` than `End`, `メインメニュ�
 77 against 68. The heuristic dismissed as useless catches this after all, because it
 asks about the whole file rather than its last line.
 
+**Changed `2026-09-08 by `acca7d5``: the figure now travels with the corpus.** The 2026-09-07 note
+below says a completeness check that only ever runs at import would not have helped the
+consumer trace, and that is what was still true: `object-shapes.json` was written by
+`$ak completeness` and read by nothing but its own tests. So a reader tracing a screen's
+consumers got the same silence as before, with the measurement sitting in the workspace
+unopened - the same shape as the two readings of `メインメニュー` that sat there all along.
+
+`ScreenCatalogue` now opens with one sentence about it and carries a `Definition text`
+column per object. Three answers: a size when both routes agree, the imbalance or the
+disagreement when they do not, and `_not extracted_` when nothing was measured. A
+workspace where `$ak completeness` was never run says so in the headline rather than
+reading like a clean one, which is the distinction the trace needed and did not have.
+
 Closing this still wants the case it was written for - a fresh re-export imported and
 the difference named before a person looks - rather than the historical one it has just
 re-derived.

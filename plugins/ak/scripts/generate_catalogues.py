@@ -44,6 +44,7 @@ PACKAGE = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(PACKAGE / "contracts"))
 
 import bilingual as bilingual_contract  # noqa: E402
+import export_completeness as completeness_contract  # noqa: E402
 import meanings as meanings_contract  # noqa: E402
 import sql_relationships as sql_contract  # noqa: E402
 import workspace as workspace_contract  # noqa: E402
@@ -627,8 +628,91 @@ def data_catalogue(app_id: str, bundle: Path, types: dict[int, dict[str, str]],
     return "\n".join(out) + "\n"
 
 
+def definition_headline(shapes: dict[tuple[str, str, str], dict]) -> str:
+    """One sentence at the top, because a per-row cell is no help to a reader who is
+    looking for something that is not there.
+
+    A consumer trace returns *absence*, and absence from an incomplete corpus reads
+    exactly like absence from a complete one. On A05 that turned "one screen imports
+    every inbound file" into "no screen imports any of them", and nothing in the output
+    hinted that a form had been cut to a third of its length (backlog A15).
+    """
+    if not shapes:
+        return ("**Definition-text completeness was not measured.** Run `$ak "
+                "completeness`; until then an absence found in this corpus cannot be "
+                "told from an absence in a complete one.")
+    suspect = [key for key, entry in shapes.items()
+               if definition_note(entry).startswith("**")]
+    if not suspect:
+        return (f"Definition text measured for {len(shapes)} object(s); none is "
+                "unbalanced and the routes agree wherever both read one.")
+    return (f"**{len(suspect)} of {len(shapes)} object(s) have a definition text that "
+            "does not balance, or that the two acquisition routes read differently.** "
+            "Content lost from the middle of a file leaves a clean ending, so this is "
+            "the signal and the last line is not. Named in the `Definition text` "
+            "column.")
+
+
+def definition_shapes(space: Any) -> dict[tuple[str, str, str], dict]:
+    """What `$ak completeness` recorded about each object's definition text.
+
+    Read here because a figure nobody reads is not a signal. `check_export_completeness`
+    writes `.ak/extracted/object-shapes.json` and, until now, nothing consumed it - so a
+    reader tracing a screen's consumers over an incomplete corpus got absence with no
+    way to tell it from absence over a complete one. A05's `メインメニュー` sat in the
+    workspace twice, at 1,642 lines and at 4,886, and the two handlers that import every
+    inbound file begin past line 4,000. Backlog A15: the figure has to travel with the
+    corpus.
+
+    Missing file, unreadable file, or an object with no record all answer the same way -
+    nothing to say - because a catalogue that fails to generate over a missing side file
+    would trade one silence for a louder one.
+    """
+    try:
+        record = read_json(space.extracted("object-shapes.json")) or {}
+    except (OSError, ValueError):
+        return {}
+    shapes: dict[tuple[str, str, str], dict] = {}
+    for entry in (record.get("objects") or {}).values():
+        if not isinstance(entry, dict):
+            continue
+        key = (str(entry.get("database_id", "")), str(entry.get("kind", "")),
+               str(entry.get("name", "")))
+        shapes[key] = entry
+    return shapes
+
+
+def definition_note(entry: dict | None) -> str:
+    """One cell saying whether this object's definition text can be trusted whole.
+
+    Three answers, and the third is the one A15 is about. `_not extracted_` means no
+    shape was recorded. A balanced text that both routes agree on says its size, which
+    is what makes a later disagreement visible. Anything else names the problem, because
+    an unbalanced definition lost content from the *middle* - A05's truncated main menu
+    ended on a clean `End Sub` and reported 77 `Begin` against 68 `End`.
+    """
+    if not entry:
+        return NOT_EXTRACTED
+    from_bundle = completeness_contract.from_json(entry.get("bundle"))
+    from_staging = completeness_contract.from_json(entry.get("staging"))
+    best = from_bundle or from_staging
+    if best is None:
+        return NOT_EXTRACTED
+    problems = []
+    for label, shape in (("bundle", from_bundle), ("staging", from_staging)):
+        if shape is not None and not shape.balanced:
+            problems.append(f"{label}: {shape.imbalance}")
+    if from_bundle is not None and from_staging is not None:
+        for difference in completeness_contract.disagreements(from_staging, from_bundle):
+            problems.append(f"routes disagree - {difference}")
+    if problems:
+        return "**" + escape("; ".join(problems)) + "**"
+    return f"{best.lines} line(s), balanced"
+
+
 def screen_catalogue(app_id: str, bundle: Path, facts_dir: Path,
-                     derived: dict | None, naming: Any, meaning: Any) -> str:
+                     derived: dict | None, naming: Any, meaning: Any,
+                     shapes: dict[tuple[str, str, str], dict] | None = None) -> str:
     forms = rows_of(read_json(bundle / "ui" / "forms" / "inventory.json"))
     reports = rows_of(read_json(bundle / "ui" / "reports" / "inventory.json"))
     macros = rows_of(read_json(bundle / "ui" / "macros" / "inventory.json"))
@@ -657,6 +741,8 @@ def screen_catalogue(app_id: str, bundle: Path, facts_dir: Path,
         "positions but not what an operator can see, reach by tab order, or read as "
         "grouped. That needs SCREENSHOT evidence.",
         "",
+        definition_headline(shapes or {}),
+        "",
     ]
 
     for kind, items in (("form", forms), ("report", reports)):
@@ -665,8 +751,8 @@ def screen_catalogue(app_id: str, bundle: Path, facts_dir: Path,
             "",
             "| No. | Object (production name) | English (proposed) | Database | "
             "Record source | Bound fields | Event procedures | Embedded controls | "
-            "Referenced by | Business purpose |",
-            "|---:|---|---|---|---|---:|---:|---|---:|---|",
+            "Referenced by | Definition text | Business purpose |",
+            "|---:|---|---|---|---|---:|---:|---|---:|---|---|",
         ]
         for number, item in enumerate(sorted(items, key=lambda i: (i.get("database_id", ""),
                                                                    i.get("name", ""))), 1):
@@ -683,6 +769,7 @@ def screen_catalogue(app_id: str, bundle: Path, facts_dir: Path,
                 f"{len(bound)} | {len(events)} | "
                 f"{('`' + '`, `'.join(escape(c) for c in controls) + '`') if controls else '—'} | "
                 f"{referenced.get((database, kind, name), 0)} | "
+                f"{definition_note((shapes or {}).get((database, kind, name)))} | "
                 f"{screen_meaning(meaning, kind, name)} |"
             )
         out.append("")
@@ -1011,7 +1098,8 @@ def main() -> int:
         f"{app_id}_DataCatalogue.md": data_catalogue(
             app_id, bundle, types, sql, naming, writes, meaning),
         f"{app_id}_ScreenCatalogue.md": screen_catalogue(
-            app_id, bundle, space.extracted("ui-facts"), derived, naming, meaning),
+            app_id, bundle, space.extracted("ui-facts"), derived, naming, meaning,
+            definition_shapes(space)),
         f"{app_id}_LogicCatalogue.md": logic_catalogue(
             app_id, bundle, derived, sql, naming, meaning),
     }
