@@ -120,7 +120,7 @@ BLANK_TABLE = {"role": "", **BLANK}
 # The sections this tool writes. Anything else in the file is carried through as text
 # by `unmanaged()` - a real A05 file had a sourced `system:` section that a rewrite
 # from the parsed sections would have deleted.
-MANAGED_SECTIONS = ("tables", "columns", "screens")
+MANAGED_SECTIONS = ("tables", "columns", "screens", "boundaries")
 
 
 def quote(text: str) -> str:
@@ -294,6 +294,41 @@ def screen_subjects(bundle: Path, facts_dir: Path,
     return subjects
 
 
+def boundary_subjects(bundle: Path) -> list[tuple[str, str, tuple]]:
+    """Every file crossing the application's boundary, from the declared interfaces.
+
+    Linked tables are not here. A linked table is a table: it already has a `tables:`
+    entry, and that entry's note already says "linked, so it lives in another file".
+    Enumerating it again would ask one subject twice, which is what this line of work
+    exists to stop - checked against the fixture rather than assumed.
+
+    What a boundary file needs is not what a table needs. A declaration says the path
+    and sometimes the format; it never says who sends it, how often, or what happens
+    when it does not arrive. That is USAGE and INTENT, and rule EC-01 puts it out of
+    reach of anything the bundle holds.
+    """
+    interfaces = catalogues.rows_of(catalogues.read_json(
+        bundle / "interfaces" / "file-interfaces.json"))
+    subjects = []
+    for row in interfaces:
+        name = str(row.get("name") or row.get("path") or "").strip()
+        if not name:
+            continue
+        direction = str(row.get("direction") or "").strip()
+        declared = str(row.get("format") or "").strip()
+        note = (f"boundary file; {direction or 'direction not declared'}; "
+                f"{'format `' + declared + '`' if declared else 'no format declared'}")
+        if row.get("path") and row.get("path") != name:
+            note += f"; declared at `{row['path']}`"
+        note += ("; a declaration never says who sends it, how often, or what happens "
+                 "when it does not arrive")
+        # Outbound first: a file this application writes is a contract somebody
+        # downstream already depends on, so a wrong guess about it breaks their run
+        # rather than ours.
+        subjects.append((name, note, (0 if direction.startswith("out") else 1, name)))
+    return subjects
+
+
 def column_subjects(fields: list[dict], types: dict[int, dict[str, str]],
                     ) -> list[tuple[str, str, tuple]]:
     """Column names, keyed bare where shared and scoped where they are not.
@@ -396,6 +431,7 @@ def main() -> int:
         "tables": table_subjects(bundle, writes, referenced, fields),
         "columns": column_subjects(fields, catalogues.load_types()),
         "screens": screen_subjects(bundle, facts_dir, referenced),
+        "boundaries": boundary_subjects(bundle),
     }
 
     lines = [HEADER.rstrip(), ""]
@@ -412,7 +448,7 @@ def main() -> int:
         lines += [carried, ""]
 
     for section, counts in summary.items():
-        print(f"{section:8s} {counts['total']:5d} subject(s), {counts['filled']:4d} "
+        print(f"{section:10s} {counts['total']:5d} subject(s), {counts['filled']:4d} "
               f"with a sourced meaning, {counts['added']:5d} blank entr(y/ies) added"
               + (f", {counts['orphans']} kept from an earlier bundle"
                  if counts["orphans"] else ""))
