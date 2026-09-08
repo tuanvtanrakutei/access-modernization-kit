@@ -174,6 +174,9 @@ foreach ($directory in $directories) {
 $components = [System.Collections.ArrayList]::new()
 $warnings = [System.Collections.ArrayList]::new()
 $tables = [System.Collections.ArrayList]::new()
+# The import/export specifications a text link points at. Empty unless some link
+# declares `DSN=`; see Read-ImexSpecifications.
+$imexSpecs = [System.Collections.ArrayList]::new()
 $relations = [System.Collections.ArrayList]::new()
 $references = [System.Collections.ArrayList]::new()
 $application = $null
@@ -199,6 +202,60 @@ $projectContext = [ordered]@{
     autoexec_present = $false
     conditional_compilation_constants = ''
     references = $references
+}
+
+# The two tables that define a text link's columns, read only when a link needs them.
+#
+# A05 links six delimited text files, every one declaring `FMT=Delimited;HDR=NO;IMEX=2`
+# and `DSN=<spec name>`. With `HDR=NO` there is no header row, so a column's meaning is
+# positional, and the `DSN=` says where the positions are defined: `MSysIMEXSpecs` and
+# `MSysIMEXColumns`, inside the database. Both are ordinary Jet tables and readable
+# through DAO, unlike the `MSys*` tables the loop below skips for want of read-
+# definitions permission.
+#
+# Excluding them cost the layout of the entire inbound boundary. All six linked tables
+# reported `read_error` - "could not find the object 'order.txt'" - with `columns: 0`,
+# because the share was not mounted when the database was acquired, and Access cannot
+# enumerate a text link's columns without reading the file. So the only copy of that
+# layout which does not depend on the upstream file being reachable was the one being
+# skipped, and Phase 3 was published as inference on that basis. Backlog A17.
+#
+# Every field of every row is emitted rather than a chosen few. The column names of
+# these two tables are Access's own and are not verified here against a live database,
+# so naming a subset is how a rename or a version difference would silently drop the
+# very evidence this exists to capture. Joining `SpecID` is left to the consumer, where
+# it can be tested.
+function Read-ImexSpecifications($Database, $Collector) {
+    foreach ($tableName in @('MSysIMEXSpecs', 'MSysIMEXColumns')) {
+        try {
+            $recordset = $Database.OpenRecordset("SELECT * FROM [$tableName]")
+        } catch {
+            # A database with no saved specification has no such table. That is not a
+            # failure: it means no link declared a DSN, or the spec was deleted after
+            # the link was made - which is itself worth recording, because the link
+            # then has no declared layout anywhere.
+            $Collector.Add([ordered]@{ table = $tableName; status = 'absent'; reason = "$($_.Exception.Message)"; rows = @() }) | Out-Null
+            continue
+        }
+        try {
+            $rows = @()
+            while (-not $recordset.EOF) {
+                $row = [ordered]@{}
+                foreach ($field in $recordset.Fields) {
+                    $value = $null
+                    try { $value = $field.Value } catch {}
+                    $row[[string]$field.Name] = if ($null -eq $value) { $null } else { [string]$value }
+                }
+                $rows += $row
+                $recordset.MoveNext()
+            }
+            $Collector.Add([ordered]@{ table = $tableName; status = 'read'; reason = ''; rows = $rows }) | Out-Null
+        } catch {
+            $Collector.Add([ordered]@{ table = $tableName; status = 'read_error'; reason = "$($_.Exception.Message)"; rows = @() }) | Out-Null
+        } finally {
+            try { $recordset.Close() } catch {}
+        }
+    }
 }
 
 # Reads everything the Jet layer knows: schema, queries, and the object inventory.
@@ -268,6 +325,16 @@ function Read-JetLayer($Database) {
             [void]$tables.Add([ordered]@{ name = $tableName; source_table_name = $sourceTableName; connect = $connect; attributes = 0; fields = @(); indexes = @(); read_error = $reason })
             Add-Component $components 'table' $tableName 'schema/tables.json' 'data' @{ linked = $linked; source_table_name = $sourceTableName; connect = $connect; read_error = $reason }
         }
+    }
+    # Only when a link needs them. Reading the specification tables unconditionally
+    # would put Access bookkeeping in every bundle; reading them never cost A17 the
+    # layout of an entire boundary. The condition is the link's own declaration, and
+    # `Redact-Connection` leaves `DSN=` intact - it redacts credentials, not
+    # specification names - so the collected connect strings are enough to decide.
+    $needsSpecs = @($tables | Where-Object { $_.connect -match '(?i)(^|;)\s*DSN\s*=' })
+    if ($needsSpecs.Count -gt 0 -and $imexSpecs.Count -eq 0) {
+        Read-ImexSpecifications $Database $imexSpecs
+        [void]$warnings.Add(('{0} linked table(s) declare a DSN; read the import specification tables for their column layout' -f $needsSpecs.Count))
     }
     foreach ($relation in $Database.Relations) {
         try {
@@ -377,6 +444,7 @@ function Write-Extraction {
         # a sibling file could never reach databases.fields / databases.indexes, and the
         # capabilities Phase 1 requires stayed permanently unreachable.
         tables = $tables
+        imex_specs = $imexSpecs
         warnings = $warnings
     }
     $result | ConvertTo-Json -Depth 15 | Set-Content -LiteralPath (Join-Path $root 'access-extraction.json') -Encoding UTF8

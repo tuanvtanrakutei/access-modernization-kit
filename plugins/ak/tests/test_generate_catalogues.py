@@ -65,8 +65,21 @@ def workspace(tmp_path: Path) -> Path:
          "fields": ["伝票番号"], "primary": True, "unique": True},
     ])
     write(bundle / "databases" / "declared-relationships.json", [])
+    # The link declares a DSN, which is what makes the specification tables worth
+    # reading: with HDR=NO the columns are positional and the spec is the only
+    # declaration of what those positions mean.
     write(bundle / "interfaces" / "linked-tables.json", [
-        {"database_id": BE, "name": "元受注データ", "connect": "Text;DATABASE=L:\\x"},
+        {"database_id": BE, "name": "元受注データ", "connect": "Text;FMT=Delimited;HDR=NO;IMEX=2;DSN=order_spec;DATABASE=L:\\x"},
+    ])
+    # Every field of every row, the way the extractor emits them.
+    write(bundle / "interfaces" / "imex-specs.json", [
+        {"database_id": BE, "table": "MSysIMEXSpecs", "status": "read", "reason": "",
+         "rows": [{"SpecID": "1", "SpecName": "order_spec", "FileType": "932"}]},
+        {"database_id": BE, "table": "MSysIMEXColumns", "status": "read", "reason": "",
+         "rows": [
+             {"SpecID": "1", "FieldName": "商品コード", "Start": "1", "Width": "7"},
+             {"SpecID": "1", "FieldName": "数量", "Start": "8", "Width": "5"},
+         ]},
     ])
     # Two boundary files, one each way. The outbound one declares no format, which is
     # the normal state: a declaration says where a file goes, not what is in it.

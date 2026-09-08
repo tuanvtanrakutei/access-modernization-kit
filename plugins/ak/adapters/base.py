@@ -88,7 +88,10 @@ def empty_sections() -> dict[str, Any]:
         "databases": {"objects": [], "tables": [], "fields": [], "indexes": [], "declared_relationships": []},
         "code": {"vba": [], "access_sql": [], "sql_server": []},
         "ui": {"forms": [], "reports": [], "macros": []},
-        "interfaces": {"linked_tables": [], "file_interfaces": [], "connections_redacted": []},
+        "interfaces": {"linked_tables": [], "file_interfaces": [], "connections_redacted": [],
+                       # The declared column layout of a text link. Only present
+                       # when a link declares `DSN=`; backlog A17.
+                       "imex_specs": []},
         "evidence_sources": {
             "documents": {"inventory": []}, "screenshots": {"inventory": []},
             "reports": {"inventory": []}, "samples": {"inventory": []},

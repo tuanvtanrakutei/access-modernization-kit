@@ -126,6 +126,13 @@ class ManagedAccessAdapter:
             for component in extraction.get("components", []):
                 _route_component(sections, extraction["database_id"], component)
             _route_table_detail(sections, extraction["database_id"], extraction.get("tables", []))
+            # The specification tables a text link points at, carried through with the
+            # database that declared them so a consumer can tell whose layout it is.
+            # Absent unless some link declared `DSN=`, which is the only reason to read
+            # Access's own bookkeeping at all (backlog A17).
+            for record in extraction.get("imex_specs", []):
+                sections["interfaces"]["imex_specs"].append(
+                    {"database_id": extraction["database_id"], **record})
             # An exclusion the extractor made on purpose is not a failure to extract
             # something. Reported through the same channel it made coverage overstate
             # failure by more than a third, and a clean run look damaged.

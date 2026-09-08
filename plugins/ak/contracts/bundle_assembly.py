@@ -263,7 +263,12 @@ def _write_layout(
         _write_json(bundle_dir / "databases" / name, merged["databases"][key])
     for key, name in (("forms", "forms"), ("reports", "reports"), ("macros", "macros")):
         _write_json(bundle_dir / "ui" / name / "inventory.json", merged["ui"][key])
-    for key, name in (("linked_tables", "linked-tables.json"), ("file_interfaces", "file-interfaces.json"), ("connections_redacted", "connections.redacted.json")):
+    for key, name in (("linked_tables", "linked-tables.json"),
+                      ("file_interfaces", "file-interfaces.json"),
+                      ("connections_redacted", "connections.redacted.json"),
+                      # The declared column layout of a text link, which is the only
+                      # copy that does not need the upstream file to be reachable.
+                      ("imex_specs", "imex-specs.json")):
         _write_json(bundle_dir / "interfaces" / name, merged["interfaces"][key])
     for key in ("documents", "screenshots", "reports", "samples"):
         _write_json(bundle_dir / "evidence-sources" / key / "inventory.json", merged["evidence_sources"][key]["inventory"])

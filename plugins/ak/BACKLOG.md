@@ -12,6 +12,35 @@ that it should now work.
 
 ## Open
 
+### A21 - the VBA exporter reads the same connect strings and not the specifications
+
+**Observed 2026-09-08, closing A17.** `extract_access.ps1` now reads `MSysIMEXSpecs`
+and `MSysIMEXColumns` whenever a link declares `DSN=`, so a text link's declared column
+layout reaches the bundle as `interfaces/imex-specs.json`.
+`tools/ExportAccessObjects.bas` does not, and it exports the same tables' `connect`
+strings into `schema	ables.txt` - so it produces the links without the layout they
+point at.
+
+`specifications/evidence-layout.yaml` opens by saying the two routes "must write the
+same container names and the same formats, so evidence produced on a machine that has
+Access is interchangeable with evidence extracted here", and names exactly this failure:
+"Where the two disagreed, field and index detail reached the bundle from one route only,
+which silently made Phase 1 depend on runtime access." This is that, for the inbound
+boundary.
+
+**Why it was not fixed in the same change.** No test in this repository can execute VBA.
+The last defect in that file - `JsonEscape` shipping raw control characters instead of
+the two-character sequences - was found when a person imported the module into Access
+and saw red, and `tests/test_export_bas.py` exists because nothing else could have
+caught it. Writing DAO recordset code that no run proves would be closing an entry by
+reasoning, which this backlog's own header refuses.
+
+**What to change.** Add the same read to the exporter, keyed on the same condition, and
+prove it by importing the module into Access on a database that has a saved import
+specification. The A05 frontend has six. Until then the imported-sources route yields no
+`imex_specs`, which the bundle-contribution schema permits on purpose - the key is
+optional, and its absence means "not read", not "no layout declared".
+
 ### A19 - five of the six phases degrade without interview evidence, and all six run before any is collected
 
 **Observed 2026-09-07, reviewing where part 0's output actually goes.**
@@ -190,43 +219,6 @@ scale where it could be.
 
 Found by asking where each phase document's content is read, rather than whether it
 was published - the question the gates do not ask, and the same blind spot as A13.
-
-### A17 - the two tables that define a text link's columns are excluded as system tables
-
-**Observed 2026-09-04, on A05.** A05 links six delimited text files, every one of
-them declaring `FMT=Delimited;HDR=NO;IMEX=2` and `DSN=<spec name>`. With `HDR=NO`
-there is no header row, so the column meaning is positional, and the `DSN=` says
-where the positions are defined: `MSysIMEXSpecs` and `MSysIMEXColumns`, inside the
-MDB.
-
-The extractor excludes both, by name, as system tables - alongside `MSysObjects`,
-`MSysQueries` and the rest. For a text link with an IMEX spec those two are not
-system noise; **they are the boundary contract**, and they are the only copy of it
-that does not depend on the upstream file being reachable.
-
-That mattered here because the other record failed too. All six linked tables
-reported `read_error` - *"could not find the object 'order.txt'"* - with `columns: 0`,
-because the `L:` share was not mounted when the database was acquired. Access cannot
-enumerate a text link's columns without reading the file. So the layout of the entire
-inbound boundary was unreachable from a bundle that otherwise passed every gate, and
-Phase 3 §4 was published as inference on that basis.
-
-It was closed by supplying samples, which is the right evidence for a FORMAT claim
-under EC-02 and should stay that way. But the samples settled it only by luck: three
-of the six arrived carrying a header row and matching a headerless file
-column-for-column. Without that coincidence, six sample files with no header would
-have shown the *values* and still not named the columns.
-
-**What to change.** Exclude the `MSys*` tables as a default, not as a rule, and
-capture `MSysIMEXSpecs` and `MSysIMEXColumns` whenever any link's connect string
-contains `DSN=` - which is cheap to detect, since the connect strings are already
-read. Two consequences follow: a text link's declared columns become available as
-`SCHEMA` evidence independent of the file, and the more useful check becomes possible
-- comparing what the spec declares against what a supplied sample contains, which is
-where a sender that has quietly added a column shows up.
-
-Both tables are ordinary Jet tables and readable through DAO; `MSysIMEXColumns` has
-one row per column with its name, data type, position and width.
 
 ### A15 - an imported export's completeness is never checked, only its integrity
 
@@ -527,6 +519,36 @@ against that one object rather than against the application as a whole.
 
 Closed entries name the commit that closed them and the run that proved it.
 
+- **The two tables that define a text link's columns were excluded as system tables**
+  (A17) - A05 links six delimited text files, each declaring
+  `FMT=Delimited;HDR=NO;IMEX=2` and `DSN=<spec name>`. `HDR=NO` means no header row, so a
+  column's meaning is positional and the specification named by `DSN=` is the only
+  declaration of what those positions mean. It lives in `MSysIMEXSpecs` and
+  `MSysIMEXColumns`, inside the database, and the extractor skipped both by name
+  alongside the `MSys*` tables DAO genuinely cannot read.
+
+  It cost the layout of the whole inbound boundary. All six linked tables reported
+  `read_error` - "could not find the object 'order.txt'" - with `columns: 0`, because the
+  share was unmounted at acquisition and Access cannot enumerate a text link's columns
+  without reading the file. The only copy of that layout which did not depend on the file
+  being reachable was the one being skipped, and Phase 3 was published as inference on
+  that basis.
+
+  ``b33bebf`` reads both tables, but only when some link declares a DSN: reading them
+  always would put Access's own bookkeeping in every bundle, and the condition is the
+  link's own declaration. Every field of every row is emitted rather than a chosen few,
+  because these column names are Access's and naming a subset is how a version difference
+  would silently drop the evidence; the `SpecID` join is done in
+  `generate_catalogues.py`, where it can be tested. `LogicCatalogue`'s boundary table
+  gains a `Declared columns` column, and a link naming a specification the database does
+  not hold reads **not in the database** rather than blank - the layout is then declared
+  nowhere and a sample is the only remaining route (EC-02).
+
+  Thirteen tests, and the ones that matter run the extractor's own function against a
+  mocked DAO database - there is no Access here, and the function's whole job is talking
+  to DAO, so the Database is mocked and the function is not. What stays open is the
+  exporter: [[A21]], because the same read has to go into
+  `tools/ExportAccessObjects.bas` and no test in this repository can execute VBA.
 - **`NOT_APPLICABLE` was ranked, schema-declared, and produced by nothing** (A20) -
   `phase_readiness.py` ranked it at 0 beside `READY`, `_set_status` special-cased it so
   it won even against a worse status, and `classification-rule.schema.json` declared the
