@@ -534,7 +534,7 @@ Closed entries name the commit that closed them and the run that proved it.
   being reachable was the one being skipped, and Phase 3 was published as inference on
   that basis.
 
-  `__A17__` reads both tables, but only when some link declares a DSN: reading them
+  ``b33bebf`` reads both tables, but only when some link declares a DSN: reading them
   always would put Access's own bookkeeping in every bundle, and the condition is the
   link's own declaration. Every field of every row is emitted rather than a chosen few,
   because these column names are Access's and naming a subset is how a version difference
