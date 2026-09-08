@@ -35,11 +35,27 @@ and saw red, and `tests/test_export_bas.py` exists because nothing else could ha
 caught it. Writing DAO recordset code that no run proves would be closing an entry by
 reasoning, which this backlog's own header refuses.
 
-**What to change.** Add the same read to the exporter, keyed on the same condition, and
-prove it by importing the module into Access on a database that has a saved import
-specification. The A05 frontend has six. Until then the imported-sources route yields no
-`imex_specs`, which the bundle-contribution schema permits on purpose - the key is
-optional, and its absence means "not read", not "no layout declared".
+**Written `__A21__`, not proven.** `tools/ExportAccessObjects.bas` now reads both
+tables when any link declares `DSN=` and writes `schema/imex-specs.json` in the shape
+the runtime route emits, and `adapters/imported_sources` expands it into
+`interfaces/imex_specs` - without that second half the exporter would write a file
+nothing reads, which is A15's defect one directory along.
+
+Six tests hold what can be held here: both routes emit the same record keys, the gate
+strips spaces before searching for `DSN=` because `; DSN =` is legal and the runtime
+regex allows it, and the `Q` constant is exactly four quote characters - the trap that
+produced this file's last defect, in a new place. One difference is recorded rather than
+fixed: the runtime route distinguishes `read_error` from `absent` and the exporter
+cannot, because one `On Error` around `OpenRecordset` sees the same failure either way.
+The real message is in `reason` on both routes.
+
+**What closes it.** A person importing the module into Access on a database with a
+saved import specification - the A05 frontend has six - and reporting three things: any
+red on import, any runtime error in the Immediate window, and whether
+`schema\imex-specs.json` appeared with rows. No test in this repository can execute
+VBA, and this backlog's header says an entry is closed by a change plus the run that
+proves it. An empty or missing file is a result too: it would mean A17's assumption that
+DAO can read these two tables is wrong, which is worth more than a closed entry.
 
 ### A19 - five of the six phases degrade without interview evidence, and all six run before any is collected
 

@@ -382,9 +382,37 @@ def _route_schema_tables(sections: dict[str, Any], record: dict[str, Any]) -> bo
     return True
 
 
+def _route_imex_specs(sections: dict[str, Any], record: dict[str, Any]) -> bool:
+    """Expand an imported schema/imex-specs.json into the interfaces section.
+
+    Written by `tools/ExportAccessObjects.bas` when some link declares `DSN=`, and the
+    same shape `extract_access.ps1` emits, so a bundle assembled from either route
+    carries the same evidence - which is what `evidence-layout.yaml` asks of these two
+    routes. A17 gave the runtime route this and A21 the exporter; without this function
+    the exporter would write a file nothing reads, which is the defect A15 was about.
+    """
+    path = str(record.get("path") or record.get("logical_id") or "")
+    if not path.replace("\\", "/").endswith("schema/imex-specs.json"):
+        return False
+    try:
+        records = json.loads(record.get("text") or "[]")
+    except (TypeError, ValueError):
+        return False
+    if not isinstance(records, list):
+        return False
+    database_id = str(record.get("logical_id", "")).split(":", 1)[0]
+    for entry in records:
+        if isinstance(entry, dict):
+            sections["interfaces"]["imex_specs"].append(
+                {"database_id": database_id, **entry})
+    return True
+
+
 def _route_record(sections: dict[str, Any], record: dict[str, Any]) -> None:
     kind = record["kind"]
     if kind == "metadata" and _route_schema_tables(sections, record):
+        return
+    if kind == "metadata" and _route_imex_specs(sections, record):
         return
     if kind == "vba": sections["code"]["vba"].append(record)
     elif kind == "access_sql": sections["code"]["access_sql"].append(record)

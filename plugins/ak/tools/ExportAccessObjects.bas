@@ -2,6 +2,10 @@ Attribute VB_Name = "modExportAccess"
 Option Compare Database
 Option Explicit
 
+' A double quote inside a VBA string literal is written as two of them, which makes
+' JSON-building lines unreadable. One constant, used by the specification export.
+Private Const Q As String = """"
+
 ' =============================================================================
 ' Access Modernization Kit - manual Access export
 ' =============================================================================
@@ -38,6 +42,12 @@ Option Explicit
 '                       two, so reading a button's Name as its caption is a guess;
 '                       and a hidden control looks exactly like a live one.
 '   schema\tables.txt   table list with linked/local flag and fields (UTF-8).
+'   schema\imex-specs.json  the import/export specification tables, written when
+'                       some link declares DSN=. A text link saying HDR=NO has no header
+'                       row, so its columns are positional and the specification is the
+'                       only declaration of what those positions mean. Absent when no
+'                       link names one, which export-manifest.txt states rather than
+'                       leaving it to be inferred from a missing file.
 '                       System (MSys*), temp (~*), and Access ImportErrors
 '                       tables are excluded; their count/names go in the manifest.
 '   export-manifest.txt object counts and the list of skipped objects
@@ -91,6 +101,7 @@ Public Sub ExportAccessObjects(ByVal OutRoot As String)
     Next
 
     Dim td As DAO.TableDef, sb As String, nExcluded As Long, excludedNames As String
+    Dim anyDsnLink As Boolean, nImexRows As Long
     For Each td In db.TableDefs
         If IsSystemOrJunkTable(td) Then
             nExcluded = nExcluded + 1
@@ -98,10 +109,18 @@ Public Sub ExportAccessObjects(ByVal OutRoot As String)
         Else
             If nTable > 0 Then sb = sb & "," & vbCrLf
             sb = sb & TableSchemaJson(td)
+            If LinkDeclaresDsn(td) Then anyDsnLink = True
             nTable = nTable + 1
         End If
     Next
     WriteUtf8 OutRoot & "\schema\tables.json", "[" & vbCrLf & sb & vbCrLf & "]" & vbCrLf
+
+    ' Only when a link declares DSN=. MSysIMEXSpecs and MSysIMEXColumns are
+    ' Access's own bookkeeping, and IsSystemOrJunkTable excludes every MSys* table
+    ' from the schema export for good reason - but for a text link saying HDR=NO
+    ' they are the boundary contract, and the only copy of it that does not need
+    ' the upstream file to be reachable. Backlog A17 for why, A21 for why here.
+    If anyDsnLink Then nImexRows = ExportImexSpecifications(OutRoot, db)
 
     ' The control inventory. A separate pass because it opens each object in
     ' design view - slower, and able to fail per object - and because an operator
@@ -116,6 +135,7 @@ Public Sub ExportAccessObjects(ByVal OutRoot As String)
               "queries=" & nQuery & vbCrLf & _
               "tables=" & nTable & vbCrLf & _
               "excluded_system_or_junk_tables=" & nExcluded & vbCrLf & _
+              "imex_specification_rows=" & IIf(anyDsnLink, CStr(nImexRows), "no link declares DSN=") & vbCrLf & _
               "skipped=" & mSkipCount & vbCrLf
     If nExcluded > 0 Then
         summary = summary & vbCrLf & "EXCLUDED tables (system / temp / Access ImportErrors):" & vbCrLf & excludedNames
@@ -274,6 +294,96 @@ End Function
 
 ' Connection strings can carry credentials. The runtime extractor redacts the same
 ' keys; an export that did not would put them in a file someone copies around.
+Private Function LinkDeclaresDsn(ByVal td As Object) As Boolean
+    ' Does this link name an import specification?
+    '
+    ' Spaces are removed before searching because `; DSN =` is legal and the runtime
+    ' route's regex allows whitespace. The two routes have to agree on WHEN they read
+    ' these tables, not only on what they write when they do.
+    Dim c As String
+    On Error Resume Next
+    Err.Clear
+    c = td.Connect
+    On Error GoTo 0
+    If Len(c) = 0 Then Exit Function
+    LinkDeclaresDsn = InStr(1, ";" & Replace(c, " ", ""), ";DSN=", vbTextCompare) > 0
+End Function
+
+Private Function ExportImexSpecifications(ByVal OutRoot As String, ByVal db As Object) As Long
+    ' Written in the same shape scripts/extract_access.ps1 emits, so a bundle
+    ' assembled from either route carries the same evidence - which is what
+    ' specifications/evidence-layout.yaml requires of these two routes.
+    Dim sb As String, rows As Long
+    sb = ImexTableJson(db, "MSysIMEXSpecs", rows) & "," & vbCrLf & _
+         ImexTableJson(db, "MSysIMEXColumns", rows)
+    WriteUtf8 OutRoot & "\schema\imex-specs.json", "[" & vbCrLf & sb & vbCrLf & "]" & vbCrLf
+    ExportImexSpecifications = rows
+End Function
+
+Private Function ImexTableJson(ByVal db As Object, ByVal tableName As String, _
+                               ByRef rowCount As Long) As String
+    ' Every field of every row, not a chosen few. These column names are Access's own
+    ' and are not verified against a live database anywhere in this package's tests,
+    ' so naming a subset is how a rename or a version difference would silently drop
+    ' the layout this exists to capture. Joining SpecID is the consumer's job.
+    Dim rs As Object, fld As Object, sb As String, cells As String, n As Long
+    Dim errDesc As String
+    On Error Resume Next
+    Err.Clear
+    Set rs = db.OpenRecordset("SELECT * FROM [" & tableName & "]")
+    errDesc = Err.Description
+    If Err.Number <> 0 Then
+        ' A database with no saved specification has no such table. Recorded rather
+        ' than raised: it means no link declared a DSN, or the specification was
+        ' deleted after the link was made - and then the link has no declared layout
+        ' anywhere, which is itself the finding.
+        Err.Clear
+        On Error GoTo 0
+        ImexTableJson = "  {" & Q & "table" & Q & ": " & Q & JsonEscape(tableName) & Q & _
+                        ", " & Q & "status" & Q & ": " & Q & "absent" & Q & _
+                        ", " & Q & "reason" & Q & ": " & Q & JsonEscape(errDesc) & Q & _
+                        ", " & Q & "rows" & Q & ": []}"
+        Exit Function
+    End If
+    On Error GoTo 0
+
+    Do Until rs.EOF
+        cells = ""
+        For Each fld In rs.Fields
+            If Len(cells) > 0 Then cells = cells & ", "
+            cells = cells & Q & JsonEscape(fld.Name) & Q & ": " & ImexValueJson(fld)
+        Next
+        If n > 0 Then sb = sb & "," & vbCrLf
+        sb = sb & "      {" & cells & "}"
+        n = n + 1
+        rs.MoveNext
+    Loop
+    rs.Close
+    rowCount = rowCount + n
+    ImexTableJson = "  {" & Q & "table" & Q & ": " & Q & JsonEscape(tableName) & Q & _
+                    ", " & Q & "status" & Q & ": " & Q & "read" & Q & _
+                    ", " & Q & "reason" & Q & ": " & Q & Q & _
+                    ", " & Q & "rows" & Q & ": ["
+    If n > 0 Then ImexTableJson = ImexTableJson & vbCrLf & sb & vbCrLf & "    "
+    ImexTableJson = ImexTableJson & "]}"
+End Function
+
+Private Function ImexValueJson(ByVal fld As Object) As String
+    ' Every value as a JSON string, matching the runtime route, which casts to
+    ' [string] for the same reason: SpecID is a Long here and a string there, and a
+    ' consumer joining the two must not have to know which route wrote the file.
+    Dim v As Variant
+    On Error Resume Next
+    Err.Clear
+    v = fld.Value
+    On Error GoTo 0
+    If IsNull(v) Then
+        ImexValueJson = "null"
+    Else
+        ImexValueJson = Q & JsonEscape(CStr(v)) & Q
+    End If
+End Function
+
 Private Function RedactConnect(ByVal value As String) As String
     Dim r As String
     r = value

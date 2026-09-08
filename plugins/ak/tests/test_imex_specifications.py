@@ -254,3 +254,122 @@ def test_the_dsn_guard_matches_a_real_connect_string_and_not_a_bare_link() -> No
         check=False, capture_output=True, text=True, encoding="utf-8")
     assert result.returncode == 0, result.stderr
     assert result.stdout.strip() == "True,False", result.stdout
+
+
+# --- the two routes have to agree, and one of them cannot be run here ---------
+
+BAS = PACKAGE / "tools" / "ExportAccessObjects.bas"
+
+
+def test_the_exporter_reads_the_specifications_on_the_same_condition() -> None:
+    """`evidence-layout.yaml` requires both routes to write the same containers.
+
+    A17 fixed the runtime route. The exporter reads the same tables' `Connect`
+    strings into `schema/tables.json`, so leaving it out produced the links without
+    the layout they point at - which is the failure that file's opening note names.
+    """
+    text = BAS.read_text(encoding="utf-8")
+    assert "LinkDeclaresDsn" in text
+    assert "ExportImexSpecifications" in text
+    assert "imex-specs.json" in text
+    gate = next(line for line in text.splitlines() if "LinkDeclaresDsn = InStr" in line)
+    assert ";DSN=" in gate
+    # Spaces stripped first, because `; DSN =` is legal and the runtime route's regex
+    # allows whitespace. The routes must agree on *when* they read, not only on what.
+    assert 'Replace(c, " ", "")' in gate
+
+
+def test_both_routes_emit_the_same_record_keys() -> None:
+    """A consumer joins these without knowing which route wrote the file.
+
+    `generate_catalogues.imex_columns` reads `table`, `status` and `rows`, and is the
+    only consumer - so a key spelled differently by one route is a silent miss, which
+    is the defect class this kit spends most of its time finding.
+    """
+    ps1 = SCRIPT.read_text(encoding="utf-8")
+    bas = BAS.read_text(encoding="utf-8")
+    for key in ("table", "status", "reason", "rows"):
+        assert f'"{key}"' in ps1 or f"{key} =" in ps1, key
+        assert f'Q & "{key}" & Q' in bas, f"the exporter does not emit {key!r}"
+    for status in ("read", "absent"):
+        assert f"'{status}'" in ps1 or f'"{status}"' in ps1, status
+        assert f'Q & "{status}" & Q' in bas, status
+
+
+def test_the_exporter_cannot_tell_a_missing_table_from_an_unreadable_one() -> None:
+    """Recorded, not fixed. The runtime route has three statuses and this one has two.
+
+    `read_error` means the table exists and the read failed; `absent` means there is
+    no such table. One `On Error` around `OpenRecordset` cannot separate them, and the
+    reason string carries the real message either way - so a consumer that needs the
+    distinction has it in `reason` and not in `status`.
+
+    Adding a third status would mean more VBA that no test in this repository can
+    execute, on a path that has never fired. Named here so the difference is on the
+    record rather than found later. Backlog A21.
+    """
+    ps1 = SCRIPT.read_text(encoding="utf-8")
+    bas = BAS.read_text(encoding="utf-8")
+    assert "'read_error'" in ps1
+    assert 'Q & "read_error" & Q' not in bas
+
+
+def test_the_quote_constant_is_one_quote() -> None:
+    """The trap that produced the last defect in this file, in a new place.
+
+    A double quote inside a VBA literal is written as two, so a constant holding one
+    quote is four characters. Three would be an unterminated literal Access shows in
+    red; five would put two quotes in every JSON key.
+    """
+    text = BAS.read_text(encoding="utf-8")
+    line = next(l for l in text.splitlines() if l.startswith("Private Const Q "))
+    assert line.endswith('= """"'), line
+
+
+# --- the imported route has to read what the exporter writes ------------------
+
+def test_the_importer_expands_the_exporter_file_into_the_interfaces_section() -> None:
+    """Otherwise the exporter writes a file nothing reads, which is A15's defect.
+
+    `_route_schema_tables` exists because `schema/tables.json` was written by the
+    exporter and unread for long enough that the constraint "an export cannot reach
+    Phase 1" looked like a property of exports rather than of a consumer. This is the
+    same file one directory along.
+    """
+    sys.path.insert(0, str(PACKAGE))
+    from adapters.base import empty_sections
+    from adapters.imported_sources.adapter import _route_record
+
+    sections = empty_sections()
+    payload = [
+        {"table": "MSysIMEXSpecs", "status": "read", "reason": "",
+         "rows": [{"SpecID": "1", "SpecName": "order_spec"}]},
+        {"table": "MSysIMEXColumns", "status": "read", "reason": "",
+         "rows": [{"SpecID": "1", "FieldName": "商品コード"}]},
+    ]
+    _route_record(sections, {
+        "kind": "metadata", "logical_id": "FRONT_1111:schema/imex-specs.json",
+        "path": "FRONT_1111/schema/imex-specs.json",
+        "text": json.dumps(payload, ensure_ascii=False),
+    })
+    carried = sections["interfaces"]["imex_specs"]
+    assert [entry["table"] for entry in carried] == ["MSysIMEXSpecs", "MSysIMEXColumns"]
+    assert all(entry["database_id"] == "FRONT_1111" for entry in carried)
+    # And the catalogue's join reads what the importer produced, unchanged.
+    assert catalogues.imex_columns(carried) == {"order_spec": ["商品コード"]}
+
+
+def test_a_malformed_exporter_file_is_left_alone_rather_than_half_read() -> None:
+    """A metadata record that is not this file must fall through to its own handler."""
+    sys.path.insert(0, str(PACKAGE))
+    from adapters.base import empty_sections
+    from adapters.imported_sources.adapter import _route_imex_specs
+
+    sections = empty_sections()
+    assert not _route_imex_specs(sections, {
+        "kind": "metadata", "logical_id": "FRONT_1111:schema/tables.json",
+        "path": "FRONT_1111/schema/tables.json", "text": "[]"})
+    assert not _route_imex_specs(sections, {
+        "kind": "metadata", "logical_id": "FRONT_1111:schema/imex-specs.json",
+        "path": "FRONT_1111/schema/imex-specs.json", "text": "{not json"})
+    assert sections["interfaces"]["imex_specs"] == []
