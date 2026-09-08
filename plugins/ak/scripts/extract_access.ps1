@@ -253,6 +253,17 @@ foreach ($directory in $directories) {
 
 $components = [System.Collections.ArrayList]::new()
 $warnings = [System.Collections.ArrayList]::new()
+# What this run did, as against what a person must act on. The two channels are the
+# whole of A25: every diagnostic used to travel as a warning, the bundle classified it
+# by its opening word, and a line with no marker was counted as an object that could
+# not be read - so a perfect managed acquisition reported two failures, every time.
+#
+# The rule for deciding, and it is the reason this is a second collection rather than
+# a third prefix: a *warning* is something a person must act on, whether the fault is
+# the kit's (a table that would not read) or the application's (an ActiveX control
+# that cannot load). A *note* states what this run chose to do, so that a reader can
+# weigh the evidence it produced. Neither is the other's fallback.
+$notes = [System.Collections.ArrayList]::new()
 $tables = [System.Collections.ArrayList]::new()
 # The import/export specifications a text link points at. Empty unless some link
 # declares `DSN=`; see Read-ImexSpecifications.
@@ -438,7 +449,7 @@ function Read-JetLayer($Database) {
     $needsSpecs = @($tables | Where-Object { $_.connect -match '(?i)(^|;)\s*DSN\s*=' })
     if ($needsSpecs.Count -gt 0 -and $imexSpecs.Count -eq 0) {
         Read-ImexSpecifications $Database $imexSpecs
-        [void]$warnings.Add(('{0} linked table(s) declare a DSN; read the import specification tables for their column layout' -f $needsSpecs.Count))
+        [void]$notes.Add(('{0} linked table(s) declare a DSN; read the import specification tables for their column layout' -f $needsSpecs.Count))
     }
     foreach ($relation in $Database.Relations) {
         try {
@@ -550,6 +561,9 @@ function Write-Extraction {
         tables = $tables
         imex_specs = $imexSpecs
         warnings = $warnings
+        # Emitted even when empty, so a consumer can tell an extraction that had
+        # nothing to say from one written before this channel existed.
+        notes = $notes
     }
     $result | ConvertTo-Json -Depth 15 | Set-Content -LiteralPath (Join-Path $root 'access-extraction.json') -Encoding UTF8
 }
@@ -604,7 +618,7 @@ Write-Extraction
 # ---- Tier 2: the Access host, needed only to export object definition text and to
 # read VBA references. It is allowed to fail without costing the DAO tier's results.
 if ($SkipObjectExport) {
-    [void]$warnings.Add('Object definition export was skipped; the inventory carries names only.')
+    [void]$notes.Add('Object definition export was skipped; the inventory carries names only.')
 }
 $hostPidsBefore = @(Get-Process MSACCESS -ErrorAction SilentlyContinue | ForEach-Object { $_.Id })
 if (-not $SkipObjectExport) {
@@ -612,7 +626,7 @@ try {
     $application = New-Object -ComObject $AccessProgId
     $application.Visible = [bool]$VisibleHost
     if ($VisibleHost) {
-        [void]$warnings.Add('Access host ran visible: an operator may have dismissed dialogs, so this run is attended and not reproducible unattended.')
+        [void]$notes.Add('Access host ran visible: an operator may have dismissed dialogs, so this run is attended and not reproducible unattended.')
     }
     # Record which Access processes this run started. A hung host has to be
     # killable by the caller, and only these PIDs are ours - an Access instance the
@@ -633,7 +647,7 @@ try {
     if ($AutomationSecurity -eq 'force_disable') {
         try { $application.AutomationSecurity = 3 } catch { [void]$warnings.Add(('Could not force-disable automation macros: {0}' -f $_.Exception.Message)) }
     } else {
-        [void]$warnings.Add('Automation macros were allowed to run: startup code executed, so this extraction reflects what the application does on open rather than the file as it sits at rest.')
+        [void]$notes.Add('Automation macros were allowed to run: startup code executed, so this extraction reflects what the application does on open rather than the file as it sits at rest.')
     }
     if ($isAdp) {
         $application.OpenAccessProject($snapshotPath, $false)

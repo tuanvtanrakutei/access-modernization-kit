@@ -357,3 +357,33 @@ def test_coverage_counts_a_recorded_fact_as_neither_failed_nor_excluded(
     failures = json.loads((Path(out["bundle_dir"]) / "failures"
                            / "extraction-failures.json").read_text(encoding="utf-8"))
     assert any(entry.get("kind") == "observation" for entry in failures)
+
+
+def test_a_clean_run_reports_no_failures(tmp_path: Path) -> None:
+    """The A25 regression, stated as the thing that has to stay true.
+
+    A managed acquisition of A05's backend that read everything it came for used to
+    report `failed=2`, because the two lines the extractor writes to say what it did -
+    which optional tier it skipped, that it read the specification tables a link asked
+    for - carried no marker and the router's default was "failure".
+    """
+    contribution = _contribution("managed_access")
+    contribution["failures"] = [
+        {"logical_id": "DATA", "reason": "6 linked table(s) declare a DSN; read the "
+                                         "import specification tables for their column "
+                                         "layout", "kind": "note"},
+        {"logical_id": "DATA", "reason": "Object definition export was skipped; the "
+                                         "inventory carries names only.", "kind": "note"},
+        {"logical_id": "DATA", "reason": "EXCLUDED: 3 non-model tables", "kind": "exclusion"},
+    ]
+    out = assemble_bundle(
+        app_id="SYN", classification=_classification(), rule_versions={"topology": "1.0.0"},
+        contributions=[contribution], normalization_config={"text": "utf-8-lf"},
+        profile_validation={"status": "VALID"}, phase_readiness={"phase1": {"status": "LIMITED"}},
+        output_root=tmp_path,
+    )
+    unclassified = json.loads(
+        (Path(out["bundle_dir"]) / "coverage.json").read_text(encoding="utf-8")
+    )["object_types"]["unclassified"]
+    assert unclassified["failed"] == 0
+    assert unclassified["skipped"] == 1
