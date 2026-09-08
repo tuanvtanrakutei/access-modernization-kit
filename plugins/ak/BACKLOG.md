@@ -12,6 +12,42 @@ that it should now work.
 
 ## Open
 
+### A23 - nothing compares an import specification with the sample it describes
+
+**Observed 2026-09-08, minutes after A21 made it possible.** A17 predicted the useful
+check and did not build it: "comparing what the spec declares against what a supplied
+sample contains, which is where a sender that has quietly added a column shows up."
+Both halves now exist for the first time - the specifications from A21, and six real
+files an operator placed on the share - and nothing in the kit puts them side by side.
+`input/samples/` is inventoried and hashed; no reader opens a sample's bytes.
+
+Run by hand it took one pass and found something on the first application it saw:
+
+    order.txt      spec 26   file 26 fields   header: none         agree
+    Dptenpo.csv    spec  9   file  9 fields   header: none         agree
+    ２１受注.CSV     spec 26   file 26 fields   header: 26, in order agree
+    ２１商品.CSV     spec 29   file 29 fields   header: 29, in order agree
+    幸松受注.CSV     spec 26   file 26 fields   header: 26, in order agree
+    Dpshohin.csv   spec 28   file 29 fields   header: none         DISAGREE
+
+Three of the six carry a header row whose column names are **identical to the declared
+names, in order** - which is independent confirmation that A21's read is correct and
+that sorting the specification by `Start` reproduces the file's real column order.
+
+**What to build.** Read `input/samples/`, tolerating both encodings the same files
+already arrive in - three of A05's six are CP932 and three are UTF-8 without a BOM, and
+the existing `("utf-8-sig", "utf-8", "cp932")` ladder covers all of them. Then report
+three things per feed: a field-count difference against the specification, a header
+whose names differ from the declared ones, and a `StartRow` that disagrees with whether
+the file actually has a header. The third matters because `StartRow` differs *within*
+this one application - three feeds skip a row and three do not - so a rule assuming one
+answer would be wrong half the time.
+
+Worth noting what a count check alone would have missed and what it caught. It caught
+`Dpshohin.csv`. It would not catch a sender that renamed a column without changing the
+count, which is why the header comparison is part of the check rather than a refinement
+of it.
+
 ### A22 - a table excluded by its shape leaves no record of its shape
 
 **Observed 2026-09-08, in A05's backend export.** Both acquisition routes drop a table
@@ -39,13 +75,28 @@ are absent from the bundle entirely: `tables.json` has no row for either, so the
 is recorded nowhere at all. An exclusion whose evidence is destroyed by the exclusion
 cannot be checked, only trusted.
 
-**What to change.** Record the three field names beside the excluded name, in both
-routes. That is enough for a person to see in one line whether the rule was right, costs
-one string per excluded table, and does not touch the rule - which should not move until
-somebody who knows the application says whether those two tables are real. If they are,
-the rule needs a second condition; the obvious candidate is that a genuine ImportErrors
-table's three fields are named `Error`, `Field` and `Row` in *some* locale, and 210 of
-them in one database share that naming while a business master does not.
+**Verified 2026-09-08: both are real, and the mechanism is a GROUP BY.** The entry
+first said this needed somebody who knows the application. It did not - the corpus
+answers it. `集計分類マスタ` is referenced 56 times across 11 files including five forms
+and `メインメニュー`; `雑貨Ⅱ集計分類マスタ` 18 times, and there is a form named
+`雑貨Ⅱ集計分類設定` whose whole purpose is maintaining it.
+
+And `アイス確認表` shows where the shape comes from:
+
+    sql = "select ... from 商品マスタ where 酒ＦＬＧ = -1 group by Ｐ分類,Ｐ分類名 "
+    SCDB.Execute sql
+    DoCmd.OpenForm "集計分類..."
+
+The table is a derived aggregation of two text columns plus a count. Three fields,
+Text/Text/Long - identical to an ImportErrors table, and not by coincidence: **any
+`GROUP BY` of two text columns with a count will be excluded**, in either route.
+
+**What to change.** Two things, and the first holds whatever happens to the rule. Record
+the three field names beside the excluded name, in both routes - one string per excluded
+table, and enough for a person to see in one line whether the rule was right. Then give
+the rule a second condition: a genuine ImportErrors table's three fields are named
+`Error`, `Field` and `Row` in some locale, and the 210 in one A05 frontend share that
+naming, while `Ｐ分類 / Ｐ分類名 / <count>` does not.
 
 Found by reading an export manifest, which is the first time anybody had a reason to.
 ### A19 - five of the six phases degrade without interview evidence, and all six run before any is collected
