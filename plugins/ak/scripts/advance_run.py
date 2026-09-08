@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -65,6 +66,48 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
+def app_root_of(run: Path) -> Path | None:
+    """The workspace a run belongs to, found by its manifest rather than by depth.
+
+    A run lives at `<app_root>/.ak/runs/<id>`, but hard-coding `parents[2]` breaks the
+    next time the layout moves - and it moved once already, when 2.10 introduced
+    `input/` and relocated every acquired file.
+    """
+    for candidate in (run, *run.parents):
+        if (candidate / "manifest.yaml").is_file():
+            return candidate
+    return None
+
+
+def promote_requested(state: dict, run: Path) -> list[str]:
+    """A phase the manifest now asks for stops being `NOT_REQUESTED`.
+
+    Declining a phase has to be reversible, or it is not a choice - it is a decision
+    somebody makes once, before there is anything to base it on. Gates are written at
+    run creation and nothing re-read the manifest afterwards, so setting
+    `outputs.phases.phase6` back to `true` used to require a whole new run.
+
+    One direction only. A phase already `PUBLISHED` is not un-published by a manifest
+    edit: the document exists, and run state that denied it would be the same lie as
+    marking a declined phase published. So this promotes `NOT_REQUESTED` to `PENDING`
+    and touches nothing else.
+    """
+    app_root = app_root_of(run)
+    if app_root is None:
+        return []
+    contracts = str(Path(__file__).resolve().parent.parent / "contracts")
+    if contracts not in sys.path:
+        sys.path.insert(0, contracts)
+    from manifest_v22 import requested_phases
+
+    wanted = requested_phases((app_root / "manifest.yaml").read_text(encoding="utf-8"))
+    promoted = [phase for phase, status in state.get("phase_gates", {}).items()
+                if status == "NOT_REQUESTED" and wanted.get(phase)]
+    for phase in promoted:
+        state["phase_gates"][phase] = "PENDING"
+    return promoted
+
+
 def main() -> int:
     args = parse_args()
     run = Path(args.run).expanduser().resolve()
@@ -113,6 +156,10 @@ def main() -> int:
     state["status"] = "COMPLETED" if next_wave is None else "RUNNING"
     if next_wave:
         state["wave_status"][next_wave] = "RUNNING"
+    promoted = promote_requested(state, run)
+    if promoted:
+        preview["requested_since_creation"] = sorted(promoted)
+
     # A phase the manifest did not ask for keeps `NOT_REQUESTED` all the way through.
     # Advancing past its gate has to work - `wave6_independent_qa` depends on
     # `gate6_publish_phase6`, so a run that skipped phase 6 could otherwise never

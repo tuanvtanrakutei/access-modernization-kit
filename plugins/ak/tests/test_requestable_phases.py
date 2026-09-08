@@ -36,6 +36,7 @@ import advance_run  # noqa: E402
 import create_run  # noqa: E402
 
 MANIFEST = "version: '2.2'\napp:\n  id: T01\n"
+NL = chr(10)
 
 
 def manifest_with(**phases: bool) -> str:
@@ -120,6 +121,100 @@ def test_qa_still_depends_on_the_gate_a_declined_phase_owns() -> None:
         (PACKAGE / "orchestration" / "waves.json").read_text(encoding="utf-8"))["waves"]
     qa = next(wave for wave in waves if wave["id"] == "wave6_independent_qa")
     assert "gate6_publish_phase6" in qa["depends_on"]
+
+
+# --- declining has to be reversible ----------------------------------------
+
+def workspace_with(tmp_path: Path, phase6: bool) -> tuple[Path, Path]:
+    """An app root holding a schema-valid manifest, and a run directory inside it.
+
+    Copied from `examples/minimal-app` rather than hand-rolled: `phase_report` calls
+    `load_manifest`, which validates, and it should - a manifest that does not parse is
+    a manifest error and must not be masked by a later short-circuit. A minimal
+    hand-written one fails on `project` and would have tested the validator instead.
+    """
+    app = tmp_path / "A05"
+    run = app / ".ak" / "runs" / "R1"
+    run.mkdir(parents=True)
+    text = (PACKAGE / "examples" / "minimal-app" / "manifest.yaml").read_text(
+        encoding="utf-8")
+    assert "phase6: true" in text, "the example manifest no longer declares phase6"
+    if not phase6:
+        text = text.replace("phase6: true", "phase6: false")
+    (app / "manifest.yaml").write_text(text, encoding="utf-8")
+    return app, run
+
+
+def test_a_run_finds_its_workspace_by_the_manifest_not_by_depth(tmp_path: Path) -> None:
+    """`parents[2]` would work today and break the next time the layout moves.
+
+    It moved once already: 2.10 introduced `input/` and relocated every acquired file.
+    """
+    app, run = workspace_with(tmp_path, phase6=False)
+    assert advance_run.app_root_of(run) == app
+    assert advance_run.app_root_of(tmp_path) is None
+
+
+def test_changing_your_mind_promotes_the_gate(tmp_path: Path) -> None:
+    """Gates are written at run creation and nothing re-read the manifest afterwards.
+
+    Without this, declining a phase meant a new run to undo - which makes the decision
+    one somebody has to get right before there is anything to base it on.
+    """
+    app, run = workspace_with(tmp_path, phase6=False)
+    state = {"phase_gates": create_run.initial_phase_gates(
+        (app / "manifest.yaml").read_text(encoding="utf-8"))}
+    assert state["phase_gates"]["phase6"] == "NOT_REQUESTED"
+
+    # Still declined: an advance changes nothing.
+    assert advance_run.promote_requested(state, run) == []
+    assert state["phase_gates"]["phase6"] == "NOT_REQUESTED"
+
+    (app / "manifest.yaml").write_text(
+        (app / "manifest.yaml").read_text(encoding="utf-8").replace(
+            "phase6: false", "phase6: true"), encoding="utf-8")
+    assert advance_run.promote_requested(state, run) == ["phase6"]
+    assert state["phase_gates"]["phase6"] == "PENDING"
+
+
+def test_declining_after_publication_does_not_un_publish(tmp_path: Path) -> None:
+    """The document exists. Run state denying it is the same lie in the other direction.
+
+    Promotion is one-directional for that reason: a manifest edit can add work and
+    cannot retract a published phase.
+    """
+    app, run = workspace_with(tmp_path, phase6=True)
+    state = {"phase_gates": {"phase6": "PUBLISHED"}}
+    (app / "manifest.yaml").write_text(
+        (app / "manifest.yaml").read_text(encoding="utf-8").replace(
+            "phase6: true", "phase6: false"), encoding="utf-8")
+    assert advance_run.promote_requested(state, run) == []
+    assert state["phase_gates"]["phase6"] == "PUBLISHED"
+
+
+def test_the_evidence_report_answers_for_a_declined_phase(tmp_path: Path) -> None:
+    """One manifest was answering two ways.
+
+    `outputs.phases` said phase 6 is not produced, and `$ak phase requirements
+    --phase 6` reported what evidence phase 6 still needs - so an operator would go and
+    fetch evidence for a document nobody was going to write.
+    """
+    import phase_evidence
+
+    app, _run = workspace_with(tmp_path, phase6=False)
+    report = phase_evidence.phase_report(app, 6)
+    assert report["status"] == "NOT_REQUESTED"
+    assert report["missing"] == []
+    # And it says how to change the answer, because a status with no route out reads
+    # like a refusal.
+    assert any("true" in reason for reason in report["reasons"]), report["reasons"]
+
+
+def test_a_requested_phase_is_still_reported_on(tmp_path: Path) -> None:
+    import phase_evidence
+
+    app, _run = workspace_with(tmp_path, phase6=True)
+    assert phase_evidence.phase_report(app, 6)["status"] != "NOT_REQUESTED"
 
 
 # --- the two statuses that must not be confused -----------------------------
