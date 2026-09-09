@@ -13,6 +13,7 @@ sys.path.insert(0, str(PACKAGE / "contracts"))
 from adapters.base import empty_sections  # noqa: E402
 from bundle_assembly import assemble_bundle  # noqa: E402
 import bundle as bundle_contract  # noqa: E402
+import evidence_classes  # noqa: E402
 
 def _contribution(adapter_id: str) -> dict:
     sections = empty_sections()
@@ -57,6 +58,11 @@ def test_assemble_writes_layout_and_lock(tmp_path: Path) -> None:
         # field is that it changes whenever this module does.
         "assembly_version": json.loads(
             (bundle_dir / "provenance.json").read_text(encoding="utf-8"))["assembly_version"],
+        # Same principle as the line above: computed from what the bundle actually
+        # carries, so the test cannot pass by restating a value the assembler got
+        # wrong. The fixture supplies no evidence, so this is the empty digest.
+        "supplied_evidence": evidence_classes.supplied_digest(json.loads(
+            (bundle_dir / "supplied-evidence" / "inventory.json").read_text(encoding="utf-8"))),
     })
     for output_name, schema_name in (
         ("provenance.json", "bundle-provenance.schema.json"),
@@ -140,7 +146,11 @@ def test_reassembly_rejects_stale_extra_file_without_deleting_it(tmp_path: Path)
     try:
         _assemble(tmp_path, [_contribution("imported_sources")])
     except ValueError as exc:
-        assert str(exc) == "BUNDLE_PATH_CONFLICT"
+        # The message names the bundle and what differs. It was a bare code, and the
+        # A33 work then hit it and could not tell from the traceback which of two
+        # bundles it had collided with - so the detail is asserted, not just the code.
+        assert str(exc).startswith("BUNDLE_PATH_CONFLICT:")
+        assert "stale.txt" in str(exc), str(exc)
         assert stale.read_text(encoding="utf-8") == "stale"
         return
     raise AssertionError("stale target content must not be overwritten")
@@ -268,6 +278,7 @@ def test_the_assembling_code_is_part_of_the_bundle_identity() -> None:
         "adapters": [{"id": "imported_sources", "version": "1.0.0"}],
         "bundle_schema_version": "2.7.3", "normalization_config": {"text": "utf-8-lf"},
         "assembly_version": "aaaaaaaaaaaa",
+        "supplied_evidence": "0000000000000000",
     }
     after = dict(identity, assembly_version="bbbbbbbbbbbb")
     assert (bundle_contract.compute_bundle_id(identity)

@@ -10,6 +10,7 @@ from typing import Any
 import jsonschema
 
 import bundle as bundle_contract
+import evidence_classes
 
 # Where a legacy system's own external dependency is recorded. A linked Access table
 # keeps its target as two facts - Connect says where, SourceTableName says what - and for
@@ -216,11 +217,25 @@ def _assembly_version(package: Path | None = None) -> str:
 
 def _publish_bundle(staged: Path, target: Path) -> None:
     if target.exists():
-        if _tree_hashes(target) != _tree_hashes(staged):
-            # Same sources, same assembling code, different bytes. Both of the causes
-            # the kit knows about are now in the identity, so this says what is left:
-            # something outside the kit wrote into a published bundle.
-            raise ValueError("BUNDLE_PATH_CONFLICT")
+        published, fresh = _tree_hashes(target), _tree_hashes(staged)
+        if published != fresh:
+            # Name the bundle and the files that differ. A28 recorded this message as
+            # a bare `ValueError` an operator meets as a Python stack, and then the
+            # A33 work hit it and could not tell from the traceback which of two
+            # bundles it had collided with or why. A diagnostic that costs a print is
+            # not worth a second investigation.
+            changed = sorted(
+                name for name in set(published) | set(fresh)
+                if published.get(name) != fresh.get(name)
+            )
+            raise ValueError(
+                "BUNDLE_PATH_CONFLICT: "
+                f"{target.name} is already published with different contents. "
+                f"Differs in: {', '.join(changed[:8])}"
+                + (f" (+{len(changed) - 8} more)" if len(changed) > 8 else "")
+                + ". Same identity, different bytes - so something that decides bundle "
+                "contents is not in the identity. See BACKLOG A28 and A33."
+            )
         return
     staged.replace(target)
 
@@ -234,6 +249,7 @@ def assemble_bundle(
     phase_readiness: dict[str, Any],
     output_root: Path,
     declared_capabilities: dict[str, list[str]] | None = None,
+    supplied_evidence: list[dict[str, Any]] | None = None,
     schema_version: str = "2.7.3",
 ) -> dict[str, Any]:
     from adapters.base import validate_contribution
@@ -252,6 +268,12 @@ def assemble_bundle(
         "adapters": [{"id": a, "version": v} for a, v in adapters],
         "bundle_schema_version": schema_version, "normalization_config": normalization_config,
         "assembly_version": _assembly_version(),
+        # A33. Everything above describes what was declared and what assembled it.
+        # None of it moved when a person added a document, a screenshot or a
+        # recorded answer - so the bundle said something different under the same
+        # name, and the ordinary act of supplying evidence ended in
+        # BUNDLE_PATH_CONFLICT. A different evidence set is a different bundle.
+        "supplied_evidence": evidence_classes.supplied_digest(supplied_evidence or []),
     }
     bundle_id = bundle_contract.compute_bundle_id(identity)
     merged = _merge_sections(contributions)
@@ -267,6 +289,14 @@ def assemble_bundle(
             "reports": {"inventory": "evidence-sources/reports/inventory.json"},
             "samples": {"inventory": "evidence-sources/samples/inventory.json"},
         },
+        # Its own section rather than a fifth bucket above. Those four are a contract
+        # the adapters write into - `adapters/base.py` and two adapter modules append
+        # to them, and both bundle schemas require exactly those keys - while nothing
+        # produces this one but a person putting a file in a class directory. Keeping
+        # them apart keeps the distinction between evidence somebody declared and
+        # evidence somebody dropped, which is what OPERATOR_DECLARATION marks
+        # everywhere else in this contract.
+        "supplied_evidence": {"inventory": "supplied-evidence/inventory.json"},
     }
     provenance = _provenance(bundle_id, schema_version, contributions, declared_capabilities)
     output = Path(output_root).expanduser().resolve() / "bundles"
@@ -280,6 +310,7 @@ def assemble_bundle(
         _write_layout(staged, merged, contributions, bundle_id, schema_version)
         _write_json(staged / "profile-validation.json", profile_validation)
         _write_json(staged / "phase-readiness.json", phase_readiness)
+        _write_json(staged / "supplied-evidence" / "inventory.json", supplied_evidence or [])
         _write_json(staged / "bundle.json", bundle_json)
         _write_json(staged / "provenance.json", provenance)
         _validate_json(staged / "provenance.json", "bundle-provenance.schema.json")

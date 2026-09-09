@@ -6,6 +6,7 @@ from typing import Any
 
 import acquisition_preview
 import bundle_assembly
+import evidence_classes
 import phase_readiness as phase_readiness_contract
 from adapters.base import AcquisitionRequest
 from adapters.imported_sources.adapter import ImportedSourcesAdapter
@@ -205,6 +206,11 @@ def run_acquisition(
         normalization_config={"text": "utf-8-lf"},
         profile_validation=profile_validation,
         phase_readiness=readiness,
+        # Read here rather than inside the assembler, because this is the layer that
+        # knows where the workspace is. `evidence_classes` owns which directory means
+        # which class, so this inventory and the readiness above cannot disagree about
+        # the same files - which is exactly what A33 was.
+        supplied_evidence=evidence_classes.supplied_inventory(source_root),
         output_root=Path(output_root),
         # Attributed to the manifest, because no adapter extracted it: it is a
         # statement the project makes about which store is authoritative.

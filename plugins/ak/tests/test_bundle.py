@@ -22,12 +22,40 @@ BASE = {
     "bundle_schema_version": "1.0",
     "normalization_config": {"encoding": "utf-8", "line_endings": "LF"},
     "assembly_version": "0123456789ab",
+    "supplied_evidence": "9d81b7b71189e9e6",
 }
 
 
 def test_id_ignores_paths_and_timestamps() -> None:
     noisy = dict(BASE, _absolute_path="D:/machine", _generated_at="2026-07-27T00:00:00Z")
     assert compute_bundle_id(noisy) == compute_bundle_id(BASE)
+
+
+def test_id_changes_when_the_supplied_evidence_changes() -> None:
+    """The commonest action in the workflow, and it did not move the id.
+
+    A person adds a document, a screenshot or a recorded answer to a class directory -
+    which is how evidence arrives - and every other identity term stays put: same
+    manifest, same adapters, same assembling code. The bundle then said something new
+    under the name of the old one, and re-acquiring ended in BUNDLE_PATH_CONFLICT.
+    """
+    changed = dict(BASE, supplied_evidence="aa43c68f53f844b4")
+    assert compute_bundle_id(changed) != compute_bundle_id(BASE)
+
+
+def test_an_undeclared_identity_term_is_refused_rather_than_dropped() -> None:
+    """The guard exists because this exact mistake was made writing A33.
+
+    `_canonical_identity` returns an explicit mapping, so a term added to the identity
+    dict and not to that mapping was silently discarded - the id did not move, nothing
+    failed, and the only symptom arrived two runs later as a path conflict. An
+    underscore still means "machine noise, keep it out of the address"; anything else
+    is now an error at the point of the mistake.
+    """
+    with pytest.raises(BundleError) as caught:
+        compute_bundle_id(dict(BASE, evidence_digest="whatever"))
+    assert "Undeclared identity fields" in str(caught.value)
+    assert "evidence_digest" in str(caught.value)
 
 
 def test_id_changes_when_content_changes() -> None:

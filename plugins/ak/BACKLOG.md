@@ -12,56 +12,85 @@ that it should now work.
 
 ## Open
 
-### A33 - the bundle neither inventories the evidence a person supplies nor counts it in its identity
+### A34 - a run that read none of the backend still sealed a VALID bundle and reported Phase 1 READY
 
-**Observed 2026-09-09 on A06, and it is the largest gap found so far.** An operator
-supplied 54 files across the five evidence-class directories. The sealed bundle records
-**four**, and two of those four are in the wrong class:
+**Observed 2026-09-09 on A06, found because A33's improved conflict message named the
+files that differed, and the first explanation written down for it was wrong.** Two runs
+over the same two `.mdb` files, nothing touched between them:
 
-| `input/` | files a person put there | `evidence-sources/` entries |
+| | run A | run B |
 |---|---|---|
-| `documents/` | 5 | 2 |
-| `screenshots/` | 14 | **0** |
-| `samples/` | 1 | 2, and both are documents |
-| `report-samples/` | 14 | **0** |
-| `interviews/` | 20 | no section exists |
+| `databases/tables.json` | 188 | **209** |
+| `databases/fields.json` | 730 | **1215** |
+| `databases/indexes.json` | 61 | **112** |
+| `failures/extraction-failures.json` | 159 | 158 |
 
-The four it does record are the artifacts `init --source` happened to discover and
-write into the manifest. Everything added afterwards - which is the normal way evidence
-arrives - reaches the bundle not at all.
+The first note here guessed at flaky link resolution over the mapped drive, because 180
+of the frontend's 188 tables are linked and their targets are absolute network paths.
+**That guess was wrong, and measuring took ten minutes.** The 21 tables the smaller run
+lost all belong to one database - `2003DATA2003_B12705FD`, the declared authoritative
+backend - and every one of them is a **local** table in it, not a link. The smaller run
+did not lose some links. It did not read the backend at all.
 
-Meanwhile `phase-readiness.json`, written into the same bundle by the same run, reports
-`SCREENSHOT`, `DOCUMENT`, `INTERVIEW`, `SAMPLE_DATA` and `OUTPUT_SAMPLE` all present,
-because `evidence_classes.observe` reads the directories directly. **So the bundle and
-its own readiness file disagree about the same evidence**, and the disagreement favours
-the readiness: a phase is told it has screenshots, and a reader of the bundle cannot
-find one.
+One failure separates the two runs, and it names the cause:
 
-That contradicts a design note this package already carries, in
-`normalize_documents.py`:
+    [2003DATA2003_B12705FD] DAO tier failed (DAO.DBEngine.36): Not a valid password.
 
-> Person-supplied evidence is declared by being there. Asking an operator to also list
-> it in the manifest would be asking them to do the kit's bookkeeping.
+The other run opened the same file, from the same local path, with no password.
 
-The normalizer honours that. The bundle does not.
+**Not reproduced in 44 attempts, and four explanations are eliminated.** Recorded so
+the next person does not spend the same hour:
 
-**The second consequence is the one that interrupts work.** Because none of those files
-reach the identity, adding evidence changes what a bundle *says* without changing what
-it is *called* - so the ordinary loop of supplying a document and re-acquiring ends in
-`BUNDLE_PATH_CONFLICT` on the same day. This is A28's shape in a second dimension, and
-A28's fix does not cover it: A28 put the *code* that decides bundle contents into the
-identity, and this is *evidence* that decides them.
+| Hypothesis | Test | Result |
+|---|---|---|
+| The backend is password-protected | opened in Access 2003 by hand | No prompt. It opens; Access only reports an older file format and refuses writes |
+| DAO 3.6 cannot open this format | `DAO.DBEngine.36` open + `TableDefs.Count`, 12x each database on scratch copies | 24 of 24 succeeded |
+| The frontend's failing link reads poison the engine before the backend is opened | one process, one engine: open frontend, read `Fields.Count` on all 195 tabledefs, close, then open backend | Backend opened, 30 tabledefs. Also moot - `plan()` sorts backends **first**, so the backend is the first artifact of a run |
+| The snapshot copy is incomplete when DAO opens it | `extract_access.py:218` already verifies `sha256(snapshot) == sha256(source)` before opening. Then copy-then-hash-then-open-immediately, 10x, mimicking the kit's own sequence | 10 of 10 succeeded, and a truncated copy could not have passed the existing check anyway |
 
-**What to build.** An `evidence-sources/` section that inventories what is actually in
-the class directories - path, class, and content hash, which is all `observe` needs and
-all a reviewer needs to follow one back - and a digest of that inventory in the bundle
-identity, so a different evidence set is a different bundle and both are keepable.
+What has not been tested is the shape the failure actually occurred in: the extractor
+running as a child process under the adapter, with two artifacts sharing one
+`--snapshot-dir`. A real-time virus scanner holding a freshly written 21.8 MB file is
+the remaining candidate that fits every observation - intermittent, no lock file, a
+verified copy, and an error Jet reports for a file it cannot read properly. It is a
+candidate, not a finding.
 
-**What is not yet decided.** Whether the manifest-declared artifacts and the
-path-declared files should appear in one inventory or two. One list is simpler to read;
-two keep the distinction between evidence somebody declared and evidence somebody
-dropped, and that distinction is exactly what `OPERATOR_DECLARATION` exists to mark
-elsewhere. Worth deciding rather than defaulting.
+**So the cause stays open, and the work below deliberately does not depend on finding
+it.** A transient that loses a whole database is a problem; a transient that loses a
+whole database *silently* is the problem worth fixing first, and that half is fixable
+without reproducing anything.
+
+**The consequence is the entry, and it is worse than the variance.** The run that read
+**none** of the authoritative backend still:
+
+- sealed a bundle that `bundle validate` reported **VALID**;
+- reported `phase1` **READY**, because `access_schema_inventory`, `field_inventory` and
+  `key_index_inventory` were all satisfied by the frontend's own rows;
+- reported `backend_authority_declared` satisfied, because that capability comes from
+  the manifest saying which database is authoritative - a declaration, which stays true
+  whether or not anything managed to read the file;
+- recorded its 730 fields in `coverage.json` as the figure, with no statement anywhere
+  that a whole database was missing.
+
+A phase would have been analysed against 60% of the schema believing it had all of it.
+The only reason this surfaced is that a second run existed to compare against.
+
+**What to build, in order. Note that (1) is no longer first.**
+
+1. Make a missing artifact impossible to overlook. An artifact declared `required: true`
+   that contributed no rows should block the seal, not appear as one line among 159
+   failures. `backend_authority_declared` in particular must stop being satisfiable by a
+   declaration alone when the declared file was never read - that is the same shape as
+   A26, a gate answering from the wrong source.
+2. Then decide whether such a run should be `PARTIAL` (as now) or refuse to publish,
+   given a `PARTIAL` bundle is today indistinguishable downstream from a complete one.
+3. Retry the DAO open once on failure and record both attempts. Worth doing whether or
+   not the cause is ever found, and it converts a lost database into a warning - but it
+   is third, because it treats the symptom and the two above make the symptom visible.
+
+**What an operator can do until then.** After every `acquire run`, read
+`failures/extraction-failures.json` for a line matching `DAO tier failed` and re-run if
+one is present. It is a workaround for a defect, not a procedure worth keeping.
 
 ### A24 - a sample that contradicts its declaration is reported to a terminal and nowhere else
 
@@ -661,6 +690,50 @@ against that one object rather than against the application as a whole.
 ## Closed
 
 Closed entries name the commit that closed them and the run that proved it.
+
+- **The bundle recorded four of fifty-four supplied evidence files, and none of them in its identity** (A33)
+  - An operator supplied 54 files across the five evidence-class directories; the sealed
+  bundle recorded **four**, and two of those were in the wrong class. `screenshots` and
+  `reports` recorded zero against fourteen files each, and `interviews` had no section
+  at all. The four it did record were the artifacts `init --source` happened to write
+  into the manifest.
+
+  Its own `phase-readiness.json`, written by the same run into the same bundle, reported
+  five classes present - because `observe` reads the directories directly. So the bundle
+  and its readiness disagreed about the same evidence, and the disagreement favoured the
+  readiness: a phase was told it had screenshots and a reader of the bundle could not
+  find one.
+
+  Two inventories now, and the separation is the decision rather than a tidying.
+  `evidence-sources/` keeps the four declared buckets, which are a contract the adapters
+  write into - `adapters/base.py` and two adapter modules append to them and both bundle
+  schemas require exactly those keys. `supplied-evidence/inventory.json` is its own
+  top-level section, because nothing produces it but a person putting a file somewhere,
+  and collapsing the two would lose the distinction between evidence somebody declared
+  and evidence somebody dropped - which is what `OPERATOR_DECLARATION` marks everywhere
+  else in this contract. It is built from `CLASS_LOCATIONS` and the same exclusion rule
+  `observe` uses, so the two readers of that map cannot drift again.
+
+  A digest of it joins the identity, so a different evidence set is a different bundle.
+
+  **Writing that turned up the reason a term can be added to the identity and do
+  nothing.** `_canonical_identity` returns an explicit mapping of known keys, so
+  `supplied_evidence` was silently dropped, the id did not move, and the only symptom
+  arrived two runs later as a path conflict. A leading underscore stays the way to mark
+  machine noise that must not affect an address - `_absolute_path`, `_generated_at`, and
+  a test asserts they do not - and every other undeclared key is now an error at the
+  point of the mistake. A28's fix had worked only because it changed the value of an
+  existing key rather than adding one.
+
+  The conflict message was improved in the same pass, for the reason A28 recorded and
+  this work then paid for: it named nothing, and two bundles were on disk. It names the
+  bundle and the files that differ now, and that is what found A34 an hour later.
+
+  **Proven on A06:** 54 records in the inventory across five classes, bundle VALID, and
+  removing one screenshot produces a different bundle id with no conflict where the same
+  change previously produced a conflict and no new bundle. Idempotence across two runs of
+  an unchanged workspace could **not** be demonstrated, and that is A34 rather than this:
+  the managed extraction itself does not return the same evidence twice.
 
 - **A diagnostic nobody could decode took down the whole run, and a Japanese filename broke the fix beside it** (A32)
   - Both found within an hour of A31 landing, by an operator putting real files in a
