@@ -75,22 +75,59 @@ without reproducing anything.
 A phase would have been analysed against 60% of the schema believing it had all of it.
 The only reason this surfaced is that a second run existed to compare against.
 
-**What to build, in order. Note that (1) is no longer first.**
+**Two halves landed, and the cause is still the open one.**
 
-1. Make a missing artifact impossible to overlook. An artifact declared `required: true`
-   that contributed no rows should block the seal, not appear as one line among 159
-   failures. `backend_authority_declared` in particular must stop being satisfiable by a
-   declaration alone when the declared file was never read - that is the same shape as
-   A26, a gate answering from the wrong source.
-2. Then decide whether such a run should be `PARTIAL` (as now) or refuse to publish,
-   given a `PARTIAL` bundle is today indistinguishable downstream from a complete one.
-3. Retry the DAO open once on failure and record both attempts. Worth doing whether or
-   not the cause is ever found, and it converts a lost database into a warning - but it
-   is third, because it treats the symptom and the two above make the symptom visible.
+**Done - the consequence, which needed no reproduction.** Settled by the operator:
+such a run **refuses to publish** rather than reporting `PARTIAL`, because a `PARTIAL`
+bundle is today indistinguishable downstream from a complete one, so a louder status
+would have been ignored the same way a quiet one was. A refusal cannot be.
 
-**What an operator can do until then.** After every `acquire run`, read
-`failures/extraction-failures.json` for a line matching `DAO tier failed` and re-run if
-one is present. It is a workaround for a defect, not a procedure worth keeping.
+- `_refuse_a_required_database_that_yielded_nothing` ends the run when an artifact
+  declared `required: true` contributed no schema rows. The check is exact rather than
+  inferred: every table row carries the `database_id` it came from, and that value is
+  the artifact's own id. The message names the artifact and quotes the failure recorded
+  against it, so nobody opens a file of 159 entries to find the one that mattered.
+- `backend_authority_declared` stops being satisfiable by a declaration about a file
+  nothing could read. Its three conditions all read the manifest and none asked whether
+  the backend had been read - A26's shape exactly, a gate answering the question it set
+  itself where the question was the wrong one.
+
+The contract this creates is stated rather than discovered: a project whose database is
+legitimately empty declares it `required: false`. Zero rows cannot distinguish an empty
+database from an unread one, and of the two readings the expensive one to get wrong is
+the second.
+
+**Where the guard sits was itself a defect, caught within the hour.** Placed before the
+existing `INVALID`/`BLOCKED` early return, it also fired on runs that never did the work
+at all - a managed artifact with no authorization granted, an adapter that never ran -
+and reported that a database yielded nothing. True, and useless: it replaced *"you did
+not authorize this"* with a worse diagnostic, and turned exit 2 into exit 1. Two tests
+failed on it. It belongs after that return, where what is left is the case this entry is
+about: a run that did the work, is otherwise publishable, and is missing a database it
+was told to read. Those two tests now hold the ordering.
+
+**Still open - the cause.** Retrying the DAO open once and recording both attempts is
+worth doing whether or not the intermittent is ever understood, and it would turn a lost
+database into a warning. It stays open deliberately: it treats the symptom, and the two
+guards above make the symptom impossible to miss, which was the urgent half.
+
+**What an operator had to do before the guards, kept for the record.** Read
+`failures/extraction-failures.json` after every run for a line matching `DAO tier
+failed`, and re-run if one was present. No longer necessary: the run now refuses.
+
+**Proven both ways, on a real frontend with a deliberately truncated backend so the
+snapshot's own hash check still passes and DAO then cannot open it - the exact shape
+observed on A06.**
+
+    with the guards     exit 1, no bundle published, and the message reads
+                        REQUIRED_DATABASE_YIELDED_NOTHING: 2003DATA2003_B12705FD
+                        (backend): DAO tier failed (DAO.DBEngine.36): Unrecognized
+                        database format ...
+
+    without them        exit 0, and a bundle published carrying 188 tables and 730
+                        fields - the A06 figures - with `bundle validate` reporting
+                        VALID and `backend_authority_declared` satisfied, about a
+                        database nothing had read
 
 ### A24 - a sample that contradicts its declaration is reported to a terminal and nowhere else
 
