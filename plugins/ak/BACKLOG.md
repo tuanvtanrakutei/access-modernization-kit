@@ -670,6 +670,13 @@ Closed entries name the commit that closed them and the run that proved it.
   skipped, and all three statuses say that; `OCR_NO_TEXT` is now in the set, with the
   host-dependence written down instead of relied on.
 
+  `8bae602`, and **proven on A06 2026-09-09:** the corpus goes from 8 files to 19.
+  Ten of the fourteen screenshots an operator supplied now contribute text where all
+  fourteen previously reached it as successful normalizations of nothing, and the four
+  too small to read are named as `OCR_NO_TEXT` rather than silent. The text those ten
+  produce is poor - it is material to search, not a transcription to cite - and the
+  SCREENSHOT class was already satisfied by the images existing, so no phase moved.
+
 - **A bundle's identity covered the code that assembles it, not what fills it** (A28)
   - A26 changed one call in the acquisition orchestrator and nothing else. Every status
   inside `phase-readiness.json` changed; the digest naming the bundle did not.
