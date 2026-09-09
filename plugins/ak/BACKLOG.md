@@ -36,10 +36,29 @@ One failure separates the two runs, and it names the cause:
 
     [2003DATA2003_B12705FD] DAO tier failed (DAO.DBEngine.36): Not a valid password.
 
-The other run opened the same file, from the same local path, with no password. So this
-is not a protected database; it is DAO reporting an unhelpful error for a file it could
-not open at that moment - the shape a snapshot copy still being written, or a lock left
-by the previous run, produces. Not yet isolated, and that is the first thing to do.
+The other run opened the same file, from the same local path, with no password.
+
+**Not reproduced in 44 attempts, and four explanations are eliminated.** Recorded so
+the next person does not spend the same hour:
+
+| Hypothesis | Test | Result |
+|---|---|---|
+| The backend is password-protected | opened in Access 2003 by hand | No prompt. It opens; Access only reports an older file format and refuses writes |
+| DAO 3.6 cannot open this format | `DAO.DBEngine.36` open + `TableDefs.Count`, 12x each database on scratch copies | 24 of 24 succeeded |
+| The frontend's failing link reads poison the engine before the backend is opened | one process, one engine: open frontend, read `Fields.Count` on all 195 tabledefs, close, then open backend | Backend opened, 30 tabledefs. Also moot - `plan()` sorts backends **first**, so the backend is the first artifact of a run |
+| The snapshot copy is incomplete when DAO opens it | `extract_access.py:218` already verifies `sha256(snapshot) == sha256(source)` before opening. Then copy-then-hash-then-open-immediately, 10x, mimicking the kit's own sequence | 10 of 10 succeeded, and a truncated copy could not have passed the existing check anyway |
+
+What has not been tested is the shape the failure actually occurred in: the extractor
+running as a child process under the adapter, with two artifacts sharing one
+`--snapshot-dir`. A real-time virus scanner holding a freshly written 21.8 MB file is
+the remaining candidate that fits every observation - intermittent, no lock file, a
+verified copy, and an error Jet reports for a file it cannot read properly. It is a
+candidate, not a finding.
+
+**So the cause stays open, and the work below deliberately does not depend on finding
+it.** A transient that loses a whole database is a problem; a transient that loses a
+whole database *silently* is the problem worth fixing first, and that half is fixable
+without reproducing anything.
 
 **The consequence is the entry, and it is worse than the variance.** The run that read
 **none** of the authoritative backend still:
@@ -56,18 +75,18 @@ by the previous run, produces. Not yet isolated, and that is the first thing to 
 A phase would have been analysed against 60% of the schema believing it had all of it.
 The only reason this surfaced is that a second run existed to compare against.
 
-**What to build, in order.**
+**What to build, in order. Note that (1) is no longer first.**
 
-1. Isolate the intermittent open. Retry once on a DAO failure and record both attempts,
-   and verify the snapshot is complete before DAO is pointed at it - this is a local
-   copy of a 20.8 MB file, so a race is cheap to rule in or out.
-2. Make a missing artifact impossible to overlook. An artifact declared `required: true`
+1. Make a missing artifact impossible to overlook. An artifact declared `required: true`
    that contributed no rows should block the seal, not appear as one line among 159
    failures. `backend_authority_declared` in particular must stop being satisfiable by a
    declaration alone when the declared file was never read - that is the same shape as
    A26, a gate answering from the wrong source.
-3. Then decide whether such a run should be `PARTIAL` (as now) or refuse to publish,
+2. Then decide whether such a run should be `PARTIAL` (as now) or refuse to publish,
    given a `PARTIAL` bundle is today indistinguishable downstream from a complete one.
+3. Retry the DAO open once on failure and record both attempts. Worth doing whether or
+   not the cause is ever found, and it converts a lost database into a warning - but it
+   is third, because it treats the symptom and the two above make the symptom visible.
 
 **What an operator can do until then.** After every `acquire run`, read
 `failures/extraction-failures.json` for a line matching `DAO tier failed` and re-run if
