@@ -585,4 +585,132 @@ def test_document_normalizers_cover_office_and_report_scanned_pdf(tmp_path: Path
     assert statuses["input/documents/rules.xlsx"] == "NORMALIZED"
     assert statuses["input/documents/manual.docx"] == "NORMALIZED"
     assert statuses["input/documents/flow.pptx"] == "NORMALIZED"
-    assert statuses["input/documents/scan.pdf"] in {"OCR_REQUIRED", "OCR_FAILED"}
+    # The page is genuinely blank, so which gap it becomes depends on the host, and
+    # all three are the same statement: this source reached the corpus as a gap rather
+    # than being silently skipped. `OCR_REQUIRED` on a machine with no Tesseract,
+    # `OCR_FAILED` if it errors, and `OCR_NO_TEXT` where Tesseract is installed and
+    # correctly finds nothing on an empty page. Asserting only the first two made this
+    # pass for the wrong reason - it was reading the absence of an OCR engine.
+    assert statuses["input/documents/scan.pdf"] in {
+        "OCR_REQUIRED", "OCR_FAILED", "OCR_NO_TEXT",
+    }
+
+
+# --- OCR: three ways a supplied image reported success and delivered nothing -------
+
+def test_tesseract_is_found_off_path_and_an_explicit_path_wins(tmp_path, monkeypatch):
+    """The installer every Windows instruction points at does not amend PATH.
+
+    So `install Tesseract` ended with a working executable the kit could not see, and
+    OCR_REQUIRED told the person who had just installed it that they had not. Measured
+    on this project's own host: Tesseract 5.4.0 present, absent from PATH.
+    """
+    import normalize_documents as nd
+
+    monkeypatch.delenv("AK_TESSERACT", raising=False)
+    monkeypatch.setattr(nd.shutil, "which", lambda _name: None)
+
+    installed = tmp_path / "Tesseract-OCR" / "tesseract.exe"
+    installed.parent.mkdir(parents=True)
+    installed.write_text("", encoding="utf-8")
+    monkeypatch.setattr(nd, "_tesseract_fallbacks", lambda: (installed,))
+    assert nd.find_tesseract() == str(installed)
+
+    # An operator who names the path has answered the question, so a wrong name is a
+    # different failure from a missing one and must not quietly fall through to a
+    # different executable than the one they asked for.
+    monkeypatch.setenv("AK_TESSERACT", str(tmp_path / "nowhere.exe"))
+    assert nd.find_tesseract() is None
+    monkeypatch.setenv("AK_TESSERACT", str(installed))
+    assert nd.find_tesseract() == str(installed)
+
+    monkeypatch.delenv("AK_TESSERACT", raising=False)
+    monkeypatch.setattr(nd, "_tesseract_fallbacks", lambda: ())
+    assert nd.find_tesseract() is None
+
+
+def _fake_tesseract(monkeypatch, module, stdout: str, languages: set[str]):
+    monkeypatch.setattr(module, "find_tesseract", lambda: "tesseract")
+    monkeypatch.setattr(module, "tesseract_languages", lambda _exe: languages)
+    monkeypatch.setattr(module, "_prepared_for_ocr", lambda image, _work: (image, []))
+
+    class _Result:
+        returncode = 0
+        stdout = ""
+        stderr = ""
+
+    def _run(*_args, **_kwargs):
+        result = _Result()
+        result.stdout = stdout
+        return result
+
+    monkeypatch.setattr(module.subprocess, "run", _run)
+
+
+def test_english_only_ocr_of_a_japanese_corpus_says_so(tmp_path, monkeypatch):
+    """Running is right. Saying nothing is not.
+
+    An English source OCRs correctly with `eng`, so refusing would strand it. But this
+    kit's whole target population is Japanese, and `eng` against Japanese does not
+    fail - it returns confident nonsense, which then reads as evidence. The expensive
+    outcome is not a refusal; it is an answer nobody knows to doubt.
+    """
+    import normalize_documents as nd
+
+    _fake_tesseract(monkeypatch, nd, stdout="some text", languages={"eng", "osd"})
+    _text, parser, warnings = nd.ocr_images([tmp_path / "page.png"])
+    assert parser == "tesseract:eng"
+    assert any(w.startswith("TESSERACT_NO_JPN") for w in warnings), warnings
+
+    _fake_tesseract(monkeypatch, nd, stdout="some text", languages={"jpn", "eng"})
+    _text, parser, warnings = nd.ocr_images([tmp_path / "page.png"])
+    assert parser == "tesseract:jpn+eng"
+    assert warnings == []
+
+
+def test_ocr_that_returns_nothing_is_a_gap_not_a_normalization(tmp_path, monkeypatch):
+    """Exit 0 and an empty string is what Tesseract gives for an unreadable image.
+
+    The corpus recorded NORMALIZED, a parser and a hash for a file that contributed
+    not one character, and the only way to notice was to open the corpus and find an
+    empty section. `normalize_source`'s caller turns the prefix before the colon into
+    the gap status, so this surfaces as OCR_NO_TEXT beside the other unread sources.
+    """
+    import normalize_documents as nd
+
+    _fake_tesseract(monkeypatch, nd, stdout="   \n  ", languages={"jpn", "eng"})
+    with pytest.raises(RuntimeError) as caught:
+        nd.ocr_images([tmp_path / "blank.png"])
+    assert str(caught.value).startswith("OCR_NO_TEXT:")
+
+
+def test_a_supplied_image_is_stripped_of_alpha_before_ocr(tmp_path):
+    """Measured on a real A06 screenshot: RGBA reads empty, dropped it reads.
+
+    Its alpha is uniformly opaque, so removing it changes no pixel - confirmed by
+    `ImageChops.difference` finding no bounding box between the two. This is not an
+    image-quality adjustment; it is the difference between text and an empty string
+    that the kit was recording as a successful normalization.
+
+    An image with no alpha is handed through untouched, so nothing is re-encoded for
+    the sake of it.
+    """
+    fitz = pytest.importorskip("fitz")
+    import normalize_documents as nd
+
+    source = tmp_path / "shot.png"
+    pixmap = fitz.Pixmap(fitz.csRGB, fitz.IRect(0, 0, 40, 20), True)
+    pixmap.clear_with(255)
+    pixmap.save(source)
+    assert fitz.Pixmap(str(source)).alpha, "the fixture must reproduce the real shape"
+
+    prepared, warnings = nd._prepared_for_ocr(source, tmp_path)
+    assert warnings == []
+    assert prepared != source, "the original is never modified in place"
+    assert not fitz.Pixmap(str(prepared)).alpha
+
+    opaque = tmp_path / "opaque.png"
+    plain = fitz.Pixmap(fitz.csRGB, fitz.IRect(0, 0, 40, 20), False)
+    plain.clear_with(255)
+    plain.save(opaque)
+    assert nd._prepared_for_ocr(opaque, tmp_path) == (opaque, [])
