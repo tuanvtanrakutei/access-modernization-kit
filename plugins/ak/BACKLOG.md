@@ -728,6 +728,53 @@ against that one object rather than against the application as a whole.
 
 Closed entries name the commit that closed them and the run that proved it.
 
+- **The most valuable evidence in the workspace was visible only as "some files exist"** (A35)
+  - INTERVIEW is the one class nothing in this kit can produce, and five of six phases
+  name it in what they lose without it (A19). A project keeping a register of its
+  questions is therefore holding the best evidence it has, and until now the kit could
+  see that `input/interviews/` was non-empty and nothing more.
+
+  `$ak interviews` reads the two shapes a Notion "Markdown & CSV" export produces - one
+  CSV row per question, and one `.md` per page carrying an H1, a `Key: value` property
+  block, then the conversation - matched on the `ID` both carry.
+
+  **What it is for is the disagreement, and there was one on the first real register.**
+  A06's ID 6 carries `Status: Answered`, `Respondent: 榎本 稔` and
+  `Answer date: 2026/08/30`, and its page holds the question, a screenshot, and no
+  answer. It is not a closed question, the register is the only thing saying it is, and
+  nothing else in the workspace could have told anybody. ID 5 is `In Progress` with
+  three respondents named. And all five rows leave `機能・画面` empty, so not one
+  recorded answer can be tied to a screen - which is worth saying precisely because the
+  register already has the column.
+
+  **A24's lesson applied rather than repeated.** `$ak samples` found a real
+  contradiction on A05 and left it in terminal output where no document could state it
+  and no citation could reach it. This writes `.ak/extracted/interview-register.json`
+  and `ScreenCatalogue` reads it, saying **not measured** when it is absent - because a
+  screen with no recorded answer over an unread register cannot be told from one over a
+  register that was read. A06's published catalogue now opens with the sentence.
+
+  Three decisions worth naming, each made after getting it wrong first:
+
+  - an answer is a **dated** marker in full-width brackets, not any marker. Japanese
+    prose uses them for headings and this register does: Q&A 5 opens with
+    `【質問1：インポートファイルの文字コードについて】`. Counting that would have
+    reported the one genuinely open question as closed - the exact error the check
+    exists to catch, made by the check;
+  - columns are matched **by name**, because the same Notion database exports twice with
+    the columns in two different orders (`X.csv` and `X_all.csv` differ on A06), so a
+    position-mapped reader is right about one file and silently wrong about the other;
+  - a page is recognised **by shape** - a property block carrying an ID - not by
+    filename, so the guide `init` writes (A29) is skipped without a rule that breaks the
+    moment somebody names a real answer `README.md`. And the missing-screen note is one
+    line naming every id rather than one line each: five identical lines drowned the two
+    findings that were about a specific question, which is the failure a report has
+    instead of a crash.
+
+  The nine undocumented verbs were added to both command tables in the same pass. `ak.py`
+  had ~25 and `SKILL.md` listed 14 - so `meanings` and `catalogues`, the two A19 and A14
+  call the most important, were invisible to an agent reading the skill it runs from.
+
 - **The bundle recorded four of fifty-four supplied evidence files, and none of them in its identity** (A33)
   - An operator supplied 54 files across the five evidence-class directories; the sealed
   bundle recorded **four**, and two of those were in the wrong class. `screenshots` and
