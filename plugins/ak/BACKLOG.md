@@ -12,56 +12,49 @@ that it should now work.
 
 ## Open
 
-### A33 - the bundle neither inventories the evidence a person supplies nor counts it in its identity
+### A34 - two acquisitions of the same unchanged databases produce different evidence
 
-**Observed 2026-09-09 on A06, and it is the largest gap found so far.** An operator
-supplied 54 files across the five evidence-class directories. The sealed bundle records
-**four**, and two of those four are in the wrong class:
+**Observed 2026-09-09 on A06, and found only because A33's improved conflict message
+named the files that differed.** Two runs over the same two `.mdb` files, nothing
+touched between them:
 
-| `input/` | files a person put there | `evidence-sources/` entries |
+| | run A | run B |
 |---|---|---|
-| `documents/` | 5 | 2 |
-| `screenshots/` | 14 | **0** |
-| `samples/` | 1 | 2, and both are documents |
-| `report-samples/` | 14 | **0** |
-| `interviews/` | 20 | no section exists |
+| `databases/tables.json` | 188 | **209** |
+| `databases/fields.json` | 730 | **1215** |
+| `databases/indexes.json` | 61 | **112** |
+| `code/access-sql/inventory.json` | 27 | 28 |
+| `failures/extraction-failures.json` | 159 | 158 |
 
-The four it does record are the artifacts `init --source` happened to discover and
-write into the manifest. Everything added afterwards - which is the normal way evidence
-arrives - reaches the bundle not at all.
+Fields differ by **485**. That is not jitter, it is 40% of the schema.
 
-Meanwhile `phase-readiness.json`, written into the same bundle by the same run, reports
-`SCREENSHOT`, `DOCUMENT`, `INTERVIEW`, `SAMPLE_DATA` and `OUTPUT_SAMPLE` all present,
-because `evidence_classes.observe` reads the directories directly. **So the bundle and
-its own readiness file disagree about the same evidence**, and the disagreement favours
-the readiness: a phase is told it has screenshots, and a reader of the bundle cannot
-find one.
+**The likely mechanism, stated as a hypothesis because it is not yet measured.** 180 of
+this frontend's 188 tables are linked, and their targets are absolute paths on a mapped
+network drive - 21 of them at `L:/a06/...`, which exists, and the rest at a live share
+path which does not. A read that fails collects no fields for that table, so one extra
+failure in run A costing about 485 fields is consistent with a single unreadable backend
+taking 21 linked tables with it, at roughly 23 fields each. A transient network read
+would produce exactly this shape.
 
-That contradicts a design note this package already carries, in
-`normalize_documents.py`:
+**Why this is worse than the conflict it was found through.** Nothing reports the
+smaller run as smaller. `coverage.json` states the count it collected as if that were
+the whole of it, `bundle validate` returns VALID, and readiness stays READY - because
+every capability is still satisfied by *some* rows. A phase would have been analysed
+against 730 fields believing it had the schema. The only reason this surfaced at all is
+that a second run existed to compare against, and the only reason the comparison
+happened is that the two runs collided on a path.
 
-> Person-supplied evidence is declared by being there. Asking an operator to also list
-> it in the manifest would be asking them to do the kit's bookkeeping.
+**What to build.** Two things, and the first is cheap: a run has to be able to say what
+it did not read. The extractor already records a failure per unreadable table; what is
+missing is a figure that says the acquisition is incomplete in a way a reader cannot
+miss, in the same place the counts are reported. The second is a decision - whether an
+acquisition whose link targets are unreachable should be `PARTIAL` (as now) or refuse
+to seal a bundle at all, given a PARTIAL bundle is indistinguishable downstream from a
+complete one.
 
-The normalizer honours that. The bundle does not.
-
-**The second consequence is the one that interrupts work.** Because none of those files
-reach the identity, adding evidence changes what a bundle *says* without changing what
-it is *called* - so the ordinary loop of supplying a document and re-acquiring ends in
-`BUNDLE_PATH_CONFLICT` on the same day. This is A28's shape in a second dimension, and
-A28's fix does not cover it: A28 put the *code* that decides bundle contents into the
-identity, and this is *evidence* that decides them.
-
-**What to build.** An `evidence-sources/` section that inventories what is actually in
-the class directories - path, class, and content hash, which is all `observe` needs and
-all a reviewer needs to follow one back - and a digest of that inventory in the bundle
-identity, so a different evidence set is a different bundle and both are keepable.
-
-**What is not yet decided.** Whether the manifest-declared artifacts and the
-path-declared files should appear in one inventory or two. One list is simpler to read;
-two keep the distinction between evidence somebody declared and evidence somebody
-dropped, and that distinction is exactly what `OPERATOR_DECLARATION` exists to mark
-elsewhere. Worth deciding rather than defaulting.
+**What an operator should do meanwhile, since this is not a kit-side workaround.** Do
+not extract across a network share. Copy the linked backends local, or re-point the
+links, before acquiring - and compare two runs before trusting one.
 
 ### A24 - a sample that contradicts its declaration is reported to a terminal and nowhere else
 
@@ -661,6 +654,50 @@ against that one object rather than against the application as a whole.
 ## Closed
 
 Closed entries name the commit that closed them and the run that proved it.
+
+- **The bundle recorded four of fifty-four supplied evidence files, and none of them in its identity** (A33)
+  - An operator supplied 54 files across the five evidence-class directories; the sealed
+  bundle recorded **four**, and two of those were in the wrong class. `screenshots` and
+  `reports` recorded zero against fourteen files each, and `interviews` had no section
+  at all. The four it did record were the artifacts `init --source` happened to write
+  into the manifest.
+
+  Its own `phase-readiness.json`, written by the same run into the same bundle, reported
+  five classes present - because `observe` reads the directories directly. So the bundle
+  and its readiness disagreed about the same evidence, and the disagreement favoured the
+  readiness: a phase was told it had screenshots and a reader of the bundle could not
+  find one.
+
+  Two inventories now, and the separation is the decision rather than a tidying.
+  `evidence-sources/` keeps the four declared buckets, which are a contract the adapters
+  write into - `adapters/base.py` and two adapter modules append to them and both bundle
+  schemas require exactly those keys. `supplied-evidence/inventory.json` is its own
+  top-level section, because nothing produces it but a person putting a file somewhere,
+  and collapsing the two would lose the distinction between evidence somebody declared
+  and evidence somebody dropped - which is what `OPERATOR_DECLARATION` marks everywhere
+  else in this contract. It is built from `CLASS_LOCATIONS` and the same exclusion rule
+  `observe` uses, so the two readers of that map cannot drift again.
+
+  A digest of it joins the identity, so a different evidence set is a different bundle.
+
+  **Writing that turned up the reason a term can be added to the identity and do
+  nothing.** `_canonical_identity` returns an explicit mapping of known keys, so
+  `supplied_evidence` was silently dropped, the id did not move, and the only symptom
+  arrived two runs later as a path conflict. A leading underscore stays the way to mark
+  machine noise that must not affect an address - `_absolute_path`, `_generated_at`, and
+  a test asserts they do not - and every other undeclared key is now an error at the
+  point of the mistake. A28's fix had worked only because it changed the value of an
+  existing key rather than adding one.
+
+  The conflict message was improved in the same pass, for the reason A28 recorded and
+  this work then paid for: it named nothing, and two bundles were on disk. It names the
+  bundle and the files that differ now, and that is what found A34 an hour later.
+
+  **Proven on A06:** 54 records in the inventory across five classes, bundle VALID, and
+  removing one screenshot produces a different bundle id with no conflict where the same
+  change previously produced a conflict and no new bundle. Idempotence across two runs of
+  an unchanged workspace could **not** be demonstrated, and that is A34 rather than this:
+  the managed extraction itself does not return the same evidence twice.
 
 - **A diagnostic nobody could decode took down the whole run, and a Japanese filename broke the fix beside it** (A32)
   - Both found within an hour of A31 landing, by an operator putting real files in a

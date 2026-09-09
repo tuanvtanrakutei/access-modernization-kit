@@ -17,6 +17,8 @@ contract here.
 """
 from __future__ import annotations
 
+import hashlib
+import json
 from pathlib import Path
 from typing import Any
 
@@ -114,6 +116,65 @@ def observe(
                 if _has_files(root / relative):
                     found.setdefault(name, []).append(f"path:{relative}")
     return found
+
+
+def supplied_inventory(app_root: Path | str) -> list[dict[str, Any]]:
+    """Every file a person put in a class directory, with its class and its digest.
+
+    Deliberately built from `CLASS_LOCATIONS` and `_has_files`' exclusion rule, which
+    is the same pair `observe` reads. That is the whole point: A33 was the bundle and
+    its own `phase-readiness.json` disagreeing about the same evidence, because
+    readiness read the directories and the bundle read the manifest. Two readers of one
+    map cannot drift.
+
+    The manifest-declared artifacts stay in their own inventory under
+    `evidence-sources/`, and that separation is deliberate rather than tidy: those four
+    buckets are a contract the adapters write into - `adapters/base.py` and two adapter
+    modules append to them, and both bundle schemas require exactly those keys. Nothing
+    produces this inventory but a person putting a file somewhere, and collapsing the
+    two would lose the distinction between evidence somebody declared and evidence
+    somebody dropped - which is the distinction `OPERATOR_DECLARATION` exists to mark
+    everywhere else in this contract.
+
+    Sorted by path so the digest over it is stable, and carrying no timestamps for the
+    same reason: re-acquiring unchanged evidence must produce the same bundle.
+    """
+    root = Path(app_root)
+    records: list[dict[str, Any]] = []
+    for name in sorted(CLASS_LOCATIONS):
+        for relative in CLASS_LOCATIONS[name]:
+            directory = root / relative
+            if not directory.is_dir():
+                continue
+            for item in sorted(directory.rglob("*")):
+                if not item.is_file() or item.name.lower() in NOT_EVIDENCE_FILENAMES:
+                    continue
+                digest = hashlib.sha256()
+                with item.open("rb") as handle:
+                    for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+                        digest.update(chunk)
+                records.append({
+                    "evidence_class": name,
+                    "path": item.relative_to(root).as_posix(),
+                    "sha256": digest.hexdigest(),
+                    "bytes": item.stat().st_size,
+                })
+    return records
+
+
+def supplied_digest(records: list[dict[str, Any]]) -> str:
+    """One value for a whole evidence set, for the bundle's identity.
+
+    A digest rather than the list itself. The list is written into the bundle where it
+    can be read and followed; what the identity needs is only for a different evidence
+    set to be a different bundle, and embedding fifty-four records to say that would
+    put the same content in two places and make the identity grow with the project.
+    """
+    canonical = json.dumps(
+        [[record["evidence_class"], record["path"], record["sha256"]] for record in records],
+        ensure_ascii=False, separators=(",", ":"),
+    )
+    return hashlib.sha256(canonical.encode("utf-8")).hexdigest()[:16]
 
 
 def phase_status(

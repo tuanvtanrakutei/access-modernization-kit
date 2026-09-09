@@ -3,25 +3,109 @@
   "$id": "https://sms.local/schemas/bundle.schema.json",
   "title": "Canonical Extraction Bundle",
   "type": "object",
-  "required": ["schema_version", "bundle_id", "app_id", "classification", "rule_versions", "evidence_sources"],
+  "required": [
+    "schema_version",
+    "bundle_id",
+    "app_id",
+    "classification",
+    "rule_versions",
+    "evidence_sources"
+  ],
   "additionalProperties": true,
   "properties": {
-    "schema_version": {"type": "string"}, "bundle_id": {"type": "string", "pattern": "^bundle-[A-Za-z0-9_-]+$"},
-    "app_id": {"type": "string"}, "rule_versions": {"type": "object", "additionalProperties": {"type": "string"}},
+    "schema_version": {
+      "type": "string"
+    },
+    "bundle_id": {
+      "type": "string",
+      "pattern": "^bundle-[A-Za-z0-9_-]+$"
+    },
+    "app_id": {
+      "type": "string"
+    },
+    "rule_versions": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "string"
+      }
+    },
     "classification": {
-      "type": "object", "required": ["topology", "frontend_format", "source_availability", "backend_kinds"],
+      "type": "object",
+      "required": [
+        "topology",
+        "frontend_format",
+        "source_availability",
+        "backend_kinds"
+      ],
       "properties": {
-        "topology": {"type": "string"}, "frontend_format": {"type": "string"},
-        "source_availability": {"type": "string"}, "backend_kinds": {"type": "array", "items": {"type": "string"}}
+        "topology": {
+          "type": "string"
+        },
+        "frontend_format": {
+          "type": "string"
+        },
+        "source_availability": {
+          "type": "string"
+        },
+        "backend_kinds": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
       }
     },
     "evidence_sources": {
-      "type": "object", "required": ["documents", "screenshots", "reports", "samples"], "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "documents",
+        "screenshots",
+        "reports",
+        "samples"
+      ],
+      "additionalProperties": false,
       "properties": {
-        "documents": {"$ref": "#/$defs/evidenceInventory"}, "screenshots": {"$ref": "#/$defs/evidenceInventory"},
-        "reports": {"$ref": "#/$defs/evidenceInventory"}, "samples": {"$ref": "#/$defs/evidenceInventory"}
+        "documents": {
+          "$ref": "#/$defs/evidenceInventory"
+        },
+        "screenshots": {
+          "$ref": "#/$defs/evidenceInventory"
+        },
+        "reports": {
+          "$ref": "#/$defs/evidenceInventory"
+        },
+        "samples": {
+          "$ref": "#/$defs/evidenceInventory"
+        }
+      }
+    },
+    "supplied_evidence": {
+      "description": "Files a person put in an evidence-class directory, which no adapter produces and the manifest does not declare. Kept apart from evidence_sources because those four buckets are a contract the adapters write into. Optional: a bundle assembled before A33 has none.",
+      "type": "object",
+      "required": [
+        "inventory"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "inventory": {
+          "type": "string",
+          "minLength": 1
+        }
       }
     }
   },
-  "$defs": {"evidenceInventory": {"type": "object", "required": ["inventory"], "properties": {"inventory": {"type": "string"}}, "additionalProperties": true}}
+  "$defs": {
+    "evidenceInventory": {
+      "type": "object",
+      "required": [
+        "inventory"
+      ],
+      "properties": {
+        "inventory": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": true
+    }
+  }
 }

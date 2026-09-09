@@ -242,3 +242,71 @@ def test_the_exclusion_is_by_name_and_ignores_case(tmp_path: Path) -> None:
     # set it declares.
     (interviews / "notes.md").write_text("Horiuchi, 2026-09-09", encoding="utf-8")
     assert "INTERVIEW" in evidence_classes.observe(set(), tmp_path)
+
+
+def test_the_supplied_inventory_reads_the_same_map_observe_does(tmp_path: Path) -> None:
+    """A33 was two readers of one question disagreeing.
+
+    Readiness read the class directories; the bundle read the manifest. On a real
+    workspace that meant 54 supplied files against four recorded, with the bundle's own
+    readiness reporting five classes present that the bundle could not show. So this
+    inventory is built from `CLASS_LOCATIONS` and `_has_files`' exclusion rule - the
+    same pair `observe` uses - and this asserts they cannot drift apart again.
+    """
+    (tmp_path / "input" / "screenshots").mkdir(parents=True)
+    (tmp_path / "input" / "interviews").mkdir(parents=True)
+    (tmp_path / "input" / "screenshots" / "main.png").write_bytes(b"x")
+    (tmp_path / "input" / "interviews" / "notes.md").write_text("Horiuchi, 2026-09-09", encoding="utf-8")
+    # The guide `init` writes, and OS noise. Neither is evidence, and neither may make
+    # a class look present - which is what A29 fixed for `observe`.
+    (tmp_path / "input" / "interviews" / "README.md").write_text("guide", encoding="utf-8")
+    (tmp_path / "input" / "screenshots" / "Thumbs.db").write_bytes(b"\x00")
+
+    records = evidence_classes.supplied_inventory(tmp_path)
+    by_class = {record["evidence_class"] for record in records}
+    paths = {record["path"] for record in records}
+
+    assert by_class == set(evidence_classes.observe(set(), tmp_path)), (
+        "the inventory and the observation must name the same classes"
+    )
+    assert paths == {"input/screenshots/main.png", "input/interviews/notes.md"}
+    assert all(len(record["sha256"]) == 64 for record in records)
+
+    # Deterministic and timestamp-free, so re-acquiring unchanged evidence is the same
+    # bundle. Ordered by class, then by path within it - which is what makes the digest
+    # over this list stable rather than dependent on directory iteration order.
+    assert records == evidence_classes.supplied_inventory(tmp_path)
+    assert [(r["evidence_class"], r["path"]) for r in records] == sorted(
+        (r["evidence_class"], r["path"]) for r in records
+    )
+
+
+def test_the_supplied_digest_moves_only_when_the_evidence_does(tmp_path: Path) -> None:
+    """What the bundle identity needs, and no more.
+
+    A digest rather than the list, because the list is written into the bundle where it
+    can be followed; the identity only has to make a different evidence set a different
+    bundle. Byte size is deliberately not in it - a file whose content is identical is
+    the same evidence however the filesystem reports it.
+    """
+    directory = tmp_path / "input" / "samples"
+    directory.mkdir(parents=True)
+    (directory / "feed.csv").write_text("a,b\n1,2\n", encoding="utf-8")
+    first = evidence_classes.supplied_digest(evidence_classes.supplied_inventory(tmp_path))
+
+    assert first == evidence_classes.supplied_digest(
+        evidence_classes.supplied_inventory(tmp_path)
+    ), "stable while nothing changes"
+
+    (directory / "feed.csv").write_text("a,b\n1,3\n", encoding="utf-8")
+    changed = evidence_classes.supplied_digest(evidence_classes.supplied_inventory(tmp_path))
+    assert changed != first, "edited evidence is different evidence"
+
+    (directory / "second.csv").write_text("a,b\n1,3\n", encoding="utf-8")
+    added = evidence_classes.supplied_digest(evidence_classes.supplied_inventory(tmp_path))
+    assert added != changed, "added evidence is different evidence"
+
+    (directory / "second.csv").unlink()
+    assert evidence_classes.supplied_digest(
+        evidence_classes.supplied_inventory(tmp_path)
+    ) == changed, "removing it again returns the previous answer"

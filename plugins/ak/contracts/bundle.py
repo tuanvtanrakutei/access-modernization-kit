@@ -15,14 +15,36 @@ class BundleError(ValueError):
     pass
 
 
+_IDENTITY_TERMS = (
+    "app_id", "classification", "classification_rule_versions", "artifacts", "adapters",
+    "bundle_schema_version", "normalization_config", "assembly_version",
+    "supplied_evidence",
+)
+
+
 def _canonical_identity(value: dict[str, Any]) -> dict[str, Any]:
-    required = (
-        "app_id", "classification", "classification_rule_versions", "artifacts", "adapters",
-        "bundle_schema_version", "normalization_config", "assembly_version",
-    )
-    missing = [key for key in required if key not in value]
+    missing = [key for key in _IDENTITY_TERMS if key not in value]
     if missing:
         raise BundleError(f"Missing identity fields: {missing}")
+    # A term nobody declared here is a term that silently does not affect the id, and
+    # that is not a theoretical risk - it happened. A33 added `supplied_evidence` to
+    # the identity dict, the id did not move, and the only symptom was a
+    # BUNDLE_PATH_CONFLICT two runs later. This function returns an explicit mapping,
+    # so an undeclared key was dropped without a word.
+    #
+    # A leading underscore stays the way to say "deliberate noise, keep it out of the
+    # id" - `_absolute_path` and `_generated_at` are machine facts that must never
+    # change an address, and a test asserts they do not. Everything else is a mistake
+    # and now says so.
+    undeclared = sorted(
+        key for key in value if not key.startswith("_") and key not in _IDENTITY_TERMS
+    )
+    if undeclared:
+        raise BundleError(
+            f"Undeclared identity fields: {undeclared}. Add them to _IDENTITY_TERMS "
+            "and to the mapping below, or prefix with '_' if they must not affect the "
+            "bundle id."
+        )
     return {
         "app_id": value["app_id"],
         "classification": value["classification"],
@@ -35,6 +57,11 @@ def _canonical_identity(value: dict[str, Any]) -> dict[str, Any]:
         # of sources by two versions of the kit are the same bundle by name and
         # different on disk, and the second one cannot be published at all.
         "assembly_version": value["assembly_version"],
+        # And the evidence a person supplied, which no adapter produces and the
+        # manifest does not declare. Without it the same thing happened for the
+        # commonest action in the whole workflow: add a document, re-acquire, and the
+        # bundle says something new under the name of the old one.
+        "supplied_evidence": value["supplied_evidence"],
     }
 
 
