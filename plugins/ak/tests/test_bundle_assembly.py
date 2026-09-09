@@ -282,29 +282,52 @@ def test_the_assembling_code_is_part_of_the_bundle_identity() -> None:
     raise AssertionError("an identity with no assembly_version must be refused")
 
 
-def test_the_assembly_version_tracks_the_module_itself(tmp_path: Path) -> None:
-    """Computed from the source, not declared.
+def test_every_source_in_the_identity_set_moves_the_assembly_version(
+    tmp_path: Path,
+) -> None:
+    """Computed from the sources, not declared, and every member is load-bearing.
 
     A version somebody has to remember to bump is wrong exactly when it matters: the
-    defect being fixed is always the one that changed the output. Editing this module
-    is what must change the answer, and nothing else.
-    """
-    import hashlib
+    defect being fixed is always the one that changed the output.
 
-    import bundle_assembly
-    from bundle_assembly import _assembly_version
+    This covered `bundle_assembly.py` alone until A28, and the missing amount was
+    exactly the amount that mattered. A26 changed one call in the acquisition
+    orchestrator, every status inside `phase-readiness.json` changed, and the id did
+    not move - so re-acquiring the same sources hit `BUNDLE_PATH_CONFLICT`, whose own
+    message blames a writer outside the kit. There was no such writer.
+
+    A list is easy to write and easy to leave decorative, which is the failure A13b
+    found elsewhere in this kit. So this does not assert what the list says; it
+    mutates each member in a copied tree and asserts the answer moves. A member that
+    stops mattering fails here.
+    """
+    import shutil
+
+    from bundle_assembly import _IDENTITY_SOURCES, _assembly_version
 
     first = _assembly_version()
-    assert first == _assembly_version(), "stable while the file is unchanged"
+    assert first == _assembly_version(), "stable while the sources are unchanged"
     assert len(first) == 12
 
-    # Recomputed here rather than by editing the module on disk: a test that rewrites
-    # a file in the repository leaves it damaged if the run is interrupted, and this
-    # says the same thing - the answer is that file's digest and nothing else.
-    source = Path(bundle_assembly.__file__).resolve().read_bytes()
-    assert first == hashlib.sha256(source).hexdigest()[:12]
-    assert first != hashlib.sha256(
-        source + b"# one more line of assembly code").hexdigest()[:12]
+    # Copied rather than edited in place: a test that rewrites a file in the
+    # repository leaves it damaged if the run is interrupted.
+    package = tmp_path / "package"
+    for relative in _IDENTITY_SOURCES:
+        destination = package / relative
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(PACKAGE / relative, destination)
+    assert _assembly_version(package) == first, "a faithful copy is the same code"
+
+    for relative in _IDENTITY_SOURCES:
+        target = package / relative
+        original = target.read_bytes()
+        target.write_bytes(original + b"\n# one more line\n")
+        assert _assembly_version(package) != first, (
+            f"{relative} is in the identity set and changing it must change the "
+            "bundle id, or the set is decorative for that entry"
+        )
+        target.write_bytes(original)
+    assert _assembly_version(package) == first, "restored copy, restored answer"
 
 
 def test_a_rebuilt_bundle_says_which_code_built_it(tmp_path: Path) -> None:

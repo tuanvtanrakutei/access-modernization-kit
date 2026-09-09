@@ -152,8 +152,35 @@ def _tree_hashes(root: Path) -> dict[str, str]:
     }
 
 
-def _assembly_version() -> str:
-    """A digest of the code that assembles a bundle, for the bundle's identity.
+# Everything whose bytes decide bytes that end up inside a published bundle, relative
+# to the package root. Written out rather than globbed: each entry is here because
+# something it produces is stored, so adding or removing one is a decision somebody
+# makes and can be argued with, not a directory sweep that quietly grows.
+#
+# What is deliberately absent is as much of the rule as what is present. The adapters
+# state their own versions and are already in the identity; the schemas state theirs;
+# `profiles/*.yaml` reaches the identity as `classification_rule_versions`. A module
+# that only reads the bundle, or only decides what is *shown* rather than what is
+# written, does not belong here.
+_IDENTITY_SOURCES = (
+    # This module: the layout, the merge, and every file written into a bundle.
+    "contracts/bundle_assembly.py",
+    # Computes phase-readiness.json, profile-validation.json and the mode note, all
+    # three of which are stored. This is the one A28 was about.
+    "contracts/acquisition_orchestrator.py",
+    # Turns capabilities and classes into the statuses inside phase-readiness.json.
+    "contracts/phase_readiness.py",
+    # The class half of those statuses.
+    "contracts/evidence_classes.py",
+    # The contract that half reads. It carries a declared `version`, and a declared
+    # version is not what belongs here for the reason given below - A13b already
+    # found a rule set in this kit whose declared version had gone decorative.
+    "specifications/evidence-classes.yaml",
+)
+
+
+def _assembly_version(package: Path | None = None) -> str:
+    """A digest of the code that decides a bundle's contents, for its identity.
 
     The identity derived from the source digests alone, so fixing a defect in this
     module and re-running the same sources produced the same directory name with
@@ -167,10 +194,24 @@ def _assembly_version() -> str:
     changed the output. The cost is that a comment-only edit also yields a new id and
     so a second directory; that is the cheaper mistake by a wide margin.
 
-    It covers this module and no more. The adapters state their own versions and are
-    already in the identity, and the schemas state theirs.
+    It covered this module and no more until A28, and that boundary was too narrow by
+    exactly the amount that mattered: A26 changed one call in the orchestrator, the
+    statuses in `phase-readiness.json` changed completely, and the id did not move.
+    The set it covers now is `_IDENTITY_SOURCES`, and the rule for membership is
+    written there rather than left to be inferred from the list.
+
+    `package` is here for one caller: the regression that proves every member of the
+    set is load-bearing, by mutating each in a copied tree and asserting the digest
+    moves. Omitting it gives the real package, which is the only thing production does.
     """
-    return hashlib.sha256(Path(__file__).resolve().read_bytes()).hexdigest()[:12]
+    package = Path(package) if package is not None else Path(__file__).resolve().parents[1]
+    digest = hashlib.sha256()
+    for relative in _IDENTITY_SOURCES:
+        # The name is hashed alongside the bytes so that renaming a member, or
+        # reordering the tuple, cannot silently produce the same digest.
+        digest.update(relative.encode("utf-8"))
+        digest.update(hashlib.sha256((package / relative).read_bytes()).digest())
+    return digest.hexdigest()[:12]
 
 
 def _publish_bundle(staged: Path, target: Path) -> None:
