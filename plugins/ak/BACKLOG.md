@@ -611,6 +611,65 @@ against that one object rather than against the application as a whole.
 
 Closed entries name the commit that closed them and the run that proved it.
 
+- **Installing Tesseract did not make the kit find it, and English-only OCR said nothing about it** (A30)
+  - Found by acting on this kit's own advice. A06's scope drawing has no text layer, the
+  operator installed Tesseract as told, and `$ak documents` still reported
+  `OCR_REQUIRED: Tesseract executable is unavailable` - which reads as "you did not
+  install it" to the person who just had. Measured on this host: Tesseract 5.4.0
+  present at `C:\Program Files\Tesseract-OCR\tesseract.exe`, absent from `PATH`. The
+  UB-Mannheim build is what every Windows instruction points at and its installer does
+  not offer to amend `PATH`, so this is the normal outcome rather than a mishap.
+
+  `find_tesseract` now takes `AK_TESSERACT` first, then `PATH`, then the default
+  Windows install locations. An operator who names the path has answered the question,
+  so a wrong `AK_TESSERACT` fails rather than quietly falling through to a different
+  executable than the one they asked for.
+
+  The second half is worse and was found beside it. The language check only refused
+  when *neither* `jpn` nor `eng` was present, so a host with `eng` alone - which is
+  what the installer gives you unless you tick the box - ran Japanese screenshots
+  through an English model. That does not fail. It returns confident nonsense, with
+  `parser: tesseract:eng`, no warning and no gap, and the nonsense then reads as
+  evidence. Running is still right, because an English source OCRs correctly with
+  `eng`; saying nothing was not. A missing `jpn` now always warns, naming the pack.
+
+- **An image that OCR'd to nothing was recorded as a successful normalization** (A31)
+  - Two causes, one symptom, found while proving A30. Tesseract returns exit 0 and an
+  empty string - not an error, not a partial read - and the corpus recorded
+  `NORMALIZED`, a parser and a hash for a file that contributed not one character. The
+  only way to notice was to open the corpus and find an empty section.
+
+  The first cause is an alpha channel, which a screenshot saved by almost any Windows
+  tool carries. Measured on a real A06 screenshot whose alpha is uniformly opaque, so
+  it holds no transparency and changes no pixel - `ImageChops.difference` finds no
+  bounding box between the RGBA original and the flattened copy. RGBA reads empty;
+  dropped, `startup.png` reads. The PDF route never hit this and is left alone, which
+  is measured rather than assumed: it rasterizes with `alpha=False`, and at its
+  `Matrix(2, 2)` a real A06 page returned `担当者登録`, `商品情報登録` and
+  `商品情報一覧登` correctly.
+
+  The second is that empty output was not reported at all. It is now `OCR_NO_TEXT`,
+  which the caller turns into a gap beside every other unread source, plus a per-page
+  warning when only some pages come back blank.
+
+  **What was deliberately not done, because doing it would have been worse.** The same
+  screenshot declares 96 DPI, Tesseract believes it and gives up; clear the tag and it
+  estimates 185 and returns `c 向來 ゅ フ ロ ッ ピ ー` for an entire screen. Upscaling
+  three times returns different nonsense. So that choice is not between nothing and
+  text - it is between an honest gap and a plausible-looking line of garbage recorded
+  as evidence, and the second is the failure this kit exists to prevent. A screen
+  capture of Japanese UI text is not an OCR problem to tune; it is a source to
+  transcribe beside, which is what `templates/interviews.README.md` already tells an
+  operator to do.
+
+  One more thing surfaced from the new status, and it is the same shape as A27. The
+  existing scanned-PDF test asserted `OCR_REQUIRED` or `OCR_FAILED` for a blank page,
+  and had been passing on every machine here by reading the **absence of an OCR
+  engine** rather than the behaviour it names. Install Tesseract and it fails. Its
+  real claim is that the source reaches the corpus as a gap rather than being silently
+  skipped, and all three statuses say that; `OCR_NO_TEXT` is now in the set, with the
+  host-dependence written down instead of relied on.
+
 - **A bundle's identity covered the code that assembles it, not what fills it** (A28)
   - A26 changed one call in the acquisition orchestrator and nothing else. Every status
   inside `phase-readiness.json` changed; the digest naming the bundle did not.

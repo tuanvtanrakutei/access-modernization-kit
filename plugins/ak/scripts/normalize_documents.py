@@ -17,6 +17,7 @@ import argparse
 import csv
 import hashlib
 import json
+import os
 import shutil
 import subprocess
 import sys
@@ -415,27 +416,152 @@ def tesseract_languages(executable: str) -> set[str]:
     return {line.strip() for line in result.stdout.splitlines() if line.strip() and "available languages" not in line.lower()}
 
 
-def ocr_images(images: list[Path]) -> tuple[str, str, list[str]]:
-    executable = shutil.which("tesseract")
+def _tesseract_fallbacks() -> tuple[Path, ...]:
+    """Where Tesseract lands on Windows when nobody puts it on PATH.
+
+    The UB-Mannheim build is what every Windows instruction points at, and its
+    installer does not offer to amend PATH. So "install Tesseract" ends, reliably and
+    silently, with a working executable this kit cannot see - reported as
+    OCR_REQUIRED, which reads as "you did not install it" to the person who just did.
+
+    Searched after `AK_TESSERACT` and after PATH, never instead of them: an operator
+    who has said where it is, or put it on PATH, has already answered this question.
+    """
+    program_files = os.environ.get("ProgramFiles", "C:/Program Files")
+    program_files_x86 = os.environ.get("ProgramFiles(x86)", "C:/Program Files (x86)")
+    local = os.environ.get("LOCALAPPDATA", "")
+    candidates = [
+        Path(program_files) / "Tesseract-OCR" / "tesseract.exe",
+        Path(program_files_x86) / "Tesseract-OCR" / "tesseract.exe",
+    ]
+    if local:
+        candidates.append(Path(local) / "Programs" / "Tesseract-OCR" / "tesseract.exe")
+        candidates.append(Path(local) / "Tesseract-OCR" / "tesseract.exe")
+    return tuple(candidates)
+
+
+def find_tesseract() -> str | None:
+    """The executable, or None. Reports where it looked through the caller's message."""
+    declared = os.environ.get("AK_TESSERACT", "").strip()
+    if declared:
+        # An operator who names the path is not second-guessed, and a name that is
+        # wrong is a different failure from one that is missing - so this does not
+        # fall through to the search on a bad value.
+        return declared if Path(declared).is_file() else None
+    found = shutil.which("tesseract")
+    if found:
+        return found
+    for candidate in _tesseract_fallbacks():
+        if candidate.is_file():
+            return str(candidate)
+    return None
+
+
+def _prepared_for_ocr(image: Path, workspace: Path) -> tuple[Path, list[str]]:
+    """A copy Tesseract can actually read, for an image a person supplied.
+
+    An alpha channel makes Tesseract return **nothing at all** - exit 0, empty string,
+    no error - and the kit then recorded NORMALIZED with a parser and a hash for a file
+    that contributed not one character. Measured on a real A06 screenshot whose alpha
+    is uniformly opaque, so it carries no transparency and changes no pixel: RGBA reads
+    empty, dropped it reads. A screenshot saved by almost any Windows tool is RGBA.
+
+    **What this deliberately does not do is chase resolution.** The same screenshot
+    also declares 96 DPI, which Tesseract believes; clear the tag and it estimates 185
+    and returns `c 向來 ゅ フ ロ ッ ピ ー` for a whole screen. Upscaling three times
+    returns different nonsense. So the choice there is not between nothing and text, it
+    is between an honest `OCR_NO_TEXT` gap and a plausible-looking line of garbage
+    recorded as evidence - and this kit exists to prevent the second. A screen capture
+    of Japanese UI text is not an OCR problem to be tuned; it is a source to transcribe
+    beside, which is what `templates/interviews.README.md` tells an operator to do.
+
+    The PDF route does not come through here, and that is measured rather than assumed:
+    its pixmaps are already `alpha=False`, and at the `Matrix(2, 2)` it renders they
+    read correctly - `担当者登録`, `商品情報登録` and `商品情報一覧登` all came out of a
+    real A06 page. Working code is not improved on the strength of a different file's
+    symptoms.
+    """
+    try:
+        import fitz  # type: ignore[import-not-found]
+    except ImportError:
+        return image, [
+            "OCR_IMAGE_UNPREPARED: PyMuPDF is unavailable, so an alpha channel could "
+            "not be removed before OCR. An RGBA image returns an empty result rather "
+            "than an error."
+        ]
+    try:
+        pixmap = fitz.Pixmap(str(image))
+        if not pixmap.alpha:
+            return image, []
+        prepared = workspace / f"{image.stem}-ocr.png"
+        fitz.Pixmap(pixmap, 0).save(prepared)
+        return prepared, []
+    except Exception as exc:  # noqa: BLE001 - any reader failure falls back to the original
+        return image, [f"OCR_IMAGE_UNPREPARED: {image.name} could not be re-encoded ({exc})."]
+
+
+def ocr_images(images: list[Path], *, prepare: bool = True) -> tuple[str, str, list[str]]:
+    executable = find_tesseract()
     if not executable:
-        raise RuntimeError("OCR_REQUIRED: Tesseract executable is unavailable")
+        raise RuntimeError(
+            "OCR_REQUIRED: no Tesseract on PATH, at AK_TESSERACT, or in the default "
+            "Windows install location. Install it, or set AK_TESSERACT to the "
+            "executable."
+        )
     languages = tesseract_languages(executable)
     selected = [value for value in ("jpn", "eng") if value in languages]
     if not selected:
         raise RuntimeError("OCR_REQUIRED: Tesseract has neither jpn nor eng language data")
-    sections: list[str] = []
-    for index, image in enumerate(images, 1):
-        result = subprocess.run(
-            [executable, str(image), "stdout", "-l", "+".join(selected)],
-            check=False,
-            capture_output=True,
-            text=True,
-            encoding="utf-8",
+    warnings: list[str] = []
+    if "jpn" not in languages:
+        # Running anyway is right - an English source OCRs correctly with eng, and
+        # refusing would strand it. Saying nothing is not: this kit's whole target
+        # population is Japanese, and eng against Japanese does not fail, it returns
+        # confident nonsense that then reads as evidence. The expensive outcome here
+        # is not a refusal, it is an answer nobody knows to doubt.
+        warnings.append(
+            "TESSERACT_NO_JPN: Tesseract has no `jpn` language data, so this ran as "
+            f"`{'+'.join(selected)}`. Any Japanese text in the image is unreliable. "
+            "Add jpn.traineddata to the tessdata directory and re-run."
         )
-        if result.returncode != 0:
-            raise RuntimeError(f"OCR_FAILED: {result.stderr.strip()}")
-        sections.append(f"## OCR page/image {index}\n\n{result.stdout.strip()}")
-    return "\n\n".join(sections), f"tesseract:{'+'.join(selected)}", []
+    sections: list[str] = []
+    produced_text = False
+    with tempfile.TemporaryDirectory(prefix="ak-ocr-rgb-") as workspace:
+        for index, image in enumerate(images, 1):
+            if prepare:
+                readable, prep_warnings = _prepared_for_ocr(image, Path(workspace))
+                warnings.extend(prep_warnings)
+            else:
+                readable = image
+            result = subprocess.run(
+                [executable, str(readable), "stdout", "-l", "+".join(selected)],
+                check=False,
+                capture_output=True,
+                text=True,
+                encoding="utf-8",
+            )
+            if result.returncode != 0:
+                raise RuntimeError(f"OCR_FAILED: {result.stderr.strip()}")
+            text = result.stdout.strip()
+            if text:
+                produced_text = True
+            else:
+                warnings.append(
+                    f"OCR_NO_TEXT_ON_PAGE: page/image {index} of {image.name} produced "
+                    "no text. A screen capture of UI text is often too small to read; "
+                    "a larger capture, or a transcription beside the image, is the fix."
+                )
+            sections.append(f"## OCR page/image {index}\n\n{text}")
+    if not produced_text:
+        # Not a normalization. The file went in, nothing came out, and every field the
+        # corpus records - status NORMALIZED, a parser, a hash - said otherwise. A
+        # source that contributed nothing has to be visible as a gap, or the only way
+        # to notice is for somebody to open the corpus and find an empty section.
+        raise RuntimeError(
+            "OCR_NO_TEXT: OCR ran and returned nothing at all. The image may be too "
+            "small for the text in it, or may hold no text."
+        )
+    return "\n\n".join(sections), f"tesseract:{'+'.join(selected)}", warnings
 
 
 def normalize_pdf(path: Path) -> tuple[str, str, list[str]]:
@@ -462,7 +588,10 @@ def normalize_pdf(path: Path) -> tuple[str, str, list[str]]:
                 images.append(target)
         finally:
             document.close()
-        return ocr_images(images)
+        # `prepare=False`: these pixmaps are rendered here with `alpha=False`, and
+        # at this matrix they read correctly on a real page. See `_prepared_for_ocr`
+        # for what the image route has to fix and why this route does not.
+        return ocr_images(images, prepare=False)
 
 
 def normalize_image(path: Path) -> tuple[str, str, list[str]]:
