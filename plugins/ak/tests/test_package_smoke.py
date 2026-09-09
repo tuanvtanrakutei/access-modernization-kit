@@ -714,3 +714,74 @@ def test_a_supplied_image_is_stripped_of_alpha_before_ocr(tmp_path):
     plain.clear_with(255)
     plain.save(opaque)
     assert nd._prepared_for_ocr(opaque, tmp_path) == (opaque, [])
+
+
+def test_an_undecodable_diagnostic_does_not_take_down_the_run(tmp_path, monkeypatch):
+    """Tesseract writes diagnostics in the host locale, which here is cp932.
+
+    Strict utf-8 decoding raised inside subprocess's own reader thread, left
+    `result.stderr` as None, and `None.strip()` then killed the whole `$ak documents`
+    run with an AttributeError - so one unreadable image lost every other source in
+    the workspace instead of being recorded as a gap.
+
+    `adapters/managed_access` learned exactly this from a Japanese-Windows PowerShell
+    and fixed it there. The lesson never reached the normalizer, which is why this
+    asserts the None case as well as the decode: a reader thread can fail for reasons
+    that are not encoding, and a diagnostic nobody can read is not a reason to lose
+    the name of the file that produced it.
+    """
+    import normalize_documents as nd
+
+    monkeypatch.setattr(nd, "find_tesseract", lambda: "tesseract")
+    monkeypatch.setattr(nd, "tesseract_languages", lambda _exe: {"jpn", "eng"})
+    monkeypatch.setattr(nd, "_prepared_for_ocr", lambda image, _work: (image, []))
+
+    class _Result:
+        returncode = 1
+        stdout = ""
+        stderr = None
+
+    monkeypatch.setattr(nd.subprocess, "run", lambda *_a, **_k: _Result())
+    with pytest.raises(RuntimeError) as caught:
+        nd.ocr_images([tmp_path / "page.png"])
+    message = str(caught.value)
+    assert message.startswith("OCR_FAILED:")
+    assert "exited 1" in message, message
+
+
+def test_a_japanese_image_name_does_not_reach_tesseract_as_a_path(tmp_path):
+    """Leptonica opens the path with the C runtime's narrow API.
+
+    So a Japanese name in the temp path arrives mangled on a cp932 host and every read
+    fails - reported as OCR_FAILED for a file that was perfectly readable. Four of a
+    real A06 workspace's report exports (新商品一覧表.png and three more) failed this
+    way within an hour of the alpha fix that introduced it.
+
+    Named from a digest, which is the remedy this kit already uses twice:
+    `extract_access.ps1` appends one to an altered filename, and bundle filenames come
+    from a hash of the logical id. The original name stays in the audit entry, which
+    is where it is read.
+    """
+    fitz = pytest.importorskip("fitz")
+    import normalize_documents as nd
+
+    source = tmp_path / "新商品一覧表.png"
+    pixmap = fitz.Pixmap(fitz.csRGB, fitz.IRect(0, 0, 40, 20), True)
+    pixmap.clear_with(255)
+    pixmap.save(source)
+
+    prepared, warnings = nd._prepared_for_ocr(source, tmp_path)
+    assert warnings == []
+    assert prepared != source
+    assert prepared.name.isascii(), (
+        f"the temp name must survive a narrow-API open, got {prepared.name!r}"
+    )
+    assert source.stem not in prepared.name
+
+    # Two different names must not collide on one digest, and the same name must be
+    # stable - a temp path that changed per run would be harmless here and confusing
+    # in a log.
+    other = tmp_path / "棚卸表.png"
+    pixmap.save(other)
+    assert nd._prepared_for_ocr(other, tmp_path)[0] != prepared
+    assert nd._prepared_for_ocr(source, tmp_path)[0] == prepared

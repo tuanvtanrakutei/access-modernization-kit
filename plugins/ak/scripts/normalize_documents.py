@@ -412,8 +412,17 @@ def normalize_pptx(path: Path) -> tuple[str, str, list[str]]:
 
 
 def tesseract_languages(executable: str) -> set[str]:
-    result = subprocess.run([executable, "--list-langs"], check=False, capture_output=True, text=True)
-    return {line.strip() for line in result.stdout.splitlines() if line.strip() and "available languages" not in line.lower()}
+    # Same reason as the OCR call below: this child also writes in the host locale,
+    # and a language list nobody can decode must not become an exception that hides
+    # which image was being read.
+    result = subprocess.run(
+        [executable, "--list-langs"], check=False, capture_output=True, text=True,
+        encoding="utf-8", errors="replace",
+    )
+    return {
+        line.strip() for line in (result.stdout or "").splitlines()
+        if line.strip() and "available languages" not in line.lower()
+    }
 
 
 def _tesseract_fallbacks() -> tuple[Path, ...]:
@@ -493,7 +502,16 @@ def _prepared_for_ocr(image: Path, workspace: Path) -> tuple[Path, list[str]]:
         pixmap = fitz.Pixmap(str(image))
         if not pixmap.alpha:
             return image, []
-        prepared = workspace / f"{image.stem}-ocr.png"
+        # Named by a digest of the original name, not by its stem. Tesseract's image
+        # layer is Leptonica, which opens the path with the C runtime's narrow API, so
+        # on a cp932 host a Japanese name in the temp path arrives mangled and every
+        # read fails - reported as OCR_FAILED for a file that was perfectly readable.
+        # This kit's whole target population has Japanese object names, and this is the
+        # same remedy it already uses twice: `extract_access.ps1` appends a digest to
+        # an altered filename, and bundle filenames come from a hash of the logical id.
+        # The original name stays in the audit entry, which is where it is read.
+        digest = hashlib.sha256(image.name.encode("utf-8")).hexdigest()[:16]
+        prepared = workspace / f"{digest}-ocr.png"
         fitz.Pixmap(pixmap, 0).save(prepared)
         return prepared, []
     except Exception as exc:  # noqa: BLE001 - any reader failure falls back to the original
@@ -533,15 +551,29 @@ def ocr_images(images: list[Path], *, prepare: bool = True) -> tuple[str, str, l
                 warnings.extend(prep_warnings)
             else:
                 readable = image
+            # `errors="replace"` is the whole point of this call's shape. Tesseract
+            # writes its diagnostics in the host's locale, which on the machines this
+            # kit exists for is cp932 - so strict utf-8 decoding raised inside
+            # subprocess's own reader thread, left `result.stderr` as None, and the
+            # next line died on `None.strip()`. A Japanese diagnostic took down the
+            # whole `documents` run with an AttributeError instead of recording one
+            # unreadable image as a gap. `adapters/managed_access` learned this from a
+            # Japanese-Windows PowerShell and fixed it there; the lesson never
+            # reached here.
             result = subprocess.run(
                 [executable, str(readable), "stdout", "-l", "+".join(selected)],
                 check=False,
                 capture_output=True,
                 text=True,
                 encoding="utf-8",
+                errors="replace",
             )
             if result.returncode != 0:
-                raise RuntimeError(f"OCR_FAILED: {result.stderr.strip()}")
+                # Still defensive about None: a reader thread can fail for reasons
+                # that are not decoding, and a diagnostic nobody can read is not a
+                # reason to lose the name of the file that produced it.
+                detail = (result.stderr or "").strip() or f"tesseract exited {result.returncode}"
+                raise RuntimeError(f"OCR_FAILED: {detail}")
             text = result.stdout.strip()
             if text:
                 produced_text = True
