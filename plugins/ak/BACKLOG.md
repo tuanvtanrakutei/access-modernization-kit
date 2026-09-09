@@ -12,52 +12,6 @@ that it should now work.
 
 ## Open
 
-### A28 - a bundle's identity covers the code that assembles it, not the code that decides its contents
-
-**Observed 2026-09-09, by the fix for A26 running into it.** A26 changed one call in
-`contracts/acquisition_orchestrator.py` and nothing else. Re-acquiring A06 from
-byte-identical sources then failed:
-
-    ValueError: BUNDLE_PATH_CONFLICT
-
-`_publish_bundle` raises that when a bundle already exists at the target path and its
-tree hashes differ, and the comment above the raise states the conclusion the kit
-draws from it:
-
-> Same sources, same assembling code, different bytes. Both of the causes the kit
-> knows about are now in the identity, so this says what is left: something outside
-> the kit wrote into a published bundle.
-
-Here that conclusion was false, and provably so - the only writer was the kit, one
-commit newer. The digest that names a bundle came out **identical**
-(`bundle-21ec8350...`) across both runs while `phase-readiness.json` inside it
-changed from six capability-only verdicts to six that carry the evidence-class half.
-
-The gap is narrow and A16 named its own boundary honestly: `_module_version()` hashes
-`bundle_assembly.py` and says "It covers this module and no more. The adapters state
-their own versions and are already in the identity, and the schemas state theirs."
-What that leaves out is the orchestrator, which is not an adapter and not a schema,
-and which computes four things the bundle stores - `phase-readiness.json`,
-`profile-validation.json`, the coverage roll-up and the mode note. So a change to
-what a bundle *says* can leave the name of that bundle untouched.
-
-**What is not yet known, and why this is open rather than fixed in passing.** The
-obvious repair - add the orchestrator to the identity - has a boundary problem of its
-own: `phase_readiness.py`, `evidence_classes.py` and the profile YAML all feed the
-same file, and hashing the whole contract directory would make every unrelated edit
-produce a new bundle from the same evidence, which is the opposite failure. Deciding
-where the line sits is the work, and it should be decided rather than widened by
-reflex.
-
-One smaller thing surfaced beside it and is not chased here: the message is a bare
-`ValueError` with a traceback, so an operator meets a Python stack rather than a
-sentence naming the two bundles, what differs, and what to do about it. The exit code
-is correct - reproduced deliberately by appending a newline to a published
-`provenance.json`, which is the very case the message describes, and reading `$?`
-without a pipe in the way: **1**, with `BUNDLE_PATH_CONFLICT` named twice in the
-output. An earlier reading of this as exit 0 was the shell reporting `tail`'s status
-from a pipeline, not the command's.
-
 ### A24 - a sample that contradicts its declaration is reported to a terminal and nowhere else
 
 **Observed 2026-09-08, on the run that closed A23.** `$ak samples` prints the
@@ -656,6 +610,67 @@ against that one object rather than against the application as a whole.
 ## Closed
 
 Closed entries name the commit that closed them and the run that proved it.
+
+- **A bundle's identity covered the code that assembles it, not what fills it** (A28)
+  - A26 changed one call in the acquisition orchestrator and nothing else. Every status
+  inside `phase-readiness.json` changed; the digest naming the bundle did not.
+  Re-acquiring the same sources was refused as `BUNDLE_PATH_CONFLICT`, whose own
+  comment concludes that something outside the kit wrote into a published bundle.
+  There was no such writer.
+
+  A16 put `bundle_assembly.py` in the identity for this exact reason and named its
+  boundary honestly - "this module and no more". Too narrow by the amount that
+  mattered: the orchestrator is neither an adapter nor a schema, and it computes four
+  things the bundle stores.
+
+  The identity covers `_IDENTITY_SOURCES` now, with the membership rule written beside
+  it - whatever decides bytes that end up inside a published bundle. Listed rather
+  than globbed, because hashing a directory would make every unrelated edit produce a
+  new bundle from the same evidence, which is the opposite failure. What is absent is
+  part of the rule: adapters and schemas state their own versions, and `profiles/
+  *.yaml` arrives as `classification_rule_versions`. `evidence-classes.yaml` joins by
+  content digest rather than its declared `version`, following this module's own
+  argument that a version somebody must remember to bump is wrong exactly when it
+  matters - and A13b already found a rule set here whose declared version had gone
+  decorative.
+
+  The regression does not assert what the list says; it mutates each member in a
+  copied tree and asserts the answer moves, so a member that stops mattering fails.
+
+  `d5342a7`, and **proven on A06 2026-09-09:** re-acquisition produced a new id
+  (`a4a8e8bf`, was `21ec8350`), no conflict, and both bundles now sit side by side -
+  which is what A16 wanted when it said a re-assembly by different code is a different
+  bundle and both should be keepable.
+
+- **The class no command can produce had no shape, and any file at all announced it** (A29)
+  - Found by trying to give `input/interviews/` a starting point. INTERVIEW is the one
+  class nothing in this kit produces, and `evidence.schema.json` requires a name and a
+  date *inside* the file - which a bare directory cannot tell anybody.
+
+  Writing a guide there was not possible: `_has_files` counted every file, so the
+  guide would have reported interview evidence present on every freshly initialized
+  project and Phases 5 and 6 would have read better than they are. The hazard was
+  already live without any guide - a `Thumbs.db` Windows writes while somebody browses
+  `input/screenshots/`, or a `.gitkeep` holding an empty directory in version control,
+  each announced a whole evidence class and moved a phase's readiness with it.
+
+  A closed set of names, compared lowercase because Windows writes `Thumbs.db` and
+  `desktop.ini` in whatever case it feels like. Deliberately not a pattern: a looser
+  rule would eventually discard a file somebody meant as evidence, and a missing class
+  is reported and argued about where a silently dropped one is not.
+
+  The guide states EC-01 and what five of six phases lose without the class, the two
+  fields the schema enforces with an `allOf`, the anchor forms a gate cites, which
+  formats are read, and a skeleton to copy. It says plainly that a photograph of a
+  whiteboard is fine evidence and a poor citation, and that the answer is to keep the
+  image and transcribe beside it. The skeleton ends with a section for questions asked
+  and not yet answered - a different state from a question nobody thought to ask, and
+  only one of them needs chasing.
+
+  `069285b`, and **measured rather than assumed:** a throwaway workspace with one file
+  of each kind in `input/interviews/` reports `.md` NORMALIZED, and both a
+  text-layerless `.pdf` and a `.png` OCR_REQUIRED on a host with no Tesseract. After
+  `init`, the guide exists and `observe()` still reports INTERVIEW absent.
 
 - **The evidence-class gate ran everywhere except where its answer is kept** (A26)
   - Found on 2026-09-09, on the first acquisition of a second real application (A06,
