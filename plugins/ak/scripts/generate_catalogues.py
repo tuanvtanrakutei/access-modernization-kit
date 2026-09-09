@@ -683,6 +683,56 @@ def definition_shapes(space: Any) -> dict[tuple[str, str, str], dict]:
     return shapes
 
 
+def recorded_answers(space: Any) -> dict | None:
+    """What `$ak interviews` recorded about the Q&A register, or None if it never ran.
+
+    Read here because backlog A24 is about exactly this: `$ak samples` found a real
+    contradiction on A05 and left it in terminal output, where no document could state
+    it and no citation could reach it. A register reading has the same problem and the
+    same fix - the check writes `.ak/extracted/interview-register.json`, and this is
+    the reader.
+
+    Absent, unreadable, or empty all answer the same way, because a catalogue that
+    refused to generate over a missing side file would trade one silence for a louder
+    one.
+    """
+    try:
+        record = read_json(space.extracted("interview-register.json")) or {}
+    except (OSError, ValueError):
+        return None
+    return record if record.get("register") else None
+
+
+def register_headline(record: dict | None) -> str:
+    """One paragraph on what the recorded answers can be tied to, and what they cannot.
+
+    The screen column is why this belongs in the Screen Catalogue rather than anywhere
+    else: it is the only field in the register that joins an answer to a screen, and on
+    the first real register it was empty in every row. Saying so is the point - an
+    unanswerable question and an unasked one look identical from here otherwise.
+    """
+    if record is None:
+        return ("**The Q&A register was not read.** Run `$ak interviews`; until then a "
+                "screen with no recorded answer cannot be told from a screen whose "
+                "answer nobody looked for.")
+    register = record.get("register") or []
+    findings = record.get("findings") or []
+    with_screen = [row for row in register if str(row.get("screen") or "").strip()]
+    unanswered = [f["id"] for f in findings if f.get("code") == "NOT_ANSWERED"]
+    hollow = [f["id"] for f in findings if f.get("code") == "ANSWERED_WITHOUT_AN_ANSWER"]
+    parts = [f"{len(register)} recorded question(s) in the Q&A register, "
+             f"{len(with_screen)} of which name a screen."]
+    if not with_screen:
+        parts.append("**None names a screen**, so no answer below can be attributed to "
+                     "a row in this table; the register has the column and it is empty.")
+    if hollow:
+        parts.append(f"**{', '.join(hollow)} is recorded as answered and its page holds "
+                     "no answer** - it is not a closed question.")
+    if unanswered:
+        parts.append(f"Still open: {', '.join(unanswered)}.")
+    return " ".join(parts)
+
+
 def definition_note(entry: dict | None) -> str:
     """One cell saying whether this object's definition text can be trusted whole.
 
@@ -713,7 +763,8 @@ def definition_note(entry: dict | None) -> str:
 
 def screen_catalogue(app_id: str, bundle: Path, facts_dir: Path,
                      derived: dict | None, naming: Any, meaning: Any,
-                     shapes: dict[tuple[str, str, str], dict] | None = None) -> str:
+                     shapes: dict[tuple[str, str, str], dict] | None = None,
+                     answers: dict | None = None) -> str:
     forms = rows_of(read_json(bundle / "ui" / "forms" / "inventory.json"))
     reports = rows_of(read_json(bundle / "ui" / "reports" / "inventory.json"))
     macros = rows_of(read_json(bundle / "ui" / "macros" / "inventory.json"))
@@ -743,6 +794,8 @@ def screen_catalogue(app_id: str, bundle: Path, facts_dir: Path,
         "grouped. That needs SCREENSHOT evidence.",
         "",
         definition_headline(shapes or {}),
+        "",
+        register_headline(answers),
         "",
     ]
 
@@ -1088,7 +1141,7 @@ def main() -> int:
             app_id, bundle, types, sql, naming, writes, meaning),
         f"{app_id}_ScreenCatalogue.md": screen_catalogue(
             app_id, bundle, space.extracted("ui-facts"), derived, naming, meaning,
-            definition_shapes(space)),
+            definition_shapes(space), recorded_answers(space)),
         f"{app_id}_LogicCatalogue.md": logic_catalogue(
             app_id, bundle, derived, sql, naming, meaning),
     }

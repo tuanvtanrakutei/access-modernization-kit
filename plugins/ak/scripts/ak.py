@@ -183,6 +183,15 @@ def parse_args() -> argparse.Namespace:
     )
     samples.add_argument("--app-root", required=True)
 
+    interviews = commands.add_parser(
+        "interviews",
+        help="Read the Q&A register and the pages it indexes, and report where they "
+             "disagree: a question marked answered whose page holds no answer, one "
+             "still open, one the register does not list.",
+    )
+    interviews.add_argument("--app-root", required=True)
+    interviews.add_argument("--dry-run", action="store_true", help="Report without writing the record.")
+
     catalogues = commands.add_parser(
         "catalogues",
         help="Generate the exhaustive per-entity catalogues from the acquisition bundle.",
@@ -457,6 +466,12 @@ def main() -> int:
 
     if args.command == "samples":
         return run("check_feed_samples.py", "--app-root", args.app_root)
+
+    if args.command == "interviews":
+        interview_args = ["--app-root", args.app_root]
+        if args.dry_run:
+            interview_args.append("--dry-run")
+        return run("check_interview_register.py", *interview_args)
 
     if args.command == "catalogues":
         catalogue_args = ["--app-root", args.app_root]

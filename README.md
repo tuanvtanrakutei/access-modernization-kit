@@ -85,6 +85,18 @@ are one-time housekeeping, not part of this per-app sequence.
 | `$ak phase <1-6> <APP_ID>` | Run a specific phase (Phases 1 to 6). |
 | `$ak run <APP_ID>` | Run all permitted phases sequentially. |
 | `$ak status <APP_ID>` | View investigation status and QA reports. |
+| `$ak derive --app-root <PATH>` | Derive the relationships the sealed bundle states literally. Once, after `acquire`, before Phase 1. |
+| `$ak documents --app-root <PATH>` | Normalize XLSX/DOCX/PPTX/PDF and legacy-encoded text into citable UTF-8. Required before Phase 5. |
+| `$ak catalogues --app-root <PATH>` | Generate the exhaustive per-entity catalogues from the bundle — what a narrative cannot carry. |
+| `$ak glossary` / `$ak bilingual` | Propose an English name for every production name; print it beside the production name in the narratives. |
+| `$ak meanings --app-root <PATH>` | List every table and column still needing a business meaning, for a person to fill. |
+| `$ak interviews --app-root <PATH>` | Read the Q&A register against the pages it indexes and report where they disagree. |
+| `$ak samples --app-root <PATH>` | Compare each supplied sample with the import specification its link names. |
+| `$ak completeness --app-root <PATH>` | Record each object's definition-text shape and compare it with the last record. |
+| `$ak references --app-root <PATH>` | List every source this analysis read, with the digest that says which copy. |
+| `$ak citations` / `$ak conformance` | Fail on a citation to an evidence id that does not exist; check a document carries what its phase contract promises. |
+| `$ak import-sources --source <DIR>` | Write the producer manifest an already-exported source tree needs before it can be imported. |
+| `$ak clean --app-root <PATH>` | Report what a workspace no longer needs, and remove it with `--delete`. |
 | `$ak render <APP_ID> [LANG]` | Generate final approved deliverables (English, Japanese, or Vietnamese). |
 | `$ak help` | Show this command guide; no workspace change. |
 | `$ak install codex` | One-time; skip if already installed via `codex plugin add`. N/A — already installed as a Codex plugin. |
