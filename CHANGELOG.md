@@ -1,5 +1,143 @@
 # Changelog
 
+## [2.11.0] - 2026-09-09
+
+Seventy-one commits, and the shape of the release is worth stating before the detail:
+**every defect below was found by running the kit on real applications, and not one was
+found by reading it.** Ten came from a single session that acquired a second real
+application for the first time (A26–A35). None had failed a test, because none could —
+each was a case of something that does nothing looking exactly like something that
+works.
+
+### Added
+
+- **Enumeration got a home, and the narratives stopped pretending to be one.** A14
+  measured the gap: `A05_Phase1` named 20 of 118 tables and read as a complete
+  inventory. `$ak catalogues` now generates `DataCatalogue`, `ScreenCatalogue` and
+  `LogicCatalogue` from the sealed bundle — every table, column, index, form, report,
+  query and module, at 100% — and Phase 1 §2 and Phase 2 §1 were cut back to the
+  meaning they can actually establish, because an enumerating narrative was a second
+  copy of a generated file and the copy was the one people read. `$ak glossary` proposes
+  an English name for every production name and `$ak bilingual` prints it beside the
+  original; `$ak references` lists every source the analysis read with the digest saying
+  which copy; `$ak derive` reads relationships out of the SQL where the schema declares
+  none.
+
+- **A worklist, because nobody fills 1,176 cells from a blank page.** `$ak meanings`
+  enumerates every table and column still needing a business meaning, blank, for a
+  person to fill — and an entry that does not name its source (`evidence_class` plus
+  `source`) is ignored rather than accepted, which is the same discipline the kit
+  applies to itself. Three defects in it were found by running it on A05 rather than by
+  review.
+
+- **`$ak interviews`, for the one evidence class nothing here can produce (A35).**
+  Five of six phases name `INTERVIEW` in what they lose without it (A19), and a project
+  keeping a register of its questions holds the best evidence it has — while the kit
+  could see only that `input/interviews/` was non-empty. It now reads a Notion Markdown
+  & CSV export, matches the register against the pages on the `ID` both carry, and
+  reports the disagreement. On the first real register that was: one question marked
+  `Answered` whose page holds no answer, one still `In Progress`, and every row leaving
+  the screen column empty so no answer could be tied to a screen. `input/interviews/`
+  also gained the guide `init` writes there, because a bare directory cannot say that
+  the schema requires a name and a date inside the file.
+
+- **Import specifications, and the samples they describe, compared (A17, A21, A23).**
+  Two tables declare a text link's columns, and reading them made `$ak samples`
+  possible: it compares each supplied feed against the specification its own link
+  names — field count, header names, and whether `StartRow` agrees with the file having
+  a header. On A05's six feeds, five agreed and `Dpshohin.csv` did not: 29 fields
+  against a declared 28. Three of the six carry a header whose names match the declared
+  ones exactly and in order, which is independent proof the specification was read
+  correctly. A field-count check alone would have missed a renamed column, which is why
+  the header comparison is part of the check and not a refinement of it.
+
+### Changed
+
+- **The evidence-class gate now runs where its answer is stored (A26).**
+  `compute_readiness` takes the class contract optionally, and the call whose result is
+  written into the bundle as `phase-readiness.json` — the file `$ak status`, the run
+  gates and the modernize pre-flight all read — was not passing it. So the gate 2.9.0
+  exists for answered when asked and never where the answer is kept. On A06 the same
+  bundle went from six capability-only verdicts to six that name what each missing class
+  costs; on `examples/minimal-app`, which ships no documents, Phase 5 moved from
+  `LIMITED` to `BLOCKED`, which is what the skill and the audit plan already said it is.
+
+- **A bundle's identity covers what fills it, not only what assembles it (A16, A28,
+  A33).** Three passes, each finding the next. Fixing a defect in the assembler produced
+  a bundle with different bytes and the same name; then fixing A26 did the same one
+  module out; then adding a document did it again, because none of the 54 files an
+  operator supplied reached the identity at all. The identity now covers a named set of
+  sources — written out rather than globbed, with the membership rule beside it — plus a
+  digest of the supplied evidence. And `_canonical_identity` refuses an undeclared term
+  instead of silently dropping it, which is how A33's first attempt did nothing.
+
+- **The bundle inventories the evidence a person supplied (A33).** It recorded four of
+  54 files, two of them in the wrong class, while its own readiness reported five
+  classes present — so the bundle and its readiness disagreed about the same evidence
+  and the disagreement favoured the readiness. `supplied-evidence/inventory.json` is its
+  own section rather than a fifth declared bucket, because those four are a contract the
+  adapters write into and nothing produces this one but a person putting a file
+  somewhere; collapsing them would lose the distinction `OPERATOR_DECLARATION` marks
+  everywhere else.
+
+- **A run that read none of a required database refuses to publish (A34).** One A06 run
+  lost the whole authoritative backend to an intermittent DAO failure and sealed a
+  bundle carrying 188 tables and 730 fields where the complete one has 209 and 1,215 —
+  reported `VALID`, with Phase 1 `READY`, and `backend_authority_declared` satisfied
+  from the manifest about a file nothing had read. A Phase 1 against it would have
+  described 60% of the schema as all of it. `PARTIAL` was the alternative and is what
+  the run already said; a `PARTIAL` bundle is indistinguishable downstream from a
+  complete one, so a louder status would have been ignored the same way. The cause is
+  still open, and deliberately not what this fixes.
+
+### Fixed
+
+- **Three exclusions that destroyed the evidence of their own correctness (A22, A25,
+  A15).** A table dropped for having exactly the shape of an Access import-error
+  residue left no record of that shape, so 208 real exclusions on A06 had to be trusted
+  rather than reviewed; they now each name their three fields. An extractor's own notes
+  — "the object-export tier was skipped because you asked for that" — were classified as
+  objects that could not be read, so a clean run reported failures; warnings and notes
+  are now two channels with the rule written down. And the export-completeness figure
+  was measured and never read, so a reader tracing a screen over a truncated corpus got
+  absence with no way to tell it from absence over a complete one.
+
+- **The exporter's own fidelity, on a corpus whose object names are all Japanese.** It
+  asked the host which characters are illegal, so two hosts produced different filenames
+  from one database; a test decoded PowerShell output in the host locale and passed only
+  where the locale happened to match; `JsonEscape` wrote real control characters instead
+  of escapes; an escaped quote was read as the end of a record source; and a
+  print-settings block opening `PrtMip = Begin` was counted as one `Begin` too few.
+  Every one of these was found by comparing an export against the database it came from.
+
+- **Every workspace initialized since 2.10.0 ignored none of what it created (A27).**
+  The gitignore template named `sources/`, `runs/` and `outputs/`; 2.10.0 renamed them
+  to `input/`, `.ak/runs/` and `output/`. Nothing failed, because a rule matching no
+  path looks exactly like a rule with nothing to match — and on A06 that left two
+  production Access databases, 64 MB, untracked and not ignored inside an application
+  repository a second developer pushes to.
+
+- **Any file at all reported a whole evidence class present (A29).** A `Thumbs.db`
+  Windows writes while somebody browses `input/screenshots/`, or a `.gitkeep` holding an
+  empty directory in version control, moved a phase's readiness — the failure the class
+  contract exists to prevent, arriving through the contract itself.
+
+- **OCR reported success for images it read nothing from (A30, A31, A32).** Installing
+  Tesseract did not make the kit find it, because the installer every Windows
+  instruction points at does not amend `PATH`; a host with `eng` alone ran Japanese
+  screenshots through an English model and returned confident nonsense with no warning;
+  an RGBA image — which almost any Windows screenshot is — returned exit 0 and an empty
+  string, recorded as `NORMALIZED` with a parser and a hash; and a cp932 diagnostic from
+  Tesseract took down the whole `documents` run with an `AttributeError` rather than
+  recording one unreadable image as a gap. Deliberately not fixed: making a
+  low-resolution screenshot OCR *better*. Clearing its DPI tag turns an empty result
+  into a plausible line of garbage recorded as evidence, and an honest `OCR_NO_TEXT` gap
+  is worth more than that.
+
+- **The command tables listed 14 of ~25 verbs (A35).** `meanings` and `catalogues` —
+  the two this release's own backlog calls the most important — were invisible to an
+  agent reading the skill it runs from. Both tables now carry every verb.
+
 ## [2.10.0] - 2026-08-28
 
 ### Changed
