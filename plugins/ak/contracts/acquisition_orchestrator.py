@@ -163,7 +163,8 @@ def run_acquisition(
         )
         contributions.append(adapter.normalize(adapter.acquire(plan)))
     _flag_export_drift(contributions)
-    declared = _declaration_capabilities(manifest.artifacts)
+    with_rows = _database_ids_with_rows(contributions)
+    declared = _declaration_capabilities(manifest.artifacts, with_rows)
     capabilities = _capabilities(contributions) | declared
     # Both optional arguments are passed deliberately. `compute_readiness` skips the
     # evidence-class half when `package_root` is absent, and this call - the one whose
@@ -183,6 +184,18 @@ def run_acquisition(
             "failures": _contribution_failures(contributions),
             "mode": mode_note,
         }
+    # After the return above, and that position is the point. A run that could not
+    # proceed at all already reports why and with what status - a managed artifact with
+    # no authorization granted is BLOCKED, and so is an adapter that never ran. Placed
+    # before it, this guard fired on those too and reported that a database yielded
+    # nothing, which is true and useless: it replaced "you did not authorize this" with
+    # a worse diagnostic. Two tests caught that within the hour.
+    #
+    # What is left here is the case A34 is about: a run that did the work, is otherwise
+    # publishable, and is missing a database it was told to read.
+    _refuse_a_required_database_that_yielded_nothing(
+        manifest.artifacts, with_rows, contributions,
+    )
     # Say plainly which phases this evidence actually opened. The bundle records the
     # readiness already, but an operator running one command should not have to open a
     # file to learn that the phase they came here for is still blocked.
@@ -270,7 +283,87 @@ def _contribution_failures(contributions: list[dict[str, Any]]) -> list[dict[str
     )
 
 
-def _declaration_capabilities(artifacts: tuple[Any, ...]) -> set[str]:
+def _refuse_a_required_database_that_yielded_nothing(
+    artifacts: tuple[Any, ...],
+    databases_with_rows: set[str],
+    contributions: list[dict[str, Any]],
+) -> None:
+    """Stop the run rather than seal a bundle missing a database it was told to read.
+
+    A34, measured on A06. One run's DAO tier failed on the declared authoritative
+    backend - `Not a valid password`, on a file the previous run had opened from the
+    same local path with no password - and the run went on to publish a bundle with
+    188 tables and 730 fields where the complete one has 209 and 1,215. The whole
+    backend was absent, and nothing said so:
+
+    - `bundle validate` reported VALID, because every file the layout requires existed;
+    - `phase1` reported READY, because the frontend's own rows satisfied
+      `access_schema_inventory`, `field_inventory` and `key_index_inventory`;
+    - `backend_authority_declared` reported satisfied, from the manifest;
+    - `coverage.json` recorded 730 as the figure, with no statement that a database
+      was missing.
+
+    A Phase 1 run against it would have described 60% of the schema as all of it, and
+    passed QA doing so. The only reason it surfaced is that a second run existed to
+    compare against.
+
+    So a failure that loses a whole database has to end the run. `PARTIAL` was the
+    alternative and it is what the run already reported - and a `PARTIAL` bundle is
+    today indistinguishable downstream from a complete one, which is precisely why a
+    louder status would have been ignored the same way. A refusal cannot be.
+
+    **The contract this creates, stated so it is not a surprise:** an artifact whose
+    database is legitimately empty must be declared `required: false`. There is no way
+    to tell an empty database from an unread one by looking at zero rows, and of the
+    two readings the expensive one to get wrong is the second.
+    """
+    missing = [
+        artifact for artifact in artifacts
+        if artifact.required
+        and artifact.kind == "access_database"
+        and artifact.id not in databases_with_rows
+    ]
+    if not missing:
+        return
+    detail = []
+    for artifact in missing:
+        reasons = [
+            str(failure.get("reason", "")).strip()
+            for contribution in contributions
+            for failure in contribution["failures"]
+            if failure.get("logical_id") == artifact.id
+            and "DAO tier failed" in str(failure.get("reason", ""))
+        ]
+        why = reasons[0] if reasons else "no failure was recorded against it, which is its own question"
+        detail.append(f"{artifact.id} ({artifact.role}): {why}")
+    raise ValueError(
+        "REQUIRED_DATABASE_YIELDED_NOTHING: "
+        + "; ".join(detail)
+        + ". No bundle was published. Re-run, and if the database is genuinely empty "
+        "declare it `required: false` - a bundle missing a database it was told to "
+        "read is indistinguishable downstream from a complete one. See BACKLOG A34."
+    )
+
+
+def _database_ids_with_rows(contributions: list[dict[str, Any]]) -> set[str]:
+    """Which databases actually yielded schema, by the id the rows carry.
+
+    Every table row records the `database_id` it came from, and that value is the
+    artifact's own id - so this answers "was this file read" exactly, rather than by
+    inference from a status or a failure count.
+    """
+    seen: set[str] = set()
+    for contribution in contributions:
+        for row in contribution["databases"]["tables"]:
+            identifier = row.get("database_id")
+            if identifier:
+                seen.add(str(identifier))
+    return seen
+
+
+def _declaration_capabilities(
+    artifacts: tuple[Any, ...], databases_with_rows: set[str] | None = None,
+) -> set[str]:
     """Capabilities the manifest itself establishes, not the extracted evidence.
 
     ``backend_authority_declared`` is required by the backend and split-topology
@@ -278,12 +371,26 @@ def _declaration_capabilities(artifacts: tuple[Any, ...]) -> set[str]:
     extracted, and this one is a statement about which store the project treats as
     authoritative. Only the manifest can make it, and until it was read here Phase 1
     stayed BLOCKED on a capability nothing in the package produced.
+
+    **A34: a declaration about a file nobody could read is not a capability.** The
+    three conditions below all read the manifest, and none of them asked whether the
+    declared backend had been read - so a run whose DAO tier failed on the backend,
+    losing all 21 of its tables and 485 of the workspace's 1,215 fields, still
+    reported this satisfied, and Phase 1 still reported READY off the frontend's own
+    rows. That is A26's shape again: a gate answering the question it set itself,
+    where the question was the wrong one.
+
+    `databases_with_rows` is optional only so the existing callers that ask what a
+    manifest declares - before any acquisition exists to check against - keep
+    working. When it is passed, a declared backend that yielded no schema no longer
+    counts as declared.
     """
     capabilities: set[str] = set()
-    if any(
-        artifact.role == "backend" and artifact.required and artifact.backend_kind
-        for artifact in artifacts
-    ):
+    for artifact in artifacts:
+        if not (artifact.role == "backend" and artifact.required and artifact.backend_kind):
+            continue
+        if databases_with_rows is not None and artifact.id not in databases_with_rows:
+            continue
         capabilities.add("backend_authority_declared")
     return capabilities
 
