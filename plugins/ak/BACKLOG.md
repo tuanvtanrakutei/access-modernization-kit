@@ -12,49 +12,66 @@ that it should now work.
 
 ## Open
 
-### A34 - two acquisitions of the same unchanged databases produce different evidence
+### A34 - a run that read none of the backend still sealed a VALID bundle and reported Phase 1 READY
 
-**Observed 2026-09-09 on A06, and found only because A33's improved conflict message
-named the files that differed.** Two runs over the same two `.mdb` files, nothing
-touched between them:
+**Observed 2026-09-09 on A06, found because A33's improved conflict message named the
+files that differed, and the first explanation written down for it was wrong.** Two runs
+over the same two `.mdb` files, nothing touched between them:
 
 | | run A | run B |
 |---|---|---|
 | `databases/tables.json` | 188 | **209** |
 | `databases/fields.json` | 730 | **1215** |
 | `databases/indexes.json` | 61 | **112** |
-| `code/access-sql/inventory.json` | 27 | 28 |
 | `failures/extraction-failures.json` | 159 | 158 |
 
-Fields differ by **485**. That is not jitter, it is 40% of the schema.
+The first note here guessed at flaky link resolution over the mapped drive, because 180
+of the frontend's 188 tables are linked and their targets are absolute network paths.
+**That guess was wrong, and measuring took ten minutes.** The 21 tables the smaller run
+lost all belong to one database - `2003DATA2003_B12705FD`, the declared authoritative
+backend - and every one of them is a **local** table in it, not a link. The smaller run
+did not lose some links. It did not read the backend at all.
 
-**The likely mechanism, stated as a hypothesis because it is not yet measured.** 180 of
-this frontend's 188 tables are linked, and their targets are absolute paths on a mapped
-network drive - 21 of them at `L:/a06/...`, which exists, and the rest at a live share
-path which does not. A read that fails collects no fields for that table, so one extra
-failure in run A costing about 485 fields is consistent with a single unreadable backend
-taking 21 linked tables with it, at roughly 23 fields each. A transient network read
-would produce exactly this shape.
+One failure separates the two runs, and it names the cause:
 
-**Why this is worse than the conflict it was found through.** Nothing reports the
-smaller run as smaller. `coverage.json` states the count it collected as if that were
-the whole of it, `bundle validate` returns VALID, and readiness stays READY - because
-every capability is still satisfied by *some* rows. A phase would have been analysed
-against 730 fields believing it had the schema. The only reason this surfaced at all is
-that a second run existed to compare against, and the only reason the comparison
-happened is that the two runs collided on a path.
+    [2003DATA2003_B12705FD] DAO tier failed (DAO.DBEngine.36): Not a valid password.
 
-**What to build.** Two things, and the first is cheap: a run has to be able to say what
-it did not read. The extractor already records a failure per unreadable table; what is
-missing is a figure that says the acquisition is incomplete in a way a reader cannot
-miss, in the same place the counts are reported. The second is a decision - whether an
-acquisition whose link targets are unreachable should be `PARTIAL` (as now) or refuse
-to seal a bundle at all, given a PARTIAL bundle is indistinguishable downstream from a
-complete one.
+The other run opened the same file, from the same local path, with no password. So this
+is not a protected database; it is DAO reporting an unhelpful error for a file it could
+not open at that moment - the shape a snapshot copy still being written, or a lock left
+by the previous run, produces. Not yet isolated, and that is the first thing to do.
 
-**What an operator should do meanwhile, since this is not a kit-side workaround.** Do
-not extract across a network share. Copy the linked backends local, or re-point the
-links, before acquiring - and compare two runs before trusting one.
+**The consequence is the entry, and it is worse than the variance.** The run that read
+**none** of the authoritative backend still:
+
+- sealed a bundle that `bundle validate` reported **VALID**;
+- reported `phase1` **READY**, because `access_schema_inventory`, `field_inventory` and
+  `key_index_inventory` were all satisfied by the frontend's own rows;
+- reported `backend_authority_declared` satisfied, because that capability comes from
+  the manifest saying which database is authoritative - a declaration, which stays true
+  whether or not anything managed to read the file;
+- recorded its 730 fields in `coverage.json` as the figure, with no statement anywhere
+  that a whole database was missing.
+
+A phase would have been analysed against 60% of the schema believing it had all of it.
+The only reason this surfaced is that a second run existed to compare against.
+
+**What to build, in order.**
+
+1. Isolate the intermittent open. Retry once on a DAO failure and record both attempts,
+   and verify the snapshot is complete before DAO is pointed at it - this is a local
+   copy of a 20.8 MB file, so a race is cheap to rule in or out.
+2. Make a missing artifact impossible to overlook. An artifact declared `required: true`
+   that contributed no rows should block the seal, not appear as one line among 159
+   failures. `backend_authority_declared` in particular must stop being satisfiable by a
+   declaration alone when the declared file was never read - that is the same shape as
+   A26, a gate answering from the wrong source.
+3. Then decide whether such a run should be `PARTIAL` (as now) or refuse to publish,
+   given a `PARTIAL` bundle is today indistinguishable downstream from a complete one.
+
+**What an operator can do until then.** After every `acquire run`, read
+`failures/extraction-failures.json` for a line matching `DAO tier failed` and re-run if
+one is present. It is a workaround for a defect, not a procedure worth keeping.
 
 ### A24 - a sample that contradicts its declaration is reported to a terminal and nowhere else
 
