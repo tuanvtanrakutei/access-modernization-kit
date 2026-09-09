@@ -202,3 +202,43 @@ def test_a_document_a_person_supplied_still_counts(tmp_path: Path) -> None:
     (documents / "manual.xlsx").write_bytes(b"x")
     assert "DOCUMENT" in evidence_classes.observe(set(), tmp_path)
     assert readiness(STRUCTURAL, tmp_path)["phase5"]["status"] != "BLOCKED"
+
+
+def test_a_directory_holding_only_non_evidence_is_still_empty(tmp_path: Path) -> None:
+    """Existence proved nothing; any file at all proved too much.
+
+    `_has_files` counted every file, so a `Thumbs.db` Windows wrote while somebody
+    browsed `input/screenshots/`, or a `.gitkeep` holding an empty directory in
+    version control, reported a whole evidence class present - and with it moved a
+    phase's readiness. This is the failure the class contract exists to prevent,
+    arriving through the contract itself.
+
+    It also blocks something the kit needs to do: `input/interviews/` is the one class
+    no command here can produce and the one a bare folder teaches nothing about, so
+    `init` writes a guide into it. Without this rule that guide would announce
+    interview evidence on every project that has none.
+    """
+    screenshots = tmp_path / "input" / "screenshots"
+    screenshots.mkdir(parents=True)
+    (screenshots / "README.md").write_text("the kit's own guide", encoding="utf-8")
+    (screenshots / "Thumbs.db").write_bytes(b"\x00")
+    (screenshots / ".gitkeep").write_text("", encoding="utf-8")
+    assert "SCREENSHOT" not in evidence_classes.observe(set(), tmp_path)
+
+    (screenshots / "main.png").write_bytes(b"x")
+    assert "SCREENSHOT" in evidence_classes.observe(set(), tmp_path)
+
+
+def test_the_exclusion_is_by_name_and_ignores_case(tmp_path: Path) -> None:
+    """Windows writes `Thumbs.db` and `desktop.ini` in whatever case it feels like."""
+    interviews = tmp_path / "input" / "interviews"
+    interviews.mkdir(parents=True)
+    for name in ("readme.md", "README.MD", "THUMBS.DB", "Desktop.ini", ".DS_Store"):
+        (interviews / name).write_text("x", encoding="utf-8")
+    assert "INTERVIEW" not in evidence_classes.observe(set(), tmp_path)
+
+    # A real answer is a file like any other. Nothing about the name of an interview
+    # record is constrained, so the rule must not reach any further than the closed
+    # set it declares.
+    (interviews / "notes.md").write_text("Horiuchi, 2026-09-09", encoding="utf-8")
+    assert "INTERVIEW" in evidence_classes.observe(set(), tmp_path)

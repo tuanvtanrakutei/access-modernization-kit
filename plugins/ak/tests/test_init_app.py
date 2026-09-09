@@ -217,3 +217,32 @@ def test_the_workspace_gitignore_covers_what_init_actually_creates(tmp_path: Pat
     # The sealed bundle is the evidence a later phase cites. Ignoring the raw
     # databases must not take it with them.
     assert any("bundle.json" in line for line in listed.splitlines()), listed
+
+
+def test_init_writes_the_interview_guide_without_claiming_interview_evidence(
+    tmp_path: Path,
+) -> None:
+    """Two changes that only work together, so they are asserted together.
+
+    `input/interviews/` is the one evidence class no command in this kit produces, and
+    the schema requires a name and a date *inside* the file - which a bare directory
+    cannot tell anybody. So `init` writes a guide there. That is only safe because
+    `evidence_classes._has_files` skips the kit's own guides: writing this file
+    without that rule would report INTERVIEW evidence present on every freshly
+    initialized project, and Phases 5 and 6 would read better than they are.
+    """
+    import sys
+
+    sys.path.insert(0, str(PACKAGE / "contracts"))
+    import evidence_classes
+
+    app_root = tmp_path / "A99"
+    run_init(app_root, "A99")
+
+    guide = app_root / "input" / "interviews" / "README.md"
+    assert guide.is_file(), "init must write input/interviews/README.md"
+    text = guide.read_text(encoding="utf-8")
+    assert "recorded_on" in text, "the guide must name what the schema requires"
+    assert "EC-01" in text, "and why the class carries the weight it does"
+
+    assert "INTERVIEW" not in evidence_classes.observe(set(), app_root)
