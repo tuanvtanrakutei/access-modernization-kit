@@ -370,40 +370,68 @@ Private Function TableSchemaJson(ByVal td As Object) As String
     s = s & "    ""connect"": """ & JsonEscape(RedactConnect(td.Connect)) & """," & vbCrLf
     s = s & "    ""attributes"": " & CStr(td.Attributes) & "," & vbCrLf
 
+    ' Reading a linked table's fields is where an unreachable target throws, and the
+    ' error has to be captured HERE rather than after the loops. With On Error Resume
+    ' Next in force a For Each that cannot initialise still reaches its Next, and the
+    ' Next raises Err 92 "For loop not initialized" - which overwrites the real message
+    ' before anything reads it. A06's first export recorded that 154 times, once per
+    ' stale link, where every one should have read that the linked path is not valid.
+    ' The substituted message reads as a fault in this exporter; the real one reads as
+    ' a finding about the application, which is what it is.
+    '
+    ' A count is enough to provoke it, and costs nothing on a table that opens.
+    Dim fieldCount As Long
+    Err.Clear
+    fieldCount = td.Fields.Count
+    If Err.Number <> 0 Then
+        readErr = Err.Description
+        Err.Clear
+    End If
+
     parts = ""
     first = True
-    For Each fld In td.Fields
-        If Not first Then parts = parts & "," & vbCrLf
-        parts = parts & "      {""name"": """ & JsonEscape(fld.name) & """, ""type"": " & CStr(fld.Type) & _
-                ", ""size"": " & CStr(fld.Size) & ", ""required"": " & LCase$(CStr(fld.Required)) & "}"
-        first = False
-    Next
+    If Len(readErr) = 0 Then
+        For Each fld In td.Fields
+            If Not first Then parts = parts & "," & vbCrLf
+            parts = parts & "      {""name"": """ & JsonEscape(fld.name) & """, ""type"": " & CStr(fld.Type) & _
+                    ", ""size"": " & CStr(fld.Size) & ", ""required"": " & LCase$(CStr(fld.Required)) & "}"
+            first = False
+        Next
+    End If
     s = s & "    ""fields"": [" & vbCrLf & parts & vbCrLf & "    ]," & vbCrLf
 
     parts = ""
     first = True
-    For Each idx In td.Indexes
-        Dim ixFields As String, ixFirst As Boolean
-        ixFields = ""
-        ixFirst = True
-        For Each ixf In idx.Fields
-            If Not ixFirst Then ixFields = ixFields & ", "
-            ixFields = ixFields & """" & JsonEscape(ixf.name) & """"
-            ixFirst = False
+    If Len(readErr) = 0 Then
+        For Each idx In td.Indexes
+            Dim ixFields As String, ixFirst As Boolean
+            ixFields = ""
+            ixFirst = True
+            For Each ixf In idx.Fields
+                If Not ixFirst Then ixFields = ixFields & ", "
+                ixFields = ixFields & """" & JsonEscape(ixf.name) & """"
+                ixFirst = False
+            Next
+            If Not first Then parts = parts & "," & vbCrLf
+            parts = parts & "      {""name"": """ & JsonEscape(idx.name) & """, ""primary"": " & LCase$(CStr(idx.Primary)) & _
+                    ", ""unique"": " & LCase$(CStr(idx.Unique)) & ", ""fields"": [" & ixFields & "]}"
+            first = False
         Next
-        If Not first Then parts = parts & "," & vbCrLf
-        parts = parts & "      {""name"": """ & JsonEscape(idx.name) & """, ""primary"": " & LCase$(CStr(idx.Primary)) & _
-                ", ""unique"": " & LCase$(CStr(idx.Unique)) & ", ""fields"": [" & ixFields & "]}"
-        first = False
-    Next
+    End If
     s = s & "    ""indexes"": [" & vbCrLf & parts & vbCrLf & "    ]," & vbCrLf
 
     ' A table linked to a missing external file throws when its fields are read. Keep
     ' the identity and the link target: an unreachable interface is boundary evidence,
     ' and dropping it would hide the very thing Phase 1 needs.
-    If Err.Number <> 0 Then
+    '
+    ' `readErr` is already set when the field count above threw, and that message is the
+    ' one worth keeping. This clause covers a table that counted its fields and failed
+    ' later, so it must not overwrite a message it did not produce.
+    If Len(readErr) = 0 And Err.Number <> 0 Then
         readErr = Err.Description
-        AddSkip "table", td.name, Err.Description
+    End If
+    If Len(readErr) > 0 Then
+        AddSkip "table", td.name, readErr
     End If
     Err.Clear
     s = s & "    ""read_error"": """ & JsonEscape(readErr) & """" & vbCrLf

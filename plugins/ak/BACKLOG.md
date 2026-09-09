@@ -728,6 +728,106 @@ against that one object rather than against the application as a whole.
 
 Closed entries name the commit that closed them and the run that proved it.
 
+- **An inventory of object names satisfied the class defined as their definitions** (A36)
+  - `evidence-classes.yaml` defines what Phase 2 requires in one sentence: *"UI_DEFINITION
+  means: SaveAsText form and report definitions: record sources, bound fields, event
+  procedures, embedded controls."* A06's bundle carried **38 form names, no text and no
+  `source_paths`** - the run declared `skip_object_export: true`, which is the normal way
+  a frontend whose startup code hangs an unattended run is acquired. `$ak derive` said
+  the same from the other end: *distilled 0 UI objects*.
+
+  Readiness reported **phase2 READY**, because `CLASS_FROM_CAPABILITY` mapped both
+  `access_object_inventory` and `ui_object_inventory` onto the class. Those prove objects
+  **exist**; the class is defined as their **definitions**. A26's and A34's shape a third
+  time, and the sharpest, because the sentence and the mapping that contradicts it live
+  in the same repository.
+
+  Fixed by the route the sentence already implies: a new `ui_definition_text` capability
+  that both adapters emit only when a ui row actually carries text, mapped to
+  `UI_DEFINITION`; the two name capabilities keep existing and the profile rules keep
+  requiring them, because "the objects are there" is a real and different fact.
+
+  **Two further defects fell out of it, and neither could have been found any other
+  way.**
+
+  The first is why nobody had noticed. `phase_evidence` builds the remedy with the
+  exporter's path resolved for the install in use - the right answer to *"where is that
+  file after I install the plugin"* - and emits it **only when the capability is
+  missing**. With a name inventory answering, `$ak phase requirements --phase 2` returned
+  `missing: []`, `status: READY`, and never mentioned the exporter. The defect hid its
+  own cure.
+
+  The second is that the cure was wrong. Following it verbatim fails: it named the Sub
+  `ExportAll`, which does not exist - it is `ExportAccessObjects` - and all three of its
+  paths still said `sources/`, which 2.10.0 renamed to `input/`. Corrected, with the
+  SHIFT-to-bypass-startup step and the dated-folder rule the tool itself requires.
+
+  And once the class map was right, the remedy still did not print: it is rendered per
+  entry in `missing`, which is the *capability* half, and after the fix UI_DEFINITION
+  blocks while both name capabilities stay satisfied - so `missing` is empty. A
+  `CLASS_SUPPLY_ROUTE` map now renders it for a blocking class too, and deliberately
+  covers only classes whose remedy is a command: DOCUMENT, INTERVIEW, SCREENSHOT,
+  SAMPLE_DATA and OUTPUT_SAMPLE are absent because their remedy is a person supplying a
+  file, which no command can perform.
+
+  **Proven on two real A06 bundles acquired an hour apart**, which is the pair the fix
+  exists to tell apart:
+
+        without the export   UI_DEFINITION absent, phase2 BLOCKED,
+                             blocking: ["UI_DEFINITION"], and the exporter's absolute
+                             path printed with the corrected commands
+        with the export      UI_DEFINITION from capability:ui_definition_text,
+                             phase2 READY
+
+  Before the fix the first of those reported READY. And the export it asks for is what
+  took `$ak derive` from 0 UI objects to 51, and `ScreenCatalogue` from 38 bare names to
+  record sources and bound fields - `商品情報画面サブ` binding
+  `商品情報.通路, 商品情報.棚, 商品情報.段, 商品情報.番号`, which are precisely the
+  columns this project's change requests rename.
+
+- **An error handler replaced 154 findings with its own error** (A37)
+  - Reported by an operator reading the first manual export of A06: 154 of the
+  frontend's 188 tables skipped, every one of them saying
+
+        For loop not initialized
+
+  which reads as a fault in the exporter. It is not. It is VBA's Err 92, raised by the
+  exporter's own `Next` statement, overwriting the real message before anything read it.
+
+  `TableSchemaJson` runs under `On Error Resume Next`. For a table whose linked target
+  is unreachable, `For Each fld In td.Fields` throws - and with errors resumed the loop
+  never initialises, execution reaches `Next` anyway, and `Next` raises Err 92. By the
+  time the handler at the bottom reads `Err.Description`, the message it wants is gone.
+
+  The comment above that handler shows the author knew the case exactly: *"A table
+  linked to a missing external file throws when its fields are read. Keep the identity
+  and the link target: an unreachable interface is boundary evidence."* The intent was
+  right and the mechanism destroyed it. A32's shape in a second language.
+
+  **What the substitution costs is the whole point.** Correlating each table with its
+  link target showed the pattern is perfect - all 34 that read have a reachable target,
+  all 154 that failed have one that does not exist on this host:
+
+        86  L:\新物流支援\常温\常温品物流支援data.mdb
+        48  L:\新物流支援\常温\常温物流支援WIN10対応\...2003data2003.mdb
+        17  the two 累積 files at those paths
+         3  a UNC path and a developer's Windows XP desktop
+
+  So `For loop not initialized` reads as *"this tool is broken"*, where
+  `'...常温品物流支援data.mdb' is not a valid path` reads as *"154 stale links point at
+  a backend that no longer exists"* - which is a finding about the application, and one
+  of the more consequential ones A06 has produced. The runtime extractor reported it
+  correctly on the same databases, which is how the real message was recoverable at all.
+
+  Fixed by provoking the error where it can be caught: `td.Fields.Count` before either
+  loop, captured immediately, with both loops skipped when it throws. The handler at the
+  bottom no longer overwrites a message it did not produce.
+
+  **Unproven, and stated as such.** VBA cannot be exercised from the test suite, so this
+  is correct by reading and by the structure of the failure, not by a run. It is proven
+  by the next export of a database with an unreachable link - the same standard A21 was
+  shipped under and closed by.
+
 - **The most valuable evidence in the workspace was visible only as "some files exist"** (A35)
   - INTERVIEW is the one class nothing in this kit can produce, and five of six phases
   name it in what they lose without it (A19). A project keeping a register of its
