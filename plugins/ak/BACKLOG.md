@@ -12,6 +12,57 @@ that it should now work.
 
 ## Open
 
+### A33 - the bundle neither inventories the evidence a person supplies nor counts it in its identity
+
+**Observed 2026-09-09 on A06, and it is the largest gap found so far.** An operator
+supplied 54 files across the five evidence-class directories. The sealed bundle records
+**four**, and two of those four are in the wrong class:
+
+| `input/` | files a person put there | `evidence-sources/` entries |
+|---|---|---|
+| `documents/` | 5 | 2 |
+| `screenshots/` | 14 | **0** |
+| `samples/` | 1 | 2, and both are documents |
+| `report-samples/` | 14 | **0** |
+| `interviews/` | 20 | no section exists |
+
+The four it does record are the artifacts `init --source` happened to discover and
+write into the manifest. Everything added afterwards - which is the normal way evidence
+arrives - reaches the bundle not at all.
+
+Meanwhile `phase-readiness.json`, written into the same bundle by the same run, reports
+`SCREENSHOT`, `DOCUMENT`, `INTERVIEW`, `SAMPLE_DATA` and `OUTPUT_SAMPLE` all present,
+because `evidence_classes.observe` reads the directories directly. **So the bundle and
+its own readiness file disagree about the same evidence**, and the disagreement favours
+the readiness: a phase is told it has screenshots, and a reader of the bundle cannot
+find one.
+
+That contradicts a design note this package already carries, in
+`normalize_documents.py`:
+
+> Person-supplied evidence is declared by being there. Asking an operator to also list
+> it in the manifest would be asking them to do the kit's bookkeeping.
+
+The normalizer honours that. The bundle does not.
+
+**The second consequence is the one that interrupts work.** Because none of those files
+reach the identity, adding evidence changes what a bundle *says* without changing what
+it is *called* - so the ordinary loop of supplying a document and re-acquiring ends in
+`BUNDLE_PATH_CONFLICT` on the same day. This is A28's shape in a second dimension, and
+A28's fix does not cover it: A28 put the *code* that decides bundle contents into the
+identity, and this is *evidence* that decides them.
+
+**What to build.** An `evidence-sources/` section that inventories what is actually in
+the class directories - path, class, and content hash, which is all `observe` needs and
+all a reviewer needs to follow one back - and a digest of that inventory in the bundle
+identity, so a different evidence set is a different bundle and both are keepable.
+
+**What is not yet decided.** Whether the manifest-declared artifacts and the
+path-declared files should appear in one inventory or two. One list is simpler to read;
+two keep the distinction between evidence somebody declared and evidence somebody
+dropped, and that distinction is exactly what `OPERATOR_DECLARATION` exists to mark
+elsewhere. Worth deciding rather than defaulting.
+
 ### A24 - a sample that contradicts its declaration is reported to a terminal and nowhere else
 
 **Observed 2026-09-08, on the run that closed A23.** `$ak samples` prints the
