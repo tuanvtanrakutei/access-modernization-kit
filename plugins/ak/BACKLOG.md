@@ -611,6 +611,47 @@ against that one object rather than against the application as a whole.
 
 Closed entries name the commit that closed them and the run that proved it.
 
+- **A diagnostic nobody could decode took down the whole run, and a Japanese filename broke the fix beside it** (A32)
+  - Both found within an hour of A31 landing, by an operator putting real files in a
+  real workspace. `$ak documents` died outright:
+
+        AttributeError: 'NoneType' object has no attribute 'strip'
+
+  Tesseract writes its diagnostics in the host locale, which on the machines this kit
+  exists for is cp932. Strict utf-8 decoding raised inside subprocess's own reader
+  thread, left `result.stderr` as None, and the next line died on `None.strip()` - so
+  one unreadable image lost every other source in the workspace instead of being
+  recorded as a gap.
+
+  **This is a bug this repository had already fixed, elsewhere.**
+  `adapters/managed_access` records it in its own history: "the adapter decoded the
+  child's output as strict utf-8, so cp932 diagnostics from a Japanese-Windows
+  PowerShell killed subprocess's reader threads and reduced every failure to a bare
+  returncode." The lesson never reached the normalizer, which runs two children of
+  its own. Both now decode with `errors="replace"`, and the failure path stays
+  defensive about None: a reader thread can fail for reasons that are not encoding,
+  and a diagnostic nobody can read is not a reason to lose the name of the file that
+  produced it.
+
+  The second half is a defect A31 introduced, and it is the sharper lesson. The
+  flattened copy was named `{stem}-ocr.png`, so a Japanese filename put non-ASCII in
+  the temp path - and Leptonica, Tesseract's image layer, opens the path with the C
+  runtime's narrow API. Every read failed:
+
+        OCR_FAILED: Leptonica Error: image file not found:
+          ...Temp\ak-ocr-rgb-7ssxtbng\<mangled>\-ocr.png
+
+  Four of a real workspace's report exports failed that way - `新商品一覧表.png`,
+  `新規事業部受注合計表.png`, `日別在庫表.png`, `棚卸表.png` - all of them perfectly
+  readable files. The remedy was already written down twice in this package:
+  `extract_access.ps1` appends a digest to an altered filename, and bundle filenames
+  come from a hash of the logical id. The temp name is a digest now, and the original
+  stays in the audit entry where it is actually read.
+
+  Worth saying plainly: A31 was written and reviewed in the same session that fixed
+  three defects of the form "the kit destroyed the Japanese name it was handed", and
+  it then did exactly that. A rule remembered is not a rule enforced.
+
 - **Installing Tesseract did not make the kit find it, and English-only OCR said nothing about it** (A30)
   - Found by acting on this kit's own advice. A06's scope drawing has no text layer, the
   operator installed Tesseract as told, and `$ak documents` still reported
