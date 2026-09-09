@@ -64,10 +64,33 @@ def load_contract(package_root: Path) -> dict[str, Any]:
     return yaml.safe_load(path.read_text(encoding="utf-8")) or {}
 
 
+# Files that sit in an evidence directory without being evidence. The question
+# `_has_files` answers is "did a person put evidence of this class here", and any file
+# at all used to answer it yes - so a `Thumbs.db` Windows wrote while somebody browsed
+# `input/screenshots/`, or a `.gitkeep` holding an empty directory in version control,
+# reported a whole evidence class present and moved a phase's readiness with it. That
+# is the same failure this module exists to prevent, arriving through the module
+# itself.
+#
+# A closed set of names rather than a pattern, and lowercase-compared because Windows
+# writes `Thumbs.db` and `desktop.ini` in the cases it feels like. A looser rule would
+# eventually drop a file somebody meant as evidence, which is the more expensive
+# mistake: a missing class is reported and argued about, a silently discarded one is
+# not.
+NOT_EVIDENCE_FILENAMES = frozenset({
+    "readme.md",      # the kit's own guide to the directory it sits in
+    ".gitkeep", ".keep", ".gitignore", ".gitattributes",
+    "thumbs.db", "desktop.ini", ".ds_store",
+})
+
+
 def _has_files(directory: Path) -> bool:
     if not directory.is_dir():
         return False
-    return any(item.is_file() for item in directory.rglob("*"))
+    return any(
+        item.is_file() and item.name.lower() not in NOT_EVIDENCE_FILENAMES
+        for item in directory.rglob("*")
+    )
 
 
 def observe(

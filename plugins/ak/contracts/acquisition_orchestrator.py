@@ -164,8 +164,15 @@ def run_acquisition(
     _flag_export_drift(contributions)
     declared = _declaration_capabilities(manifest.artifacts)
     capabilities = _capabilities(contributions) | declared
+    # Both optional arguments are passed deliberately. `compute_readiness` skips the
+    # evidence-class half when `package_root` is absent, and this call - the one whose
+    # answer is written into the bundle as `phase-readiness.json` and read by every
+    # later step - omitted it, so the gate 2.9.0 exists for ran on `$ak phase` and
+    # nowhere the result was stored. `source_root` is the workspace root, which is what
+    # `evidence_classes.observe` reads `input/documents` and `input/interviews` under.
     readiness = phase_readiness_contract.compute_readiness(
-        classification, PROFILES, capabilities
+        classification, PROFILES, capabilities,
+        package_root=PACKAGE, app_root=source_root,
     )
     profile_validation = {"status": _worst_contribution_status(contributions)}
     worst = _worst_contribution_status(contributions)

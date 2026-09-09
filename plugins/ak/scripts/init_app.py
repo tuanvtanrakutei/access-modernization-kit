@@ -460,6 +460,16 @@ def main() -> int:
     guide.parent.mkdir(parents=True, exist_ok=True)
     if not guide.exists():
         shutil.copy2(package_root / "templates" / "input.README.md", guide)
+    # `interviews/` is the one class no command in this kit can produce, and the one
+    # an empty directory teaches nothing about: the schema requires a name and a date
+    # inside the file, and an operator meeting a bare folder has no way to know that.
+    # Safe to place because `evidence_classes._has_files` skips the kit's own guides -
+    # without that, writing this file would report INTERVIEW evidence present on a
+    # project that has none, which is the failure the class exists to prevent.
+    interview_guide = _input_root(app_root) / "interviews" / "README.md"
+    interview_guide.parent.mkdir(parents=True, exist_ok=True)
+    if not interview_guide.exists():
+        shutil.copy2(package_root / "templates" / "interviews.README.md", interview_guide)
     verb = "Adopted existing workspace" if existing_nonempty else "Initialized"
     print(f"{verb} {app_root}")
     # A role left unknown blocks Phase 1 by design, so say so here rather than letting

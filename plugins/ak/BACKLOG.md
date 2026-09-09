@@ -611,6 +611,139 @@ against that one object rather than against the application as a whole.
 
 Closed entries name the commit that closed them and the run that proved it.
 
+- **A bundle's identity covered the code that assembles it, not what fills it** (A28)
+  - A26 changed one call in the acquisition orchestrator and nothing else. Every status
+  inside `phase-readiness.json` changed; the digest naming the bundle did not.
+  Re-acquiring the same sources was refused as `BUNDLE_PATH_CONFLICT`, whose own
+  comment concludes that something outside the kit wrote into a published bundle.
+  There was no such writer.
+
+  A16 put `bundle_assembly.py` in the identity for this exact reason and named its
+  boundary honestly - "this module and no more". Too narrow by the amount that
+  mattered: the orchestrator is neither an adapter nor a schema, and it computes four
+  things the bundle stores.
+
+  The identity covers `_IDENTITY_SOURCES` now, with the membership rule written beside
+  it - whatever decides bytes that end up inside a published bundle. Listed rather
+  than globbed, because hashing a directory would make every unrelated edit produce a
+  new bundle from the same evidence, which is the opposite failure. What is absent is
+  part of the rule: adapters and schemas state their own versions, and `profiles/
+  *.yaml` arrives as `classification_rule_versions`. `evidence-classes.yaml` joins by
+  content digest rather than its declared `version`, following this module's own
+  argument that a version somebody must remember to bump is wrong exactly when it
+  matters - and A13b already found a rule set here whose declared version had gone
+  decorative.
+
+  The regression does not assert what the list says; it mutates each member in a
+  copied tree and asserts the answer moves, so a member that stops mattering fails.
+
+  `d5342a7`, and **proven on A06 2026-09-09:** re-acquisition produced a new id
+  (`a4a8e8bf`, was `21ec8350`), no conflict, and both bundles now sit side by side -
+  which is what A16 wanted when it said a re-assembly by different code is a different
+  bundle and both should be keepable.
+
+- **The class no command can produce had no shape, and any file at all announced it** (A29)
+  - Found by trying to give `input/interviews/` a starting point. INTERVIEW is the one
+  class nothing in this kit produces, and `evidence.schema.json` requires a name and a
+  date *inside* the file - which a bare directory cannot tell anybody.
+
+  Writing a guide there was not possible: `_has_files` counted every file, so the
+  guide would have reported interview evidence present on every freshly initialized
+  project and Phases 5 and 6 would have read better than they are. The hazard was
+  already live without any guide - a `Thumbs.db` Windows writes while somebody browses
+  `input/screenshots/`, or a `.gitkeep` holding an empty directory in version control,
+  each announced a whole evidence class and moved a phase's readiness with it.
+
+  A closed set of names, compared lowercase because Windows writes `Thumbs.db` and
+  `desktop.ini` in whatever case it feels like. Deliberately not a pattern: a looser
+  rule would eventually discard a file somebody meant as evidence, and a missing class
+  is reported and argued about where a silently dropped one is not.
+
+  The guide states EC-01 and what five of six phases lose without the class, the two
+  fields the schema enforces with an `allOf`, the anchor forms a gate cites, which
+  formats are read, and a skeleton to copy. It says plainly that a photograph of a
+  whiteboard is fine evidence and a poor citation, and that the answer is to keep the
+  image and transcribe beside it. The skeleton ends with a section for questions asked
+  and not yet answered - a different state from a question nobody thought to ask, and
+  only one of them needs chasing.
+
+  `069285b`, and **measured rather than assumed:** a throwaway workspace with one file
+  of each kind in `input/interviews/` reports `.md` NORMALIZED, and both a
+  text-layerless `.pdf` and a `.png` OCR_REQUIRED on a host with no Tesseract. After
+  `init`, the guide exists and `observe()` still reports INTERVIEW absent.
+
+- **The evidence-class gate ran everywhere except where its answer is kept** (A26)
+  - Found on 2026-09-09, on the first acquisition of a second real application (A06,
+  a split Access 2003 warehouse system). Its `phase-readiness.json` reported every
+  reachable phase `READY` with `reasons: []`, `rule_ids: []`, and
+  `_meta.evidence_classes_present: {}` - an empty map on a workspace that had two
+  documents in `input/documents`, which `preflight` had already reported as
+  `documents: true` in the same session.
+
+  `compute_readiness` takes `package_root` optionally and says so plainly: "without it
+  the class half is skipped and behaviour is exactly as before". That default is
+  correct for the reason 2.9.0 gave it - an existing caller keeps working. What was
+  wrong is which callers took it. `contracts/phase_evidence.py` passes it, so
+  `$ak phase requirements` gates properly and A05 duly reported LIMITED with the cost
+  of each missing class named. `contracts/acquisition_orchestrator.py` did not, and
+  that is the call whose result is written into the bundle as `phase-readiness.json` -
+  the file `$ak status`, the run gates, and the modernize pipeline's pre-flight all
+  read. So the gate 2.9.0 exists for answered when asked and never where the answer is
+  stored.
+
+  This is A15's shape once more, inverted: there the figure was written and never
+  read; here it was read on request and never written.
+
+  One line fixes it, and the fixture proves the fix means something: `examples/
+  minimal-app` ships no documents at all, and its Phase 5 moved from `LIMITED` to
+  `BLOCKED` - which is what `skills/investigate/SKILL.md` and `AUDIT-PLAN.md` both
+  already said Phase 5 is without DOCUMENT evidence. The old value was not a second
+  opinion; it was the capability half answering alone. `tests/test_cli_acquire.py`
+  now asserts the observed classes are present in the bundle, because an empty map is
+  the exact signature of the defect.
+
+  **Not fixed here, and stated rather than folded in:** `acquisition_preview.py`
+  omits it too. That call is `acquire plan`'s floor-and-ceiling outlook, computed
+  before any evidence is acquired, and whether a projection should speak in classes
+  is a design question rather than an oversight. It is worth deciding; it is not this
+  entry.
+
+  `ae73618`, and **proven on A06 2026-09-09 from the same bytes an hour apart:**
+  phase2, phase3 and phase5 moved from READY to LIMITED, each naming what its
+  missing class costs - SCREENSHOT for layout and control visibility, SAMPLE_DATA
+  and OUTPUT_SAMPLE for every file-format claim, INTERVIEW for what the documents do
+  not record. Phase 1 stayed READY, correctly: SCHEMA is what it requires and SCHEMA
+  is what the bundle has.
+
+- **Every workspace initialized since 2.10.0 ignored none of what it created** (A27)
+  - Found in the same session as A26 and by the same means - running the kit on a real
+  application rather than reading it. `templates/app.gitignore` named `sources/`,
+  `runs/` and `outputs/`. 2.10.0 renamed those to `input/`, `.ak/runs/` and `output/`,
+  and the template was not moved with them, so `sources/access/*.mdb` matched nothing
+  and the rule that exists precisely to keep production data out of a repository had
+  been inert for two releases.
+
+  Nothing failed, which is why it survived: a rule matching no path looks exactly like
+  a rule with nothing to match. The cost was visible immediately on A06, whose
+  workspace sits inside the application repository a second developer also pushes to:
+  `git status` listed two production Access databases, 64 MB, untracked and not
+  ignored, one `git add .` from being pushed.
+
+  Both layouts are now listed, for the same reason the bundle readers accept both -
+  upgrading the kit must not strand a run already in progress. Extensions are spelled
+  in both cases deliberately: A06's own archive database is named `.MDB`, this kit's
+  target population ships both, and a case-sensitive filesystem would have honoured
+  only what was written. `.ak/bundles/` is deliberately absent from every rule; it is
+  the evidence a later phase cites and belongs in history.
+
+  The regression asserts ignore semantics through real `git`, not the text of the
+  file, because the text looked entirely reasonable for two releases.
+
+  `d7023cd`, and **proven on A06 2026-09-09:** after the same rules were written by
+  hand into that workspace, `git status --untracked-files=all` in the application
+  repository listed 70 files and not one `.mdb` among them, with the sealed bundle
+  still listed.
+
 - **An extractor's own notes were counted as objects that could not be read** (A25)
   - `coverage.json` for a clean managed acquisition of A05's backend reported
   `unclassified: failed=2`. Nothing had failed. The two entries were the extractor

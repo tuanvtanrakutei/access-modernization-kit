@@ -156,9 +156,22 @@ def test_minimal_app_preflight_and_acquisition_contract(tmp_path: Path) -> None:
         "phase2": "BLOCKED",
         "phase3": "BLOCKED",
         "phase4": "BLOCKED",
-        "phase5": "LIMITED",
+        # This read LIMITED until the orchestrator started passing `package_root`, and
+        # LIMITED was the capability half answering alone. The fixture supplies no
+        # documents at all, and BLOCKED is what both `skills/investigate/SKILL.md` and
+        # AUDIT-PLAN.md already said Phase 5 is without DOCUMENT evidence. The old
+        # value was not a different opinion; it was the class half not running.
+        "phase5": "BLOCKED",
         "phase6": "BLOCKED",
     }
+    # The bundle's own readiness is where every later step reads this from, so the
+    # class half has to be recorded here and not only in `$ak phase requirements`.
+    # An empty map is the exact signature of the defect: it is what a caller that
+    # omits `package_root` writes, on a workspace that has evidence to observe.
+    classes = readiness["_meta"]["evidence_classes_present"]
+    assert "CODE" in classes, classes
+    assert "SCHEMA" in classes, classes
+    assert "DOCUMENT" not in classes, classes
 
 
 def test_invalid_package_does_not_create_bundle(tmp_path: Path) -> None:
