@@ -12,6 +12,52 @@ that it should now work.
 
 ## Open
 
+### A28 - a bundle's identity covers the code that assembles it, not the code that decides its contents
+
+**Observed 2026-09-09, by the fix for A26 running into it.** A26 changed one call in
+`contracts/acquisition_orchestrator.py` and nothing else. Re-acquiring A06 from
+byte-identical sources then failed:
+
+    ValueError: BUNDLE_PATH_CONFLICT
+
+`_publish_bundle` raises that when a bundle already exists at the target path and its
+tree hashes differ, and the comment above the raise states the conclusion the kit
+draws from it:
+
+> Same sources, same assembling code, different bytes. Both of the causes the kit
+> knows about are now in the identity, so this says what is left: something outside
+> the kit wrote into a published bundle.
+
+Here that conclusion was false, and provably so - the only writer was the kit, one
+commit newer. The digest that names a bundle came out **identical**
+(`bundle-21ec8350...`) across both runs while `phase-readiness.json` inside it
+changed from six capability-only verdicts to six that carry the evidence-class half.
+
+The gap is narrow and A16 named its own boundary honestly: `_module_version()` hashes
+`bundle_assembly.py` and says "It covers this module and no more. The adapters state
+their own versions and are already in the identity, and the schemas state theirs."
+What that leaves out is the orchestrator, which is not an adapter and not a schema,
+and which computes four things the bundle stores - `phase-readiness.json`,
+`profile-validation.json`, the coverage roll-up and the mode note. So a change to
+what a bundle *says* can leave the name of that bundle untouched.
+
+**What is not yet known, and why this is open rather than fixed in passing.** The
+obvious repair - add the orchestrator to the identity - has a boundary problem of its
+own: `phase_readiness.py`, `evidence_classes.py` and the profile YAML all feed the
+same file, and hashing the whole contract directory would make every unrelated edit
+produce a new bundle from the same evidence, which is the opposite failure. Deciding
+where the line sits is the work, and it should be decided rather than widened by
+reflex.
+
+One smaller thing surfaced beside it and is not chased here: the message is a bare
+`ValueError` with a traceback, so an operator meets a Python stack rather than a
+sentence naming the two bundles, what differs, and what to do about it. The exit code
+is correct - reproduced deliberately by appending a newline to a published
+`provenance.json`, which is the very case the message describes, and reading `$?`
+without a pipe in the way: **1**, with `BUNDLE_PATH_CONFLICT` named twice in the
+output. An earlier reading of this as exit 0 was the shell reporting `tail`'s status
+from a pipeline, not the command's.
+
 ### A24 - a sample that contradicts its declaration is reported to a terminal and nowhere else
 
 **Observed 2026-09-08, on the run that closed A23.** `$ak samples` prints the
@@ -610,6 +656,78 @@ against that one object rather than against the application as a whole.
 ## Closed
 
 Closed entries name the commit that closed them and the run that proved it.
+
+- **The evidence-class gate ran everywhere except where its answer is kept** (A26)
+  - Found on 2026-09-09, on the first acquisition of a second real application (A06,
+  a split Access 2003 warehouse system). Its `phase-readiness.json` reported every
+  reachable phase `READY` with `reasons: []`, `rule_ids: []`, and
+  `_meta.evidence_classes_present: {}` - an empty map on a workspace that had two
+  documents in `input/documents`, which `preflight` had already reported as
+  `documents: true` in the same session.
+
+  `compute_readiness` takes `package_root` optionally and says so plainly: "without it
+  the class half is skipped and behaviour is exactly as before". That default is
+  correct for the reason 2.9.0 gave it - an existing caller keeps working. What was
+  wrong is which callers took it. `contracts/phase_evidence.py` passes it, so
+  `$ak phase requirements` gates properly and A05 duly reported LIMITED with the cost
+  of each missing class named. `contracts/acquisition_orchestrator.py` did not, and
+  that is the call whose result is written into the bundle as `phase-readiness.json` -
+  the file `$ak status`, the run gates, and the modernize pipeline's pre-flight all
+  read. So the gate 2.9.0 exists for answered when asked and never where the answer is
+  stored.
+
+  This is A15's shape once more, inverted: there the figure was written and never
+  read; here it was read on request and never written.
+
+  One line fixes it, and the fixture proves the fix means something: `examples/
+  minimal-app` ships no documents at all, and its Phase 5 moved from `LIMITED` to
+  `BLOCKED` - which is what `skills/investigate/SKILL.md` and `AUDIT-PLAN.md` both
+  already said Phase 5 is without DOCUMENT evidence. The old value was not a second
+  opinion; it was the capability half answering alone. `tests/test_cli_acquire.py`
+  now asserts the observed classes are present in the bundle, because an empty map is
+  the exact signature of the defect.
+
+  **Not fixed here, and stated rather than folded in:** `acquisition_preview.py`
+  omits it too. That call is `acquire plan`'s floor-and-ceiling outlook, computed
+  before any evidence is acquired, and whether a projection should speak in classes
+  is a design question rather than an oversight. It is worth deciding; it is not this
+  entry.
+
+  `ae73618`, and **proven on A06 2026-09-09 from the same bytes an hour apart:**
+  phase2, phase3 and phase5 moved from READY to LIMITED, each naming what its
+  missing class costs - SCREENSHOT for layout and control visibility, SAMPLE_DATA
+  and OUTPUT_SAMPLE for every file-format claim, INTERVIEW for what the documents do
+  not record. Phase 1 stayed READY, correctly: SCHEMA is what it requires and SCHEMA
+  is what the bundle has.
+
+- **Every workspace initialized since 2.10.0 ignored none of what it created** (A27)
+  - Found in the same session as A26 and by the same means - running the kit on a real
+  application rather than reading it. `templates/app.gitignore` named `sources/`,
+  `runs/` and `outputs/`. 2.10.0 renamed those to `input/`, `.ak/runs/` and `output/`,
+  and the template was not moved with them, so `sources/access/*.mdb` matched nothing
+  and the rule that exists precisely to keep production data out of a repository had
+  been inert for two releases.
+
+  Nothing failed, which is why it survived: a rule matching no path looks exactly like
+  a rule with nothing to match. The cost was visible immediately on A06, whose
+  workspace sits inside the application repository a second developer also pushes to:
+  `git status` listed two production Access databases, 64 MB, untracked and not
+  ignored, one `git add .` from being pushed.
+
+  Both layouts are now listed, for the same reason the bundle readers accept both -
+  upgrading the kit must not strand a run already in progress. Extensions are spelled
+  in both cases deliberately: A06's own archive database is named `.MDB`, this kit's
+  target population ships both, and a case-sensitive filesystem would have honoured
+  only what was written. `.ak/bundles/` is deliberately absent from every rule; it is
+  the evidence a later phase cites and belongs in history.
+
+  The regression asserts ignore semantics through real `git`, not the text of the
+  file, because the text looked entirely reasonable for two releases.
+
+  `d7023cd`, and **proven on A06 2026-09-09:** after the same rules were written by
+  hand into that workspace, `git status --untracked-files=all` in the application
+  repository listed 70 files and not one `.mdb` among them, with the sealed bundle
+  still listed.
 
 - **An extractor's own notes were counted as objects that could not be read** (A25)
   - `coverage.json` for a clean managed acquisition of A05's backend reported
