@@ -43,6 +43,21 @@ satisfied only by a capability that means definition text was exported, which th
 extractor would then have to emit separately in its two tiers. The second is closer to
 what the sentence says; the first avoids inventing a class to describe an absence.
 
+**It also suppresses the only instruction that would fix it, which is the sharper half
+and was found by an operator asking where the exporter lives.** `contracts/
+phase_evidence.py` builds the remedy with the path resolved for the install in use:
+
+    #   1. import <PACKAGE>/tools/ExportAccessObjects.bas into its VBA project
+
+That is exactly the right answer to "where is the file", and it is emitted **only when
+the capability is missing**. On A06 the capability is not missing - a name inventory
+satisfied it - so `$ak phase requirements --phase 2` returns `missing: []`,
+`reasons: []`, `degraded: []`, `status: READY`, and never mentions the exporter at all.
+
+So the defect hides itself: the gate believes it has the definitions, and therefore
+never tells anybody how to get them. An operator following the kit's own output would
+have no reason to think anything was absent.
+
 **What it costs on A06 right now**, which is why this is not deferred quietly: Phase 2
 must not be run against this bundle, and Phase 3 is thinner than it looks. Event
 procedures live inside form definitions, so the 7 VBA modules and 28 saved queries the
