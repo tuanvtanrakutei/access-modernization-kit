@@ -38,8 +38,17 @@ CLASS_FROM_CAPABILITY: dict[str, str] = {
     "boundary_inventory": "SCHEMA",
     "vba_query_inventory": "CODE",
     "compiled_object_inventory": "CODE",
-    "access_object_inventory": "UI_DEFINITION",
-    "ui_object_inventory": "UI_DEFINITION",
+    # A36. `access_object_inventory` and `ui_object_inventory` both stood for
+    # UI_DEFINITION, and both fire when the bundle merely holds ui *rows* - which the
+    # DAO tier produces from object names, with no definition anywhere. The class says
+    # what it needs in its own words: "SaveAsText form and report definitions: record
+    # sources, bound fields, event procedures, embedded controls". A06 held 38 form
+    # names, `$ak derive` distilled 0 UI objects from them, and phase2 read READY.
+    #
+    # Those two capabilities still exist and the profile rules still require them -
+    # they prove the objects are *there*, which is a real and different thing. They no
+    # longer answer for the definitions.
+    "ui_definition_text": "UI_DEFINITION",
     "document_inventory": "DOCUMENT",
     "backend_authority_declared": "OPERATOR_DECLARATION",
 }

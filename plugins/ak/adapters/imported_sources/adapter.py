@@ -297,6 +297,21 @@ class ImportedSourcesAdapter:
         return validate_contribution(contribution)
 
 
+def _ui_rows_carry_text(sections: dict[str, Any]) -> bool:
+    """Whether the ui rows hold definitions, not only the names of objects.
+
+    A36: both routes reported `ui_object_inventory` for the presence of ui rows, and
+    the DAO tier produces those from object names alone. UI_DEFINITION is defined as
+    the SaveAsText definitions, so it needs a capability that can only be true when
+    one was read.
+    """
+    return any(
+        (row.get("text") or row.get("source_paths"))
+        for rows in sections["ui"].values()
+        for row in rows
+    )
+
+
 def _content_capabilities(sections: dict[str, Any]) -> list[str]:
     capabilities: set[str] = set()
     # An export carrying schema/tables.json supplies the same schema evidence a
@@ -311,6 +326,8 @@ def _content_capabilities(sections: dict[str, Any]) -> list[str]:
         capabilities.add("vba_query_inventory")
     if any(sections["ui"].values()):
         capabilities.add("ui_object_inventory")
+    if _ui_rows_carry_text(sections):
+        capabilities.add("ui_definition_text")
     if sections["evidence_sources"]["documents"]["inventory"]:
         capabilities.add("document_inventory")
     if sections["interfaces"]["linked_tables"] or sections["interfaces"]["file_interfaces"]:

@@ -187,6 +187,17 @@ def _access_capabilities(sections: dict[str, Any]) -> list[str]:
         capabilities.add("vba_query_inventory")
     if any(sections["ui"].values()):
         capabilities.add("ui_object_inventory")
+    # A36. The DAO tier lists forms and reports by name and exports no definition, so
+    # ui rows alone cannot answer for UI_DEFINITION - which the contract defines as the
+    # SaveAsText definitions themselves. `skip_object_export: true` is the normal case
+    # here, not an edge one: it is what a frontend whose startup code hangs an
+    # unattended run is acquired with.
+    if any(
+        (row.get("text") or row.get("source_paths"))
+        for rows in sections["ui"].values()
+        for row in rows
+    ):
+        capabilities.add("ui_definition_text")
     if sections["interfaces"]["linked_tables"]:
         capabilities.add("boundary_inventory")
     return sorted(capabilities)

@@ -70,6 +70,24 @@ def supplied_capabilities(bundle_dir: Path) -> tuple[set[str], dict[str, str]]:
     return present, origin
 
 
+# Which supply route answers a blocking evidence class, where a command can say it.
+#
+# A36's last part. The remedy above is rendered for every entry in `missing`, which is
+# the *capability* half - and after the class map was corrected, UI_DEFINITION blocks
+# while both name capabilities stay satisfied, so `missing` is empty and no command was
+# rendered at all. The class half reported `put_it_in: declared as a manifest artifact`
+# and stopped, which is true and helps nobody holding an .mdb.
+#
+# Only classes whose remedy is a command belong here. DOCUMENT, INTERVIEW, SCREENSHOT,
+# SAMPLE_DATA and OUTPUT_SAMPLE are deliberately absent: their remedy is a person
+# supplying a file, which `put_it_in` already names and no command can perform.
+CLASS_SUPPLY_ROUTE = {
+    "UI_DEFINITION": "files",
+    "CODE": "files",
+    "SCHEMA": "runtime",
+}
+
+
 def _commands(app_root: Path, manifest_path: Path, phase: int, route: str) -> list[str]:
     """Render the command for one supply route against this workspace."""
     manifest = str(manifest_path)
@@ -79,15 +97,30 @@ def _commands(app_root: Path, manifest_path: Path, phase: int, route: str) -> li
             f'--authorize access_snapshot_extract --require-phases {phase}',
         ]
     if route == "files":
+        # Every line here was wrong in a way only somebody following it would find, and
+        # A36 is why nobody had: the block is emitted only when the class is missing,
+        # and a name inventory was answering for UI_DEFINITION, so it never printed.
+        # The Sub was named `ExportAll`, which does not exist - it is
+        # `ExportAccessObjects` - and all three paths still said `sources/`, which
+        # 2.10.0 renamed to `input/`. The dated folder is the tool's own rule:
+        # `$ak completeness` compares an export against the previous reading of the
+        # same object, and overwriting removes the thing it compares against.
+        exports = app_root / "input" / "exports" / "<ARTIFACT_ID>-<YYYY-MM-DD>"
         return [
             "# On a machine that has Microsoft Access, for each database:",
+            "#   0. open it holding SHIFT, so failing startup code cannot stop you",
             f'#   1. import {PACKAGE / "tools" / "ExportAccessObjects.bas"} into its VBA project',
-            r'#   2. run:  ExportAll "C:\evidence\<ARTIFACT_ID>"',
-            f'#   3. copy that folder to {app_root / "sources"} here, then:',
+            f'#   2. in the Immediate window (Ctrl+G), run:',
+            f'#        ExportAccessObjects "{exports}"',
+            "#      A new dated folder each time, beside the last rather than over it.",
             f'python {PACKAGE / "scripts" / "ak.py"} import-sources '
-            f'--source "{app_root / "sources" / "<ARTIFACT_ID>"}" '
-            f'--producer-id ExportAccessObjects.bas --producer-version 1.0.0 '
-            f'--logical-id-prefix <ARTIFACT_ID> --source-database "sources/access/<FILE>.mdb"',
+            f'--source "{exports}" '
+            f'--producer-id ExportAccessObjects.bas --producer-version <YYYY-MM-DD> '
+            f'--logical-id-prefix <ARTIFACT_ID> '
+            f'--source-database "input/access/<FILE>.mdb"',
+            "# then declare the export beside the database in the manifest, with",
+            "# runtime.skip_object_inventory on the managed artifact so the same objects",
+            "# are not registered twice, and:",
             f'python {PACKAGE / "scripts" / "ak.py"} acquire run --manifest "{manifest}" '
             f'--require-phases {phase}',
         ]
@@ -151,4 +184,10 @@ def phase_report(
                 "commands": _commands(app_root, manifest_path, phase, item["route"]),
             })
         gap["supply"] = rendered
+    # And for a class that blocks with every capability satisfied, which is the state
+    # A36 left behind once a name inventory stopped answering for the definitions.
+    for blocked in (report.get("evidence") or {}).get("blocking") or []:
+        route = CLASS_SUPPLY_ROUTE.get(blocked.get("class"))
+        if route:
+            blocked["commands"] = _commands(app_root, manifest_path, phase, route)
     return report

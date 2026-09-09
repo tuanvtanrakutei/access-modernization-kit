@@ -31,11 +31,20 @@ SPLIT = Classification("split_file", "mdb", "full", ("access_file",))
 
 # What a real Access-only acquisition yields: schema, code, definition text, and the
 # operator's statement of which database is authoritative. Nothing semantic.
+#
+# `ui_definition_text` is here because this set stands for an acquisition that did
+# export the definitions. A DAO-only run is the set below, and A36 is the difference
+# between them: it used to be no difference at all.
 STRUCTURAL = {
     "access_schema_inventory", "field_inventory", "key_index_inventory",
     "boundary_inventory", "access_object_inventory", "ui_object_inventory",
-    "vba_query_inventory", "backend_authority_declared",
+    "ui_definition_text", "vba_query_inventory", "backend_authority_declared",
 }
+
+# The same run with `skip_object_export: true` - the normal way a frontend whose
+# startup code hangs an unattended run is acquired. Forms and reports are listed by
+# name and no definition is exported.
+NAMES_ONLY = STRUCTURAL - {"ui_definition_text"}
 
 
 @pytest.fixture(scope="module")
@@ -55,6 +64,42 @@ def test_capabilities_map_to_the_classes_that_produced_them(contract: dict) -> N
     found = evidence_classes.observe(STRUCTURAL)
     assert set(found) == {"SCHEMA", "CODE", "UI_DEFINITION", "OPERATOR_DECLARATION"}
     assert "capability:field_inventory" in found["SCHEMA"]
+
+
+def test_an_inventory_of_names_does_not_answer_for_the_definitions() -> None:
+    """A36, and the contract states the gap in its own words.
+
+    `UI_DEFINITION` means "SaveAsText form and report definitions: record sources,
+    bound fields, event procedures, embedded controls". Both `access_object_inventory`
+    and `ui_object_inventory` fire when the bundle merely holds ui rows, and the DAO
+    tier produces those from object names. On A06 that was 38 form names, `$ak derive`
+    distilled 0 UI objects from them, and phase2 reported READY.
+
+    Worse, the gate hid its own remedy: `phase_evidence` emits the exporter's resolved
+    path only when the capability is missing, so the run that needed it most never
+    mentioned it.
+    """
+    assert "UI_DEFINITION" not in evidence_classes.observe(NAMES_ONLY)
+    assert "UI_DEFINITION" in evidence_classes.observe(STRUCTURAL)
+    # The two name capabilities still exist and the profile rules still require them.
+    # They prove the objects are there, which is real and different.
+    assert evidence_classes.CLASS_FROM_CAPABILITY.get("access_object_inventory") is None
+    assert evidence_classes.CLASS_FROM_CAPABILITY["ui_definition_text"] == "UI_DEFINITION"
+
+
+def test_phase2_is_blocked_by_names_alone_and_ready_with_definitions(tmp_path: Path) -> None:
+    """The two bundles A06 produced, an hour apart, as a test.
+
+    Before the export: 38 form names, phase2 READY. After it: the same 38 forms with
+    their SaveAsText definitions, and `$ak derive` distilling 51 UI objects where it
+    had distilled none.
+    """
+    names_only = readiness(NAMES_ONLY, tmp_path)
+    assert names_only["phase2"]["status"] == "BLOCKED"
+    assert names_only["phase2"]["evidence_classes"]["blocking"] == ["UI_DEFINITION"]
+
+    with_text = readiness(STRUCTURAL, tmp_path)
+    assert with_text["phase2"]["status"] != "BLOCKED"
 
 
 def test_no_capability_can_prove_a_document_exists() -> None:
