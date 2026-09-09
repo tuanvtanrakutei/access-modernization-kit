@@ -1,7 +1,25 @@
-# Generated and transient investigation state
+# Generated and transient investigation state.
+#
+# Two layouts are listed throughout this file. 2.10.0 renamed the workspace's
+# directories - sources/ became input/, outputs/ became output/, and runs/,
+# snapshots/ and staging/ moved under .ak/ - but this template kept only the older
+# names, so every workspace initialized since then ignored none of what it created.
+# On a real project that left production .mdb files untracked-but-not-ignored inside
+# an application repository. Both layouts stay listed for the same reason the bundle
+# readers do: upgrading the kit must not strand a run already in progress.
+
+# 2.10.0 layout
+.ak/snapshots/
+.ak/staging/
+.ak/runs/
+output/drafts/
+output/render-cache/
+
+# Pre-2.10.0 layout
 runs/
 outputs/drafts/
 outputs/render-cache/
+
 **/__pycache__/
 *.tmp
 *.bak
@@ -17,12 +35,31 @@ secrets/
 credentials/
 
 # Raw Access databases can contain production data. Keep them local by default.
+# The extensions are spelled in both cases on purpose: this kit's own target
+# population ships files named .MDB as often as .mdb, and an ignore rule that only
+# matches one case is the kind that looks right and silently is not.
+input/access/*.mdb
+input/access/*.MDB
+input/access/*.accdb
+input/access/*.ACCDB
+input/access/*.adp
+input/access/*.ADP
 sources/access/*.mdb
+sources/access/*.MDB
 sources/access/*.accdb
+sources/access/*.ACCDB
 sources/access/*.adp
+sources/access/*.ADP
 
-# Keep canonical extracted evidence and accepted outputs trackable.
+# Keep canonical extracted evidence and accepted outputs trackable. The sealed
+# bundle under .ak/bundles/ is deliberately absent from every rule above: it is the
+# evidence a later phase cites, and it belongs in history.
 !extracted/**
+!output/*.md
+!output/*.html
+!output/*.pptx
+!output/*.json
+!output/*.csv
 !outputs/*.md
 !outputs/*.html
 !outputs/*.pptx
