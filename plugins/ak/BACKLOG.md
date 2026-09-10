@@ -12,6 +12,158 @@ that it should now work.
 
 ## Open
 
+### A42 - `DSN=` means two different things, and the kit read both as one
+
+**Observed 2026-09-10, reading A06's own catalogue output after the A39 fix.** A06's
+three "file feeds" are its three SQL Server tables:
+
+```
+Feed(table='仕入商品マスタ',       spec_name='SMSIIS_TargetNeo', file_name='dbo.仕入商品マスタ')
+Feed(table='食材入荷予定データ',   spec_name='SMSIIS_TargetNeo', file_name='dbo.食材入荷予定データ')
+Feed(table='受注年月商品',         spec_name='SMSSQL_TargetBig', file_name='dbo.受注年月商品')
+```
+
+`feed_samples.specification_name` returned any `DSN=` value in a connect string. In a
+text or Excel link that names an Access import/export specification, which is what A17
+built the machinery for. In an ODBC link it names an ODBC data source. Both carry
+`DSN=`, so all three SQL Server links were read as delimited files whose layout is
+declared nowhere - which routed a FORMAT claim about a *database table* to EC-02 and
+told an operator to go find a sample of it. The catalogue cell said
+`SMSIIS_TargetNeo` **not in the database**: a finding about a specification nobody
+ever declared.
+
+A06 has no text links at all. The correct count is zero feeds, and the kit reported
+three.
+
+Fixed by asking the driver rather than matching `DSN=` a second time - a text link
+names `Text`, an ODBC link names `ODBC` - through the parser that already knows what
+these strings are. A06 now reports 0 feeds; A05's `DPSHOHIN ﾘﾝｸの定義` still reads.
+
+**Same root as the error inside A39.** A rule written for one kind of link, applied to
+another because both carry the same token. There it was `name != source_table_name`
+against `dbo.`-prefixed names, and it would have deleted these same three tables. Two
+independent defects on one project, both from reading an ODBC link as a Jet one - the
+kit was built on an application that had none.
+
+### A41 - a bundle section that no code has ever written
+
+**Observed 2026-09-10, asking what external systems A06 talks to.**
+`interfaces/connections.redacted.json` is `[]` in A06's bundle, while the application
+holds three ODBC links to two SQL Server databases:
+
+```
+仕入商品マスタ      DSN=SMSIIS_TargetNeo  DATABASE=TargetNeo   16 fields, 3 indexes
+食材入荷予定データ  DSN=SMSIIS_TargetNeo  DATABASE=TargetNeo   43 fields, 1 index
+受注年月商品        DSN=SMSSQL_TargetBig  DATABASE=TargetBig   68 fields, 2 indexes
+```
+
+`adapters/base.py:91` creates the bucket `connections_redacted: []`.
+`bundle_assembly.py:340` writes it out as a bundle section. **Nothing in the repository
+appends to it** - no adapter, no script, no test. A grep for
+`connections_redacted"].append` returns nothing.
+
+So a reader asking the bundle "what does this application connect to" is answered
+`[]`, and the true answer sits in `interfaces/linked-tables.json`, in a `connect`
+string, per link row rather than per connection.
+
+The redaction the name promises does work: `extract_access.ps1:167-168` strips
+`PWD/PASSWORD/TOKEN/SECRET/API_KEY` and `UID/USER ID`, and the connect strings in the
+bundle read `UID=<REDACTED>`. It is the section, not the redaction, that is empty.
+
+Same shape as A27, A29, A31, A33 and A36: **something that does nothing looks exactly
+like something that works.** A structurally valid, schema-passing, permanently empty
+section.
+
+### A40 - the fix for reading one table twice was applied to three inventories and missed the two that hold the same rows
+
+**Observed 2026-09-10, counting A06's boundary.** `interfaces/linked-tables.json` holds
+**360 rows for 180 links**, and `interfaces/imex-specs.json` **4 rows for 2 specs**.
+
+The cause is already documented in the repository, by the fix that does not cover
+these. `bundle_assembly.SCHEMA_IDENTITY` was added after A05, with this comment:
+
+> two routes reading the same DAO schema describe the same table in two shapes, one
+> carrying `logical_id` and one not, so `_merge_records` files both as unkeyed and
+> keeps both.
+
+A06 declares both an `access_file` artifact and an `access_export` artifact per
+database, so `managed_access` and `imported_sources` both describe every link:
+
+```
+180  flat rows          {attributes, connect, database_id, name, read_error, source_table_name}
+180  object-shaped rows  {container, depends_on, id, kind, logical_id, metadata, ...}
+```
+
+`SCHEMA_IDENTITY` covers `tables`, `fields` and `indexes` and collapses them correctly -
+`databases/tables.json` holds 209 rows for 209 tables. It does not cover
+`interfaces.linked_tables`, which holds **a subset of those very same table rows**, nor
+`interfaces.imex_specs`, which both adapters also append to.
+
+The consequence is a wrong number in a heading a reader trusts.
+`generate_catalogues.py:1076` reads `len(linked)` for "Files crossing the boundary", and
+the loop beneath it iterates all 360 rows - printing every link twice, under a heading
+claiming 360. The loop body already reads `row.get("connect") or
+row.get("metadata", {}).get("connect")`, so it was written knowing both shapes arrive,
+and handles each rather than reconciling them.
+
+A correct and incomplete fix, whose incompleteness is invisible because the three
+sections it does cover are right.
+
+### A39 - a link object was counted as a table, so an application with 35 tables reported 209
+
+**Observed 2026-09-10, checking A06's table count against Access.** The frontend
+`常温品物流支援2003.mdb` holds 188 table objects. It has **35 tables**:
+
+```
+  8   local
+ 24   Jet linked, naming 24 distinct source tables (23 read, 1 not)
+  3   ODBC linked, to two SQL Server databases
+───
+ 35   from 188 objects; 153 of the objects are Access auto-numbered duplicates
+```
+
+Nothing collapses them. `databases/tables.json` carries one row per link object, so the
+bundle reports 209 tables for the application (188 + a 21-table backend), the catalogue
+lists 209, and the figure goes to the customer. It is not a wrong count of link objects.
+It is the wrong subject: **an object is not a table.**
+
+The four link targets are this application's history rather than its design - a 97→2003
+conversion, a Windows 10 migration, a UNC path replaced by a mapped drive, and one
+developer's desktop - each leaving its links behind. The same 20 source tables are
+linked from both `常温品物流支援2003data2003.mdb` and the pre-2003
+`常温品物流支援data.mdb`.
+
+**A mechanical test separates a duplicate from a table, and the obvious form of it is
+wrong.** Access appends the number to the *link* name and leaves the *source* name
+alone, so:
+
+```
+source_table_name + <digits> == name   ->  auto-numbered duplicate   153 of 180
+```
+
+Written the shorter way - `name != source_table_name` - it destroys the three ODBC
+links, because SQL Server returns `dbo.仕入商品マスタ` for a link named
+`仕入商品マスタ`. Those same three tables were misclassified once already in this
+project, by the same comparison. The narrow form excludes them structurally.
+
+The test also keeps the one genuine case: **`商品情報20121115`** has
+`source_table_name == 商品情報20121115`. It is a real distinct table, named for a date
+the way the five local `受YYYYMMDD` tables are, and it exists only in the pre-2003
+backend, so it is the single unread table of the 24. A rule of thumb about trailing
+digits would have deleted it; comparing the two names keeps it.
+
+Verified against code: all 153 auto-numbered names were searched across the 87 exported
+definitions, guarding against `商品情報2` matching inside `商品情報20121115`. **None is
+referenced by any form, report, macro, module or query** - the only hits are in the
+export tool's own `export-manifest.txt`.
+
+What the kit must not do is decide the rest. The 24 source tables are reached through
+**74 distinct (target, source table) pairs**, because the same file is named by drive
+letter and by UNC, and by two generations of filename. Whether two paths are one
+database is a question about the estate, not a fact in the connect string - and for ODBC
+it is unanswerable from the string at all, since a DSN is a client-side alias. The kit
+reports the grouping and names the ambiguity; a person resolves it.
+
 ### A38 - the directory the kit tells an operator to record decisions in is read by almost nothing, and the class it names does not fit
 
 **Observed 2026-09-10, going to cite A06's scope record from Phase 1.** The customer

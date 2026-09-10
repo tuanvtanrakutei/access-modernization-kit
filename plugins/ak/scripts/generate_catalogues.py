@@ -46,6 +46,7 @@ sys.path.insert(0, str(PACKAGE / "contracts"))
 import bilingual as bilingual_contract  # noqa: E402
 import export_completeness as completeness_contract  # noqa: E402
 import feed_samples as feeds_contract  # noqa: E402
+import link_targets as link_contract  # noqa: E402
 import meanings as meanings_contract  # noqa: E402
 import sql_relationships as sql_contract  # noqa: E402
 import workspace as workspace_contract  # noqa: E402
@@ -320,13 +321,124 @@ def target_proposal(field: dict, types: dict[int, dict[str, str]]) -> str:
     return hint
 
 
+def _connection_summary(linked: list[dict[str, Any]]) -> list[str]:
+    """What this application connects to, one row per target rather than per link.
+
+    A41: the bundle section named for this - `interfaces/connections.redacted.json` -
+    was created as an adapter bucket, written out, and appended to by nothing, so it
+    answered `[]` for an application holding three ODBC links to two SQL Server
+    databases. Derived from the links here for the same reason it is derived during
+    assembly: one rule, two readers, no drift.
+    """
+    connections = link_contract.connections(linked)
+    if not connections:
+        return []
+    reachable = [row for row in connections if row["unreadable_link_count"] < row["link_count"]]
+    out = ["", f"## Connections ({len(connections)})", "",
+           f"Distinct targets behind {len(linked)} links. "
+           f"{len(reachable)} of {len(connections)} answered at least one link; a target "
+           "that answered none is a path this application still names and no longer "
+           "reaches.", "",
+           "| Target | Kind | Links | Duplicate links | Unreadable links | Source tables | Named by |",
+           "|---|---|---:|---:|---:|---:|---|"]
+    for row in connections:
+        target = row["database"] or row["target"]
+        kind = row["kind"] if not row["dsn"] else f"{row['kind']} `{escape(row['dsn'])}`"
+        out.append(
+            f"| `{escape(target)}` | {kind} | {row['link_count']} | "
+            f"{row['autonumbered_duplicate_link_count']} | {row['unreadable_link_count']} | "
+            f"{len(row['source_tables'])} | {', '.join(escape(d) for d in row['linked_from'])} |"
+        )
+    return out
+
+
+def _source_table_cell(table: dict[str, Any]) -> str:
+    """What a link points at, and whether Access chose its name.
+
+    A duplicate is marked rather than removed. The row is a real object in the
+    database, and a reader who has just been told 188 objects are 35 tables needs to
+    see which 153 rows account for the difference.
+    """
+    connect = link_contract.field(table, "connect")
+    if not connect:
+        return "—"
+    name = str(table.get("name") or "")
+    source = link_contract.field(table, "source_table_name")
+    if not source:
+        return NOT_EXTRACTED
+    if link_contract.is_autonumbered_duplicate(name, source):
+        return f"`{escape(source)}` **dup**"
+    return f"`{escape(source)}`"
+
+
+def _table_reconciliation(tables: list[dict[str, Any]]) -> list[str]:
+    """Objects to tables, per database, with the step that is not the kit's to take.
+
+    Two totals, because the gap between them is an open question about the estate and
+    not a rounding choice: the same backend is linked by drive letter and by UNC, and
+    under two generations of filename. Collapsing those is a judgement, so both
+    readings are given and the aliases are named.
+    """
+    summary = link_contract.summarise(tables)
+    out = [
+        f"{len(tables)} table objects across {len(summary)} "
+        f"{'database' if len(summary) == 1 else 'databases'}. An object is not a table: "
+        "a table linked twice is two objects, and a table in a backend is also an object "
+        "in every frontend that links it.",
+        "",
+        # Deliberately not summed. Adding the rows would decide the question the last
+        # paragraph of this section refuses to decide - on A06 the sum reads 56-103,
+        # because 20 of the backend's 21 tables are also the frontend's link targets,
+        # and whether the supplied backend is the database those links name is not a
+        # fact in a connect string. Per database is the largest true statement here.
+        "Per database, because summing these rows would answer the question at the end "
+        "of this section:",
+        "",
+        "| Database | Objects | Local | Links | Auto-numbered duplicate links | "
+        "Distinct source tables | Tables (targets are copies) | Tables (targets are distinct) |",
+        "|---|---:|---:|---:|---:|---:|---:|---:|",
+    ]
+    for row in summary:
+        out.append(
+            f"| {escape(row['database_id'])} | {row['table_objects']} | "
+            f"{row['local_tables']} | {row['link_objects']} | "
+            f"{row['autonumbered_duplicate_links']} | "
+            f"{row['distinct_source_table_names']} | "
+            f"{row['tables_if_targets_are_copies']} | "
+            f"{row['tables_if_targets_are_distinct']} |"
+        )
+    duplicates = sum(row["autonumbered_duplicate_links"] for row in summary)
+    if duplicates:
+        out += [
+            "",
+            f"{duplicates} links are named `<source table><digits>`, which is how Access "
+            "names a link when the name it wants is taken. They are marked **dup** in the "
+            "list below. A link whose source table itself carries digits is not one of "
+            "them - the two names are compared, not the suffix guessed.",
+        ]
+    aliases = link_contract.unresolved_aliases(
+        [table for table in tables if link_contract.field(table, "connect")]
+    )
+    if aliases:
+        out += [
+            "",
+            f"**{len(aliases)} source tables are reached through more than one target.** "
+            "Whether two paths are one database cannot be read from a connect string, and "
+            "for ODBC it cannot be read at all, a DSN being a client-side alias. That is "
+            "the difference between the two totals above, and it needs an answer from "
+            f"whoever owns the estate: {NEEDS_DECISION}.",
+        ]
+    return out + [""]
+
+
 def data_catalogue(app_id: str, bundle: Path, types: dict[int, dict[str, str]],
                    sql: Any, naming: Any, writes: Any, meaning: Any) -> str:
     tables = rows_of(read_json(bundle / "databases" / "tables.json"))
     fields = rows_of(read_json(bundle / "databases" / "fields.json"))
     indexes = rows_of(read_json(bundle / "databases" / "indexes.json"))
     relationships = rows_of(read_json(bundle / "databases" / "declared-relationships.json"))
-    linked = rows_of(read_json(bundle / "interfaces" / "linked-tables.json"))
+    linked = link_contract.collapse(
+        rows_of(read_json(bundle / "interfaces" / "linked-tables.json")))
 
     by_table: dict[tuple[str, str], list[dict]] = defaultdict(list)
     for field in fields:
@@ -390,14 +502,17 @@ def data_catalogue(app_id: str, bundle: Path, types: dict[int, dict[str, str]],
         "",
     ]
 
+    out += ["## 1. Table list", ""]
+    # A39. `len(tables)` counts table *objects*, and on A06 that was 209 against 35
+    # tables - 153 of the objects being the same tables linked again under a name
+    # Access numbered itself. The count was never wrong about objects; it was read as
+    # a count of tables, by a reader with no way to tell the difference. So the
+    # reconciliation is printed before the list, and neither figure is dropped.
+    out += _table_reconciliation(tables)
     out += [
-        "## 1. Table list",
-        "",
-        f"{len(tables)} table objects.",
-        "",
         "| No. | Table (production name) | English (proposed) | Database | Linked | "
-        "Columns | Primary key | Written by | Business role |",
-        "|---:|---|---|---|---|---:|---|---|---|",
+        "Source table | Columns | Primary key | Written by | Business role |",
+        "|---:|---|---|---|---|---|---:|---|---|---|",
     ]
     for number, table in enumerate(sorted(tables, key=lambda t: (t.get("database_id", ""),
                                                                  t.get("name", ""))), 1):
@@ -408,7 +523,8 @@ def data_catalogue(app_id: str, bundle: Path, types: dict[int, dict[str, str]],
         primary = key_fields[key]["primary"]
         out.append(
             f"| {number} | `{escape(name)}` | {naming.english(name)} | "
-            f"{escape(database)} | {'yes' if is_linked else '—'} | {len(by_table[key])} | "
+            f"{escape(database)} | {'yes' if is_linked else '—'} | "
+            f"{_source_table_cell(table)} | {len(by_table[key])} | "
             f"{'`' + '`, `'.join(escape(p) for p in primary) + '`' if primary else '**none**'} | "
             f"{escape(writes.summary(name))} | {table_meaning(meaning, name)} |"
         )
@@ -941,7 +1057,8 @@ def logic_catalogue(app_id: str, bundle: Path, derived: dict | None,
     queries = rows_of(read_json(bundle / "code" / "access-sql" / "inventory.json"))
     modules = rows_of(read_json(bundle / "code" / "vba" / "inventory.json"))
     interfaces = rows_of(read_json(bundle / "interfaces" / "file-interfaces.json"))
-    linked = rows_of(read_json(bundle / "interfaces" / "linked-tables.json"))
+    linked = link_contract.collapse(
+        rows_of(read_json(bundle / "interfaces" / "linked-tables.json")))
     imex = imex_columns(rows_of(read_json(bundle / "interfaces" / "imex-specs.json")))
 
     referenced = reference_counts(derived)
@@ -1073,14 +1190,31 @@ def logic_catalogue(app_id: str, bundle: Path, derived: dict | None,
             "",
         ]
 
-    out += ["", f"## Files crossing the boundary ({len(linked) + len(interfaces)})", "",
+    # A39/A41. `len(linked)` counted link objects, and on A06 that read 360 - two
+    # routes describing 180 links, which A40 now collapses - for 27 source tables
+    # behind 10 targets. Three numbers, and the heading used to carry the one that
+    # answers no question a reader has. The connections come first, because "what does
+    # this application connect to" is the question, and the section that was supposed
+    # to answer it held `[]`.
+    out += _connection_summary(linked)
+    duplicates = [row for row in linked if link_contract.is_autonumbered_duplicate(
+        str(row.get("name") or ""), link_contract.field(row, "source_table_name"))]
+    listed = [row for row in linked if row not in duplicates]
+    out += ["", f"## Files crossing the boundary ({len(listed) + len(interfaces)})", "",
             "Every declared inbound and outbound file. A format claim about any of "
             f"these needs one real sample ({NOT_EXTRACTED} means the declaration says "
-            "nothing about it).", "",
-            "| File or link | Database | Direction | Declared format | Declared columns | What it is for |",
+            "nothing about it).", ""]
+    if duplicates:
+        out += [
+            f"{len(duplicates)} auto-numbered duplicate links are folded away here and "
+            "listed in the data catalogue's table list, marked **dup**. They name tables "
+            "already listed below and would otherwise be "
+            f"{len(duplicates)} of {len(linked)} rows.", "",
+        ]
+    out += ["| File or link | Database | Direction | Declared format | Declared columns | What it is for |",
             "|---|---|---|---|---|---|"]
-    for row in sorted(linked, key=lambda r: str(r.get("name", ""))):
-        connect = (row.get("connect") or (row.get("metadata") or {}).get("connect") or "")
+    for row in sorted(listed, key=lambda r: str(r.get("name", ""))):
+        connect = link_contract.field(row, "connect")
         # A linked table's meaning is asked once, in the `tables:` section, because a
         # linked table is a table. This cell reads it from there rather than opening a
         # second question about the same subject.

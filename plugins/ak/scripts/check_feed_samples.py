@@ -33,6 +33,7 @@ for _path in (PACKAGE / "contracts", PACKAGE / "scripts"):
         sys.path.insert(0, str(_path))
 
 import feed_samples as feeds_contract  # noqa: E402
+import link_targets  # noqa: E402
 import workspace as workspace_contract  # noqa: E402
 
 
@@ -107,7 +108,7 @@ def main() -> int:
 
     interfaces = bundle / "interfaces"
     declared = feeds_contract.feeds(
-        rows_of(read_json(interfaces / "linked-tables.json"))
+        link_targets.collapse(rows_of(read_json(interfaces / "linked-tables.json")))
         + rows_of(read_json(interfaces / "file-interfaces.json")))
     specs = feeds_contract.specifications(
         rows_of(read_json(interfaces / "imex-specs.json")))
