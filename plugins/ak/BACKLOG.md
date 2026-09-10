@@ -12,6 +12,64 @@ that it should now work.
 
 ## Open
 
+### A38 - the directory the kit tells an operator to record decisions in is read by almost nothing, and the class it names does not fit
+
+**Observed 2026-09-10, going to cite A06's scope record from Phase 1.** The customer
+marked screens and fields in and out of scope on a drawing with no text layer, and an
+operator transcribed it to `input/decisions/A06_Scope.md`. That is exactly the kind of
+statement the directory exists for - `templates/input.README.md` lists it as
+`OPERATOR_DECLARATION · DOCUMENT · INTERVIEW`, `specifications/evidence-layout.yaml`
+describes it as *"Decisions a person made that the sources cannot state"*, and `init`
+creates it. Written there, it reaches nothing:
+
+- the normalizer never collects the directory - it is absent from the declared list, and
+  `decisions` is additionally in `FORBIDDEN_PARTS`, beside `secrets` and `credentials`;
+- `CLASS_LOCATIONS` does not name it. The one entry that mentions decisions is
+  `decisions/interviews`, a pre-2.10.0 path;
+- so `supplied_inventory` excludes it too. On A06 that inventory holds 55 files and not
+  one of them is the scope record.
+
+**What is read is two hard-coded filenames.** `glossary.yaml` and `meanings.yaml` have
+dedicated readers in `build_glossary`, `build_meanings` and `generate_catalogues`, each
+by exact path. Anything else recorded in that directory is invisible, and nothing says
+so - the README advertises three evidence classes for a directory that honours two
+filenames.
+
+**The deeper half, and the reason this is not a small wiring fix.** Even collected,
+there is no class the record could belong to. `OPERATOR_DECLARATION` defines itself
+narrowly, and deliberately so after A18:
+
+> means: A statement the operator makes **in the manifest** about the project itself.
+> typical_locations: `[manifest.lock.yaml]`
+> cannot_support: `[BEHAVIOUR, FORMAT, MEANING, USAGE, INTENT]`
+
+*"These screens are in scope and those are not"* is a statement about intent for the
+**new** system. It is not DOCUMENT - the drawing is, but the transcription of an
+unreadable drawing is not the drawing. It is not INTERVIEW - no business person was
+asked. And it is not OPERATOR_DECLARATION as that class defines itself, which is about
+which artifact is the backend and which copy is current.
+
+**This is the second time the same hole has appeared, from the opposite direction.**
+The first was at the start of this project: a change request carries INTENT about the
+system being built, and no evidence class covers it either. The two are the same shape,
+and A06 shows it in one file - `A06_Scope.md` records both what is out of scope and
+which screens the change requests touch. A person stating what the new system will be is
+not making a claim about the old one, and therefore fits nowhere in a contract built to
+judge claims about the old one.
+
+**What to decide, and it is a contract decision rather than a repair.** Either a class
+for intent about the target system - which would serve change requests, scope decisions
+and the assumptions a team builds on before an answer arrives - or an explicit statement
+that such records are *not evidence* and live outside the classes, in which case the
+README must stop advertising three of them and the phase documents need a different way
+to cite a decision.
+
+**What it costs on A06 today.** `input/decisions/A06_Scope.md` sits where the
+documentation says it belongs and is read by nothing. Phase 1 can cite it only by path,
+and `$ak citations` cannot check that citation, because no evidence id was ever minted
+for it.
+
+
 ### A34 - a run that read none of the backend still sealed a VALID bundle and reported Phase 1 READY
 
 **Observed 2026-09-09 on A06, found because A33's improved conflict message named the
