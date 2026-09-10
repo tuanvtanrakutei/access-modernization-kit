@@ -12,6 +12,27 @@ that it should now work.
 
 ## Open
 
+### A43 - the kit's own guide to an evidence directory became evidence
+
+**Observed 2026-09-10, wiring A38.** `init` places `input/interviews/README.md`, and
+now `input/target-intent/README.md`, because a class that requires attribution *inside
+the file* cannot be taught by an empty folder. `normalize_documents` collects everything
+in those directories, so both guides were normalized into the corpus.
+
+The corpus is what Phase 5 retrieves against. So the kit's own prose about what
+INTERVIEW evidence is, and what EC-07 forbids, was retrievable as a document about the
+customer's application - the kit quoting itself back as a finding.
+
+`evidence_classes.NOT_EVIDENCE_FILENAMES` has held exactly this list since A29 -
+`readme.md`, `.gitkeep`, `thumbs.db` and the rest - and `_has_files` reads it, which is
+why the guide never made a class *present*. The normalizer kept no such list and read
+none. One rule, one reader, and the other half of the same question answered differently.
+
+Latent since A29 shipped the interviews guide: any workspace initialized after it and
+normalized has the guide in its corpus. Closed by reading the same list rather than
+copying it, and reported as `EXCLUDED_NOT_EVIDENCE` rather than skipped silently - a
+file that vanishes without a line is the shape of defect this kit keeps finding.
+
 ### A42 - `DSN=` means two different things, and the kit read both as one
 
 **Observed 2026-09-10, reading A06's own catalogue output after the A39 fix.** A06's
@@ -163,64 +184,6 @@ letter and by UNC, and by two generations of filename. Whether two paths are one
 database is a question about the estate, not a fact in the connect string - and for ODBC
 it is unanswerable from the string at all, since a DSN is a client-side alias. The kit
 reports the grouping and names the ambiguity; a person resolves it.
-
-### A38 - the directory the kit tells an operator to record decisions in is read by almost nothing, and the class it names does not fit
-
-**Observed 2026-09-10, going to cite A06's scope record from Phase 1.** The customer
-marked screens and fields in and out of scope on a drawing with no text layer, and an
-operator transcribed it to `input/decisions/A06_Scope.md`. That is exactly the kind of
-statement the directory exists for - `templates/input.README.md` lists it as
-`OPERATOR_DECLARATION · DOCUMENT · INTERVIEW`, `specifications/evidence-layout.yaml`
-describes it as *"Decisions a person made that the sources cannot state"*, and `init`
-creates it. Written there, it reaches nothing:
-
-- the normalizer never collects the directory - it is absent from the declared list, and
-  `decisions` is additionally in `FORBIDDEN_PARTS`, beside `secrets` and `credentials`;
-- `CLASS_LOCATIONS` does not name it. The one entry that mentions decisions is
-  `decisions/interviews`, a pre-2.10.0 path;
-- so `supplied_inventory` excludes it too. On A06 that inventory holds 55 files and not
-  one of them is the scope record.
-
-**What is read is two hard-coded filenames.** `glossary.yaml` and `meanings.yaml` have
-dedicated readers in `build_glossary`, `build_meanings` and `generate_catalogues`, each
-by exact path. Anything else recorded in that directory is invisible, and nothing says
-so - the README advertises three evidence classes for a directory that honours two
-filenames.
-
-**The deeper half, and the reason this is not a small wiring fix.** Even collected,
-there is no class the record could belong to. `OPERATOR_DECLARATION` defines itself
-narrowly, and deliberately so after A18:
-
-> means: A statement the operator makes **in the manifest** about the project itself.
-> typical_locations: `[manifest.lock.yaml]`
-> cannot_support: `[BEHAVIOUR, FORMAT, MEANING, USAGE, INTENT]`
-
-*"These screens are in scope and those are not"* is a statement about intent for the
-**new** system. It is not DOCUMENT - the drawing is, but the transcription of an
-unreadable drawing is not the drawing. It is not INTERVIEW - no business person was
-asked. And it is not OPERATOR_DECLARATION as that class defines itself, which is about
-which artifact is the backend and which copy is current.
-
-**This is the second time the same hole has appeared, from the opposite direction.**
-The first was at the start of this project: a change request carries INTENT about the
-system being built, and no evidence class covers it either. The two are the same shape,
-and A06 shows it in one file - `A06_Scope.md` records both what is out of scope and
-which screens the change requests touch. A person stating what the new system will be is
-not making a claim about the old one, and therefore fits nowhere in a contract built to
-judge claims about the old one.
-
-**What to decide, and it is a contract decision rather than a repair.** Either a class
-for intent about the target system - which would serve change requests, scope decisions
-and the assumptions a team builds on before an answer arrives - or an explicit statement
-that such records are *not evidence* and live outside the classes, in which case the
-README must stop advertising three of them and the phase documents need a different way
-to cite a decision.
-
-**What it costs on A06 today.** `input/decisions/A06_Scope.md` sits where the
-documentation says it belongs and is read by nothing. Phase 1 can cite it only by path,
-and `$ak citations` cannot check that citation, because no evidence id was ever minted
-for it.
-
 
 ### A34 - a run that read none of the backend still sealed a VALID bundle and reported Phase 1 READY
 
@@ -937,6 +900,59 @@ against that one object rather than against the application as a whole.
 ## Closed
 
 Closed entries name the commit that closed them and the run that proved it.
+
+- **A directory the kit told an operator to record decisions in was read by nothing, and
+  the class it named did not fit** (A38)
+  - `input.README.md` and `evidence-layout.yaml` advertised `input/decisions/` as holding
+  `OPERATOR_DECLARATION`, `DOCUMENT` and `INTERVIEW`, and `init` created it. Nothing
+  collected it: `decisions` sat in `normalize_documents.FORBIDDEN_PARTS` beside secrets
+  and credentials, `CLASS_LOCATIONS` named only `decisions/interviews` - a pre-2.10 path -
+  and so `supplied_inventory` excluded it. A06 held 55 supplied evidence files and not one
+  was a decision. The only readers were two hard-coded filenames, `glossary.yaml` and
+  `meanings.yaml`.
+
+  And no class fitted a scope decision even if it had been collected.
+  `OPERATOR_DECLARATION` says of itself that it is *"a statement the operator makes in the
+  manifest about the project itself"*, `typical_locations: [manifest.lock.yaml]`,
+  `cannot_support: [... INTENT]`. Second appearance of one hole: the first was change
+  requests, which carry intent about the **new** system. A scope decision and a change
+  request are the same shape - a person stating what the replacement will be, inside a
+  contract built to judge statements about the thing being replaced.
+
+  Closed by naming that shape instead of stretching a class to cover it. New claim kind
+  **SCOPE** ("what the replacement will and will not include, and on whose authority"),
+  new class **TARGET_INTENT**, and rule **EC-07**: a SCOPE claim requires TARGET_INTENT,
+  and TARGET_INTENT carries nothing else. `cannot_support` lists all six legacy claim
+  kinds, which is the whole of the discipline - a customer dropping a screen has said
+  nothing about what that screen does. A record that states both is two items, and the
+  legacy half needs DOCUMENT or INTERVIEW like any other.
+
+  **Not** by opening `decisions/`. That directory holds the two YAML files the kit writes
+  for a person to edit and reads back by name; normalizing them would report DOCUMENT
+  evidence for a glossary, which is A29 arriving through the repair for A38. Scope records
+  get `input/target-intent/`, collected because being there is what declares them, with a
+  guide `init` places for the same reason A29's interviews guide exists.
+
+  Phase 6 degrades without it - "the roadmap covers everything the legacy application
+  does, so a project that has already dropped screens reads as though it had not" - and no
+  phase requires it, since a project that changes nothing must not be blocked.
+
+  Wiring it surfaced two more defects, both fixed here. **EC-07 was enforced by half**:
+  `validate_phase_conformance` tested only each class's explicit `cannot_support` list, so
+  a claim kind a class merely omits passed - `DOCUMENT` carrying a `SCOPE` claim was
+  clean. The function was also still named `_ec01_violations` while enforcing three rules.
+  And **A43**, the kit's own guide reaching the corpus.
+
+  Proven on A06: `A06_Scope.md` moved to `input/target-intent/`, supplied evidence 55 ->
+  57, `TARGET_INTENT` observed present, the record `NORMALIZED` into the corpus and its
+  `README.md` `EXCLUDED_NOT_EVIDENCE`. All seven class/kind combinations answer with the
+  rule that applies. Three mutations - dropping the collection, dropping the guide
+  exclusion, restoring the half-enforcement - each fail a different test.
+
+  The operator's own statement about why the numbered links are dead went to
+  `input/interviews/A06_LinkPractice.md` rather than here, which is EC-07 doing its work
+  on the first record it met: the scope half was not theirs to state, so nothing was
+  written for it.
 
 - **An inventory of object names satisfied the class defined as their definitions** (A36)
   - `evidence-classes.yaml` defines what Phase 2 requires in one sentence: *"UI_DEFINITION

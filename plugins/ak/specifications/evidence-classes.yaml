@@ -15,7 +15,7 @@
 # was all the phase could say. This file makes the requirement explicit, so a run
 # is told what to go and fetch instead of passing without it.
 
-version: "2.9"
+version: "2.10"
 
 # ---------------------------------------------------------------------------
 # What a statement asserts. Every evidence item's statement is one of these.
@@ -39,6 +39,16 @@ claim_kinds:
   INTENT:
     means: "Why it was built this way, and what a replacement must preserve."
     example: "Confirm-before-print is deliberate; operators need to print against absent data."
+  SCOPE:
+    means: "What the replacement will and will not include, and on whose authority."
+    example: "A06 drops the six 累積 screens; 常温品在庫問合 is out of scope (customer, 2026-09-08)."
+    note: >
+      The only claim kind about the system being built rather than the one being
+      replaced. Every other kind above is a statement about the legacy application,
+      settled by reading it or by asking someone who uses it. This one cannot be
+      settled that way at all - no amount of evidence about the old system says what
+      the new one should contain - which is why it needs a class of its own and a rule
+      keeping the two apart (EC-07).
 
 # ---------------------------------------------------------------------------
 # Evidence classes, and the claims each can and cannot carry.
@@ -180,6 +190,33 @@ evidence_classes:
       dated. Settled 2026-09-07 - EC-01 offered this class as a third route for a
       MEANING claim until then, contradicting the line above it (backlog A18).
 
+  TARGET_INTENT:
+    means: "A statement by the customer or the operator about what the new system must be."
+    typical_source_types: ["STAKEHOLDER_DECISION", "TXT", "OTHER"]
+    typical_locations: ["input/target-intent/"]
+    supports: [SCOPE]
+    cannot_support: [STRUCTURE, BEHAVIOUR, FORMAT, MEANING, USAGE, INTENT]
+    requires_attribution: true
+    note: >
+      Scope decisions, change requests, and the assumptions a build already rests on.
+      Added 2026-09-10 after the same hole appeared twice: a change request carries
+      intent about the *new* system, and so does a scope decision, and no class here
+      covered either - `OPERATOR_DECLARATION` is a statement in the manifest about
+      the inputs, and says so. A06's two records sat in the directory the
+      documentation named and were read by nothing, so Phase 1 could cite them only
+      by path and `$ak citations` could not check the citation (backlog A38).
+
+      `cannot_support` is the whole of the discipline and is deliberately total: this
+      class carries no claim about the legacy application. A customer deciding a
+      screen is out of scope has said nothing about what that screen does, and a
+      change request is not a source about the thing it changes. Where a record does
+      both - and they usually do - the halves are separate items with separate
+      classes, and the legacy half needs DOCUMENT or INTERVIEW like any other.
+
+      Attribution is required for the same reason INTERVIEW requires it: a scope
+      decision that cannot be taken back to whoever made it cannot be revisited when
+      it turns out to cost something.
+
 # ---------------------------------------------------------------------------
 # The rules a phase gate and the conformance checker enforce.
 # ---------------------------------------------------------------------------
@@ -224,6 +261,17 @@ rules:
       which it lacked. A gap that is named is a gap; a gap that is unnamed is a
       defect.
     on_violation: "Source Coverage is incomplete and the phase fails conformance."
+
+  - id: EC-07
+    rule: >
+      A SCOPE claim requires TARGET_INTENT, and TARGET_INTENT carries nothing else.
+      No reading of the legacy application establishes what the replacement should
+      contain, and no decision about the replacement establishes what the legacy
+      application does. A record that states both is two items.
+    on_violation: >
+      A SCOPE claim with no TARGET_INTENT item becomes an open question naming who
+      has to decide. A legacy claim sourced from TARGET_INTENT is rejected outright,
+      the way EC-01 rejects a MEANING claim sourced from SCHEMA.
 
 # ---------------------------------------------------------------------------
 # Which classes each phase needs to make its characteristic claims. `required`
@@ -282,3 +330,8 @@ phase_needs:
     degraded_without:
       - class: INTERVIEW
         costs: "Open decisions stay open; the roadmap is a proposal rather than an agreed sequence."
+      - class: TARGET_INTENT
+        costs: >-
+          The scope of the replacement is unstated, so the roadmap covers everything
+          the legacy application does. A project that has already dropped screens or
+          added features reads as though it had not.

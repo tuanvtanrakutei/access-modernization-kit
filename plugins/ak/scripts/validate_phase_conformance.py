@@ -220,12 +220,15 @@ def apparatus_checks(phase: int, text: str, registers: dict[str, Any]) -> list[d
             else "conforms to evidence.schema.json",
         ))
 
-    ec01 = registers.get("ec01_violations")
-    if ec01 is not None:
+    # Named for what it checks rather than for the first rule it checked. It enforces
+    # EC-01, EC-02 and EC-07, and a label naming one of the three sends a reader to the
+    # wrong paragraph - the same stale-label defect this kit keeps finding elsewhere.
+    mismatches = registers.get("class_kind_violations")
+    if mismatches is not None:
         results.append(check(
-            "evidence_class_supports_claim", "apparatus", not ec01,
-            f"{len(ec01)} EC-01 violation(s): {ec01[:3]}" if ec01
-            else "every classified item makes a claim its class can support (EC-01)",
+            "evidence_class_supports_claim", "apparatus", not mismatches,
+            f"{len(mismatches)} class/claim violation(s): {mismatches[:3]}" if mismatches
+            else "every classified item makes a claim its class can support (EC-01, EC-02, EC-07)",
         ))
 
     # `evidence_class` and `claim_kind` are what rules EC-01 to EC-06 are written
@@ -313,7 +316,7 @@ def load_registers(outputs: Path) -> dict[str, Any]:
     ids_from("*_Identifiers.json", "identifier_ids", "id")
     ids_from("*_Errata.json", "errata_ids", "id")
     registers["evidence_schema_errors"] = _schema_errors(outputs)
-    registers["ec01_violations"] = _ec01_violations(outputs)
+    registers["class_kind_violations"] = _class_kind_violations(outputs)
     matches = [m for where in (".", "registers")
                for m in sorted((outputs / where).glob("*_Evidence.json"))]
     if len(matches) == 1:
@@ -328,8 +331,8 @@ def load_registers(outputs: Path) -> dict[str, Any]:
     return registers
 
 
-def _ec01_violations(outputs: Path) -> list[str] | None:
-    """Items making a claim their evidence class cannot support - rule EC-01.
+def _class_kind_violations(outputs: Path) -> list[str] | None:
+    """Items making a claim their evidence class cannot support - EC-01, EC-02, EC-07.
 
     The rule was prose in `specifications/evidence-classes.yaml` and the two fields
     it is written against were unpopulated in every register, so it had never once
@@ -357,8 +360,26 @@ def _ec01_violations(outputs: Path) -> list[str] | None:
         klass, kind = item.get("evidence_class"), item.get("claim_kind")
         if not klass or not kind:
             continue
-        if kind in (classes.get(klass, {}).get("cannot_support") or []):
+        entry = classes.get(klass) or {}
+        if kind in (entry.get("cannot_support") or []):
             violations.append(f"{item.get('id')}: {klass} cannot support {kind}")
+            continue
+        # Only half of every EC rule was enforced here: the explicit `cannot_support`
+        # list. A claim kind a class simply does not declare - not forbidden, not
+        # listed - passed. That let `DOCUMENT` carry a `SCOPE` claim, which is EC-07's
+        # other half: no reading of the legacy application establishes what the
+        # replacement should contain. The rule was written and nothing enforced it,
+        # which is A13 in the checker that A13 was about.
+        #
+        # `corroborates` is deliberately not a violation. An item whose class only
+        # corroborates a kind is a real item and belongs in the register; what EC-01
+        # forbids is a *claim in a document* resting on it alone, and that is a
+        # different check on a different artifact.
+        if kind not in (entry.get("supports") or []) and kind not in (entry.get("corroborates") or []):
+            violations.append(
+                f"{item.get('id')}: {klass} does not declare support for {kind}"
+                + (f"; a {kind} claim requires TARGET_INTENT (EC-07)" if kind == "SCOPE" else "")
+            )
     return violations
 
 

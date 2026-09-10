@@ -172,7 +172,15 @@ workspace:
         interviews: >-
           Recorded answers from a named person on a named date. Carries findings
           nothing else in the corpus can, and had no home before, so it had no shape.
-        decisions: Decisions a person made that the sources cannot state.
+        target-intent: >-
+          Scope decisions and change requests: what the system being BUILT must be.
+          Supplies TARGET_INTENT, the one class that carries no claim about the legacy
+          application (rule EC-07). Any format, and every file names who decided and
+          when.
+        decisions: >-
+          The two files the kit writes for a person to edit - `glossary.yaml` and
+          `meanings.yaml` - and reads back by name. Not a general decisions folder:
+          a scope decision goes in `target-intent/`.
         <ARTIFACT_ID>: >-
           One imported export package per artifact, holding forms/, reports/, macros/,
           vba/, queries/, schema/ plus its import-source-manifest.yaml. Placed by
