@@ -74,3 +74,59 @@ Every object is exported independently: a failing object is recorded under `skip
 - **Mojibake in a terminal** does not mean the file is wrong: the files are UTF-8. Verify by opening in an editor set to UTF-8, or by decoding programmatically, not by a console that cannot render CJK.
 
 The result is export-mode input. Run `scripts/preflight.py` afterward to confirm the detected mode and coverage. Do **not** delete "junk" tables (for example Access's auto-generated `*_ImportErrors` / `*インポート エラー` tables) from the live database to clean the model — filter them during analysis instead; deleting objects in place risks removing real objects.
+
+## Reading the links, without deleting them
+
+That last rule is the kit's position and it has not changed: **nothing needs to be
+deleted for the analysis to be right.** A06's frontend carried 188 table objects for 35
+tables, and since A39 the catalogue reconciles the two itself — it names the 153
+auto-numbered duplicates, keeps the three ODBC links, keeps the one source table that
+genuinely ends in digits, and reports both bounds where two paths name one table.
+Cleaning the database changes none of those figures.
+
+`tools/ListStaleLinks.bas` exists for the other case: an operator who has decided, for
+their own maintenance reasons, to remove links their application no longer resolves.
+That decision belongs to whoever owns the application. What the tool does is stop it
+being made by hand, one object at a time, in a list of 188.
+
+Run it inside the frontend from the Immediate window:
+
+```
+ListStaleLinks
+```
+
+It writes `stale-links-<timestamp>.txt` beside the database and **changes nothing**.
+Each link is classified:
+
+| Class | Meaning |
+|---|---|
+| `AUTO_NUMBERED_DUPLICATE` | safe to remove; every condition below held |
+| `UNREACHABLE_DISTINCT` | a real table this database can no longer reach — reported, never deleted |
+| `HELD_BACK` | matched the name rule and failed a safety condition |
+| `LIVE` | resolves now |
+
+A link is offered for deletion only when all four hold:
+
+1. its name is `<source table name>` followed by digits — the rule Access itself
+   follows when a name is taken;
+2. a link named exactly `<source table name>` also exists;
+3. **that base link resolves right now**;
+4. no saved query names it.
+
+Condition 3 is the one that matters. Deleting `商品マスタ3` while `商品マスタ` itself is
+broken removes the last route to the table.
+
+Two things the tool deliberately will not do. It will not treat an unequal source name
+as a duplicate — SQL Server answers `dbo.商品マスタ` for a link named `商品マスタ`, and on
+A06 that comparison would have removed three tables carrying 16, 43 and 68 fields. And
+it will not judge by the suffix: `商品情報20121115` is a real table named for a date, and
+it is reported as `UNREACHABLE_DISTINCT`, never as a duplicate.
+
+Forms, reports and modules are **not** searched — a macro cannot read their definitions
+without exporting them. Run `ExportAccessObjects` first and search the export package;
+on A06 that covered 87 definitions and found none of the 153 candidates referenced.
+
+To delete, set `DELETE_CONFIRMED = True` in the module, save, and run
+`DeleteStaleLinks`. **Back the file up first** — Access has no undo for a deleted
+object. On A06 the classification is 153 duplicates, 26 live, 1 unreachable-distinct,
+0 held back.
