@@ -265,8 +265,9 @@ $warnings = [System.Collections.ArrayList]::new()
 # weigh the evidence it produced. Neither is the other's fallback.
 $notes = [System.Collections.ArrayList]::new()
 $tables = [System.Collections.ArrayList]::new()
-# The import/export specifications a text link points at. Empty unless some link
-# declares `DSN=`; see Read-ImexSpecifications.
+# Every import/export specification this database has saved. Not only the ones a text
+# link points at: a specification can be named by code, and A06 names four from VBA with
+# no text link anywhere (A44). Empty when the database saved none.
 $imexSpecs = [System.Collections.ArrayList]::new()
 $relations = [System.Collections.ArrayList]::new()
 $references = [System.Collections.ArrayList]::new()
@@ -446,10 +447,32 @@ function Read-JetLayer($Database) {
     # layout of an entire boundary. The condition is the link's own declaration, and
     # `Redact-Connection` leaves `DSN=` intact - it redacts credentials, not
     # specification names - so the collected connect strings are enough to decide.
-    $needsSpecs = @($tables | Where-Object { $_.connect -match '(?i)(^|;)\s*DSN\s*=' })
-    if ($needsSpecs.Count -gt 0 -and $imexSpecs.Count -eq 0) {
-        Read-ImexSpecifications $Database $imexSpecs
-        [void]$notes.Add(('{0} linked table(s) declare a DSN; read the import specification tables for their column layout' -f $needsSpecs.Count))
+    # Unconditionally, since A44. The gate used to be "some link declares DSN=", and
+    # that is the wrong question twice over.
+    #
+    # A saved specification declares the column layout of a headerless feed, and it can
+    # be named by CODE as easily as by a link: A06 has NO text links and six saved
+    # specifications, four of them called by name from VBA -
+    # `TransferText acImportDelim, "受注データ定義", ...` and three more - declaring the
+    # layout of four inbound CSV feeds. The DAO tier cannot see a TransferText call at
+    # all when `skip_object_export` is set, so the condition was never answerable here.
+    #
+    # And the old gate collected A06's six only by accident, because an ODBC connect
+    # carries `DSN=` as well, where it names an ODBC data source rather than a
+    # specification (A42). Fixing that accident without fixing the gate would have
+    # dropped four inbound formats - measured, not supposed.
+    #
+    # Reading them always costs an application with no specifications an empty table.
+    # Not reading them cost A17 the layout of an entire boundary.
+    Read-ImexSpecifications $Database $imexSpecs
+    # Counted in specifications, not in tables. `$imexSpecs.Count` is always two - the
+    # two bookkeeping tables - so a note keyed on it announced specifications for a
+    # backend that has none, which is the reader-facing half of the defect A44 fixed:
+    # an empty table read is worth recording, and it is not worth announcing as a find.
+    $specRows = 0
+    foreach ($spec in $imexSpecs) { $specRows += @($spec.rows).Count }
+    if ($specRows -gt 0) {
+        [void]$notes.Add(('{0} saved import/export specification row(s) read; a specification declares the column layout of a headerless feed, and code can name one where no link does' -f $specRows))
     }
     foreach ($relation in $Database.Relations) {
         try {

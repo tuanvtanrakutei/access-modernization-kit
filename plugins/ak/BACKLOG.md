@@ -12,6 +12,132 @@ that it should now work.
 
 ## Open
 
+### A46 - four inbound CSV feeds are in the bundle and in no document
+
+**Observed 2026-09-10, immediately after A44.** A44 got A06's six saved specifications
+and their 138 column rows into the bundle. Nothing reads them.
+
+Every reader starts from a link's connect string:
+
+```
+feed_samples.feeds(rows)          iterates linked tables, keyed on DSN= in `connect`
+declared_layout(connect, imex)    looks the specification up BY that connect string
+check_feed_samples                reads linked-tables.json and joins imex-specs to it
+```
+
+A06 has **no text links**. Its four live specifications are named by code:
+
+```vba
+TransferText acImportDelim, "受注データ定義", tableName, SMS受注データパス & ... & ".csv", True
+TransferText acImportDelim, "２１受注定義",   "２１受注", 酒受注データパス, True
+TransferText acImportDelim, "幸松受注定義",   "幸松受注", 幸松受注データパス, True
+TransferText acImportDelim, "２１商品定義",   "酒商品",   酒商品マスタパス, True
+```
+
+So four real inbound CSV feeds, each with a declared positional column layout now sealed
+in `interfaces/imex-specs.json`, appear in the interface catalogue not at all - the
+`Declared columns` column is only ever filled for a row that came from a link. `$ak
+samples` finds nothing to check. The document reads as an application with no inbound
+file boundary, and A06 imports orders from three senders daily.
+
+The same three `TransferText` lines also name their **path** through a variable
+(`SMS受注データパス`, `酒受注データパス`, `幸松受注データパス`), which is the A05 shape
+recorded under Q20 - so where the file comes from needs the same dataflow the format does.
+
+What is needed is a second source of feeds: the definition text, which the export
+package carries and which a `TransferText`/`TransferSpreadsheet` call can be read out of.
+That makes the feed inventory `links ∪ code`, and it is the only route to the code half -
+`skip_object_export` means the DAO tier never sees these lines.
+
+Left open rather than fixed here: reading a boundary out of code is a different piece of
+work from collecting the specification, and A44's collection is what makes it possible at
+all. Note also that the export route is required for it, which the acquisition-modes
+guide should say.
+
+### A45 - the extractor could change what a bundle contains without changing its address
+
+**Observed 2026-09-10, re-acquiring A06 after A44.** The publish was refused:
+
+```
+BUNDLE_PATH_CONFLICT: 2026-09-10-fc193f3c is already published with different contents.
+Differs in: checksums.sha256, coverage.json, failures/extraction-failures.json,
+            interfaces/imex-specs.json.
+Same identity, different bytes - so something that decides bundle contents is not in
+the identity. See BACKLOG A28 and A33.
+```
+
+The guard was right and its own message named the cause. `adapter_version` is the only
+term in the bundle identity that says anything about what produced the evidence, and it
+was a hand-written constant: `managed_access` had declared `"1.0.0"` since the module was
+written. `scripts/extract_access.ps1` - which produces every schema row, every code
+record and every note in that adapter's contribution - appeared in the identity nowhere.
+
+So A44 improved the extractor, the same two databases yielded a genuinely different
+bundle, and the kit refused to publish it with a message that reads as tampering.
+
+**A16 again, on the acquisition side.** A16 found the assembly code missing from the
+identity and fixed it by computing a digest of the files rather than declaring a version,
+for a reason that transfers whole: *a version somebody has to remember to bump is wrong
+exactly when it matters, because the defect being fixed is always the one that changed
+the output.* A28 then widened that set once, for the same reason again.
+
+Closed with `adapters/base.producer_version(sources)`, mirroring `_assembly_version`.
+`managed_access` declares its router and `extract_access.ps1`; `imported_sources`
+declares its router, the export package's own files already being hashed as artifacts.
+The regression copies the tree, mutates each declared source and asserts the digest
+moves, so a decorative entry fails.
+
+Cost, stated: a comment-only edit to either adapter yields a new bundle id and so a
+second directory. That is the cheaper mistake by a wide margin - the alternative is a
+bundle that says something new under the name of the old one, which is what A28, A33 and
+this entry all are.
+
+Three bundles of A06 now exist for one pair of databases: `fc193f3c` (the first clean
+acquisition), `a39900d8` (A44's specifications), `50cfe32e` (the corrected note). All
+three are keepable, which is the property A16 argued for and this restores.
+
+### A44 - the gate on reading import specifications asked whether a *link* named one, and code names four
+
+**Observed 2026-09-10, while fixing A42's tail.** A06's frontend holds **six saved
+import/export specifications with 138 column rows**, and **no text links at all**. Four
+of the six are called by name from VBA:
+
+```vba
+TransferText acImportDelim, "受注データ定義", tableName, SMS受注データパス & ... & ".csv", True
+TransferText acImportDelim, "２１受注定義",   "２１受注", 酒受注データパス, True
+TransferText acImportDelim, "幸松受注定義",   "幸松受注", 幸松受注データパス, True
+TransferText acImportDelim, "２１商品定義",   "酒商品",   酒商品マスタパス, True
+```
+
+Those four declare the column layout of four inbound CSV feeds. `HDR=NO` layouts are
+positional, so the specification is the boundary contract - the thing A17 built this
+reader for, and the only copy that does not need the upstream file to be reachable.
+
+Both routes gated the read on `some link declares DSN=`. That question is unanswerable
+where it was asked: the DAO tier cannot see a `TransferText` call at all when
+`skip_object_export` is set, which is how A06 is acquired. And a specification named by
+code is named nowhere in any link.
+
+**A06's six were collected only by accident.** An ODBC connect string carries `DSN=`
+too, where it names an ODBC data source (A42), and A06's three SQL Server links tripped
+the gate. Two wrong things cancelling: the gate asked the wrong question, and the wrong
+answer came back true.
+
+Which is how this was nearly made worse. The obvious completion of A42 is to exclude
+ODBC from the gate - and that would have removed the accident while leaving the gate,
+**dropping four inbound formats from every future acquisition of this application**. It
+was written, and then the corpus was searched for `TransferText` before it shipped.
+
+Closed by reading the specification tables unconditionally in both routes. The cost is
+that a database with no saved specification writes an empty table; the cost of the gate
+was A17's entire boundary once and four CSV layouts here. `LinkDeclaresDsn` and
+`anyDsnLink` are deleted rather than left unused - a dead predicate about the wrong
+question is read by the next person as the rule.
+
+The A42 fix stands where it belongs: at the consumer. `feed_samples.specification_name`
+must not read an ODBC `DSN=` as a specification name, because that made A06's three SQL
+Server tables its only three "file feeds".
+
 ### A43 - the kit's own guide to an evidence directory became evidence
 
 **Observed 2026-09-10, wiring A38.** `init` places `input/interviews/README.md`, and
@@ -56,9 +182,17 @@ ever declared.
 A06 has no text links at all. The correct count is zero feeds, and the kit reported
 three.
 
-Fixed by asking the driver rather than matching `DSN=` a second time - a text link
-names `Text`, an ODBC link names `ODBC` - through the parser that already knows what
-these strings are. A06 now reports 0 feeds; A05's `DPSHOHIN ﾘﾝｸの定義` still reads.
+Fixed at the consumer, by asking the driver rather than matching `DSN=` a second time -
+a text link names `Text`, an ODBC link names `ODBC` - through the parser that already
+knows what these strings are. A06 now reports 0 feeds; A05's `DPSHOHIN ﾘﾝｸの定義` still
+reads.
+
+**Not** at the exporters, which is where the same fix was first written and where it was
+wrong. Both routes gated *reading the specification tables at all* on a link declaring
+`DSN=`, and A06 tripped that gate only through these three ODBC links - while holding six
+saved specifications, four of them named from VBA, with no text link anywhere. Excluding
+ODBC from that gate would have dropped four inbound CSV layouts. See A44: the gate is
+gone instead.
 
 **Same root as the error inside A39.** A rule written for one kind of link, applied to
 another because both carry the same token. There it was `name != source_table_name`

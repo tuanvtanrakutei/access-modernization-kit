@@ -36,7 +36,10 @@ SCHEMA = PACKAGE / "schemas" / "access-extraction.schema.json"
 # The four lines that state what the run did. Each is quoted here by a fragment long
 # enough to be unambiguous, so moving one back to `$warnings` fails this file.
 NOTES = (
-    "linked table(s) declare a DSN; read the import specification tables",
+    # A44 replaced "N linked table(s) declare a DSN" - the gate that phrase reported on
+    # asked whether a link named a specification, and code names four of A06's six with
+    # no text link anywhere. The line is still a note: it says what the run did.
+    "saved import/export specification row(s) read",
     "Object definition export was skipped; the inventory carries names only",
     "Access host ran visible: an operator may have dismissed dialogs",
     "Automation macros were allowed to run: startup code executed",

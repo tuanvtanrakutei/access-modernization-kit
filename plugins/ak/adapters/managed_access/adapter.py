@@ -9,12 +9,25 @@ from typing import Any
 
 from adapters.base import (
     AcquisitionPlan, AcquisitionRequest, AcquisitionResult, BundleContribution,
-    CapabilityReport, empty_sections, validate_contribution,
+    CapabilityReport, empty_sections, producer_version, validate_contribution,
 )
 
 PACKAGE = Path(__file__).resolve().parents[2]
 ADAPTER_ID = "managed_access"
-ADAPTER_VERSION = "1.0.0"
+
+# A45. What actually decides this adapter's contribution: the router below, and the
+# extractor that reads the database. `extract_access.ps1` produces every schema row,
+# every code record and every note in the contribution, and until now nothing about it
+# reached the bundle's identity - the version beside it was the string "1.0.0", written
+# once and never moved. A44 changed the extractor, the same two databases produced a
+# different bundle, and the publish was refused for a conflict the kit had caused
+# itself. See `producer_version` in `adapters/base.py`; A16 is the same defect on the
+# assembly side.
+_PRODUCER_SOURCES = (
+    "adapters/managed_access/adapter.py",
+    "scripts/extract_access.ps1",
+)
+ADAPTER_VERSION = producer_version(_PRODUCER_SOURCES)
 
 class ManagedAccessAdapter:
     adapter_id = ADAPTER_ID
