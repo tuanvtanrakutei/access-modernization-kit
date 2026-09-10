@@ -949,10 +949,18 @@ Closed entries name the commit that closed them and the run that proved it.
   rule that applies. Three mutations - dropping the collection, dropping the guide
   exclusion, restoring the half-enforcement - each fail a different test.
 
-  The operator's own statement about why the numbered links are dead went to
-  `input/interviews/A06_LinkPractice.md` rather than here, which is EC-07 doing its work
-  on the first record it met: the scope half was not theirs to state, so nothing was
-  written for it.
+  The first record it met produced nothing, twice over, and both are the rule working.
+  The operator's statement about why the numbered links are dead is a USAGE claim about
+  the legacy application, not a scope decision, so EC-07 sent it to `interviews/` rather
+  than here - and the operator then withdrew it, so no record exists at all. **The 153
+  auto-numbered links therefore carry no usage claim**, which is the correct state: EC-05
+  says absence of a reference is unreachability and not disuse, and there is now nobody
+  on record saying these links are dead. Phase 1 reports them as measured and their usage
+  as not established, and the question goes to whoever can answer it.
+
+  Nothing measured depends on the withdrawal. That 153 links are `<source table>` +
+  digits, that a link named exactly the source exists and resolves, and that no
+  definition references any of them, are SCHEMA and CODE facts and stand on their own.
 
 - **An inventory of object names satisfied the class defined as their definitions** (A36)
   - `evidence-classes.yaml` defines what Phase 2 requires in one sentence: *"UI_DEFINITION
