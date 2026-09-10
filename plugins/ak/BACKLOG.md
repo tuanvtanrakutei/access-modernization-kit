@@ -12,6 +12,60 @@ that it should now work.
 
 ## Open
 
+### A47 - a Notion export does not carry answers, and the finding blamed a person for it
+
+**Observed 2026-09-10, when the operator said the answer had been supplied.** It had.
+
+A06's Q&A ID 6 - *"can `商品情報` be deleted and newly registered on this screen?"* -
+was answered on 2026/08/30 by 榎本 稔, at length. The kit reported
+`ANSWERED_WITHOUT_AN_ANSWER` and the reason was not that nobody answered: **a Notion
+"Markdown & CSV" export does not export comments**, and a Notion Q&A is answered in the
+comments. The export carried the question, two screenshots and a `Status: Answered`, and
+nothing else. The register CSV has eleven columns and not one of them is an answer.
+
+What was in the comment, and what it establishes - none of which any reading of the
+schema could have produced:
+
+- `商品情報` add and delete **exist and have never been used**, and will not be: the
+  effect on the upstream master is unknown. So the replacement does not need them.
+- New products arrive **automatically from an upstream master file**. `商品コード` and
+  `商品名` come as real values; every other column arrives as `99`. That is an inbound
+  integration no link declares and no schema states.
+- **`99` is not data.** It means the row has not been maintained yet. A migration
+  carrying it forward carries a placeholder into the new system.
+- **`担当者: 10` means 終売商品**, and setting it is how a delete is performed - the row
+  is excluded from the lists rather than removed. `担当者` is a person *and* a status,
+  and a new schema modelling only the person loses the delete mechanism.
+- An open business problem, stated and decided by nobody: *if it cannot be deleted, does
+  this list grow forever?*
+
+**Two defects, and the second is the wording.** `"{page} holds no dated answer"` was read
+as *nobody answered* - by this agent, about a named person, and reported to the operator
+as such twice before they corrected it. A finding that names no cause invites the reader
+to supply one, and the one they supply is about whoever is named nearby.
+
+Closed both halves. An answer may now be recorded in any `.md` beside its page, which is
+where a pasted comment thread naturally goes; the rule is shape rather than filename, the
+same one `read_page` already uses to skip the guide, so `answers.md`, `comments.md` or a
+name of the operator's own all work. Only when the directory holds exactly one Q&A page -
+attributing one file's answers to two questions would invent a citation, and a missing
+answer that is reported is cheaper than a present one that is wrong. And the finding now
+names the likely cause and the remedy.
+
+Proven on A06: `input/interviews/QA-06_ShohinJoho_delete_and_new/answers.md` holds the
+comment verbatim under `【2026/08/30：榎本 稔】`, with its provenance stated and the
+agent's reading kept in a separate section. The register now reports 4 of 5 pages
+answered, and the two findings left are real - ID 5 is genuinely open, and no question
+names a screen.
+
+**Still open, and it belongs to whoever keeps the register.** Nothing detects the
+*next* comment. An answer given in Notion tomorrow is invisible again until somebody
+pastes it, and the kit cannot tell "not answered" from "answered where I cannot see".
+The `Status` column is no help: the operator's own screenshot shows ID 6 as `Not Answer`
+and ID 5 as `Answered`, while the export says the opposite of both - the field is edited
+over time and disagrees with itself across exports, which is why this checker reads
+content and not status.
+
 ### A46 - four inbound CSV feeds are in the bundle and in no document
 
 **Observed 2026-09-10, immediately after A44.** A44 got A06's six saved specifications
