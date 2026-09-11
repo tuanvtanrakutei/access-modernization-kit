@@ -11,6 +11,7 @@ import jsonschema
 
 import bundle as bundle_contract
 import evidence_classes
+import link_targets
 
 # Where a legacy system's own external dependency is recorded. A linked Access table
 # keeps its target as two facts - Connect says where, SourceTableName says what - and for
@@ -84,6 +85,33 @@ SCHEMA_IDENTITY = {
     "indexes": ("database_id", "table", "name"),
 }
 
+# A40. The rule above was written for `databases`, and two of the `interfaces`
+# inventories hold the same rows read by the same two routes.
+#
+# `linked_tables` is a subset of `tables`: every row in it is also a table row, put
+# there because a linked table is both schema and a boundary. `imex_specs` is appended
+# to by both adapters as well. Neither was covered, so on A06 - which declares an
+# `access_file` and an `access_export` per database - the bundle sealed 360 rows for 180
+# links and 4 rows for 2 specs, while `databases/tables.json` beside it was correct at
+# 209 for 209.
+#
+# `connections_redacted` is deliberately absent: it is derived here from the merged
+# links rather than appended to by anyone (A41), so it cannot arrive twice.
+# `file_interfaces` is absent because its rows carry no `name` - `_dedupe_schema`
+# already leaves a row whose identity fields are missing alone, so listing it would
+# read as protection that is not there.
+INTERFACE_IDENTITY = {
+    "linked_tables": ("database_id", "name"),
+    "imex_specs": ("database_id", "table"),
+}
+
+# Computed from the links rather than read from a database, so it is not extraction
+# coverage. A05's lesson was duplicated rows "reported as coverage" - 1,558 database
+# records where there were 1,327 - and counting a derived summary the same way is that
+# error with the sign flipped: ten connections would raise A06's interface coverage by
+# ten objects nobody extracted.
+DERIVED_INTERFACE_KEYS = frozenset({"connections_redacted"})
+
 # Present because a route recorded where it read the row, not because the row says
 # something different about the schema.
 PROVENANCE_KEYS = frozenset({
@@ -143,6 +171,11 @@ def _merge_sections(contributions: list[dict[str, Any]]) -> dict[str, Any]:
             )
     for key, identity in SCHEMA_IDENTITY.items():
         _dedupe_schema(merged["databases"][key], identity)
+    for key, identity in INTERFACE_IDENTITY.items():
+        _dedupe_schema(merged["interfaces"][key], identity)
+    merged["interfaces"]["connections_redacted"] = link_targets.connections(
+        merged["interfaces"]["linked_tables"]
+    )
     return merged
 
 
@@ -173,6 +206,9 @@ _IDENTITY_SOURCES = (
     "contracts/phase_readiness.py",
     # The class half of those statuses.
     "contracts/evidence_classes.py",
+    # Derives `interfaces/connections.redacted.json` and decides which link rows are
+    # one table, so it changes stored bundle content without any source changing.
+    "contracts/link_targets.py",
     # The contract that half reads. It carries a declared `version`, and a declared
     # version is not what belongs here for the reason given below - A13b already
     # found a rule set in this kit whose declared version had gone decorative.
@@ -382,7 +418,10 @@ def _coverage(
             "database": counts(sum(len(values) for values in merged["databases"].values())),
             "code": counts(sum(len(values) for values in merged["code"].values())),
             "ui": counts(sum(len(values) for values in merged["ui"].values())),
-            "interface": counts(sum(len(values) for values in merged["interfaces"].values())),
+            "interface": counts(sum(
+                len(values) for key, values in merged["interfaces"].items()
+                if key not in DERIVED_INTERFACE_KEYS
+            )),
             "unclassified": counts(0, unreadable, excluded),
         },
     }

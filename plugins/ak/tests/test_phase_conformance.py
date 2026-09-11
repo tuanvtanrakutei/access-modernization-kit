@@ -269,13 +269,13 @@ def test_ec01_is_evaluated(tmp_path: Path) -> None:
     (outputs / "registers" / "SYN_Evidence.json").write_text(
         json.dumps(_register([
             _item(evidence_class="SCHEMA", claim_kind="MEANING")])), encoding="utf-8")
-    violations = checker._ec01_violations(outputs)
+    violations = checker._class_kind_violations(outputs)
     assert violations and "SCHEMA cannot support MEANING" in violations[0]
 
     (outputs / "registers" / "SYN_Evidence.json").write_text(
         json.dumps(_register([
             _item(evidence_class="SCHEMA", claim_kind="STRUCTURE")])), encoding="utf-8")
-    assert checker._ec01_violations(outputs) == []
+    assert checker._class_kind_violations(outputs) == []
 
 
 def test_an_unclassified_register_is_reported(tmp_path: Path) -> None:

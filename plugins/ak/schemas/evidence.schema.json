@@ -154,7 +154,8 @@
             "OUTPUT_SAMPLE",
             "DOCUMENT",
             "INTERVIEW",
-            "OPERATOR_DECLARATION"
+            "OPERATOR_DECLARATION",
+            "TARGET_INTENT"
           ],
           "description": "What kind of support this item gives, per specifications/evidence-classes.yaml. Distinct from source_type, which is the medium: a CSV may be SAMPLE_DATA or OUTPUT_SAMPLE."
         },
@@ -165,7 +166,8 @@
             "FORMAT",
             "MEANING",
             "USAGE",
-            "INTENT"
+            "INTENT",
+            "SCOPE"
           ],
           "description": "What the statement asserts. Checked against the class: a MEANING claim on a SCHEMA item is rule EC-01."
         },

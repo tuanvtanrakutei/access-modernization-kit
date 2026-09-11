@@ -183,3 +183,110 @@ def test_a_cp932_register_is_read(tmp_path: Path) -> None:
     (interviews / "q1.md").write_text(_page("1", "【2026/08/19: 田中】yes"), encoding="utf-8")
     result = checker.observe(workspace_contract.Workspace(tmp_path))
     assert result["register"][0]["title"] == "商品情報登録について"
+
+
+# --- A47: the answer lives in a Notion comment, which the export drops -------------
+
+def _in_directory(tmp_path: Path, files: dict[str, str], register: str = REGISTER):
+    """A Notion export shape: a page in its own directory beside its assets."""
+    interviews = tmp_path / "input" / "interviews"
+    interviews.mkdir(parents=True)
+    (interviews / "QA-register.csv").write_text(register, encoding="utf-8")
+    for relative, text in files.items():
+        target = interviews / relative
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text(text, encoding="utf-8")
+    return workspace_contract.Workspace(tmp_path)
+
+
+ANSWER_SIDECAR = "\n".join([
+    "# 回答",
+    "",
+    "Transcribed from the Notion comment thread.",
+    "",
+    "## 【2026/08/30：榎本 稔】",
+    "",
+    "機能として可能ですが、使用したことはありません。",
+    "",
+])
+
+SIDECAR_WITHOUT_MARKER = "\n".join([
+    "# 回答",
+    "",
+    "機能として可能ですが、使用したことはありません。",
+    "",
+])
+
+
+def test_an_answer_pasted_beside_its_page_closes_the_question(tmp_path: Path) -> None:
+    """A47. A Notion "Markdown & CSV" export does not export comments.
+
+    A06's ID 6 was answered in a comment - a full account of why deletion is never
+    used, what the `99` defaults mean, and that `担当者: 10` hides a discontinued
+    product - and the export carried the question alone. The finding was right and
+    there was nowhere to put the answer.
+    """
+    space = _in_directory(tmp_path, {
+        "QA-06/page.md": _page("6", "上記の画面では、削除および新規登録は可能でしょうか。"),
+        "QA-06/answers.md": ANSWER_SIDECAR,
+        "q1.md": _page("1", "【2026/08/19: 田中】yes"),
+        "q5.md": _page("5", "nothing yet"),
+    })
+    result = checker.observe(space)
+    codes = {(f["id"], f["code"]) for f in result["findings"]}
+    assert ("6", "ANSWERED_WITHOUT_AN_ANSWER") not in codes
+    assert ("5", "NOT_ANSWERED") in codes, "a genuinely open question stays open"
+    page, = [p for p in result["pages"] if p["id"] == "6"]
+    answer, = page["answers"]
+    assert answer["recorded_on"] == "2026-08-30"
+    assert answer["person"] == "榎本 稔"
+    # Which file it came from, so a citation can name it rather than the page.
+    assert answer["recorded_in"].endswith("QA-06/answers.md")
+
+
+def test_a_sidecar_with_no_dated_marker_does_not_close_the_question(tmp_path: Path) -> None:
+    """Pasting the thread without a marker is a different mistake from not pasting it,
+    and both leave the question uncitable."""
+    space = _in_directory(tmp_path, {
+        "QA-06/page.md": _page("6", "question only"),
+        "QA-06/answers.md": SIDECAR_WITHOUT_MARKER,
+    })
+    codes = {(f["id"], f["code"]) for f in checker.observe(space)["findings"]}
+    assert ("6", "ANSWERED_WITHOUT_AN_ANSWER") in codes
+
+
+def test_a_sidecar_is_not_read_as_a_question_of_its_own(tmp_path: Path) -> None:
+    """It has no property block, which is the same rule that skips the guide."""
+    space = _in_directory(tmp_path, {
+        "QA-06/page.md": _page("6", "q"),
+        "QA-06/answers.md": ANSWER_SIDECAR,
+    })
+    result = checker.observe(space)
+    assert [p["id"] for p in result["pages"]].count("6") == 1
+    assert not [f for f in result["findings"] if f["code"] == "NOT_IN_REGISTER"]
+
+
+def test_two_pages_in_one_directory_do_not_share_an_answer(tmp_path: Path) -> None:
+    """Attributing one file's answers to two questions would invent a citation.
+
+    A missing answer that is reported is cheaper than a present one that is wrong.
+    """
+    space = _in_directory(tmp_path, {
+        "both/six.md": _page("6", "q6"),
+        "both/one.md": _page("1", "q1"),
+        "both/answers.md": ANSWER_SIDECAR,
+    })
+    codes = {(f["id"], f["code"]) for f in checker.observe(space)["findings"]}
+    assert ("6", "ANSWERED_WITHOUT_AN_ANSWER") in codes
+
+
+def test_the_finding_names_the_cause_and_the_remedy(tmp_path: Path) -> None:
+    """The wording is half the defect. "holds no dated answer" was read as "nobody
+    answered" - by an agent, about a named person, wrongly."""
+    space = _workspace(tmp_path, {"q6.md": _page("6", "question only")})
+    finding, = [f for f in checker.observe(space)["findings"]
+                if f["code"] == "ANSWERED_WITHOUT_AN_ANSWER"]
+    detail = finding["detail"]
+    assert "not that nobody answered" in detail
+    assert "drops comments" in detail
+    assert "answers.md" in detail

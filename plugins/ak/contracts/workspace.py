@@ -40,6 +40,12 @@ INPUT_DIRS: dict[str, str] = {
     # awkward suffix: these are samples of what the application produced.
     "report-samples": "sources/reports-out",
     "interviews": "sources/interviews",
+    # Scope decisions and change requests: what the replacement must be. Its own
+    # directory rather than a file in `decisions/`, because that one has a precise
+    # meaning already - two kit-managed YAML files with readers - and a free-form
+    # record dropped beside them would make it two things at once. That ambiguity is
+    # how A38 happened.
+    "target-intent": "target-intent",
     "decisions": "decisions",
     "shared-docs": "shared-docs",
 }

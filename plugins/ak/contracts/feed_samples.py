@@ -77,6 +77,8 @@ from dataclasses import dataclass
 from pathlib import PurePosixPath, PureWindowsPath
 from typing import Any, Iterable, Iterator
 
+import link_targets
+
 # The DAO type codes that constrain a value to a number, from
 # `specifications/dao-field-types.yaml`. Boolean, date, time and timestamp are left
 # out deliberately: a date column's cell is a formatted string and "20260101" against
@@ -306,7 +308,23 @@ def declared(connect: str, key: str) -> str:
 
 
 def specification_name(connect: str) -> str:
-    """The specification a link's connect string names, if it names one."""
+    """The specification a link's connect string names, if it names one.
+
+    A42. An ODBC connect string also carries `DSN=`, and there it is an ODBC data
+    source, not an Access import/export specification. Reading it as one made A06's
+    three SQL Server links its only three "file feeds" - `dbo.仕入商品マスタ` reported as
+    a file whose layout is declared nowhere, so a FORMAT claim about a database table
+    was told to go find a sample of it (EC-02). It also filled the catalogue's
+    `Declared columns` cell with `SMSIIS_TargetNeo` **not in the database**, a finding
+    about a specification nobody ever declared.
+
+    A text or Excel link names its driver - `Text;DSN=spec;FMT=Delimited;...` - and an
+    ODBC link names `ODBC`. So the driver settles it, and the kind is read through the
+    one parser that knows what these strings are rather than by matching `DSN=` again
+    here.
+    """
+    if link_targets.parse_connect(connect)["kind"] == "odbc":
+        return ""
     return declared(connect, "DSN")
 
 

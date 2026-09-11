@@ -13,11 +13,17 @@ import yaml
 
 from adapters.base import (
     AcquisitionPlan, AcquisitionRequest, AcquisitionResult, BundleContribution,
-    CapabilityReport, empty_sections, validate_contribution,
+    CapabilityReport, empty_sections, producer_version, validate_contribution,
 )
 
 ADAPTER_ID = "imported_sources"
-ADAPTER_VERSION = "1.0.0"
+# A45, for the same reason as `managed_access`: this module's routing decides what an
+# export package becomes in the bundle - `_route_schema_tables` alone produces every
+# table, field and index row and every linked-table entry - and a hand-written constant
+# says nothing about it. The package's own files are hashed as artifacts; this covers
+# the code that reads them.
+_PRODUCER_SOURCES = ("adapters/imported_sources/adapter.py",)
+ADAPTER_VERSION = producer_version(_PRODUCER_SOURCES)
 MAX_ARCHIVE_FILES = 10_000
 MAX_ARCHIVE_BYTES = 2 * 1024 * 1024 * 1024
 MAX_COMPRESSION_RATIO = 200

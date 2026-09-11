@@ -38,6 +38,20 @@ def _workspace(app_root):
     return Workspace(app_root)
 
 
+def _not_evidence_filenames():
+    """The A29 list of files that sit in an evidence directory without being evidence.
+
+    Read from where it lives. A second copy here is how the two halves of one rule
+    drift apart, which is what A33 was.
+    """
+    contracts = str(Path(__file__).resolve().parent.parent / "contracts")
+    if contracts not in sys.path:
+        sys.path.insert(0, contracts)
+    from evidence_classes import NOT_EVIDENCE_FILENAMES
+
+    return NOT_EVIDENCE_FILENAMES
+
+
 
 BINARY_ACCESS = {".mdb", ".accdb", ".adp", ".laccdb", ".ldb"}
 TEXT_SUFFIXES = {
@@ -66,7 +80,10 @@ FORBIDDEN_PARTS = {
     "acquired", "staging", "bundles", "snapshots",
 }
 FORBIDDEN_NAMES = {".env", ".dsn"}
-NORMALIZER_VERSION = "2.6.2"
+# 2.7.0: collects `input/target-intent` (A38) and excludes the kit's own guides from
+# the corpus (A43). Two corpora built by different rules must not claim one version -
+# A13b found a rule set in this kit whose declared version had gone decorative.
+NORMALIZER_VERSION = "2.7.0"
 MAX_ROWS = 10_000
 
 
@@ -223,8 +240,13 @@ def collect_sources(app_root: Path, manifest: dict) -> tuple[list[Path], list[Pa
     #
     # Person-supplied evidence is declared by being there. Asking an operator to also
     # list it in the manifest would be asking them to do the kit's bookkeeping.
+    # `target-intent` and not `decisions`: A38 was a directory the documentation named
+    # and no collector read, and the repair is not to open `decisions/` - that holds
+    # `glossary.yaml` and `meanings.yaml`, which are decisions the kit itself manages
+    # and reads by name. Normalizing those would report DOCUMENT evidence for a
+    # glossary, which is A29 arriving through the fix for A38.
     for name in ("documents", "screenshots", "samples", "report-samples",
-                 "interviews", "shared-docs"):
+                 "interviews", "shared-docs", "target-intent"):
         directory = space.input_dir(name)
         if directory.is_dir():
             declared.append(str(directory.relative_to(app_root)))
@@ -268,6 +290,7 @@ def collect_sources(app_root: Path, manifest: dict) -> tuple[list[Path], list[Pa
         excluded_access.update(path for path in access_root.rglob("*") if path.is_file() and path.suffix.lower() in BINARY_ACCESS)
 
     output = output_dir_from(manifest, app_root)
+    not_evidence = _not_evidence_filenames()
     safe_files: list[Path] = []
     access_definitions: list[str] = []
     for path in sorted(files):
@@ -276,6 +299,18 @@ def collect_sources(app_root: Path, manifest: dict) -> tuple[list[Path], list[Pa
             continue
         if any(part.lower() in FORBIDDEN_PARTS for part in relative.parts) or path.name.lower() in FORBIDDEN_NAMES or path.suffix.lower() == ".dsn":
             gaps.append({"source_path": relative.as_posix(), "status": "EXCLUDED_POLICY", "detail": "Secrets, credentials, run state, evidence, decisions, and outputs are never normalized"})
+            continue
+        # A43. The kit places its own guides inside evidence directories - `init` writes
+        # `input/interviews/README.md` and `input/target-intent/README.md`, because a
+        # class requiring attribution inside the file cannot be taught by an empty
+        # folder. Collected as sources, those guides become corpus documents, and the
+        # kit's own prose about what INTERVIEW evidence is would be retrievable as
+        # evidence about the application. `evidence_classes` has held the list of
+        # filenames that sit in an evidence directory without being evidence since A29;
+        # this reads the same list rather than keeping a second one.
+        if path.name.lower() in not_evidence:
+            gaps.append({"source_path": relative.as_posix(), "status": "EXCLUDED_NOT_EVIDENCE",
+                         "detail": "The kit's own guide to an evidence directory, not evidence about the application"})
             continue
         if path.suffix.lower() in BINARY_ACCESS:
             excluded_access.add(path)

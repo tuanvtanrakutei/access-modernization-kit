@@ -32,7 +32,8 @@ $ak bilingual  --app-root .     # refresh the English names in the narratives
 | `report-samples/` | OUTPUT_SAMPLE | What the application actually produced, as opposed to what the code appears to write. |
 | `access/`, `vba/`, `sql/` | SCHEMA · CODE · UI_DEFINITION | The application itself. |
 | `shared-docs/` | DOCUMENT | Documents this application shares with others in the same estate. |
-| `decisions/` | OPERATOR_DECLARATION · DOCUMENT · INTERVIEW | Names **you** have settled, and meanings that each cite a source. See below. |
+| `target-intent/` | TARGET_INTENT | Scope decisions and change requests: what the **new** system must be. Carries nothing about the old one — see the README in that folder. |
+| `decisions/` | — | The two files the kit writes for you to edit: accepted names, and meanings that each cite a source. See below. |
 
 ### `documents/`
 

@@ -122,7 +122,7 @@ Public Sub ExportAccessObjects(ByVal OutRoot As String)
     Next
 
     Dim td As DAO.TableDef, sb As String, nExcluded As Long, excludedNames As String
-    Dim anyDsnLink As Boolean, nImexRows As Long
+    Dim nImexRows As Long
     Dim nKeptShape As Long, keptShapeNames As String
     For Each td In db.TableDefs
         If IsSystemOrJunkTable(td) Then
@@ -144,18 +144,28 @@ Public Sub ExportAccessObjects(ByVal OutRoot As String)
             End If
             If nTable > 0 Then sb = sb & "," & vbCrLf
             sb = sb & TableSchemaJson(td)
-            If LinkDeclaresDsn(td) Then anyDsnLink = True
             nTable = nTable + 1
         End If
     Next
     WriteUtf8 OutRoot & "\schema\tables.json", "[" & vbCrLf & sb & vbCrLf & "]" & vbCrLf
 
-    ' Only when a link declares DSN=. MSysIMEXSpecs and MSysIMEXColumns are
-    ' Access's own bookkeeping, and IsSystemOrJunkTable excludes every MSys* table
-    ' from the schema export for good reason - but for a text link saying HDR=NO
-    ' they are the boundary contract, and the only copy of it that does not need
-    ' the upstream file to be reachable. Backlog A17 for why, A21 for why here.
-    If anyDsnLink Then nImexRows = ExportImexSpecifications(OutRoot, db)
+    ' Unconditionally, since A44. MSysIMEXSpecs and MSysIMEXColumns are Access's own
+    ' bookkeeping, and IsSystemOrJunkTable excludes every MSys* table from the schema
+    ' export for good reason - but a saved specification declares the column layout of
+    ' a headerless feed, and it is the only copy of that contract which does not need
+    ' the upstream file to be reachable. A17 for why, A21 for why here.
+    '
+    ' The gate used to be "some link declares DSN=", which is the wrong question.
+    ' A06 has NO text links and six saved specifications, four of them called from VBA
+    ' by name - `TransferText acImportDelim, "受注データ定義", ...` and three more.
+    ' Those four declare the layout of four inbound CSV feeds. The old gate collected
+    ' them only by accident, because an ODBC link also carries DSN=; remove the
+    ' accident and all six disappear. A spec named in code cannot be seen from a link
+    ' at all, so the condition was never answerable here.
+    '
+    ' The cost of reading them always is a database with no specifications writing an
+    ' empty table, which is nothing. The cost of the gate was four inbound formats.
+    nImexRows = ExportImexSpecifications(OutRoot, db)
 
     ' The control inventory. A separate pass because it opens each object in
     ' design view - slower, and able to fail per object - and because an operator
@@ -170,7 +180,7 @@ Public Sub ExportAccessObjects(ByVal OutRoot As String)
               "queries=" & nQuery & vbCrLf & _
               "tables=" & nTable & vbCrLf & _
               "excluded_system_or_junk_tables=" & nExcluded & vbCrLf & _
-              "imex_specification_rows=" & IIf(anyDsnLink, CStr(nImexRows), "no link declares DSN=") & vbCrLf & _
+              "imex_specification_rows=" & CStr(nImexRows) & vbCrLf & _
               "skipped=" & mSkipCount & vbCrLf
     If nExcluded > 0 Then
         summary = summary & vbCrLf & "EXCLUDED tables (system / temp / Access ImportErrors):" & vbCrLf & excludedNames
@@ -442,21 +452,6 @@ End Function
 
 ' Connection strings can carry credentials. The runtime extractor redacts the same
 ' keys; an export that did not would put them in a file someone copies around.
-Private Function LinkDeclaresDsn(ByVal td As Object) As Boolean
-    ' Does this link name an import specification?
-    '
-    ' Spaces are removed before searching because `; DSN =` is legal and the runtime
-    ' route's regex allows whitespace. The two routes have to agree on WHEN they read
-    ' these tables, not only on what they write when they do.
-    Dim c As String
-    On Error Resume Next
-    Err.Clear
-    c = td.Connect
-    On Error GoTo 0
-    If Len(c) = 0 Then Exit Function
-    LinkDeclaresDsn = InStr(1, ";" & Replace(c, " ", ""), ";DSN=", vbTextCompare) > 0
-End Function
-
 Private Function ExportImexSpecifications(ByVal OutRoot As String, ByVal db As Object) As Long
     ' Written in the same shape scripts/extract_access.ps1 emits, so a bundle
     ' assembled from either route carries the same evidence - which is what
@@ -482,8 +477,8 @@ Private Function ImexTableJson(ByVal db As Object, ByVal tableName As String, _
     errDesc = Err.Description
     If Err.Number <> 0 Then
         ' A database with no saved specification has no such table. Recorded rather
-        ' than raised: it means no link declared a DSN, or the specification was
-        ' deleted after the link was made - and then the link has no declared layout
+        ' than raised: it means this application never saved one, or the specification
+        ' was deleted after whatever used it - and then that feed has no declared layout
         ' anywhere, which is itself the finding.
         Err.Clear
         On Error GoTo 0

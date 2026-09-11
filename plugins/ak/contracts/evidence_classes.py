@@ -67,6 +67,10 @@ CLASS_LOCATIONS: dict[str, tuple[str, ...]] = {
     # evidence let a project with no documents at all satisfy Phase 5.
     "DOCUMENT": ("input/documents", "input/shared-docs", "sources/documents", "shared-docs"),
     "INTERVIEW": ("input/interviews", "sources/interviews", "decisions/interviews"),
+    # A38. Not `input/decisions`, which holds the two YAML files the kit manages and
+    # reads by name; a scope decision is a document a person wrote, and it needs a
+    # place where being there is what declares it.
+    "TARGET_INTENT": ("input/target-intent",),
 }
 
 
@@ -256,9 +260,23 @@ def claim_is_supportable(
         return False, f"unknown evidence class {class_name}"
     if claim_kind in (entry.get("supports") or []):
         return True, ""
+    supports = entry.get("supports") or []
     if claim_kind in (entry.get("cannot_support") or []):
-        rule = "EC-02" if claim_kind == "FORMAT" else "EC-01"
+        # Which rule the caller is being refused by, named correctly. A class that
+        # supports SCOPE is a statement about the system being built, so asking it for
+        # a claim about the legacy application is EC-07 rather than EC-01 - and a
+        # message naming the wrong rule sends a reader to the wrong paragraph, which
+        # is its own small version of this kit's recurring defect.
+        if "SCOPE" in supports:
+            rule = "EC-07"
+        elif claim_kind == "FORMAT":
+            rule = "EC-02"
+        else:
+            rule = "EC-01"
         return False, f"{rule}: {class_name} cannot support a {claim_kind} claim"
     if claim_kind in (entry.get("corroborates") or []):
         return False, f"{class_name} corroborates {claim_kind}; it never settles one"
+    if claim_kind == "SCOPE":
+        return False, (f"EC-07: a SCOPE claim requires TARGET_INTENT; {class_name} is "
+                       "evidence about the legacy application")
     return False, f"{class_name} does not declare support for {claim_kind}"

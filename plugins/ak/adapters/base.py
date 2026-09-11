@@ -83,6 +83,37 @@ class AcquisitionAdapter(Protocol):
     def normalize(self, result: AcquisitionResult) -> BundleContribution: ...
 
 
+def producer_version(sources: tuple[str, ...], package: Path | None = None) -> str:
+    """A digest of the code that produces a contribution, for the bundle's identity.
+
+    A45. `adapter_version` was a hand-written constant - `managed_access` had said
+    "1.0.0" since it was written - and the bundle identity carries it as the only
+    statement about what produced the evidence. So `scripts/extract_access.ps1` could
+    change *what a bundle contains* with the bundle's address unmoved: A44 made the
+    extractor read every saved import specification instead of only those a link
+    pointed at, re-running the same two databases produced a bundle with different
+    `imex-specs.json` and `coverage.json`, and publishing it was refused as
+    `BUNDLE_PATH_CONFLICT` - a message that reads as tampering when the cause is the
+    kit improving.
+
+    This is A16 arriving on the acquisition side. A16 fixed it for assembly and its
+    reasoning transfers whole: computed rather than declared, because a version somebody
+    has to remember to bump is wrong exactly when it matters - the defect being fixed is
+    always the one that changed the output. A comment-only edit also yields a new id and
+    so a second directory, which is the cheaper mistake by a wide margin.
+
+    The name is hashed beside the bytes, so renaming a member or reordering the tuple
+    cannot produce the same digest. `package` is for the regression that proves every
+    member is load-bearing.
+    """
+    root = Path(package) if package is not None else Path(__file__).resolve().parents[1]
+    digest = hashlib.sha256()
+    for relative in sources:
+        digest.update(relative.encode("utf-8"))
+        digest.update(hashlib.sha256((root / relative).read_bytes()).digest())
+    return digest.hexdigest()[:12]
+
+
 def empty_sections() -> dict[str, Any]:
     return {
         "databases": {"objects": [], "tables": [], "fields": [], "indexes": [], "declared_relationships": []},

@@ -219,41 +219,48 @@ def test_a_missing_specification_table_is_recorded_not_raised(missing: str) -> N
     assert len(records) == 2
 
 
-def test_the_reader_runs_only_for_a_link_that_declares_a_dsn() -> None:
-    """Reading these always would put Access bookkeeping in every bundle.
+def test_the_reader_runs_whether_or_not_a_link_declares_a_dsn() -> None:
+    """A44. The gate asked whether a *link* names a specification, and code can too.
 
-    Asserted against the script text because the condition sits inside `Read-JetLayer`,
-    which needs a real DAO Database to call. The regex is checked separately, below.
+    A06 has no text links at all and six saved specifications, four of them called by
+    name from VBA. The DAO tier cannot see a `TransferText` call when
+    `skip_object_export` is set, so the gate was asking a question it could not answer,
+    and it collected A06's six only by accident - an ODBC connect carries `DSN=` as
+    well (A42). Removing that accident without removing the gate would have dropped
+    four inbound CSV layouts.
+
+    Asserted against the script text because the call sits inside `Read-JetLayer`,
+    which needs a real DAO Database.
     """
     text = SCRIPT.read_text(encoding="utf-8")
     assert "Read-ImexSpecifications $Database $imexSpecs" in text
-    assert "needsSpecs" in text
-    guard = next(line for line in text.splitlines() if "$needsSpecs = " in line)
-    assert "DSN" in guard and "connect" in guard
+    # No condition of any kind between the two - the call stands on its own line.
+    assert "needsSpecs" not in text
+    call = next(line for line in text.splitlines()
+                if "Read-ImexSpecifications $Database $imexSpecs" in line)
+    assert call.strip() == "Read-ImexSpecifications $Database $imexSpecs"
 
 
-def test_the_dsn_guard_matches_a_real_connect_string_and_not_a_bare_link() -> None:
-    """`Redact-Connection` leaves `DSN=` intact - it redacts credentials, not
-    specification names - so the collected connect strings are enough to decide.
+def test_an_odbc_data_source_is_not_an_import_specification() -> None:
+    """A42, at the consumer, which is the only place the distinction still matters.
+
+    Both routes now read the specification tables unconditionally (A44), so no gate
+    inspects a connect string for `DSN=` any more. What must not happen is an ODBC
+    link being *reported* as naming a specification: A06's three SQL Server links were
+    its only three "file feeds", `dbo.仕入商品マスタ` among them, each told to go find a
+    sample of a database table.
     """
-    powershell = shutil.which("powershell") or shutil.which("pwsh")
-    if not powershell:
-        pytest.skip("PowerShell not available on this platform")
-    text = SCRIPT.read_text(encoding="utf-8")
-    guard = next(line for line in text.splitlines() if "$needsSpecs = " in line)
-    pattern = guard.split("-match", 1)[1].strip().rstrip("})").strip()
-    command = (
-        "$ErrorActionPreference='Stop';"
-        f"$p = {pattern};"
-        "$yes = 'Text;FMT=Delimited;HDR=NO;IMEX=2;DSN=order_spec;DATABASE=L:/in';"
-        "$no = 'Text;DATABASE=L:/in';"
-        "'{0},{1}' -f ($yes -match $p), ($no -match $p)"
-    )
-    result = subprocess.run(
-        [powershell, "-NoProfile", "-NonInteractive", "-Command", command],
-        check=False, capture_output=True, text=True, encoding="utf-8")
-    assert result.returncode == 0, result.stderr
-    assert result.stdout.strip() == "True,False", result.stdout
+    import feed_samples
+
+    odbc = ("ODBC;DSN=SMSIIS_TargetNeo;UID=<REDACTED>;APP=Microsoft (R) Access;"
+            "WSID=SYSTEM01;DATABASE=TargetNeo;Trusted_Connection=Yes")
+    assert feed_samples.specification_name(odbc) == ""
+    assert feed_samples.feeds([{"database_id": "FE", "name": "仕入商品マスタ",
+                                "source_table_name": "dbo.仕入商品マスタ",
+                                "connect": odbc}]) == []
+    text = (r"Text;DSN=DPSHOHIN " + "ﾘﾝｸの定義" + r";FMT=Delimited;HDR=NO;IMEX=2;"
+            r"CharacterSet=932;DATABASE=C:eeds")
+    assert feed_samples.specification_name(text) == "DPSHOHIN ﾘﾝｸの定義"
 
 
 # --- the two routes have to agree, and one of them cannot be run here ---------
@@ -269,14 +276,16 @@ def test_the_exporter_reads_the_specifications_on_the_same_condition() -> None:
     the layout they point at - which is the failure that file's opening note names.
     """
     text = BAS.read_text(encoding="utf-8")
-    assert "LinkDeclaresDsn" in text
     assert "ExportImexSpecifications" in text
     assert "imex-specs.json" in text
-    gate = next(line for line in text.splitlines() if "LinkDeclaresDsn = InStr" in line)
-    assert ";DSN=" in gate
-    # Spaces stripped first, because `; DSN =` is legal and the runtime route's regex
-    # allows whitespace. The routes must agree on *when* they read, not only on what.
-    assert 'Replace(c, " ", "")' in gate
+    # A44: the condition is now "always", and "the same condition" is the whole point of
+    # this test - one route reading them always and one reading them on a link would be
+    # two rules, and a consumer joining the files could not tell which it had.
+    assert "LinkDeclaresDsn" not in text, "a dead predicate reads as the rule"
+    assert "anyDsnLink" not in text
+    call = next(line for line in text.splitlines()
+                if "nImexRows = ExportImexSpecifications" in line)
+    assert call.strip() == "nImexRows = ExportImexSpecifications(OutRoot, db)"
 
 
 def test_both_routes_emit_the_same_record_keys() -> None:
@@ -453,11 +462,16 @@ def test_the_gate_fires_on_the_connect_strings_a05_actually_has() -> None:
 
 
 def test_a_frontend_with_no_dsn_link_is_a_real_case_not_a_failure() -> None:
-    """A05's frontend has two linked tables, both to the backend .mdb, neither with a
-    DSN - so `no link declares DSN=` in its manifest is the right answer and has to be
-    distinguishable from the read having failed.
+    """A05's frontend has two linked tables to the backend .mdb, neither with a DSN.
+
+    A plain Jet link declares no layout, so the catalogue cell stays empty rather than
+    reporting a specification the database does not hold. Since A44 the count is just a
+    count: a database with no saved specification reports zero rows, which is a
+    measurement, where `no link declares DSN=` was a statement about the wrong thing -
+    A06 has no DSN link and six specifications.
     """
     assert catalogues.declared_layout(
         ";DATABASE=L:" + chr(92) + "新品揃支援" + chr(92) + "XP" + chr(92) + "品揃支援data.mdb", {}) == ""
     text = BAS.read_text(encoding="utf-8")
-    assert 'IIf(anyDsnLink, CStr(nImexRows), "no link declares DSN=")' in text
+    assert '"imex_specification_rows=" & CStr(nImexRows)' in text
+    assert "no link declares DSN=" not in text

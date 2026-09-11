@@ -18,6 +18,10 @@ because that is the shape the register on a real project actually has:
     a page export       one `.md` per question: an H1, a block of `Key: value`
                         properties, then the conversation, with each answer led by
                         a dated marker in full-width brackets
+    an answer beside it any other `.md` in the page's own directory, because the
+                        export drops Notion comments and a Notion Q&A is answered in
+                        them - A06's ID 6 was closed for two weeks with the answer
+                        visible to everyone except the kit (A47)
 
 Matched on the `ID` both carry. What the comparison is for is the disagreement: a
 register row marked `Answered` whose page holds no answer is not a closed question, and
@@ -132,6 +136,54 @@ def read_register(path: Path) -> list[dict[str, Any]]:
     return rows
 
 
+def answer_markers(text: str) -> list[dict[str, str]]:
+    """Every dated answer marker in a body, as records."""
+    return [
+        {"recorded_on": f"{year}-{int(month):02d}-{int(day):02d}", "person": person.strip()}
+        for year, month, day, person in ANSWER.findall(text)
+    ]
+
+
+def _merge_sidecar_answers(
+    pages: list[dict[str, Any]], sidecars: list[dict[str, Any]],
+) -> None:
+    """An answer recorded beside its page counts as that page's answer.
+
+    A47. **A Notion "Markdown & CSV" export does not export comments**, and a Notion
+    Q&A is answered in the comments. A06's ID 6 is the case: the register says
+    `Status: Answered`, `Respondent: 榎本 稔`, `Answer date: 2026/08/30`, the exported
+    page holds the question and nothing else, and the answer - a full account of why
+    `商品情報` deletion is never used, what the `99` defaults mean, and that
+    `担当者: 10` is how a discontinued product is hidden - existed the whole time as a
+    comment nobody could export.
+
+    The finding was right and its wording was not: "holds no dated answer" reads as
+    *nobody answered*, and that is what a reader concluded - wrongly, and about a
+    person. So the answer needs somewhere to live, and this is it: any `.md` beside the
+    page that is not itself a Q&A page. Shape rather than filename, the same rule
+    `read_page` already uses to skip the guide, so an operator pasting a comment thread
+    into `answers.md`, `comments.md` or a name of their own is right either way.
+
+    Only when the directory holds exactly one Q&A page. Notion gives a page with assets
+    its own directory, so that is the normal shape; where it is not, attributing one
+    file's answers to two questions would invent a citation, and a missing answer that
+    is reported is cheaper than a present one that is wrong.
+    """
+    by_directory: dict[Path, list[dict[str, Any]]] = {}
+    for page in pages:
+        by_directory.setdefault(Path(page["path"]).parent, []).append(page)
+    for sidecar in sidecars:
+        if not sidecar["answers"]:
+            continue
+        siblings = by_directory.get(Path(sidecar["path"]).parent) or []
+        if len(siblings) != 1:
+            continue
+        page = siblings[0]
+        page["answers"] = list(page["answers"]) + [
+            {**answer, "recorded_in": sidecar["relative"]} for answer in sidecar["answers"]
+        ]
+
+
 def read_page(path: Path) -> dict[str, Any] | None:
     """One exported page: its properties, and every dated answer in its body.
 
@@ -169,14 +221,7 @@ def read_page(path: Path) -> dict[str, Any] | None:
         properties[key] = value.strip()
     if not properties or "ID" not in properties:
         return None
-    body = "\n".join(lines[body_starts:])
-    answers = [
-        {
-            "recorded_on": f"{year}-{int(month):02d}-{int(day):02d}",
-            "person": person.strip(),
-        }
-        for year, month, day, person in ANSWER.findall(body)
-    ]
+    answers = answer_markers("\n".join(lines[body_starts:]))
     return {
         "id": properties["ID"].strip(),
         "title": lines[0].lstrip("# ").strip() if lines else "",
@@ -211,9 +256,20 @@ def compare(register: list[dict[str, Any]], pages: list[dict[str, Any]]) -> list
                     f"{identifier} is `{status}`"
                     + (f", answered {row.get('answer_date')}" if row.get("answer_date") else "")
                     + (f" by {row.get('respondent')}" if row.get("respondent") else "")
-                    + f", and {page['path'].name} holds no dated answer. "
+                    + f", and nothing beside {page['path'].name} holds a dated answer. "
                     "A closed question with no answer in it cannot be cited, and the "
-                    "register is the only place saying it is closed."
+                    "register is the only place saying it is closed. "
+                    # A47. This line used to stop above, and it was read as "nobody
+                    # answered" - by an agent, about a named person, wrongly. On A06
+                    # the answer existed the whole time as a Notion comment, and a
+                    # Markdown & CSV export does not export comments. Naming the likely
+                    # cause is the difference between a finding and an accusation.
+                    "The commonest cause is not that nobody answered: a Notion "
+                    "\"Markdown & CSV\" export drops comments, and a Notion Q&A is "
+                    "answered in the comments. Paste the comment thread into any `.md` "
+                    "beside the page - `answers.md` will do - leading each answer with "
+                    "a dated marker, and re-run. If it really was answered somewhere "
+                    "unexportable, transcribe it and say so in the file."
                 ),
             })
         elif not _looks_answered(status):
@@ -256,7 +312,7 @@ def observe(space: Any) -> dict[str, Any]:
     directory = space.input_dir("interviews")
     if not directory.is_dir():
         return {"registers": [], "pages": [], "register": [], "findings": []}
-    registers, pages, unreadable = [], [], []
+    registers, pages, unreadable, sidecars = [], [], [], []
     for path in sorted(directory.rglob("*")):
         if not path.is_file():
             continue
@@ -272,6 +328,14 @@ def observe(space: Any) -> dict[str, Any]:
                 if page is not None:
                     pages.append({**page, "relative": path.relative_to(root).as_posix(),
                                   "sha256": sha256(path)})
+                else:
+                    # Not a Q&A page - it has no property block. It may still hold the
+                    # answer: see `_merge_sidecar_answers` for why that is the ordinary
+                    # case rather than an exception (A47).
+                    sidecars.append({
+                        "path": path, "relative": path.relative_to(root).as_posix(),
+                        "sha256": sha256(path), "answers": answer_markers(decode(path)),
+                    })
         except (OSError, ValueError, UnicodeError) as exc:
             unreadable.append({"path": path.relative_to(root).as_posix(), "detail": str(exc)})
     merged: list[dict[str, Any]] = []
@@ -281,6 +345,7 @@ def observe(space: Any) -> dict[str, Any]:
             if row["id"] not in seen:
                 seen.add(row["id"])
                 merged.append(row)
+    _merge_sidecar_answers(pages, sidecars)
     findings = compare(merged, pages)
     # Ordered so the two findings about a specific question are read before the notes
     # about the register's own shape. A report nobody reads to the end is a report.

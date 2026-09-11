@@ -470,6 +470,14 @@ def main() -> int:
     interview_guide.parent.mkdir(parents=True, exist_ok=True)
     if not interview_guide.exists():
         shutil.copy2(package_root / "templates" / "interviews.README.md", interview_guide)
+    # `target-intent/` needs the same treatment for the same two reasons: it requires
+    # attribution inside the file, which a bare folder cannot say, and rule EC-07 makes
+    # it the one class that carries nothing about the legacy application - an operator
+    # who does not know that will file a usage claim here and lose it.
+    intent_guide = _input_root(app_root) / "target-intent" / "README.md"
+    intent_guide.parent.mkdir(parents=True, exist_ok=True)
+    if not intent_guide.exists():
+        shutil.copy2(package_root / "templates" / "target-intent.README.md", intent_guide)
     verb = "Adopted existing workspace" if existing_nonempty else "Initialized"
     print(f"{verb} {app_root}")
     # A role left unknown blocks Phase 1 by design, so say so here rather than letting
