@@ -1,6 +1,10 @@
 Option Compare Database
 Option Explicit
 
+' @ak-tool - this file belongs to the Access Modernization Kit, not to the
+' application. It is imported into a database to be run, and the export leaves
+' any module carrying this marker out of the corpus.
+
 ' Which linked tables Access named itself, and which are real tables it can no longer
 ' reach. Run inside the frontend .mdb, from the Immediate window:
 '

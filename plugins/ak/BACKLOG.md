@@ -12,6 +12,56 @@ that it should now work.
 
 ## Open
 
+### A51 - the kit's own tool was exported as the application's code, and nothing said which exporter wrote the file
+
+**Observed 2026-09-14, re-exporting A06 after the table cleanup.** The frontend reported
+`modules=8` where every previous run reported 7. The eighth was `Module1`, and `Module1`
+is `tools/ListStaleLinks.bas` - this kit's own macro, which the kit told the operator to
+import so they could delete 153 dead links. Access names a module `Module1` when somebody
+pastes code into a new one, so it was not even recognisable as ours.
+
+The exporter already had a guard for exactly this, added after A05's 2026-09-08 run
+carried seven modules against the previous six:
+
+```vb
+Private Const MODULE_NAME As String = "modExportAccess"
+...
+If ao.Name <> MODULE_NAME Then
+```
+
+One hard-coded string. It protected the file that declared it and nothing else - and
+what it failed to protect against was the kit's *other* tool, imported on the kit's own
+instructions. The contamination is not cosmetic: `Module1`'s comments name
+`商品情報20121115`, `仕入商品マスタ` and A06's `受YYYYMMDD` tables, so reference counts
+and the derived graph would have drawn edges from this kit's prose about A06 into the
+corpus describing A06. A43 is the same defect in the normalizer; this is A43 in the
+exporter, and A43's fix did not reach here.
+
+**Closed 2026-09-14.** The test is what a module *is*: `IsKitToolModule` reads the text
+the export just wrote and skips it if it carries `@ak-tool` or declares a known kit entry
+point. Both tools now carry the marker, and the entry-point list catches a copy imported
+before the marker existed - which is the copy sitting in A06's frontend now. Verified
+against the real 2026-09-14 export: `Module1` matches on `Sub ListStaleLinks(`, and all
+seven real modules do not. An excluded module is **named in the manifest**
+(`excluded_kit_tool_modules=`), because silently dropping an object the operator can see
+in the navigation pane is how a count becomes unexplainable. An unreadable module is
+kept, not dropped: an extra object is visible in a count and a missing one is not.
+
+**And the second half, found in the same log.** A06's backend printed
+`imex_specification_rows=no link declares DSN=` - the gate A44 removed. It printed it on
+**2026-09-10 as well**, so the backend `.mdb` has been exporting with a pre-A44 copy of
+`modExportAccess` for four days, on a kit where that gate no longer exists, and nothing
+in the output said so. For A06 the consequence is nil (the backend holds 0 specification
+rows, measured through the DAO route, which A44 did fix) - but the two routes gave two
+answers to one question and only one of them was current.
+
+A45 solved precisely this for the PowerShell extractor by hashing its bytes into the
+bundle identity. This route had no equivalent, so the manifest now carries
+`exporter_version=`; a manifest without that line was written by a copy older than 2.12.
+It is a declared constant rather than a computed digest, because a `.bas` cannot hash
+itself - so it says *which release* wrote the file, not *which bytes*. Still open: a
+database running a hand-edited copy that keeps the constant would not be caught.
+
 ### A50 - the citation check counts a document citing its own register
 
 **Observed 2026-09-13, reviewing A06's Phase 1.** `validate_evidence_citations` reported
