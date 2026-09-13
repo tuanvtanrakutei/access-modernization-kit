@@ -134,6 +134,16 @@ def project_terms(glossary_path: Path | None) -> dict[str, dict[str, Any]]:
     return found
 
 
+def _is_separator(char: str) -> bool:
+    """Punctuation, symbols and spacing - characters a term dictionary cannot hold.
+
+    `・` in `入荷・実績更新` and `常温・保冷切替` is the case that found this. Deciding by
+    Unicode category rather than a list, because the next application will separate its
+    words with something this one does not use.
+    """
+    return unicodedata.category(char)[0] in ("P", "Z", "C")
+
+
 def normalise(text: str) -> str:
     """NFKC, because `ＦＬＧ` and `FLG` are the same term written two ways.
 
@@ -201,7 +211,15 @@ def compose(
     if index and english:
         english = f"{english}_{index}"
 
-    covered = (sum(consumed) / len(consumed)) if consumed else 0.0
+    # A53. Coverage asks how much of the *name* a term accounted for, and a separator is
+    # not part of the name. `入荷・実績更新` composed as `receiving_actual_update` - correct
+    # and complete - and still read `_partial_`, because the katakana middle dot matched no
+    # term and never will. A reader chasing that marker goes looking for a missing word
+    # that does not exist, which is worse than no marker at all.
+    #
+    # Latin punctuation is already inside LATIN_RUN; this covers the rest of Unicode.
+    accounted = [hit for c, hit in zip(target, consumed) if not _is_separator(c)]
+    covered = (sum(accounted) / len(accounted)) if accounted else 0.0
     used = [p[2] for p in pieces]
     provenances = {
         str(terms[t].get("provenance", "analysis")) for t in used if t in terms

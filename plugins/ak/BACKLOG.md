@@ -12,6 +12,55 @@ that it should now work.
 
 ## Open
 
+### A53 - a separator counted as an untranslated word, and four more substring traps
+
+**Observed 2026-09-14, starting Phase 2.** A48 cleaned the *data* catalogue to 2 of 1,156
+unresolved names and stopped there. Nobody had measured the other two catalogues. The
+screen catalogue had **31 of 51 names unresolved, seven of them wrong**:
+
+```
+商品マスタサブメンテサブ  ->  product_master_sample_sample
+入荷実績入力サブ        ->  receiving_actual_entry_sample
+```
+
+`サ` is a real term - the operator supplied it as the column prefix of `サンプル出荷` - and
+it was matching the first half of every `...サブ` screen. That is A48's mechanism exactly,
+in a catalogue A48 never looked at: a vocabulary hole returns the nearest match, and the
+nearest match is wrong silently.
+
+Three more of the same kind surfaced in the logic catalogue, each a shorter term matching
+inside a longer word:
+
+| Name | Composed as | Because |
+|---|---|---|
+| `API関数` | `p_function` | `Ｐ` (from `P通路`) normalises to `P` and matched inside `API` |
+| `食材入荷実績データの重複レコード` | `..._duplicate_cd` | `コード` matched inside `レコード` |
+| `当月在庫データp` | `monday_stock_data_p` | `月` matched inside `当月` - the weekday trap again, on a name the accepted whole-name entry did not cover |
+
+Each is fixed by adding the **longer** term, not by removing the shorter one. `当` was
+deliberately not added: it sits inside `担当者` in seven names.
+
+**And the separator.** With the vocabulary complete, two names stayed `_partial_` whose
+English was already correct and complete:
+
+```
+入荷・実績更新   ->  receiving_actual_update    _partial_
+常温・保冷切替   ->  ambient_refrigerated_switch _partial_
+```
+
+Coverage was measured over every character including `・`, which matches no term and never
+will. A reader chasing that marker goes looking for a missing word that does not exist -
+worse than no marker, because the marker is the thing that is supposed to mean "look here".
+
+**Closed 2026-09-14.** `compose` excludes separators from the coverage denominator,
+decided by Unicode category (`P`, `Z`, `C`) rather than a list, because the next
+application will separate its words with something this one does not use. A name that is
+only separators reads 0.0, not 100%. 37 terms were added to A06's glossary from the
+measured gaps.
+
+**All three catalogues now carry 0 unresolved names across 1,242 rows** - 1,156 data,
+51 screen, 35 logic. 1790 tests pass.
+
 ### A52 - a column name shaped like an identifier was reported as a dangling one
 
 **Observed 2026-09-14, writing A06's Phase 1.** `identifiers_resolve` failed both language
