@@ -20,6 +20,24 @@ earlier phase**, or you will quote a statement this run has already corrected.
 | 5 | `{{APP_ID}}_Phase5_DocumentIntegration_{{LANG}}.md` | What the business says the system does, and where that differs from the code | {{SYSTEM_SCOPE}} |
 | 6 | `{{APP_ID}}_Phase6_Synthesis_{{LANG}}.md` | One decision-grade account, with errata, risks, unknowns and a roadmap | {{SYSTEM_SCOPE}} |
 
+### The catalogues
+
+The phase documents make the claims; the catalogues carry the enumeration, generated from
+the sealed bundle at 100%. Every figure a phase document quotes comes from one of these,
+and a phase document that restates their rows is doing the wrong job — `templates/catalogues.md`
+is the contract between the two.
+
+| File | Enumerates | Read alongside |
+|---|---|---|
+| `{{APP_ID}}_DataCatalogue.md` | every table object, column, key, index and link target | Phase 1 |
+| `{{APP_ID}}_ScreenCatalogue.md` | every form and report, with its record source, events and what references it | Phase 2 |
+| `{{APP_ID}}_LogicCatalogue.md` | every saved query and module, and every file crossing the boundary | Phase 3 |
+
+**Where a catalogue and a phase document disagree, the catalogue is right about the count
+and the phase document is right about the meaning.** They are regenerated from the bundle
+and the documents are not, so a figure in prose can go stale; a disagreement is a finding,
+not a typo.
+
 Derived views: `{{APP_ID}}_BoundaryMap.html` (what crosses the boundary) and
 `{{APP_ID}}_E2ETrace.html` (what one unit of work does to the data, step by step).
 

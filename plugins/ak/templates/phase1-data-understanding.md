@@ -13,6 +13,50 @@
   Delete these comment blocks as you fill the document in.
 -->
 
+<!-- WHO READS THIS, AND WHAT THAT COSTS YOU
+
+     A reference file is read by an agent. A phase document is read by a developer who
+     has to rebuild the system, and they read it once, under time pressure, looking for
+     what they must not get wrong. Two habits follow:
+
+     Open with what they must not get wrong. A short numbered list, each item pointing at
+     the section that proves it. A06's Phase 2 was correct and unusable before it had one:
+     the fact that re-running the morning import destroys the quantities staff typed the
+     night before was in the document, four sections deep, in prose.
+
+     Diagram a mechanism; tabulate a set; write prose only for what neither can hold.
+     One required diagram per phase is a floor, not a budget. Reach for one whenever the
+     thing being described has a shape: an order of steps, a cycle, a lifecycle with a
+     failure branch, a fan-out from one object to many, or three artefacts that should
+     agree and do not. A06's Phase 2 carries five and is shorter than the four-diagram
+     draft it replaced, because each one removed a paragraph that was describing a picture.
+
+     Mermaid renders, or it is not evidence a reader can see. Check it - `mmdc -i x.mmd -o
+     x.svg` - before publishing. A sequence diagram reads better than a flowchart for
+     anything with an actor and an order; a flowchart with a red-filled node is the
+     cheapest way to say "this is where it goes wrong".
+
+     Keep the document's own revision history out of it. How many drafts a figure went
+     through is a fact about the analysis, not about the application, and a developer
+     reading once does not need it: A06's Phase 2 carried a paragraph explaining that a
+     count had been "wrong twice before it was right", naming all three numbers and both
+     causes, and it was the hardest paragraph in the document to read.
+
+     That history belongs in `BACKLOG.md` and in the commit. What the document keeps is
+     the part a reader could otherwise get wrong - what a figure counts and what it
+     excludes, stated plainly, so that a recount giving a different number is explained
+     before it happens rather than after:
+
+         A recount can legitimately give a different number, so two exclusions are worth
+         stating. `DoCmd.OpenQuery` opens a query, not a screen: its 3 edges are excluded
+         here, and counting them gives 39.
+
+     The exception is a claim an earlier PUBLISHED phase made and this one corrects. That
+     is errata, it has its own register and its own `E-nn` identifier, and it is owed to
+     the reader because they may have acted on the earlier statement. A draft nobody
+     outside the run ever saw owes nothing.
+-->
+
 ## Naming Convention
 
 <!-- Generated from the bundle's own object names, not written by hand. -->
@@ -110,7 +154,33 @@ a translation reads like a definition and is not one.
 ### 2.3 Naming conventions the application uses
 
 <!-- Prefixes, suffixes, dated snapshots, numbered duplicates - the application's
-     own vocabulary, which a migration has to decide what to do with. -->
+     own vocabulary, which a migration has to decide what to do with.
+
+     Include here any object the application addresses by a name it BUILDS AT RUN
+     TIME. A06 has three: a staging table named `"受" & Format(date,"yyyymmdd")`, a
+     query deleted and recreated each run, and four reports opened as
+     `"受注数調整リスト" & <option group>`. None of those names is written down
+     anywhere, so no reference search can find them and every one of them appears in
+     the catalogue's "referenced by nothing" list while being in daily use. Where
+     this pattern exists, say so here and quote the line - it is the sharpest case of
+     rule EC-05 in the whole kit, and a reader who does not know about it will read
+     an unreferenced-object list as a deletion list. -->
+
+### 2.4 What changed in the database between acquisitions
+
+<!-- Only when it did. An operator who cleans the application between runs leaves a
+     gap no reader can close: A06's frontend held 188 table objects, then 32, then
+     28, and a reader comparing two bundles would find 140 objects missing with no
+     explanation in either document.
+
+     Record, per change: the date, what was removed, and WHAT WAS MEASURED BEFORE IT
+     WAS REMOVED. Then state that usage is not established - absence of a reference
+     is unreachability, not disuse (EC-05), and 2.3 above is the reason that is not
+     a formality. Name who decided. Do not write that the removed objects were dead
+     unless somebody is on record saying so. -->
+
+| Date | Removed | Measured before removal |
+|---|---|---|
 
 ## 3. Key Entities and Business Meaning
 
@@ -202,15 +272,40 @@ erDiagram
 | ID | Unknown | Why it matters | What would settle it | Who can settle it |
 |---|---|---|---|---|
 
+### Scope
+
+<!-- Required, and usually one short paragraph saying that nothing here decides it.
+
+     A scope claim needs TARGET_INTENT and nothing else (rule EC-07): no reading of
+     the legacy application establishes what the replacement should contain. So this
+     section either cites the project's TARGET_INTENT records, or says that none has
+     been supplied and that no table, screen or feed above is marked in or out of
+     scope. Saying nothing is what lets a reader take an analyst's emphasis for a
+     decision. -->
+
 ### Questions
 
-<!-- Q-n. Goes to a stakeholder. When answered, the answer becomes INTERVIEW
-     evidence with its own id and the question is marked resolved against it. -->
+<!-- `Q<n>`, matching `identifier-scheme.yaml` - a bare Q and up to three digits, so
+     `Q12`, not `Q-APP-12`. Goes to a stakeholder. When answered, the answer becomes
+     INTERVIEW evidence with its own id and the question is marked resolved against
+     it. -->
 
 | ID | Question | Blocks | Owner |
 |---|---|---|---|
 
 ---
+
+## Provenance note
+
+<!-- Only when something about the acquisition itself qualifies what is above: an
+     export produced by a tool version older than the kit's, a database copy that is
+     not the live one, a route that answered a question the other route could not.
+
+     A06's case: both export packages were written by a pre-2.12 `ExportAccessObjects`,
+     so neither manifest carries `exporter_version=` and the backend's still printed a
+     gate removed two releases earlier. The effect on the analysis was nil and the note
+     was written anyway, because "no effect" is a finding a reader is entitled to check
+     rather than a reason for silence. -->
 
 ## Evidence Register
 

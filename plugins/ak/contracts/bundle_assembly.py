@@ -371,6 +371,9 @@ def _write_layout(
         _write_json(bundle_dir / "databases" / name, merged["databases"][key])
     for key, name in (("forms", "forms"), ("reports", "reports"), ("macros", "macros")):
         _write_json(bundle_dir / "ui" / name / "inventory.json", merged["ui"][key])
+    # Beside the three inventories rather than inside one, because a control belongs to
+    # an object and the same shape serves a form and a report (A55).
+    _write_json(bundle_dir / "ui" / "controls.json", merged["ui"].get("controls") or [])
     for key, name in (("linked_tables", "linked-tables.json"),
                       ("file_interfaces", "file-interfaces.json"),
                       ("connections_redacted", "connections.redacted.json"),

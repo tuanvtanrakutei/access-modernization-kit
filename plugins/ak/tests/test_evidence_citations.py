@@ -145,3 +145,35 @@ def test_the_register_is_found_by_shape_not_by_an_english_heading(tmp_path: Path
     outputs = write_outputs(tmp_path, [item("A99-P1-DOCUMENT-001")], vietnamese)
     assert "A99-P1-DOCUMENT-001" not in checker.cited_in_documents(
         sorted(outputs.glob("*.md")))
+
+
+# --- the per-phase line counts the register, not the document -----------------------
+
+def test_cross_phase_citations_are_surfaced(tmp_path: Path) -> None:
+    """`phase 2: 5 of 5` counts items ALLOCATED to phase 2, not citations made by the
+    Phase 2 document. A06's Phase 2 cites nine ids, four of them Phase 1's, and read
+    `5 of 5` - right about register coverage, and quoted as though it described the
+    document. A document resting on an earlier phase's evidence is the reuse this kit
+    is for, and it was invisible.
+    """
+    outputs = tmp_path / "outputs"
+    outputs.mkdir(parents=True)
+    (outputs / "A99_Evidence.json").write_text(json.dumps({"items": [
+        item("A99-P1-SCHEMA-001", phase=1), item("A99-P2-UI-001", phase=2)]}),
+        encoding="utf-8")
+    (outputs / "A99_Phase2_ScreenAnalysis_EN.md").write_text(
+        "Screens are counted [A99-P2-UI-001] over tables [A99-P1-SCHEMA-001].\n",
+        encoding="utf-8")
+    cited = checker.cited_in_documents(sorted(outputs.glob("*.md")))
+    borrowed = {
+        name: {i for i, where in cited.items() if name in where
+               and str({"A99-P1-SCHEMA-001": 1, "A99-P2-UI-001": 2}[i])
+               != checker.PHASE_IN_NAME.search(name).group(1)}
+        for name in ["A99_Phase2_ScreenAnalysis_EN.md"]
+    }
+    assert borrowed["A99_Phase2_ScreenAnalysis_EN.md"] == {"A99-P1-SCHEMA-001"}
+
+
+def test_a_document_name_carries_its_phase() -> None:
+    assert checker.PHASE_IN_NAME.search("A99_Phase2_ScreenAnalysis_EN.md").group(1) == "2"
+    assert checker.PHASE_IN_NAME.search("A99_DataCatalogue.md") is None

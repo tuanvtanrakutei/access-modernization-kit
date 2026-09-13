@@ -118,7 +118,11 @@ def empty_sections() -> dict[str, Any]:
     return {
         "databases": {"objects": [], "tables": [], "fields": [], "indexes": [], "declared_relationships": []},
         "code": {"vba": [], "access_sql": [], "sql_server": []},
-        "ui": {"forms": [], "reports": [], "macros": []},
+        # `controls` is the per-object control inventory the export route produces:
+        # name, caption, type, visibility, position and event handler for every control.
+        # A55 - it used to fall through routing into `databases/objects`, where nothing
+        # could read it as an inventory.
+        "ui": {"forms": [], "reports": [], "macros": [], "controls": []},
         "interfaces": {"linked_tables": [], "file_interfaces": [], "connections_redacted": [],
                        # The declared column layout of a text link. Only present
                        # when a link declares `DSN=`; backlog A17.

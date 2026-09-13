@@ -35,6 +35,50 @@ document is JP-primary, with a Romaji alias for cross-reference. Never translate
 | SCREENSHOT | | | |
 | DOCUMENT / INTERVIEW | | | |
 
+<!-- WHO READS THIS, AND WHAT THAT COSTS YOU
+
+     A reference file is read by an agent. A phase document is read by a developer who
+     has to rebuild the system, and they read it once, under time pressure, looking for
+     what they must not get wrong. Two habits follow:
+
+     Open with what they must not get wrong. A short numbered list, each item pointing at
+     the section that proves it. A06's Phase 2 was correct and unusable before it had one:
+     the fact that re-running the morning import destroys the quantities staff typed the
+     night before was in the document, four sections deep, in prose.
+
+     Diagram a mechanism; tabulate a set; write prose only for what neither can hold.
+     One required diagram per phase is a floor, not a budget. Reach for one whenever the
+     thing being described has a shape: an order of steps, a cycle, a lifecycle with a
+     failure branch, a fan-out from one object to many, or three artefacts that should
+     agree and do not. A06's Phase 2 carries five and is shorter than the four-diagram
+     draft it replaced, because each one removed a paragraph that was describing a picture.
+
+     Mermaid renders, or it is not evidence a reader can see. Check it - `mmdc -i x.mmd -o
+     x.svg` - before publishing. A sequence diagram reads better than a flowchart for
+     anything with an actor and an order; a flowchart with a red-filled node is the
+     cheapest way to say "this is where it goes wrong".
+
+     Keep the document's own revision history out of it. How many drafts a figure went
+     through is a fact about the analysis, not about the application, and a developer
+     reading once does not need it: A06's Phase 2 carried a paragraph explaining that a
+     count had been "wrong twice before it was right", naming all three numbers and both
+     causes, and it was the hardest paragraph in the document to read.
+
+     That history belongs in `BACKLOG.md` and in the commit. What the document keeps is
+     the part a reader could otherwise get wrong - what a figure counts and what it
+     excludes, stated plainly, so that a recount giving a different number is explained
+     before it happens rather than after:
+
+         A recount can legitimately give a different number, so two exclusions are worth
+         stating. `DoCmd.OpenQuery` opens a query, not a screen: its 3 edges are excluded
+         here, and counting them gives 39.
+
+     The exception is a claim an earlier PUBLISHED phase made and this one corrects. That
+     is errata, it has its own register and its own `E-nn` identifier, and it is owed to
+     the reader because they may have acted on the earlier statement. A draft nobody
+     outside the run ever saw owes nothing.
+-->
+
 ## Contents
 
 1. [Screen, Form, and Report Inventory](#1-screen-form-and-report-inventory)
@@ -68,7 +112,15 @@ document is JP-primary, with a Romaji alias for cross-reference. Never translate
 | Declaring a record source | | | `{{APP_ID}}_ScreenCatalogue.md` |
 | Carrying event procedures | | | `{{APP_ID}}_ScreenCatalogue.md` |
 | Embedding a third-party control | | | `{{APP_ID}}_ScreenCatalogue.md` |
+| Controls hidden in the definition | | | `ui/controls.json` |
 | Business purpose not established | | | the catalogue's marked cells |
+
+<!-- The hidden-control row is not housekeeping. A06's switchboard carries 32 command
+     buttons and seven of them are hidden with no code anywhere making them visible
+     again - one of the seven would reach a screen that declares two live inbound
+     feeds. A hidden control is REACHABILITY evidence and not usage evidence: a
+     developer can unhide it and an operator may have another route, so the status of
+     each one is an open question, never a conclusion that the function is retired. -->
 
 ### 1.2 Entry points
 
@@ -101,7 +153,19 @@ flowchart TD
 |---|---|---|---|---|---|
 
 <!-- One of these per screen that carries behaviour. For a screen whose behaviour is
-     a single open call, the inventory row is enough - say so rather than padding. -->
+     a single open call, the inventory row is enough - say so rather than padding.
+
+     `Who uses it` is the half of this phase's claim that definition text cannot
+     answer. It comes from a DOCUMENT or an INTERVIEW or it reads "not established";
+     an operating procedure that names a department beside a function - A06 has one
+     naming 受注課 and 常温庫 against the morning and evening runs - is the cheapest
+     evidence there is for it, and it is usually already in `input/documents`.
+
+     Record it here when a screen CREATES OR DROPS a database object while running.
+     A06 has three, and a migration that reads the object inventory as fixed is wrong
+     about all of them: one builds and drops a staging table per day, one deletes and
+     recreates a query before exporting it, and one drops a whole table and re-imports
+     it from a spreadsheet. -->
 
 ## 4. Shared UI and Validation Patterns
 
@@ -121,7 +185,17 @@ flowchart TD
 | Reachable from the entry point by an open call | |
 | Referenced by another object but not from the entry point | |
 | Embedded as a subform or subreport | |
-| **Referenced by nothing** | |
+| Opened by a name the code builds at run time | |
+| Opened by a database property rather than by code | |
+| **Referenced by nothing, and no route found** | |
+
+<!-- The two middle rows are why the last one is not a deletion list. A06's four
+     `受注数調整リスト1/2` and `残数記入リスト1/2` reports are opened as
+     `"受注数調整リスト" & Me.fraレポート` - a name no search can find because it is
+     never written down - and the switchboard itself is opened by the database's
+     startup property. Five of that application's nine "referenced by nothing" objects
+     were reachable, and finding them meant reading the open calls for concatenation
+     rather than trusting the derived graph. Do that before grouping 5.2. -->
 
 **This is reachability, not disuse.** Routes not examined:
 
@@ -154,6 +228,14 @@ flowchart TD
 
 ## 6. Assumptions, Unknowns, and Questions
 
+### Scope
+
+<!-- Required. A scope claim needs TARGET_INTENT and nothing else (rule EC-07):
+     reading a screen establishes what it does, never whether it is being rebuilt.
+     Either cite the project's TARGET_INTENT records, or say that none has been
+     supplied and that no screen above is marked in or out of scope. An analyst's
+     emphasis reads as a decision when this section is missing. -->
+
 ### Assumptions
 
 | ID | Assumption | If wrong |
@@ -168,3 +250,21 @@ flowchart TD
 
 | ID | Question | Blocks | Owner |
 |---|---|---|---|
+
+---
+
+## Provenance note
+
+<!-- Only when something about the acquisition qualifies what is above: screenshots
+     that name no screen, an export produced by an older tool, a control inventory
+     that failed on some objects. A06's case: 13 of its 14 screenshots carry no index
+     naming the screen they show, so the one evidence class this phase degrades
+     without is present and, for all but one screen, uncitable. -->
+
+## Evidence Register
+
+<!-- Every claim above resolves here. Status is EXTRACTED, INFERRED or AMBIGUOUS; an
+     INFERRED claim carries its confidence and never loses the label. -->
+
+| ID | Status | Class | Claim kind | Source | Confidence |
+|---|---|---|---|---|---:|

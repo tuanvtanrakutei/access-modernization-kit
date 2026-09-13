@@ -39,6 +39,11 @@ from pathlib import Path
 CITATION_RE = re.compile(r"\b[A-Z][A-Z0-9]*-P\d+-[A-Z][A-Z0-9_]*-\d{3}\b")
 
 
+# `A06_Phase2_ScreenAnalysis_EN.md` -> 2. The kit names its own documents this way, and
+# it is how a citation is told from the phase that allocated the item it cites.
+PHASE_IN_NAME = re.compile(r"Phase([1-6])_", re.IGNORECASE)
+
+
 def read_text(path: Path) -> str:
     for encoding in ("utf-8-sig", "utf-8", "cp932"):
         try:
@@ -204,6 +209,15 @@ def main() -> int:
     workspace_root = (args.workspace or outputs.parent).resolve()
     unresolvable = unresolvable_sources(items, workspace_root)
 
+    # Which documents cite an item allocated to a different phase.
+    borrowed: dict[str, set[str]] = {}
+    for identifier, where in cited.items():
+        phase = phase_of.get(identifier)
+        for name in where:
+            match = PHASE_IN_NAME.search(name)
+            if match and phase is not None and str(phase) != match.group(1):
+                borrowed.setdefault(name, set()).add(identifier)
+
     dangling = {i: w for i, w in sorted(everywhere.items()) if i not in known}
     uncited = sorted(known - set(everywhere))
     by_phase: dict[str, dict[str, int]] = {}
@@ -223,6 +237,7 @@ def main() -> int:
         "dangling": dangling,
         "uncited": uncited,
         "by_phase": by_phase,
+        "cross_phase_citations": {k: sorted(v) for k, v in borrowed.items()},
         "workspace": str(workspace_root),
         "unresolvable_sources": unresolvable,
         "status": "FAIL" if dangling or unresolvable else "PASS",
@@ -236,7 +251,18 @@ def main() -> int:
               + (f" and {matrix_path.name}" if matrix_path else ""))
         for phase in sorted(by_phase):
             counts = by_phase[phase]
-            print(f"  phase {phase}: {counts['cited']} of {counts['items']} items cited")
+            # Says what it counts. This line sits under a list of documents and read
+            # like a per-document figure for as long as it existed: A06's Phase 2
+            # reported `5 of 5` while citing nine ids, four of them Phase 1's. The
+            # number was right about register coverage and was quoted as though it
+            # described the document.
+            print(f"  phase {phase}: {counts['cited']} of {counts['items']} "
+                  f"phase-{phase} item(s) are cited somewhere")
+        for name, ids in sorted(borrowed.items()):
+            # A document resting on an earlier phase's evidence is the reuse this kit
+            # is for, and it was invisible in the figures above.
+            print(f"  {name} also cites {len(ids)} item(s) from another phase: "
+                  + ", ".join(sorted(ids)))
         for identifier, where in dangling.items():
             print(f"  DANGLING {identifier} <- {', '.join(sorted(set(where)))}")
         if uncited:
