@@ -13,6 +13,30 @@
   Delete these comment blocks as you fill the document in.
 -->
 
+<!-- WHO READS THIS, AND WHAT THAT COSTS YOU
+
+     A reference file is read by an agent. A phase document is read by a developer who
+     has to rebuild the system, and they read it once, under time pressure, looking for
+     what they must not get wrong. Two habits follow:
+
+     Open with what they must not get wrong. A short numbered list, each item pointing at
+     the section that proves it. A06's Phase 2 was correct and unusable before it had one:
+     the fact that re-running the morning import destroys the quantities staff typed the
+     night before was in the document, four sections deep, in prose.
+
+     Diagram a mechanism; tabulate a set; write prose only for what neither can hold.
+     One required diagram per phase is a floor, not a budget. Reach for one whenever the
+     thing being described has a shape: an order of steps, a cycle, a lifecycle with a
+     failure branch, a fan-out from one object to many, or three artefacts that should
+     agree and do not. A06's Phase 2 carries five and is shorter than the four-diagram
+     draft it replaced, because each one removed a paragraph that was describing a picture.
+
+     Mermaid renders, or it is not evidence a reader can see. Check it - `mmdc -i x.mmd -o
+     x.svg` - before publishing. A sequence diagram reads better than a flowchart for
+     anything with an actor and an order; a flowchart with a red-filled node is the
+     cheapest way to say "this is where it goes wrong".
+-->
+
 ## Naming Convention
 
 <!-- Generated from the bundle's own object names, not written by hand. -->
