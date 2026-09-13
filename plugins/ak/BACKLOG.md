@@ -12,6 +12,54 @@ that it should now work.
 
 ## Open
 
+### A55 - the control inventory never reached the bundle, and the per-object mechanics were in the wrong document
+
+**Observed 2026-09-14, when the operator said Phase 2's per-screen section was hard to use
+and that the detail belonged in the catalogue.** Both halves of that were right, and the
+second one uncovered a routing defect.
+
+**The detail was in the wrong document.** `A06_Phase2` carried, per screen, what it opens
+and writes and hides - for the twelve screens somebody chose to analyse. The other
+thirty-nine had none of it. That is A14's split applied one level too shallow: enumeration
+belongs in the generated catalogue, claims belong in the phase document. The screen
+catalogue now carries a **Per-object behaviour** section for every object that does
+anything, and Phase 2's section 3 keeps only purpose, who uses it, and the findings that
+need an argument.
+
+**And the control inventory was never in the bundle.** `tools/ExportAccessObjects.bas`
+writes `ui/controls.json` - 1,924 controls for A06, with caption, type, position,
+visibility and event handler - and `_route_record` had no branch for it. A `metadata`
+record that is not schema-tables or imex-specs falls through to the `else`, so it landed in
+`databases/objects.json`: **423 KB of JSON inside one record**, in the section a reader
+takes for a list of database objects. Nothing was lost and nothing could read it.
+
+The cost was not hypothetical. Every control figure in A06's Phase 2 - 1,924 controls, 26
+hidden, 114 buttons, 19 combo boxes - had been quoted from the **unsealed export folder**,
+because that was the only readable copy. A sealed bundle is the reproducible record; a
+figure citable only from an input directory is weaker evidence than the document presented.
+
+**Closed 2026-09-14.** `_route_controls` expands it into `ui/controls`, beside the three
+inventories, the same way `_route_schema_tables` and `_route_imex_specs` already worked. The
+contribution schema and `bundle_assembly` carry the new section. After re-acquisition
+`ui/controls.json` holds 51 objects and 1,924 controls, and `databases/objects.json` is back
+to two export manifests.
+
+**Two counts were wrong on the way, and the second is the more interesting.** The navigation
+figure was published as **39**, which counted `OpenQuery` and `OpenTable` under a sentence
+naming only `OpenForm` and `OpenReport` - the wrong-subject error A39 was about. Corrected
+to **36**, which counted two edges that do not exist: the literal-open pattern also matched
+the quoted half of `"受注数調整リスト" & Me.fraレポート`, inventing a target named
+`受注数調整リスト` when the objects are `受注数調整リスト1` and `2`. The real figure is **34
+literal edges from 8 objects, plus 2 built-name calls**. A test caught the second; nothing
+but arithmetic caught the first, and both had been published.
+
+`contracts/screen_behaviour.py` is the single reader for all of it, so the catalogue and any
+later checker cannot drift (A33). `writes` is published as a lower bound: only targets
+matching a table the bundle knows are kept, which discards the `UPDATE cnt` a raw scan
+returns as SQL and also discards any statement built entirely from fragments.
+
+1804 tests pass.
+
 ### A54 - the check that judges identifiers could not see the malformed ones
 
 **Observed 2026-09-14, checking Phase 2 against its template.** `identifiers_wellformed`

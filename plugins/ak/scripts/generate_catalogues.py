@@ -48,6 +48,7 @@ import export_completeness as completeness_contract  # noqa: E402
 import feed_samples as feeds_contract  # noqa: E402
 import link_targets as link_contract  # noqa: E402
 import meanings as meanings_contract  # noqa: E402
+import screen_behaviour as behaviour_contract  # noqa: E402
 import sql_relationships as sql_contract  # noqa: E402
 import workspace as workspace_contract  # noqa: E402
 
@@ -992,6 +993,8 @@ def screen_catalogue(app_id: str, bundle: Path, facts_dir: Path,
             )
         out.append("")
 
+    out += _per_object_behaviour(bundle, forms, reports, naming)
+
     unreached = [
         (item.get("database_id", ""), item.get("name", ""), kind)
         for kind, items in (("form", forms), ("report", reports))
@@ -1059,6 +1062,84 @@ def parse_fact(text: str) -> dict[str, Any] | None:
         if member and current:
             parsed[current].append(member.group(1).strip())
     return parsed
+
+
+
+def _per_object_behaviour(bundle: Path, forms: list[dict], reports: list[dict],
+                          naming: Any) -> list[str]:
+    """What each object opens, writes and hides - for all of them, not a chosen few.
+
+    A phase document carries claims and a catalogue carries enumeration (A14). Until
+    this existed the enumeration half was in the phase document, written out for the
+    twelve screens somebody chose to analyse, and absent for the other thirty-nine.
+
+    Every column here answers a question A06 got wrong without it. `Opens a built name`
+    is why "referenced by nothing" is not a deletion list - four of A06's nine are
+    opened as `"受注数調整リスト" & Me.fraレポート`, a name no search can find. `Writes`
+    is how `入荷実績入力` turned out to write eleven tables while its recorded purpose
+    was "not established beyond the name".
+    """
+    tables = {str(row.get("name") or "")
+              for row in rows_of(read_json(bundle / "databases" / "tables.json"))}
+    controls_by_object: dict[str, list[dict]] = {}
+    for record in rows_of(read_json(bundle / "ui" / "controls.json")):
+        controls_by_object[str(record.get("object") or "")] = record.get("controls") or []
+
+    body: list[str] = []
+    totals = {"opens": 0, "built": 0, "writes": 0, "hidden": 0}
+    for kind, items in (("form", forms), ("report", reports)):
+        for item in sorted(items, key=lambda i: (i.get("database_id", ""), i.get("name", ""))):
+            name = str(item.get("name") or "")
+            text = item.get("text") or ""
+            opens = behaviour_contract.opens(text)
+            built = behaviour_contract.built_opens(text)
+            writes = behaviour_contract.writes(text, tables)
+            hidden = behaviour_contract.hidden_controls(controls_by_object.get(name, []))
+            if not (opens or built or writes or hidden):
+                continue
+            totals["opens"] += len(opens)
+            totals["built"] += len(built)
+            totals["writes"] += len(writes)
+            totals["hidden"] += len(hidden)
+            body.append(
+                f"| `{escape(name)}` | {naming.english(name)} | {kind} | "
+                + (", ".join(f"`{escape(n)}`" for _, n in opens) or "—") + " | "
+                + (", ".join(f"`{escape(e)}`" for _, e in built) or "—") + " | "
+                + (", ".join(f"{v} `{escape(n)}`" for v, n in writes) or "—") + " | "
+                + (", ".join(f"`{escape(c)}`" for c in hidden) or "—") + " |"
+            )
+    return [
+        f"## Per-object behaviour ({len(body)} of "
+        f"{len(forms) + len(reports)} objects do something)",
+        "",
+        "Read from each object's own definition text. An object with nothing in any "
+        "column is omitted rather than printed as four dashes.",
+        "",
+        f"**{totals['opens']} literal open call(s)**, **{totals['built']} built-name open "
+        f"call(s)**, **{totals['writes']} write(s)** and **{totals['hidden']} hidden "
+        "control(s)**.",
+        "",
+        "`Opens a built name` is an open call whose target is concatenated at run time. "
+        "The name is never written down, so no reference search finds it and the object "
+        "it opens appears in *Objects referenced by nothing* below while being in use. "
+        "The set of names such a call can produce depends on a control's value and is a "
+        "question for an operator, not a fact in the code.",
+        "",
+        "`Writes` is **a lower bound**. A target is kept only when it matches a table "
+        "this bundle knows - which is what discards the `UPDATE cnt` a raw scan returns "
+        "as SQL, and which also discards any statement assembled entirely from "
+        "concatenated fragments.",
+        "",
+        "`Hidden controls` is reachability evidence and **not** usage evidence: a "
+        "developer can unhide a control and an operator may reach the function another "
+        "way. What this column supports is a question, never a conclusion that a "
+        "function is gone.",
+        "",
+        "| Object (production name) | English (proposed) | Kind | Opens | Opens a built name | Writes | Hidden controls |",
+        "|---|---|---|---|---|---|---|",
+        *body,
+        "",
+    ]
 
 
 def imex_columns(records: list[dict]) -> dict[str, list[str]]:

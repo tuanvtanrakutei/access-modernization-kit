@@ -431,11 +431,45 @@ def _route_imex_specs(sections: dict[str, Any], record: dict[str, Any]) -> bool:
     return True
 
 
+
+def _route_controls(sections: dict[str, Any], record: dict[str, Any]) -> bool:
+    """Expand an imported ui/controls.json into the UI section.
+
+    A55. `tools/ExportAccessObjects.bas` writes a control inventory - A06's frontend has
+    1,924 controls with their captions, positions, visibility and event handlers - and
+    `_route_record` had no branch for it, so it fell through to the `else` and landed in
+    `databases/objects.json`: 423 KB of JSON inside a record, in the section a reader
+    takes for a list of database objects.
+
+    Nothing was lost and nothing could read it either. Every control figure in A06's
+    Phase 2 was quoted from the unsealed export folder instead of from the bundle, which
+    is weaker evidence than the document presented. Routed here, `ui/controls.json` is a
+    bundle section like any other and the screen catalogue can carry hidden controls per
+    object.
+    """
+    path = str(record.get("path") or record.get("logical_id") or "")
+    if not path.replace("\\", "/").endswith("ui/controls.json"):
+        return False
+    try:
+        records = json.loads(record.get("text") or "[]")
+    except (TypeError, ValueError):
+        return False
+    if not isinstance(records, list):
+        return False
+    database_id = str(record.get("logical_id", "")).split(":", 1)[0]
+    for entry in records:
+        if isinstance(entry, dict):
+            sections["ui"]["controls"].append({"database_id": database_id, **entry})
+    return True
+
+
 def _route_record(sections: dict[str, Any], record: dict[str, Any]) -> None:
     kind = record["kind"]
     if kind == "metadata" and _route_schema_tables(sections, record):
         return
     if kind == "metadata" and _route_imex_specs(sections, record):
+        return
+    if kind == "metadata" and _route_controls(sections, record):
         return
     if kind == "vba": sections["code"]["vba"].append(record)
     elif kind == "access_sql": sections["code"]["access_sql"].append(record)
