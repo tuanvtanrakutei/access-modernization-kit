@@ -259,7 +259,7 @@ def test_an_odbc_data_source_is_not_an_import_specification() -> None:
                                 "source_table_name": "dbo.仕入商品マスタ",
                                 "connect": odbc}]) == []
     text = (r"Text;DSN=DPSHOHIN " + "ﾘﾝｸの定義" + r";FMT=Delimited;HDR=NO;IMEX=2;"
-            r"CharacterSet=932;DATABASE=C:eeds")
+            r"CharacterSet=932;DATABASE=C:\feeds")
     assert feed_samples.specification_name(text) == "DPSHOHIN ﾘﾝｸの定義"
 
 
