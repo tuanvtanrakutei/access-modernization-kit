@@ -295,15 +295,17 @@ def screen_meaning(meaning: Any, kind: str, name: str) -> str:
 def target_proposal(field: dict, types: dict[int, dict[str, str]]) -> str:
     """A proposed target type, marked as a proposal, with the byte trap called out.
 
-    A `Short Text` size is a maximum in **characters**, and the two ends of a
-    migration count bytes differently: the source stores CP932, at most 2 bytes per
-    full-width character, while a UTF-8 target needs 3 for the same character (4 for
-    some). So a column declared `Short Text(10)` holds ten Japanese characters, which
-    occupy up to 20 bytes where they are and need up to 30 where they are going.
+    A `Short Text` size is a maximum in **characters**, and the two ends of a migration
+    do not agree on what a size means. The source stores CP932, at most 2 bytes per
+    full-width character; a UTF-8 target needs 3 for the same character, and 4 for some.
+    Whether that matters depends on the target, which is why the figure is reported and
+    not resolved: PostgreSQL and MySQL size `varchar(n)` in characters and `n` carries
+    over unchanged, while SQL Server `varchar(n)` and Oracle's default `VARCHAR2(n)`
+    size in bytes, where the same declaration truncates real Japanese data.
 
-    A target column sized in bytes at 10 truncates real data. That is the one
-    mechanical mistake this column exists to prevent; choosing the type remains a
-    person's decision, which is why every value here carries a `?`.
+    A06 links three tables over ODBC to two SQL Server databases, so the byte-counting
+    end of that split is present in this very application. Choosing the type remains a
+    person's decision - the note says what each reading costs, and decides neither.
     """
     entry = types.get(field.get("type")) if isinstance(field.get("type"), int) else None
     if entry is None:
@@ -315,7 +317,7 @@ def target_proposal(field: dict, types: dict[int, dict[str, str]]) -> str:
     if "size" in hint and size:
         hint = hint.replace("size", str(size))
         if entry.get("dao_constant") in ("dbText", "dbChar"):
-            return f"{hint} **needs {int(size) * 3}B in UTF-8**"
+            return f"{hint} **or {int(size) * 3}B if the target sizes in bytes**"
     # No marker, for the same reason the English names carry none: a `?` on all 1,055
     # rows is wallpaper. The column heading and the legend say these are proposals.
     return hint
@@ -471,34 +473,74 @@ def data_catalogue(app_id: str, bundle: Path, types: dict[int, dict[str, str]],
         "acquisition reproduces it from the bundle, so a count here cannot drift from "
         "the databases it describes.",
         "",
-        "## How to read a blank cell",
+        "## How to read this catalogue",
         "",
-        "| Marker | Means |",
+        "This catalogue has two detail tables. The production Japanese name is always the "
+        "authoritative identifier; English values are proposals for cross-reference unless "
+        "explicitly accepted in the glossary.",
+        "",
+        "### Table List columns",
+        "",
+        "| Column | Values shown | Meaning |",
+        "|---|---|---|",
+        "| `No.` | Positive integer | Generated display row number. It is not a permanent identifier and may change when the bundle changes. |",
+        "| `Table (production name)` | Exact Japanese object name in backticks | Authoritative name extracted from Access. Keep it unchanged when referring to the legacy object. |",
+        "| `English (proposed)` | Backticked alias, `_partial_`, `_no term matched_`, or blank | English cross-reference composed from the JP-to-EN dictionary. It is not a business meaning or replacement table name. `_partial_` means only part of the Japanese matched. `_no term matched_` means the object exists but no dictionary term matched; it is not a missing object. |",
+        "| `Database` | Database ID such as `2003DATA2003_B12705FD` | Acquisition-bundle identity of the database that contains this table object. It answers where the object was found, not which system owns the business meaning. |",
+        "| `Linked` | `yes` or `no` | `yes` means the Access object is a link to another database or an ODBC target. `no` means it is a local table object in the database named by `Database`. |",
+        "| `Source table` | Source name, sometimes qualified as `dbo.name`, `—`, or `_not extracted_` | The table name at the other end of a link. `—` means not applicable because the object is local; `_not extracted_` means the object is linked but the target table name was not captured. |",
+        "| `Columns` | Non-negative integer | Number of column records extracted for this table object. It is a structural count, not a count of business fields confirmed by an owner. |",
+        "| `Primary key` | One or more backticked column names, or `**none**` | Primary-key fields declared by the database. `**none**` means no primary key was declared for that object; it does not prove that users never treat another field as a key. |",
+        "| `Written by` | `N writer(s): INSERT/UPDATE/DELETE`, or `no writer attributable` | Writes attributable to extracted SQL/code. `no writer attributable` means no writer was identified in the scanned evidence, not that the table is never written. |",
+        "| `Business role` | Recorded meaning, `_needs DOCUMENT_`, or another evidence marker | Business meaning or usage status. A recorded meaning must have an authoritative source. In Phase 1, `_needs DOCUMENT_` is an intentional open state for meanings to be updated from Phase 2 screen evidence, Phase 3 logic evidence, and Phase 4 workflow evidence; it is not a defect. |",
+        "",
+        "### Column Detail columns",
+        "",
+        "| Column | Values shown | Meaning |",
+        "|---|---|---|",
+        "| `No.` | Positive integer | Generated display position within one table object; not a stable column identifier. |",
+        "| `Column (production name)` | Exact Japanese column name in backticks | Authoritative column identifier extracted from Access. |",
+        "| `English (proposed)` | Backticked alias, `_partial_`, or `_no term matched_` | Dictionary-based English cross-reference only. A name match does not establish the field's business meaning. |",
+        "| `Type (current)` | Access/DAO declaration such as `Number (Long Integer)` or `Short Text(20)` | Type and declared size observed in the legacy database. Different tables may declare the same Japanese column differently. |",
+        "| `Target type` | Proposed target type, `_design decision_`, or `_not extracted_` | "
+        "Migration guidance from the DAO type specification. It is not a final "
+        "target-schema decision. A text size is declared in **characters**: "
+        "`varchar(255)` carries over unchanged to PostgreSQL and MySQL, which also size "
+        "in characters, and `or 765B if the target sizes in bytes` is what the same "
+        "column needs on SQL Server `varchar` or Oracle's default `VARCHAR2`, which do "
+        "not. Taking the character figure to a byte-sizing target truncates real "
+        "Japanese data; this application already reaches two SQL Server databases over "
+        "ODBC, so both readings are live here and the choice belongs to a person. |",
+        "| `PK` | `PK` or `—` | `PK` means this column participates in the declared primary key of this table object. `—` means it does not. |",
+        "| `FK` | `—` or a future declared marker | Foreign-key status from extracted schema. `—` currently means no foreign key is declared in the acquired schema; application joins may still exist. |",
+        "| `Required` | `yes` or `no` | Access field-required attribute observed during extraction. It is not the same as a business rule that rejects every blank input. |",
+        "| `Business meaning` | Recorded meaning, `_needs DOCUMENT_`, `_needs INTERVIEW_`, or another marker | Human-confirmed meaning or the evidence gap preventing one. In Phase 1 it may remain intentionally open until Phases 2–4 add screen, logic, and workflow evidence; it must not be inferred from the English alias or data type alone. |",
+        "",
+        "### Status markers and special values",
+        "",
+        "| Marker or value | Meaning and required interpretation |",
         "|---|---|",
-        f"| {NEEDS_DOC} | Nobody with the standing to say it has said it yet. A "
-        "schema cannot state a business role and neither can more analysis; rule "
-        "EC-01. It fills when a document, an interview or an operator's declaration "
-        "arrives and is recorded in `input/decisions/meanings.yaml` — **an entry there "
-        "must name its source, or it is ignored**. |",
-        "| `name` | The English name, composed from "
-        "`specifications/ja-en-terms.yaml`. **Treat every one as a proposal** unless "
-        "`input/decisions/glossary.yaml` marks it accepted - that file is where a "
-        "correction is made, and an accepted name always wins. A name whose every term "
-        "was already decided in the A01 conversion table is precedent rather than a "
-        "proposal, and overriding one makes the two systems disagree. |",
-        "| `name` _partial_ | Only part of the Japanese matched a known term. Finish it "
-        "by hand, or add the missing term to the dictionary. |",
-        "| Target type | A **proposal** from the DAO type spec, never a decision — "
-        "choosing the real one is a person's job, and in the reference set that "
-        "decision is a separate document with an author. "
-        "A text size is in characters: the source stores CP932 at up to 2 bytes per "
-        "full-width character and a UTF-8 target needs up to 3, so "
-        "`needs nB in UTF-8` is the byte width the target column must actually have. |",
-        f"| {NEEDS_INTERVIEW} | Nobody could be asked. |",
-        f"| {NEEDS_DECISION} | A person's design choice, not an analysis result. In the "
-        "reference set the target types are a separate document with an author. |",
-        f"| {NOT_EXTRACTED} | The extraction does not carry it; "
-        "`specifications/dao-field-types.yaml` says which and why. |",
+        f"| {NEEDS_DOC} | No authorized document, interview, or operator declaration has established the business meaning. Record a sourced decision in `input/decisions/meanings.yaml`; an entry without a source is ignored. |",
+        "| `_needs INTERVIEW_` | The required stakeholder question has not produced an answer. |",
+        f"| {NEEDS_DECISION} | A person's design choice, not an analysis result; record the decision with its author. |",
+        "| `_not extracted_` | The acquisition does not carry the information; do not treat it as proof that the original system had no such value. |",
+        "| `_no term matched_` | The Japanese production name is present, but no JP-to-EN dictionary term matched. Add a dictionary term or an accepted full-name mapping when known. |",
+        "| `_partial_` | The generated English alias covers only part of the Japanese name. Complete it manually or extend the dictionary. |",
+        "| `_design decision_` | A target-system design choice that must be made by an owner, not inferred from legacy schema. |",
+        "| `—` | Not applicable or not present for that row. In the Table List, `Linked: no` plus `Source table: —` specifically identifies a local table. |",
+        "| `**none**` | No primary key was declared for the table object. This is a schema observation, not proof of no operational key. |",
+        "",
+        "### Indexed abbreviated column names",
+        "",
+        "Some legacy tables use an abbreviated Japanese prefix followed by a sequence "
+        "number instead of a descriptive field name. An accepted glossary prefix may "
+        "produce aliases such as `サ1` → `sample_1`, `他1` → `other_1`, "
+        "`ピ1` → `picking_1`, or `欠1` → `stockout_1`. For example, "
+        "`欠品配送データ` is named from its Japanese terms as `stockout_delivery_data`, "
+        "and its numbered columns inherit the `欠` prefix. The number is "
+        "an ordinal slot only: the alias identifies position and origin, but does not "
+        "establish the business meaning of that column. `Business meaning` therefore "
+        "remains evidence-controlled.",
         "",
     ]
 
@@ -510,6 +552,13 @@ def data_catalogue(app_id: str, bundle: Path, types: dict[int, dict[str, str]],
     # reconciliation is printed before the list, and neither figure is dropped.
     out += _table_reconciliation(tables)
     out += [
+        "How to read the location columns: `Linked: yes` identifies an Access or ODBC "
+        "link, and `Source table` names the table at the other end. `Linked: no` with "
+        "`Source table: —` identifies a local table whose rows and definition are "
+        "stored in the database named by `Database`; it comes from that database's "
+        "table inventory in the acquisition bundle, not from an unrecorded external "
+        "source.",
+        "",
         "| No. | Table (production name) | English (proposed) | Database | Linked | "
         "Source table | Columns | Primary key | Written by | Business role |",
         "|---:|---|---|---|---|---|---:|---|---|---|",
@@ -523,7 +572,7 @@ def data_catalogue(app_id: str, bundle: Path, types: dict[int, dict[str, str]],
         primary = key_fields[key]["primary"]
         out.append(
             f"| {number} | `{escape(name)}` | {naming.english(name)} | "
-            f"{escape(database)} | {'yes' if is_linked else '—'} | "
+            f"{escape(database)} | {'yes' if is_linked else 'no'} | "
             f"{_source_table_cell(table)} | {len(by_table[key])} | "
             f"{'`' + '`, `'.join(escape(p) for p in primary) + '`' if primary else '**none**'} | "
             f"{escape(writes.summary(name))} | {table_meaning(meaning, name)} |"
@@ -1038,18 +1087,21 @@ def imex_columns(records: list[dict]) -> dict[str, list[str]]:
             for name, spec in feeds_contract.specifications(records).items()}
 
 
+def declared_specification(spec_name: str, imex: dict[str, list[str]]) -> str:
+    if not spec_name:
+        return ""
+    fields = imex.get(spec_name)
+    if fields is None:
+        return f"`{escape(spec_name)}` **not in the database**"
+    return f"`{escape(spec_name)}`: {len(fields)} column(s)"
+
+
 def declared_layout(connect: str, imex: dict[str, list[str]]) -> str:
     """What the link's own specification says its columns are, if it names one."""
     name = feeds_contract.specification_name(connect)
     if not name:
         return ""
-    fields = imex.get(name)
-    if fields is None:
-        # The link names a specification the database does not hold. That is a finding:
-        # the layout of a headerless file is declared nowhere, so a sample is the only
-        # remaining route (EC-02).
-        return f"`{escape(name)}` **not in the database**"
-    return f"`{escape(name)}`: {len(fields)} column(s)"
+    return declared_specification(name, imex)
 
 
 def logic_catalogue(app_id: str, bundle: Path, derived: dict | None,
@@ -1060,6 +1112,7 @@ def logic_catalogue(app_id: str, bundle: Path, derived: dict | None,
     linked = link_contract.collapse(
         rows_of(read_json(bundle / "interfaces" / "linked-tables.json")))
     imex = imex_columns(rows_of(read_json(bundle / "interfaces" / "imex-specs.json")))
+    transfers = feeds_contract.code_feeds_of_bundle(bundle)
 
     referenced = reference_counts(derived)
     verbs = {(q.get("database_id", ""), q.get("name", "")): query_verb(bundle, q)
@@ -1200,7 +1253,7 @@ def logic_catalogue(app_id: str, bundle: Path, derived: dict | None,
     duplicates = [row for row in linked if link_contract.is_autonumbered_duplicate(
         str(row.get("name") or ""), link_contract.field(row, "source_table_name"))]
     listed = [row for row in linked if row not in duplicates]
-    out += ["", f"## Files crossing the boundary ({len(listed) + len(interfaces)})", "",
+    out += ["", f"## Files crossing the boundary ({len(listed) + len(interfaces) + len(transfers)})", "",
             "Every declared inbound and outbound file. A format claim about any of "
             f"these needs one real sample ({NOT_EXTRACTED} means the declaration says "
             "nothing about it).", ""]
@@ -1211,25 +1264,41 @@ def logic_catalogue(app_id: str, bundle: Path, derived: dict | None,
             "already listed below and would otherwise be "
             f"{len(duplicates)} of {len(linked)} rows.", "",
         ]
-    out += ["| File or link | Database | Direction | Declared format | Declared columns | What it is for |",
-            "|---|---|---|---|---|---|"]
+    out += ["| File or link | Database | Direction | Declared by | Declared format | "
+            "Declared columns | What it is for |",
+            "|---|---|---|---|---|---|---|"]
     for row in sorted(listed, key=lambda r: str(r.get("name", ""))):
         connect = link_contract.field(row, "connect")
         # A linked table's meaning is asked once, in the `tables:` section, because a
         # linked table is a table. This cell reads it from there rather than opening a
         # second question about the same subject.
         out.append(f"| `{escape(row.get('name'))}` | {escape(row.get('database_id'))} | "
-                   f"inbound link | `{escape(connect) or NOT_EXTRACTED}` | "
+                   f"inbound link | the link object | `{escape(connect) or NOT_EXTRACTED}` | "
                    f"{declared_layout(connect, imex) or NOT_EXTRACTED} | "
                    f"{table_meaning(meaning, str(row.get('name') or ''))} |")
     for row in sorted(interfaces, key=lambda r: str(r.get("name", r.get("path", "")))):
         name = str(row.get("name") or row.get("path") or "")
         out.append(f"| `{escape(name)}` | "
                    f"{escape(row.get('database_id'))} | "
-                   f"{escape(row.get('direction') or NEEDS_DOC)} | "
+                   f"{escape(row.get('direction') or NEEDS_DOC)} | the link object | "
                    f"`{escape(row.get('format')) or NOT_EXTRACTED}` | "
                    f"{declared_layout(str(row.get('connect') or ''), imex) or NOT_EXTRACTED} | "
                    f"{boundary_meaning(meaning, name)} |")
+    for feed in sorted(transfers, key=lambda item: (item.database_id, item.direction,
+                                                    item.declared_in, item.table)):
+        # The file is the subject of this table, so the path goes in the first column -
+        # the expression itself where it is built from variables, because naming it
+        # `_not extracted_` would hide that the code says exactly this much and no more.
+        # `Declared by` carries the call: three A06 screens import `Ｓ仕商品` from three
+        # places, and without it they print as three identical rows.
+        where = " ".join(part for part in (
+            f"`{escape(feed.declared_in)}`" if feed.declared_in else "",
+            f"{escape(feed.operation)} -> `{escape(feed.table)}`") if part)
+        out.append(f"| `{escape(feed.path_expression)}` | "
+                   f"{escape(feed.database_id)} | {feed.direction} code | {where} | "
+                   f"`{escape(feed.declared_format) or NOT_EXTRACTED}` | "
+                   f"{declared_specification(feed.spec_name, imex) or NOT_EXTRACTED} | "
+                   f"{boundary_meaning(meaning, feed.file_name or feed.path_expression)} |")
     return "\n".join(out) + "\n"
 
 

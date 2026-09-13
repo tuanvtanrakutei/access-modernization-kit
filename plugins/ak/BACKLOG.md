@@ -108,6 +108,47 @@ work from collecting the specification, and A44's collection is what makes it po
 all. Note also that the export route is required for it, which the acquisition-modes
 guide should say.
 
+**Closed 2026-09-13.** `contracts/feed_samples.code_feeds` parses `TransferText` and
+`TransferSpreadsheet` calls out of exported VBA, form, report and macro definitions, and
+`code_feeds_of_bundle` is the single reader both `generate_catalogues.py` and
+`$ak samples` call. The inventory is `links ∪ code`; a variable path is reported as the
+expression it is, rather than becoming a file name nobody can find.
+
+On A06's bundle `2026-09-10-50cfe32e`: **24 inbound links + 10 inbound code + 3 outbound
+code = 37**, up from 24. The 10 include the **4 calls naming saved specifications** above,
+now printed with the layouts A44 collected - 14, 26, 29 and 26 columns. Verified against
+the 87 exported definitions by hand first: 15 `Transfer*` lines, of which 3 are exports,
+2 are commented out, and 13 are live. The parser returns exactly those 13.
+
+Three corrections were made to the first version of this fix, each of which had shipped
+looking like it worked:
+
+- **Both directions.** It filtered to `acImport` under a heading reading *"Every declared
+  inbound and outbound file"*, so A06's three `acExportDelim` calls stayed invisible while
+  the bundle held a specification named `商品マスタ ｴｸｽﾎﾟｰﾄ定義` - the database itself
+  saying an export exists. A heading that over-promises is A46 one level up. A transfer
+  type held in a variable is now skipped rather than assumed inbound: a file in the wrong
+  half of the boundary is worse than a row that is absent.
+- **One reader, not two.** Each script got its own copy of the bundle walk, and the copies
+  had already drifted - one decoded VBA as UTF-8 only and raised `UnicodeDecodeError` on a
+  CP932 module, which is the ordinary encoding of a Japanese application's exported code.
+  The catalogue would have listed a feed that crashed `$ak samples`. That is A33, so the
+  rule now lives in one function and `read_definition` tries the same codecs everywhere.
+- **The path left the evidence column.** It was appended to `What it is for`, putting a
+  measured code fact inside the marker that decides whether a MEANING claim may be made.
+  The file is the subject of that table, so the path is the row's first cell, and a new
+  `Declared by` column carries the call - three A06 screens import `Ｓ仕商品` from three
+  places and printed as three identical rows.
+
+Proven by **1761 passed, 1 skipped**, by three mutations (inbound-only, guessing the
+direction of a variable transfer type, and the UTF-8-only decode) each failing the tests
+that name them, and by the real catalogue and `$ak samples` runs on A06.
+
+**Still open, and not this entry's work:** `商品マスタ ｴｸｽﾎﾟｰﾄ定義` is named by nothing.
+All three export calls omit the specification argument, so the saved layout and the
+calls cannot be tied together from the evidence. Also `２１商品 ﾘﾝｸの定義`, which is a
+link definition. Two of the six saved specifications therefore still have no caller.
+
 ### A45 - the extractor could change what a bundle contains without changing its address
 
 **Observed 2026-09-10, re-acquiring A06 after A44.** The publish was refused:
