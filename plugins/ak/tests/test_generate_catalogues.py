@@ -211,6 +211,52 @@ def test_the_statement_comes_from_the_sql_not_the_metadata(workspace: Path) -> N
     assert "2 of 3 queries write" in logic
 
 
+def test_code_imports_are_listed_as_boundary_files(workspace: Path) -> None:
+    """A46. A feed the code declares is a feed.
+
+    Every reader of the specifications began at a link's connect string, so A06's four
+    live CSV inputs - each named in a `TransferText` call, each with its layout saved in
+    the database - appeared in no document at all.
+    """
+    bundle = workspace / ".ak" / "bundles" / "bundle-abc"
+    forms = json.loads((bundle / "ui" / "forms" / "inventory.json").read_text(
+        encoding="utf-8"))
+    forms.append({"database_id": FE, "name": "受注取込", "kind": "form",
+                  "text": 'DoCmd.TransferText acImportDelim, "order_spec", '
+                          '"受注", inbound_path, True\n'
+                          'DoCmd.TransferText acExportDelim, , "在庫", "C:\\stock.CSV", True'})
+    write(bundle / "ui" / "forms" / "inventory.json", forms)
+    logic = build(workspace)["T01_LogicCatalogue.md"]
+    assert "`受注取込` TransferText acImportDelim -> `受注`" in logic
+    assert "`order_spec`: 2 column(s)" in logic
+    # The path is the subject of this table, so it is the row's first cell - as the
+    # expression itself where the code builds it from variables, because the code says
+    # exactly that much and `_not extracted_` would hide it.
+    assert "| `inbound_path` |" in logic
+    assert "| inbound code |" in logic
+    # And the other direction, under a heading that promises both.
+    assert "| `\"C:\\stock.CSV\"` |" in logic
+    assert "| outbound code |" in logic
+
+
+def test_the_path_expression_stays_out_of_the_evidence_column(workspace: Path) -> None:
+    """`What it is for` is graded by evidence class, and a path is not evidence of it.
+
+    The first version appended the expression to that cell, so a measured code fact sat
+    inside the marker that decides whether a MEANING claim may be made.
+    """
+    bundle = workspace / ".ak" / "bundles" / "bundle-abc"
+    forms = json.loads((bundle / "ui" / "forms" / "inventory.json").read_text(
+        encoding="utf-8"))
+    forms.append({"database_id": FE, "name": "受注取込", "kind": "form",
+                  "text": 'DoCmd.TransferText acImportDelim, "order_spec", '
+                          '"受注", inbound_path, True'})
+    write(bundle / "ui" / "forms" / "inventory.json", forms)
+    logic = build(workspace)["T01_LogicCatalogue.md"]
+    row, = [line for line in logic.splitlines() if "inbound code" in line]
+    assert row.rstrip().endswith(f"{catalogues.NEEDS_DOC} |")
+
+
 def test_a_query_with_no_sql_in_the_bundle_says_so(workspace: Path) -> None:
     bundle = workspace / ".ak" / "bundles" / "bundle-abc"
     inventory = bundle / "code" / "access-sql" / "inventory.json"
@@ -252,12 +298,33 @@ def test_a_dao_type_code_is_translated(workspace: Path) -> None:
     assert "Number (Long Integer)" in data
     assert "Number (Double)" in data
     assert "| 10 |" not in data
+    # The size is in characters and the two ends of a migration disagree about
+    # what that means; both readings are printed because only a person can pick.
+    assert "or 24B if the target sizes in bytes" in data
 
 
 def test_unfillable_columns_are_present_and_marked(workspace: Path) -> None:
     data = build(workspace)["T01_DataCatalogue.md"]
     assert catalogues.NEEDS_DOC in data, "an English name needs a document; EC-01"
     assert catalogues.NEEDS_DECISION in data, "a target type is a person's decision"
+
+
+def test_table_location_and_unmatched_names_are_explained(workspace: Path) -> None:
+    data = build(workspace)["T01_DataCatalogue.md"]
+    assert "## How to read this catalogue" in data
+    assert "### Table List columns" in data
+    assert "### Column Detail columns" in data
+    assert "### Status markers and special values" in data
+    assert "### Indexed abbreviated column names" in data
+    assert "`ピ1` → `picking_1`" in data
+    assert "`欠品配送データ` is named from its Japanese terms" in data
+    assert "updated from Phase 2 screen evidence" in data
+    assert "identifies a local table whose rows and definition are stored" in data
+    assert "`Linked` | `yes` or `no`" in data
+    assert "`Linked: no` plus `Source table: —`" in data
+    assert "`_not extracted_` means the object is linked" in data
+    assert "no dictionary term matched" in data
+    assert "it is not a missing object" in data
 
 
 def test_zero_declared_relationships_is_stated_as_a_finding(workspace: Path) -> None:

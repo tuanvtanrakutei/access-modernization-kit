@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Compare each supplied sample with the import specification its link names.
+"""Compare each supplied sample with the import specification its bundle names.
 
 The gap this closes is A23. A17 put the two tables that declare a text link's columns
 into the bundle and predicted the useful check without building it; A21 proved the
@@ -107,9 +107,15 @@ def main() -> int:
     bundle = max(bundles, key=lambda path: (path / "bundle.json").stat().st_mtime)
 
     interfaces = bundle / "interfaces"
-    declared = feeds_contract.feeds(
+    linked = feeds_contract.feeds(
         link_targets.collapse(rows_of(read_json(interfaces / "linked-tables.json")))
         + rows_of(read_json(interfaces / "file-interfaces.json")))
+    # Inbound only. An outbound file's evidence is an OUTPUT_SAMPLE under
+    # `input/report-samples`, which this does not read, so reporting an export here as
+    # having no sample would name a gap in the wrong directory. The catalogue lists
+    # both directions; this compares the half it can.
+    declared = [feed for feed in linked + feeds_contract.code_feeds_of_bundle(bundle)
+                if feed.direction == "inbound"]
     specs = feeds_contract.specifications(
         rows_of(read_json(interfaces / "imex-specs.json")))
     samples_root = space.input_dir("samples")
@@ -117,10 +123,10 @@ def main() -> int:
 
     print(f"bundle {bundle.name}")
     if not declared:
-        print("no link in this bundle names an import specification; nothing to compare")
+        print("no inbound feed in this bundle names an import specification; nothing to compare")
         return 0
 
-    print(f"{len(declared)} link(s) name an import specification, "
+    print(f"{len(declared)} inbound feed(s) declared by links or code, "
           f"{len(specs)} specification(s) in the bundle, "
           f"{sum(len(paths) for paths in on_disk.values())} file(s) under "
           f"{samples_root}")
@@ -130,8 +136,23 @@ def main() -> int:
     read: list[tuple[feeds_contract.Specification, feeds_contract.Sample]] = []
     claimed: set[str] = set()
 
-    for feed in sorted(declared, key=lambda item: (item.database_id, item.table)):
+    for feed in sorted(declared, key=lambda item: (item.database_id, item.declared_in,
+                                                   item.table)):
         where = f"{feed.table} ({feed.file_name or 'no file named'})"
+        if feed.declared_in:
+            # Three of A06's calls import `Ｓ仕商品` from three different screens. Named
+            # only by table and file, they print as three identical lines and no reader
+            # can tell which one a finding is about.
+            where = f"{feed.declared_in} -> {where}"
+        if feed.origin == "code" and not feed.spec_name:
+            findings.append(("NO SPEC", where, f"{feed.operation} names no import "
+                             "specification; its layout is declared nowhere"))
+            continue
+        if feed.origin == "code" and not feed.file_name:
+            findings.append(("NO LITERAL FILE", where, f"{feed.operation} uses "
+                             f"`{feed.path_expression}` for the file path, so no "
+                             "sample can be matched by name"))
+            continue
         spec = specs.get(feed.spec_name)
         matches = on_disk.get(feed.file_name.lower(), []) if feed.file_name else []
         if matches:
@@ -171,7 +192,9 @@ def main() -> int:
             # operator collecting from several senders makes, and a bare file name
             # would not tell them which one to look in.
             findings.append(("UNCLAIMED", path.relative_to(samples_root).as_posix(),
-                             "no link in this bundle names this file"))
+                             "no link and no import call in this bundle names this "
+                             "file. A call that builds its path from variables names "
+                             "no file at all, so a sample for one of those lands here"))
 
     spread = feeds_contract.encoding_spread(read)
     if spread:

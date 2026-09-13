@@ -71,6 +71,7 @@ from __future__ import annotations
 
 import csv
 import io
+import json
 import re
 from collections import Counter
 from dataclasses import dataclass
@@ -192,7 +193,7 @@ class Sample:
 
 @dataclass(frozen=True)
 class Feed:
-    """A link that names an import specification, and the file it points at.
+    """A declared import feed, and the file or expression it points at.
 
     The connect string's own declarations travel with it, because two of them decide
     whether a comparison means anything and A05 has one value of each: `FMT=Delimited`
@@ -208,6 +209,11 @@ class Feed:
     file_name: str
     declared_format: str = ""
     header_declared: str = ""
+    origin: str = "link"
+    path_expression: str = ""
+    operation: str = ""
+    direction: str = "inbound"
+    declared_in: str = ""
 
     @property
     def expects_header(self) -> bool:
@@ -361,6 +367,191 @@ def feeds(rows: Iterable[dict]) -> list[Feed]:
             header_declared=declared(connect, "HDR"),
         ))
     return found
+
+
+def _vba_code_lines(text: str) -> Iterator[str]:
+    pending = ""
+    for raw in text.splitlines():
+        line = []
+        quoted = False
+        for char in raw:
+            if char == '"':
+                quoted = not quoted
+            if char == "'" and not quoted:
+                break
+            line.append(char)
+        current = "".join(line).rstrip()
+        if current.endswith("_"):
+            pending += current[:-1] + " "
+            continue
+        yield pending + current
+        pending = ""
+    if pending.strip():
+        yield pending
+
+
+def _vba_arguments(text: str) -> list[str]:
+    arguments: list[str] = []
+    start = 0
+    quoted = False
+    depth = 0
+    for index, char in enumerate(text):
+        if char == '"':
+            quoted = not quoted
+        elif not quoted and char == "(":
+            depth += 1
+        elif not quoted and char == ")":
+            depth = max(0, depth - 1)
+        elif not quoted and char == "," and depth == 0:
+            arguments.append(text[start:index].strip())
+            start = index + 1
+    arguments.append(text[start:].strip())
+    return arguments
+
+
+def _vba_literal(value: str) -> str:
+    value = value.strip()
+    if len(value) < 2 or value[0] != '"' or value[-1] != '"':
+        return ""
+    return value[1:-1].replace('""', '"')
+
+
+# Which way the data moves, from the transfer type the call names. `acLink` reads
+# `inbound` because the rows arrive from the file; it is kept distinct from `acImport`
+# in `transfer_type`, because an attachment that stays live is not a copy taken once.
+_DIRECTIONS = (("acimport", "inbound"), ("acexport", "outbound"), ("aclink", "inbound"))
+
+
+def code_feeds(records: Iterable[dict]) -> list[Feed]:
+    """Find every `TransferText` and `TransferSpreadsheet` call in definition text.
+
+    A46. A feed the code declares is a feed, and until this existed the inventory began
+    at a link's connect string - so A06's four live CSV inputs, each named in a
+    `TransferText` call and each with its layout saved in the database, appeared in no
+    document at all.
+
+    Both directions, because the section that prints these says *inbound and outbound*
+    and a heading that over-promises is the same defect one level up: A06 writes three
+    CSVs from code and holds a saved specification called `商品マスタ ｴｸｽﾎﾟｰﾄ定義`,
+    none of which a caller filtering on `acImport` would ever see.
+
+    A call is retained even when its file path is a variable or its specification is
+    absent. Those are boundaries the code proves, and the unresolved path is reported as
+    itself rather than becoming a file name nobody can find. No sample comparison is
+    attempted without a literal specification and file name.
+    """
+    found: list[Feed] = []
+    call_pattern = re.compile(r"(?i)(?:DoCmd\.)?(TransferText|TransferSpreadsheet)\b")
+    for record in records:
+        text = str(record.get("text") or "")
+        declared_in = str(record.get("name") or record.get("object_name") or "")
+        for line in _vba_code_lines(text):
+            for match in call_pattern.finditer(line):
+                arguments_text = line[match.end():].strip()
+                if arguments_text.startswith("(") and arguments_text.endswith(")"):
+                    arguments_text = arguments_text[1:-1].strip()
+                arguments = _vba_arguments(arguments_text)
+                if len(arguments) < 4:
+                    continue
+                transfer_type = arguments[0].strip()
+                folded = transfer_type.casefold()
+                direction = next((way for prefix, way in _DIRECTIONS
+                                  if folded.startswith(prefix)), "")
+                if not direction:
+                    # A transfer type held in a variable, or omitted so that Access
+                    # applies its default. Which way it moves is not readable here, and
+                    # guessing would put a file in the wrong half of the boundary.
+                    continue
+                is_text = match.group(1).casefold() == "transfertext"
+                spec_name = _vba_literal(arguments[1]) if is_text else ""
+                table_value = _vba_literal(arguments[2]) or arguments[2]
+                path_value = _vba_literal(arguments[3])
+                header = ""
+                if len(arguments) > 4:
+                    header_value = arguments[4].strip().casefold()
+                    if header_value in {"true", "-1"}:
+                        header = "YES"
+                    elif header_value in {"false", "0"}:
+                        header = "NO"
+                declared_format = (
+                    "Delimited" if "delim" in folded else transfer_type
+                ) if is_text else "Spreadsheet"
+                found.append(Feed(
+                    table=table_value,
+                    database_id=str(record.get("database_id") or ""),
+                    spec_name=spec_name,
+                    file_name=base_name(path_value),
+                    declared_format=declared_format,
+                    header_declared=header,
+                    origin="code",
+                    path_expression=arguments[3],
+                    operation=f"{match.group(1)} {transfer_type}".strip(),
+                    direction=direction,
+                    declared_in=declared_in,
+                ))
+    return found
+
+
+# Where a definition's text lives in a bundle, by the section that holds its inventory.
+# VBA is written out as a file and named by `path`; a form or report carries its text
+# inline. Both shapes are read here so that no caller has to know which is which.
+_DEFINITION_SECTIONS = (("code", "vba"), ("ui", "forms"), ("ui", "reports"),
+                        ("ui", "macros"))
+
+
+def code_feeds_of_bundle(bundle) -> list[Feed]:
+    """Every code-declared feed in a sealed bundle, for any reader that wants them.
+
+    A33's rule, applied before it could be broken: the catalogue and `$ak samples` both
+    need this, and the first version of A46 gave each its own copy. The copies had
+    already drifted - one decoded VBA as UTF-8 only and raised on a CP932 module, which
+    is the ordinary encoding of a Japanese application's exported code. A reader that
+    lists a feed and a reader that crashes on it are two answers to one question.
+    """
+    records: list[dict] = []
+    for section, folder in _DEFINITION_SECTIONS:
+        for record in _inventory(bundle / section / folder / "inventory.json"):
+            text = record.get("text")
+            if text is None and record.get("path"):
+                text = read_definition(bundle / section / folder / str(record["path"]))
+            if text is not None:
+                records.append({**record, "text": text})
+    return code_feeds(records)
+
+
+def _inventory(path) -> list[dict]:
+    """The rows of one bundle inventory, or none when the section is absent."""
+    raw = read_definition(path)
+    if raw is None:
+        return []
+    try:
+        data = json.loads(raw)
+    except ValueError:
+        return []
+    if isinstance(data, list):
+        return [row for row in data if isinstance(row, dict)]
+    if isinstance(data, dict):
+        for value in data.values():
+            if isinstance(value, list) and value and isinstance(value[0], dict):
+                return value
+    return []
+
+
+def read_definition(path) -> str | None:
+    """A definition file's text, or None when nothing could read it.
+
+    The same codec order the rest of the kit uses. `None` rather than `""` so that a
+    file which exists and cannot be decoded is distinguishable from one that is empty -
+    silently reading an undecodable module as blank is how a declared feed disappears.
+    """
+    for encoding in ("utf-8-sig", "utf-8", "cp932"):
+        try:
+            return path.read_text(encoding=encoding)
+        except UnicodeDecodeError:
+            continue
+        except OSError:
+            return None
+    return None
 
 
 def decode(raw: bytes) -> tuple[str, str, bool]:
@@ -526,7 +717,7 @@ def format_problem(feed: Feed | None) -> Finding | None:
     """
     if feed is None or feed.is_delimited:
         return None
-    return Finding("FORMAT", f"the link declares FMT={feed.declared_format}, and this "
+    return Finding("FORMAT", f"the feed declares FMT={feed.declared_format}, and this "
                    "compares delimited files only - a fixed-width layout is declared "
                    "by Start and Width, which nothing here reads yet")
 

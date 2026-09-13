@@ -128,6 +128,82 @@ def test_the_file_name_loses_any_directory_it_arrived_with() -> None:
     assert feeds.base_name("") == ""
 
 
+def test_code_imports_are_found_in_definition_text() -> None:
+    found = feeds.code_feeds([{
+        "database_id": "FE",
+        "name": "受注取込",
+        "text": '''
+            ' DoCmd.TransferText acImportDelim, "ignored", "out", path, True
+            DoCmd.TransferText acImportDelim, _
+                "受注データ定義", "受注", inbound_path, True
+            DoCmd.TransferSpreadsheet acImport, 8, "商品", "L:\\商品.xls", True
+        ''',
+    }])
+    assert len(found) == 2, "a commented-out call declares nothing"
+    text, spreadsheet = found
+    assert (text.spec_name, text.table, text.path_expression) == (
+        "受注データ定義", "受注", "inbound_path")
+    assert (text.origin, text.declared_format, text.header_declared) == (
+        "code", "Delimited", "YES")
+    # Which screen declares it. Three A06 screens import the same table from three
+    # places, and without this they are one row printed three times.
+    assert text.declared_in == "受注取込"
+    assert (spreadsheet.operation, spreadsheet.file_name, spreadsheet.spec_name) == (
+        "TransferSpreadsheet acImport", "商品.xls", "")
+
+
+def test_a_file_the_code_writes_is_a_boundary_too() -> None:
+    """The section that prints these says *inbound and outbound*.
+
+    The first version of A46 filtered to `acImport`, so A06's three `acExportDelim`
+    calls stayed invisible under a heading claiming completeness - and the bundle holds
+    a saved specification named `商品マスタ ｴｸｽﾎﾟｰﾄ定義`, which is the database itself
+    saying an export exists.
+    """
+    found = feeds.code_feeds([{"database_id": "FE", "name": "出力画面", "text": (
+        'DoCmd.TransferText acExportDelim, , "在庫表印刷データ", "C:\\在庫表.CSV", True')}])
+    feed, = found
+    assert (feed.direction, feed.file_name) == ("outbound", "在庫表.CSV")
+    assert feed.spec_name == "", "an omitted argument names no specification"
+
+
+def test_a_transfer_type_held_in_a_variable_is_not_guessed() -> None:
+    """Which way the data moves decides which half of the boundary a file is in.
+
+    Reading it as inbound because most calls are would put a file in the wrong half,
+    and a wrong direction is worse than an absent row.
+    """
+    assert feeds.code_feeds([{"database_id": "FE", "text": (
+        'DoCmd.TransferText transferMode, "spec", "tbl", path, True')}]) == []
+
+
+def test_a_runtime_spreadsheet_link_is_a_file_crossing_the_boundary() -> None:
+    """`acLink` attaches the file rather than copying it once, and the rows still
+    arrive from outside. The transfer type is kept so the two are not conflated."""
+    feed, = feeds.code_feeds([{"database_id": "FE", "name": "共通関数", "text": (
+        'DoCmd.TransferSpreadsheet acLink, 8, sTableName, sFileName, True')}])
+    assert feed.direction == "inbound"
+    assert feed.operation == "TransferSpreadsheet acLink"
+
+
+def test_one_reader_serves_the_catalogue_and_the_sample_check(tmp_path) -> None:
+    """A33, on the pair that A46 first gave a copy each.
+
+    The copies had already drifted: one decoded VBA as UTF-8 only, so a CP932 module -
+    the ordinary encoding of a Japanese application's exported code - was listed by the
+    catalogue and raised `UnicodeDecodeError` in `$ak samples`.
+    """
+    bundle = tmp_path / "bundle"
+    (bundle / "code" / "vba").mkdir(parents=True)
+    (bundle / "code" / "vba" / "inventory.json").write_text(json.dumps(
+        [{"database_id": "FE", "name": "共通関数", "path": "m1.txt"}]), encoding="utf-8")
+    (bundle / "code" / "vba" / "m1.txt").write_bytes(
+        'DoCmd.TransferText acImportDelim, "受注データ定義", "受注", p, True'.encode("cp932"))
+    feed, = feeds.code_feeds_of_bundle(bundle)
+    assert feed.spec_name == "受注データ定義"
+    assert feed.declared_in == "共通関数"
+
+
 # --- reading the bytes -------------------------------------------------------
 
 def test_both_encodings_a05_actually_receives_are_read() -> None:
