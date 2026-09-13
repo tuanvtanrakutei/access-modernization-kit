@@ -107,6 +107,13 @@ For multi-agent work, also read `references/orchestration-guide.md`, `orchestrat
 
 ## Apply language and build-context rules
 
+- Declare output languages at initialization with `--languages EN,JA,VI`; the manifest's
+  `outputs.languages` controls phase variants, so there is no separate per-phase language flag.
+- When EN and another language both exist, agents use the EN document as the canonical
+  analysis reference. JA/VI variants are owner-readable translations and must not introduce
+  facts, decisions, identifiers, or evidence that are absent from EN.
+- In every language variant, render table names, column names, and domain-specific business
+  terms as `日本語 (English)`; keep the Japanese production identifier authoritative.
 - Record human language, programming/query language, dialect, encoding, parser, parser version, and parse status per source.
 - Treat Access VBA, Access SQL, T-SQL, and ODBC pass-through SQL as distinct dialects.
 - Use CP932/Shift-JIS-aware decoding where indicated; never silently replace undecodable Japanese text.
