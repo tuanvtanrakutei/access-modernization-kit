@@ -395,3 +395,48 @@ def test_blanking_preserves_length(tmp_path: Path) -> None:
     """Blanked rather than removed, so nothing downstream depends on offsets shifting."""
     text = "a `d31` b\n\n```\nd31\n```\n"
     assert len(checker.prose(text)) == len(text)
+
+
+# --- A54: malformed identifiers were invisible to the check that judges them ---------
+
+def test_a_namespace_prefix_with_the_wrong_shape_is_reported() -> None:
+    """`identifiers_wellformed` judges what the finder found, and for most namespaces the
+    finder *is* the scheme - `OB-` is the same pattern on both sides. So `OB-S01` was not
+    a malformed OB identifier, it was not an identifier at all, and eight of them passed
+    unreported in A06's Phase 2.
+
+    The module's own comment says deriving the finder from the scheme "means a malformed
+    identifier becomes invisible rather than reported". That was fixed for `BR-` and left
+    standing everywhere else.
+    """
+    assert checker.malformed_identifiers("See OB-S01 and RS-1 here.") == ["OB-S01", "RS-1"]
+
+
+def test_a_well_formed_identifier_is_not_reported() -> None:
+    assert checker.malformed_identifiers("See OB-01, RS-02, WF-003 and F-001.") == []
+
+
+def test_a_word_that_merely_starts_with_a_prefix_is_not_an_identifier() -> None:
+    """`E-` is a namespace. `E-mail` is not a finding, and requiring a digit is what
+    separates them."""
+    assert checker.malformed_identifiers("Reach us by E-mail, or by e-mail.") == []
+
+
+def test_the_gold_standard_allocates_nothing_off_scheme() -> None:
+    """Calibration, the same way the content checks are calibrated: if the reference set
+    trips this, the scheme is written wrong and the documents are not."""
+    if not REFERENCE.is_dir():
+        pytest.skip(f"reference set not on this machine: {REFERENCE}")
+    offenders = {}
+    for path in sorted(REFERENCE.glob("*.md")):
+        if not checker.PHASE_FILE.search(path.name):
+            continue
+        found = checker.malformed_identifiers(checker.prose(checker.read(path)))
+        if found:
+            offenders[path.name] = found
+    assert not offenders, offenders
+
+
+def test_code_spans_are_excluded_here_too(tmp_path: Path) -> None:
+    """A52's rule applies: a namespace-shaped token inside backticks is code."""
+    assert checker.malformed_identifiers(checker.prose("the column `OB-S01` is text")) == []

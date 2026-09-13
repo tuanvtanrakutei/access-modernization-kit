@@ -12,6 +12,37 @@ that it should now work.
 
 ## Open
 
+### A54 - the check that judges identifiers could not see the malformed ones
+
+**Observed 2026-09-14, checking Phase 2 against its template.** `identifiers_wellformed`
+judges what the finder found, and for most namespaces the finder *is* the scheme: `OB-` is
+`\bOB-\d{2}\b` on one side and `^OB-[0-9]{2}$` on the other. So `OB-S01` was
+not a malformed OB identifier - it was not an identifier at all, and eight of them passed
+unreported.
+
+The module's own comment says deriving the finder from the scheme "means a malformed
+identifier becomes invisible rather than reported". That was written about `BR-M01`, fixed
+for `BR-`, and left standing everywhere else.
+
+**22 malformed identifiers across A06's own Phase 1 and Phase 2, all invisible**: eight
+`OB-Snn`, five `RS-n`, nine `Q-A06-nn`. Phase 1 also carried seven risks as `R1`-`R7`,
+which belong to no namespace at all. Every one of them written by this session, past two
+gates.
+
+**Closed 2026-09-14.** Relaxing the finders would be the wrong repair - they feed
+`identifiers_resolve`, and a loose finder there invents dangling identifiers (A52). Instead
+`malformed_identifiers` looks for tokens wearing a namespace's prefix that the namespace
+does not accept. At least one digit is required, so `E-mail` is not an `E-` finding, and
+code spans are excluded the same way A52 excludes them.
+
+Calibrated against the gold standard: **all 18 of the reference set's phase documents are
+clean.** Its `A01_QuestionList.md` carries `E-1` and `Q-19`, which the scheme would reject -
+but that is not a phase document and the checker does not read it, so the scheme is not
+contradicted by the only documents it governs.
+
+A06's identifiers were renumbered to the scheme: `RD-01`-`RD-07`, `RS-01`-`RS-05`,
+`OB-11`-`OB-18`, `Q101`-`Q110`, `AS-01`-`AS-03` and `AS-11`-`AS-13`. 1795 tests pass.
+
 ### A53 - a separator counted as an untranslated word, and four more substring traps
 
 **Observed 2026-09-14, starting Phase 2.** A48 cleaned the *data* catalogue to 2 of 1,156

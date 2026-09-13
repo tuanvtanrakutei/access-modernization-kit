@@ -201,6 +201,36 @@ def prose(text: str) -> str:
     return CODE_SPAN.sub(lambda m: " " * len(m.group(0)), text)
 
 
+# A54. `identifiers_wellformed` judges what the finder found, and for most namespaces the
+# finder is the scheme: `OB-` is `\bOB-\d{2}\b` on both sides. So `OB-S01` is not a
+# malformed OB identifier - it is not an identifier at all, and eight of them passed
+# unreported. The module comment above says deriving the finder from the scheme "means a
+# malformed identifier becomes invisible rather than reported"; that was fixed for `BR-`
+# and left standing everywhere else.
+#
+# Relaxing the finders themselves would be the wrong repair: they feed
+# `identifiers_resolve`, and a loose finder there invents dangling identifiers (A52).
+# Instead this looks for tokens that wear a namespace's prefix and are not what that
+# namespace accepts. At least one digit is required, so `E-mail` is not an `E-` finding.
+NEAR_MISS_TOKEN = r"(?:[A-Za-z0-9]|-(?=[A-Za-z0-9])){0,8}\d(?:[A-Za-z0-9]|-(?=[A-Za-z0-9])){0,8}"
+
+
+def malformed_identifiers(text: str) -> list[str]:
+    """Tokens carrying a namespace prefix that the namespace does not accept."""
+    found: set[str] = set()
+    for namespace, finder in NAMESPACE_PATTERNS.items():
+        prefix = namespace.rstrip("-")
+        if not prefix.isupper() or len(prefix) > 4:
+            continue          # `d-` and `r-` are lowercase indexes; too short to key on
+        near = re.compile(rf"\b{re.escape(prefix)}-{NEAR_MISS_TOKEN}\b")
+        for token in near.findall(text):
+            if not finder.fullmatch(token):
+                shape = SCHEME_PATTERNS.get(namespace)
+                if shape is None or not shape.match(token):
+                    found.add(token)
+    return sorted(found)
+
+
 def check(name: str, group: str, ok: bool, detail: str) -> dict[str, Any]:
     return {"check": name, "group": group, "status": "PASS" if ok else "FAIL", "detail": detail}
 
@@ -349,6 +379,8 @@ def apparatus_checks(phase: int, text: str, registers: dict[str, Any],
             if shape is None:
                 continue
             malformed += [i for i in set(finder.findall(prose(text))) if not shape.match(i)]
+        # And the ones no finder sees, which is where they hide (A54).
+        malformed += malformed_identifiers(prose(text))
         results.append(check(
             "identifiers_wellformed", "apparatus", not malformed,
             f"{len(malformed)} off-scheme: {sorted(malformed)[:6]}" if malformed

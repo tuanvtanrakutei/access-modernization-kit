@@ -68,7 +68,15 @@ document is JP-primary, with a Romaji alias for cross-reference. Never translate
 | Declaring a record source | | | `{{APP_ID}}_ScreenCatalogue.md` |
 | Carrying event procedures | | | `{{APP_ID}}_ScreenCatalogue.md` |
 | Embedding a third-party control | | | `{{APP_ID}}_ScreenCatalogue.md` |
+| Controls hidden in the definition | | | `ui/controls.json` |
 | Business purpose not established | | | the catalogue's marked cells |
+
+<!-- The hidden-control row is not housekeeping. A06's switchboard carries 32 command
+     buttons and seven of them are hidden with no code anywhere making them visible
+     again - one of the seven would reach a screen that declares two live inbound
+     feeds. A hidden control is REACHABILITY evidence and not usage evidence: a
+     developer can unhide it and an operator may have another route, so the status of
+     each one is an open question, never a conclusion that the function is retired. -->
 
 ### 1.2 Entry points
 
@@ -101,7 +109,19 @@ flowchart TD
 |---|---|---|---|---|---|
 
 <!-- One of these per screen that carries behaviour. For a screen whose behaviour is
-     a single open call, the inventory row is enough - say so rather than padding. -->
+     a single open call, the inventory row is enough - say so rather than padding.
+
+     `Who uses it` is the half of this phase's claim that definition text cannot
+     answer. It comes from a DOCUMENT or an INTERVIEW or it reads "not established";
+     an operating procedure that names a department beside a function - A06 has one
+     naming 受注課 and 常温庫 against the morning and evening runs - is the cheapest
+     evidence there is for it, and it is usually already in `input/documents`.
+
+     Record it here when a screen CREATES OR DROPS a database object while running.
+     A06 has three, and a migration that reads the object inventory as fixed is wrong
+     about all of them: one builds and drops a staging table per day, one deletes and
+     recreates a query before exporting it, and one drops a whole table and re-imports
+     it from a spreadsheet. -->
 
 ## 4. Shared UI and Validation Patterns
 
@@ -121,7 +141,17 @@ flowchart TD
 | Reachable from the entry point by an open call | |
 | Referenced by another object but not from the entry point | |
 | Embedded as a subform or subreport | |
-| **Referenced by nothing** | |
+| Opened by a name the code builds at run time | |
+| Opened by a database property rather than by code | |
+| **Referenced by nothing, and no route found** | |
+
+<!-- The two middle rows are why the last one is not a deletion list. A06's four
+     `受注数調整リスト1/2` and `残数記入リスト1/2` reports are opened as
+     `"受注数調整リスト" & Me.fraレポート` - a name no search can find because it is
+     never written down - and the switchboard itself is opened by the database's
+     startup property. Five of that application's nine "referenced by nothing" objects
+     were reachable, and finding them meant reading the open calls for concatenation
+     rather than trusting the derived graph. Do that before grouping 5.2. -->
 
 **This is reachability, not disuse.** Routes not examined:
 
@@ -154,6 +184,14 @@ flowchart TD
 
 ## 6. Assumptions, Unknowns, and Questions
 
+### Scope
+
+<!-- Required. A scope claim needs TARGET_INTENT and nothing else (rule EC-07):
+     reading a screen establishes what it does, never whether it is being rebuilt.
+     Either cite the project's TARGET_INTENT records, or say that none has been
+     supplied and that no screen above is marked in or out of scope. An analyst's
+     emphasis reads as a decision when this section is missing. -->
+
 ### Assumptions
 
 | ID | Assumption | If wrong |
@@ -168,3 +206,21 @@ flowchart TD
 
 | ID | Question | Blocks | Owner |
 |---|---|---|---|
+
+---
+
+## Provenance note
+
+<!-- Only when something about the acquisition qualifies what is above: screenshots
+     that name no screen, an export produced by an older tool, a control inventory
+     that failed on some objects. A06's case: 13 of its 14 screenshots carry no index
+     naming the screen they show, so the one evidence class this phase degrades
+     without is present and, for all but one screen, uncitable. -->
+
+## Evidence Register
+
+<!-- Every claim above resolves here. Status is EXTRACTED, INFERRED or AMBIGUOUS; an
+     INFERRED claim carries its confidence and never loses the label. -->
+
+| ID | Status | Class | Claim kind | Source | Confidence |
+|---|---|---|---|---|---:|
