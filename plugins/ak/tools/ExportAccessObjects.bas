@@ -10,6 +10,26 @@ Private Const Q As String = """"
 ' Kept beside the Attribute at the top of the file, which is where it comes from.
 Private Const MODULE_NAME As String = "modExportAccess"
 
+' Printed into the manifest so a stale copy sitting in a database is visible. A45
+' solved this for the PowerShell extractor by hashing its bytes into the bundle id;
+' nothing did it for this route, and A06's backend proved why - it has been exporting
+' with a pre-A44 copy since 2026-09-10, printing `imex_specification_rows=no link
+' declares DSN=` on a kit where that gate no longer exists. A manifest carrying no
+' `exporter_version=` line was written by a copy older than 2.12.
+Private Const EXPORTER_VERSION As String = "2.12.0"
+
+' A module the kit told the operator to import is not application code. The guard
+' above is a single hard-coded name, which protected this file and nothing else -
+' and the kit's other tool, `ListStaleLinks`, was imported into A06's frontend to
+' delete 153 dead links, landed under Access's default name `Module1`, and was
+' exported on 2026-09-14 as the application's eighth module.
+'
+' So the test is what the module *is*, not what it is called. `@ak-tool` marks the
+' kit's own files; the entry-point names below catch a copy imported before that
+' marker existed, which is exactly the copy sitting in A06 now.
+Private Const KIT_TOOL_MARKER As String = "@ak-tool"
+Private Const KIT_TOOL_ENTRY_POINTS As String = "Sub ListStaleLinks(|Sub DeleteStaleLinks(|Sub ExportAccessObjects("
+
 ' =============================================================================
 ' Access Modernization Kit - manual Access export
 ' =============================================================================
@@ -107,9 +127,24 @@ Public Sub ExportAccessObjects(ByVal OutRoot As String)
     ' contamination goes, but it is then measured as if it were the application's
     ' - `$ak completeness` records its shape and `$ak meanings` asks what it is
     ' for.
+    Dim modulePath As String, nKitTool As Long, kitToolNames As String
     For Each ao In CurrentProject.AllModules
         If ao.Name <> MODULE_NAME Then
-            If TrySaveAsText(acModule, ao.Name, UniquePath(OutRoot & "\vba", ao.Name, "txt"), "module") Then nModule = nModule + 1
+            modulePath = UniquePath(OutRoot & "\vba", ao.Name, "txt")
+            If TrySaveAsText(acModule, ao.Name, modulePath, "module") Then
+                If IsKitToolModule(modulePath) Then
+                    ' Removed, and named in the manifest. Silently dropping an object
+                    ' the operator can see in the navigation pane is how a count
+                    ' becomes unexplainable.
+                    On Error Resume Next
+                    Kill modulePath
+                    On Error GoTo 0
+                    nKitTool = nKitTool + 1
+                    kitToolNames = kitToolNames & "  " & ao.Name & vbCrLf
+                Else
+                    nModule = nModule + 1
+                End If
+            End If
         End If
     Next
 
@@ -181,7 +216,12 @@ Public Sub ExportAccessObjects(ByVal OutRoot As String)
               "tables=" & nTable & vbCrLf & _
               "excluded_system_or_junk_tables=" & nExcluded & vbCrLf & _
               "imex_specification_rows=" & CStr(nImexRows) & vbCrLf & _
+              "excluded_kit_tool_modules=" & nKitTool & vbCrLf & _
+              "exporter_version=" & EXPORTER_VERSION & vbCrLf & _
               "skipped=" & mSkipCount & vbCrLf
+    If nKitTool > 0 Then
+        summary = summary & vbCrLf & "EXCLUDED modules (this kit's own tools, not application code):" & vbCrLf & kitToolNames
+    End If
     If nExcluded > 0 Then
         summary = summary & vbCrLf & "EXCLUDED tables (system / temp / Access ImportErrors):" & vbCrLf & excludedNames
     End If
@@ -745,4 +785,40 @@ Private Function NzLong(ByVal v As Variant) As Long
     On Error Resume Next
     NzLong = 0
     NzLong = CLng(v)
+End Function
+
+Private Function IsKitToolModule(ByVal path As String) As Boolean
+    ' Reads the module the export just wrote. Content, not name: `ListStaleLinks`
+    ' arrived in A06 as `Module1`, which is what Access calls a module somebody
+    ' pasted code into, and no name test could ever have caught it.
+    On Error GoTo Fail
+    Dim handle As Integer, textLine As String, scanned As Long
+    Dim parts() As String, i As Long
+    parts = Split(KIT_TOOL_ENTRY_POINTS, "|")
+    handle = FreeFile
+    Open path For Input As #handle
+    Do While Not EOF(handle) And scanned < 200
+        Line Input #handle, textLine
+        scanned = scanned + 1
+        If InStr(1, textLine, KIT_TOOL_MARKER, vbTextCompare) > 0 Then
+            Close #handle
+            IsKitToolModule = True
+            Exit Function
+        End If
+        For i = LBound(parts) To UBound(parts)
+            If InStr(1, textLine, parts(i), vbTextCompare) > 0 Then
+                Close #handle
+                IsKitToolModule = True
+                Exit Function
+            End If
+        Next i
+    Loop
+    Close #handle
+    Exit Function
+Fail:
+    ' Unreadable is not kit tooling. Keeping the module is the safe error: an extra
+    ' object is visible in the count, a missing one is not.
+    On Error Resume Next
+    Close #handle
+    IsKitToolModule = False
 End Function

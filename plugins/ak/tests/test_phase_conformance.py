@@ -358,3 +358,40 @@ def test_every_output_language_the_kit_offers_has_signals() -> None:
     for check, by_language in human["conformance_signals"].items():
         for language in human["output_languages"]:
             assert by_language.get(language), f"{check} has no {language} phrases"
+
+
+# --- A52: a column name shaped like an identifier -----------------------------------
+
+def test_a_column_name_in_backticks_is_not_an_identifier(tmp_path: Path) -> None:
+    """A06's Phase 1 names the SQL Server table 受注年月商品, whose columns are `d1` …
+    `d31` - and `d31` is exactly the shape of the `d-` namespace. The checker reported a
+    dangling identifier against a document that had allocated everything it cited.
+
+    The reference set settles which way to resolve it: it writes namespace identifiers
+    as plain prose in table cells (`| d01 | 店舗受注データ | …`) and column names inside
+    backticks (`` `d31` ``). The same collision, already distinguished by the gold
+    standard's own typography.
+    """
+    text = "# Phase 1\n\nThe columns are `d1` … `d31`, plus `合計数量 = d1+d2+...+d31`.\n"
+    assert "d31" not in checker.prose(text)
+    assert "d31" in text, "the document is untouched; only the scan is narrowed"
+
+
+def test_an_identifier_in_prose_is_still_found() -> None:
+    """Narrowing the scan must not stop it finding what it is for."""
+    text = "| d01 | 店舗受注データ | .dat | Store ordering |\n\nSee OB-01 and WF-003.\n"
+    scanned = checker.prose(text)
+    assert "d01" in scanned and "OB-01" in scanned and "WF-003" in scanned
+
+
+def test_a_fenced_block_is_not_scanned() -> None:
+    """A mermaid diagram or a VBA excerpt is code, whatever it happens to contain."""
+    text = "# Phase 1\n\n```vb\nDim d31 As Double   ' WF-999 is not a citation here\n```\n"
+    scanned = checker.prose(text)
+    assert "d31" not in scanned and "WF-999" not in scanned
+
+
+def test_blanking_preserves_length(tmp_path: Path) -> None:
+    """Blanked rather than removed, so nothing downstream depends on offsets shifting."""
+    text = "a `d31` b\n\n```\nd31\n```\n"
+    assert len(checker.prose(text)) == len(text)

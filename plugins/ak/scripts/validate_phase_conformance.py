@@ -181,6 +181,26 @@ CONFORMANCE_SIGNALS = load_conformance_signals()
 LANGUAGE_SUFFIX = re.compile(r"_([A-Z]{2})(?:\.[^.]+)?$")
 
 
+# An identifier is prose; a column name is code. A52: A06's Phase 1 names the SQL Server
+# table `受注年月商品`, whose columns are `d1` … `d31`, and `d31` is exactly the shape of
+# the `d-` namespace - so the checker reported a dangling identifier against a document
+# that had allocated everything it cited.
+#
+# The reference set settles which way to resolve it. It writes namespace identifiers as
+# plain prose in table cells (`| d01 | 店舗受注データ | …`) and writes column names inside
+# backticks (`` `d31` ``, `` `合計数量 = d1+d2+...+d31` ``) - the same collision, already
+# distinguished by the gold standard's own typography. So code spans are not scanned.
+CODE_SPAN = re.compile(r"```.*?```|`[^`\n]*`", re.DOTALL)
+
+
+def prose(text: str) -> str:
+    """The document with its code spans blanked, for finding identifiers in.
+
+    Blanked rather than removed so that nothing downstream depends on offsets shifting.
+    """
+    return CODE_SPAN.sub(lambda m: " " * len(m.group(0)), text)
+
+
 def check(name: str, group: str, ok: bool, detail: str) -> dict[str, Any]:
     return {"check": name, "group": group, "status": "PASS" if ok else "FAIL", "detail": detail}
 
@@ -207,7 +227,7 @@ def content_checks(phase: int, text: str, path: Path | None = None) -> list[dict
     ))
 
     if phase == 4:
-        workflows = set(NAMESPACE_PATTERNS["WF-"].findall(text))
+        workflows = set(NAMESPACE_PATTERNS["WF-"].findall(prose(text)))
         enough = diagrams >= len(workflows) if workflows else diagrams >= 1
         results.append(check(
             "diagram_per_workflow", "content", enough,
@@ -215,7 +235,7 @@ def content_checks(phase: int, text: str, path: Path | None = None) -> list[dict
         ))
 
     for namespace in REQUIRED_NAMESPACES.get(phase, ()):
-        found = set(NAMESPACE_PATTERNS[namespace].findall(text))
+        found = set(NAMESPACE_PATTERNS[namespace].findall(prose(text)))
         results.append(check(
             f"identifiers:{namespace}", "content", bool(found),
             f"{len(found)} allocated" if found
@@ -312,8 +332,9 @@ def apparatus_checks(phase: int, text: str, registers: dict[str, Any],
         ))
     else:
         used: set[str] = set()
+        scanned = prose(text)
         for pattern in NAMESPACE_PATTERNS.values():
-            used |= set(pattern.findall(text))
+            used |= set(pattern.findall(scanned))
         dangling = sorted(used - allocated)
         results.append(check(
             "identifiers_resolve", "apparatus", not dangling,
@@ -327,7 +348,7 @@ def apparatus_checks(phase: int, text: str, registers: dict[str, Any],
             shape = SCHEME_PATTERNS.get(namespace)
             if shape is None:
                 continue
-            malformed += [i for i in set(finder.findall(text)) if not shape.match(i)]
+            malformed += [i for i in set(finder.findall(prose(text))) if not shape.match(i)]
         results.append(check(
             "identifiers_wellformed", "apparatus", not malformed,
             f"{len(malformed)} off-scheme: {sorted(malformed)[:6]}" if malformed
@@ -342,7 +363,7 @@ def apparatus_checks(phase: int, text: str, registers: dict[str, Any],
                 "Phase 6 without an errata register cannot supersede an earlier claim",
             ))
         else:
-            used = set(NAMESPACE_PATTERNS["E-"].findall(text))
+            used = set(NAMESPACE_PATTERNS["E-"].findall(prose(text)))
             dangling = sorted(used - errata)
             results.append(check(
                 "errata_resolve", "apparatus", not dangling,

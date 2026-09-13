@@ -96,3 +96,65 @@ def test_option_explicit_is_declared(path: Path) -> None:
     """Without it a typo becomes a silent Variant, which in an exporter means a
     silently empty field rather than an error."""
     assert "Option Explicit" in path.read_text(encoding="utf-8"), path.name
+
+
+# --- A51: the kit's own tools, exported as the application's code -------------------
+
+EXPORTER = PACKAGE / "tools" / "ExportAccessObjects.bas"
+
+
+def exporter_text() -> str:
+    return EXPORTER.read_text(encoding="utf-8")
+
+
+def test_every_kit_tool_carries_the_marker() -> None:
+    """A module the kit tells an operator to import is not application code.
+
+    `ListStaleLinks` was imported into A06's frontend to delete 153 dead links, landed
+    under Access's default name `Module1`, and was exported on 2026-09-14 as the
+    application's eighth module - carrying this kit's prose about A06's own tables into
+    the corpus that describes A06.
+    """
+    for path in BAS_FILES:
+        assert "@ak-tool" in path.read_text(encoding="utf-8"), path.name
+
+
+def test_the_guard_reads_content_rather_than_a_name() -> None:
+    """The old guard was `If ao.Name <> MODULE_NAME`, one hard-coded string.
+
+    It protected the file that declared it and nothing else, and no name test could
+    ever have caught `Module1` - which is what Access calls a module somebody pasted
+    code into.
+    """
+    text = exporter_text()
+    assert "IsKitToolModule(modulePath)" in text
+    assert "KIT_TOOL_MARKER" in text and "KIT_TOOL_ENTRY_POINTS" in text
+    # Every tool's entry point is listed, so a copy imported before the marker existed
+    # is still recognised - which is the copy sitting in A06 right now.
+    for entry in ("Sub ListStaleLinks(", "Sub DeleteStaleLinks(", "Sub ExportAccessObjects("):
+        assert entry in text, entry
+
+
+def test_an_excluded_tool_is_named_in_the_manifest() -> None:
+    """Silently dropping an object the operator can see in the navigation pane is how
+    a count becomes unexplainable."""
+    text = exporter_text()
+    assert "excluded_kit_tool_modules=" in text
+    assert "EXCLUDED modules (this kit's own tools, not application code):" in text
+
+
+def test_the_manifest_says_which_exporter_wrote_it() -> None:
+    """A06's backend has been exporting with a pre-A44 copy since 2026-09-10, printing
+    `imex_specification_rows=no link declares DSN=` on a kit where that gate no longer
+    exists - and nothing in the output said so. A45 solved this for the PowerShell
+    route by hashing its bytes into the bundle id; this route had no equivalent."""
+    text = exporter_text()
+    assert "EXPORTER_VERSION" in text
+    assert '"exporter_version=" & EXPORTER_VERSION' in text
+
+
+def test_an_unreadable_module_is_kept_rather_than_dropped() -> None:
+    """The safe error: an extra object is visible in the count, a missing one is not."""
+    text = exporter_text()
+    tail = text[text.index("Private Function IsKitToolModule"):]
+    assert "IsKitToolModule = False" in tail.split("Fail:")[1]

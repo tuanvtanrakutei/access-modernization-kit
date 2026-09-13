@@ -103,6 +103,14 @@ Each link is classified:
 | `AUTO_NUMBERED_DUPLICATE` | safe to remove; every condition below held |
 | `UNREACHABLE_DISTINCT` | a real table this database can no longer reach — reported, never deleted |
 | `HELD_BACK` | matched the name rule and failed a safety condition |
+
+**Delete the module when you are done.** A51: it was left in A06's frontend under
+Access's default name `Module1`, and the next export reported eight modules where the
+application has seven — with this kit's comments, which name A06's own tables, landing
+in the corpus that describes A06. The exporter now recognises its own tools by content
+and excludes them, naming what it excluded in the manifest, so leaving it behind no
+longer corrupts a count. It is still this kit's code sitting in someone's production
+database, and removing it is the tidier default.
 | `LIVE` | resolves now |
 
 A link is offered for deletion only when all four hold:

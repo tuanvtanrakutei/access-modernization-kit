@@ -1,6 +1,10 @@
 Option Compare Database
 Option Explicit
 
+' @ak-tool - this file belongs to the Access Modernization Kit, not to the
+' application. It is imported into a database to be run, and the export leaves
+' any module carrying this marker out of the corpus.
+
 ' Which linked tables Access named itself, and which are real tables it can no longer
 ' reach. Run inside the frontend .mdb, from the Immediate window:
 '
@@ -9,6 +13,13 @@ Option Explicit
 ' It writes a report beside the database and changes nothing. That is the whole of the
 ' default behaviour, and it is the default because the alternative edits a running
 ' application.
+'
+' Remove this module when you are finished with it. A51: it was left in A06's
+' frontend, Access had named it `Module1`, and the next export reported eight modules
+' where the application has seven - with this file's comments, which name A06's own
+' tables, sitting in the corpus that describes A06. The exporter now excludes it, so
+' leaving it behind is no longer a wrong count; it is still someone else's code in a
+' production database.
 '
 ' -----------------------------------------------------------------------------------
 ' The rule, and why it is not the obvious one

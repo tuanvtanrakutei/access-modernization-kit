@@ -12,6 +12,84 @@ that it should now work.
 
 ## Open
 
+### A52 - a column name shaped like an identifier was reported as a dangling one
+
+**Observed 2026-09-14, writing A06's Phase 1.** `identifiers_resolve` failed both language
+variants with `1 dangling, first: ['d31']`. Nothing was dangling. A06's largest ODBC table,
+`受注年月商品`, is a month-by-product matrix whose columns are `k1` … `k31` and `d1` … `d31`,
+and the document names them - while `NAMESPACE_PATTERNS["d-"]` is `\bd\d{2}\b`.
+
+So a document was reported as citing an identifier it had not allocated, when what it had
+actually done was name a column. Acting on that report means inventing a `d31` entry in the
+identifier register to satisfy a checker, which is the failure this kit exists to prevent
+pointed at its own output.
+
+The reference set settles which way to resolve it, and settles it on evidence rather than
+preference: it writes namespace identifiers as **plain prose** in table cells
+(`| d01 | 店舗受注データ | .dat | …`) and writes column names **inside backticks**
+(`` `d31` ``, `` `合計数量 = d1+d2+...+d31` ``). The same collision already exists in the
+gold standard, and the gold standard already distinguishes the two by typography.
+
+**Closed 2026-09-14.** `prose()` blanks inline code spans and fenced blocks before any
+namespace pattern is applied - blanked rather than removed, so nothing downstream depends
+on offsets shifting - and every identifier scan now reads it: `identifiers_resolve`,
+`identifiers_wellformed`, the per-phase required-namespace check, `diagram_per_workflow`
+and the Phase 6 errata check. A mermaid diagram or a VBA excerpt is code whatever it
+happens to contain, which also stops a `WF-` in a code sample counting as a workflow.
+
+Proven both ways: A06's Phase 1 passes in both languages, and reverting `prose()` to return
+the text unchanged fails the two tests that name the case. 1786 tests pass.
+
+### A51 - the kit's own tool was exported as the application's code, and nothing said which exporter wrote the file
+
+**Observed 2026-09-14, re-exporting A06 after the table cleanup.** The frontend reported
+`modules=8` where every previous run reported 7. The eighth was `Module1`, and `Module1`
+is `tools/ListStaleLinks.bas` - this kit's own macro, which the kit told the operator to
+import so they could delete 153 dead links. Access names a module `Module1` when somebody
+pastes code into a new one, so it was not even recognisable as ours.
+
+The exporter already had a guard for exactly this, added after A05's 2026-09-08 run
+carried seven modules against the previous six:
+
+```vb
+Private Const MODULE_NAME As String = "modExportAccess"
+...
+If ao.Name <> MODULE_NAME Then
+```
+
+One hard-coded string. It protected the file that declared it and nothing else - and
+what it failed to protect against was the kit's *other* tool, imported on the kit's own
+instructions. The contamination is not cosmetic: `Module1`'s comments name
+`商品情報20121115`, `仕入商品マスタ` and A06's `受YYYYMMDD` tables, so reference counts
+and the derived graph would have drawn edges from this kit's prose about A06 into the
+corpus describing A06. A43 is the same defect in the normalizer; this is A43 in the
+exporter, and A43's fix did not reach here.
+
+**Closed 2026-09-14.** The test is what a module *is*: `IsKitToolModule` reads the text
+the export just wrote and skips it if it carries `@ak-tool` or declares a known kit entry
+point. Both tools now carry the marker, and the entry-point list catches a copy imported
+before the marker existed - which is the copy sitting in A06's frontend now. Verified
+against the real 2026-09-14 export: `Module1` matches on `Sub ListStaleLinks(`, and all
+seven real modules do not. An excluded module is **named in the manifest**
+(`excluded_kit_tool_modules=`), because silently dropping an object the operator can see
+in the navigation pane is how a count becomes unexplainable. An unreadable module is
+kept, not dropped: an extra object is visible in a count and a missing one is not.
+
+**And the second half, found in the same log.** A06's backend printed
+`imex_specification_rows=no link declares DSN=` - the gate A44 removed. It printed it on
+**2026-09-10 as well**, so the backend `.mdb` has been exporting with a pre-A44 copy of
+`modExportAccess` for four days, on a kit where that gate no longer exists, and nothing
+in the output said so. For A06 the consequence is nil (the backend holds 0 specification
+rows, measured through the DAO route, which A44 did fix) - but the two routes gave two
+answers to one question and only one of them was current.
+
+A45 solved precisely this for the PowerShell extractor by hashing its bytes into the
+bundle identity. This route had no equivalent, so the manifest now carries
+`exporter_version=`; a manifest without that line was written by a copy older than 2.12.
+It is a declared constant rather than a computed digest, because a `.bas` cannot hash
+itself - so it says *which release* wrote the file, not *which bytes*. Still open: a
+database running a hand-edited copy that keeps the constant would not be caught.
+
 ### A50 - the citation check counts a document citing its own register
 
 **Observed 2026-09-13, reviewing A06's Phase 1.** `validate_evidence_citations` reported
