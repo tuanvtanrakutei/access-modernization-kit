@@ -291,3 +291,70 @@ def test_an_unclassified_register_is_reported(tmp_path: Path) -> None:
     registers = checker.load_registers(outputs)
     assert registers["evidence_total"] == 2
     assert registers["evidence_unclassified"] == 1
+
+
+# --- A49: the gate could only read English -----------------------------------------
+
+CONFORMANT = {
+    "EN": "# Phase 1\n\n## Naming Convention\n\nProduction names remain authoritative.\n"
+          "\n## Source Coverage\n\n| Evidence class | Supplied |\n",
+    "VI": "# Giai đoạn 1\n\n## Quy ước đặt tên\n\nTên production vẫn là tên có thẩm quyền.\n"
+          "\n## Mức độ bao phủ nguồn\n\n| Lớp bằng chứng | Có |\n",
+    "JA": "# フェーズ1\n\n## 命名規則\n\n本番名をそのまま使う。\n\n## ソースカバレッジ\n\n証拠クラス\n",
+}
+SILENT = "# Phase 1\n\n## Overview\n\nA document that says nothing about either.\n"
+
+
+def status(results: list, name: str) -> str:
+    return [r for r in results if r["check"] == name][0]["status"]
+
+
+def both(tmp_path: Path, filename: str, body: str) -> tuple[str, str]:
+    path = tmp_path / filename
+    path.write_text(body, encoding="utf-8")
+    return (status(checker.content_checks(1, body, path), "naming_convention"),
+            status(checker.apparatus_checks(1, body, {}, path), "source_coverage"))
+
+
+@pytest.mark.parametrize("language", ["EN", "VI", "JA"])
+def test_a_conformant_document_passes_in_every_output_language(language, tmp_path) -> None:
+    """A49. `NAMING_SIGNALS` was four English substrings and `source_coverage` tested
+    `"source coverage" in lower`, while `$ak init --languages EN,JA,VI` offers three.
+
+    A06's Vietnamese Phase 1 failed both with sections `## Quy ước đặt tên` and
+    `## Mức độ bao phủ nguồn` present, and the failure text said the document held no
+    such statement - which a reader would act on by adding a section already there.
+    """
+    assert both(tmp_path, f"A99_Phase1_X_{language}.md",
+                CONFORMANT[language]) == ("PASS", "PASS")
+
+
+@pytest.mark.parametrize("language", ["EN", "VI", "JA"])
+def test_a_document_that_really_lacks_them_still_fails(language, tmp_path) -> None:
+    """The point is to read three languages, not to stop checking."""
+    assert both(tmp_path, f"A99_Phase1_X_{language}.md", SILENT) == ("FAIL", "FAIL")
+
+
+def test_a_document_with_no_language_suffix_is_read_as_english(tmp_path) -> None:
+    assert both(tmp_path, "A99_Phase1_X.md", CONFORMANT["EN"]) == ("PASS", "PASS")
+
+
+def test_an_unknown_language_searches_every_phrase_rather_than_failing(tmp_path) -> None:
+    """Degrade to looser, never to a failure about a section the document has.
+
+    Reporting a document as non-conformant because nobody has translated the checker
+    is a defect in the checker.
+    """
+    assert both(tmp_path, "A99_Phase1_X_DE.md", CONFORMANT["VI"]) == ("PASS", "PASS")
+
+
+def test_every_output_language_the_kit_offers_has_signals() -> None:
+    """A language in `output_languages` with no phrases is the defect coming back."""
+    import yaml
+
+    spec = yaml.safe_load(
+        (PACKAGE / "specifications" / "language-support.yaml").read_text(encoding="utf-8"))
+    human = spec["human_languages"]
+    for check, by_language in human["conformance_signals"].items():
+        for language in human["output_languages"]:
+            assert by_language.get(language), f"{check} has no {language} phrases"

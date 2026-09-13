@@ -114,8 +114,55 @@ def load_scheme_patterns() -> dict[str, re.Pattern[str]]:
 SCHEME_PATTERNS: dict[str, re.Pattern[str]] = load_scheme_patterns()
 
 
-# Words that show the document said what its terms mean rather than translating them.
-NAMING_SIGNALS = ("naming convention", "production name", "romaji", "never translate")
+def load_conformance_signals() -> dict[str, dict[str, tuple[str, ...]]]:
+    """Per-language phrases for the two checks that read what a document says.
+
+    A49. These were English substrings, and `$ak init --languages EN,JA,VI` offers to
+    generate documents in three. A conformant Vietnamese Phase 1 failed both checks -
+    its sections are `## Quy ước đặt tên` and `## Mức độ bao phủ nguồn` - and the
+    failure text said the document held no such statement, which a reader would act on
+    by adding a section that is already there. That is A47's defect in a different
+    checker: wording that states a conclusion the evidence does not support.
+    """
+    try:
+        import yaml
+    except ImportError:
+        return {}
+    spec = Path(__file__).resolve().parents[1] / "specifications" / "language-support.yaml"
+    if not spec.is_file():
+        return {}
+    try:
+        data = yaml.safe_load(read(spec)) or {}
+    except yaml.YAMLError:
+        return {}
+    signals = ((data.get("human_languages") or {}).get("conformance_signals") or {})
+    return {check: {lang: tuple(str(p).casefold() for p in phrases)
+                    for lang, phrases in (langs or {}).items()}
+            for check, langs in signals.items()}
+
+
+def signals_for(check: str, path: Path | None) -> tuple[str, ...]:
+    """The phrases to look for, in the language this document is written in.
+
+    Every language's phrases are searched when the suffix names one the spec does not
+    carry, so an unrecognised variant degrades to *looser*, never to a failure about
+    a section it has. Reporting a document as non-conformant because nobody has
+    translated the checker is a defect in the checker.
+    """
+    by_language = CONFORMANCE_SIGNALS.get(check) or {}
+    if not by_language:
+        return ()
+    match = LANGUAGE_SUFFIX.search(path.name) if path is not None else None
+    if match is None:
+        # No suffix at all is the EN document the kit writes when only one language
+        # is asked for; no path at all is a caller that does not know, and gets the
+        # union rather than an assumption.
+        language = "EN" if path is not None else ""
+    else:
+        language = match.group(1)
+    if language in by_language:
+        return by_language[language]
+    return tuple(phrase for phrases in by_language.values() for phrase in phrases)
 
 
 def read(path: Path) -> str:
@@ -127,17 +174,25 @@ def read(path: Path) -> str:
     return ""
 
 
+CONFORMANCE_SIGNALS = load_conformance_signals()
+
+# `A06_Phase1_DataUnderstanding_VI.md`. The kit names its own variants this way, and a
+# document with no suffix is the EN one.
+LANGUAGE_SUFFIX = re.compile(r"_([A-Z]{2})(?:\.[^.]+)?$")
+
+
 def check(name: str, group: str, ok: bool, detail: str) -> dict[str, Any]:
     return {"check": name, "group": group, "status": "PASS" if ok else "FAIL", "detail": detail}
 
 
 # --- content ----------------------------------------------------------------
 
-def content_checks(phase: int, text: str) -> list[dict[str, Any]]:
+def content_checks(phase: int, text: str, path: Path | None = None) -> list[dict[str, Any]]:
     results: list[dict[str, Any]] = []
-    lower = text.lower()
+    lower = text.casefold()
 
-    hits = [signal for signal in NAMING_SIGNALS if signal in lower]
+    hits = [signal for signal in signals_for("naming_convention", path)
+            if signal in lower]
     results.append(check(
         "naming_convention", "content", bool(hits),
         f"signals found: {hits}" if hits
@@ -185,13 +240,16 @@ def content_checks(phase: int, text: str) -> list[dict[str, Any]]:
 
 # --- apparatus --------------------------------------------------------------
 
-def apparatus_checks(phase: int, text: str, registers: dict[str, Any]) -> list[dict[str, Any]]:
+def apparatus_checks(phase: int, text: str, registers: dict[str, Any],
+                     path: Path | None = None) -> list[dict[str, Any]]:
     results: list[dict[str, Any]] = []
-    lower = text.lower()
+    lower = text.casefold()
 
+    coverage = [signal for signal in signals_for("source_coverage", path)
+                if signal in lower]
     results.append(check(
-        "source_coverage", "apparatus", "source coverage" in lower,
-        "present" if "source coverage" in lower
+        "source_coverage", "apparatus", bool(coverage),
+        f"signals found: {coverage}" if coverage
         else "no per-class statement of what was available and what its absence cost "
              "(evidence-classes.yaml, rule EC-06)",
     ))
@@ -456,9 +514,9 @@ def main() -> int:
         text = read(path)
         results = []
         if args.group in ("content", "all"):
-            results += content_checks(phase, text)
+            results += content_checks(phase, text, path)
         if args.group in ("apparatus", "all"):
-            results += apparatus_checks(phase, text, registers)
+            results += apparatus_checks(phase, text, registers, path)
         content_failed += sum(1 for r in results if r["group"] == "content" and r["status"] == "FAIL")
         apparatus_failed += sum(1 for r in results if r["group"] == "apparatus" and r["status"] == "FAIL")
         report["phases"].append({"phase": phase, "document": path.name, "checks": results})
