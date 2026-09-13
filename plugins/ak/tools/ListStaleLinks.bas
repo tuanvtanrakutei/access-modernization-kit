@@ -14,6 +14,13 @@ Option Explicit
 ' default behaviour, and it is the default because the alternative edits a running
 ' application.
 '
+' Remove this module when you are finished with it. A51: it was left in A06's
+' frontend, Access had named it `Module1`, and the next export reported eight modules
+' where the application has seven - with this file's comments, which name A06's own
+' tables, sitting in the corpus that describes A06. The exporter now excludes it, so
+' leaving it behind is no longer a wrong count; it is still someone else's code in a
+' production database.
+'
 ' -----------------------------------------------------------------------------------
 ' The rule, and why it is not the obvious one
 ' -----------------------------------------------------------------------------------
