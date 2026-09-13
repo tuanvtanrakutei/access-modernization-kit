@@ -2,6 +2,27 @@ version: "2.1"
 human_languages:
   supported: ["EN", "JA", "VI", "OTHER", "UNKNOWN"]
   output_languages: ["EN", "JA", "VI"]
+  # A49. `validate_phase_conformance` asked whether a document states its naming
+  # convention and its source coverage by looking for English substrings, so a
+  # conformant Vietnamese document failed both - and the failure text said it lacked a
+  # section it contained. The kit offers three output languages; its gate read one.
+  #
+  # A section is matched if ANY of its language's phrases appears. The phrases are not
+  # a template: a document may word the section however it likes, and this lists the
+  # terms a writer in that language would have to use to be talking about the subject
+  # at all. Add a language here and the gate covers it.
+  conformance_signals:
+    naming_convention:
+      EN: ["naming convention", "production name", "romaji", "never translate"]
+      # `命名規約` and `命名規則` are both current; the reference set writes 規約, and a
+      # narrower list failed the gold standard, which is the contract being wrong
+      # rather than the document.
+      JA: ["命名規約", "命名規則", "本来のテーブル名", "本番名", "日本語名", "romaji", "ローマ字"]
+      VI: ["quy ước đặt tên", "tên production", "tên gốc", "không dịch tên"]
+    source_coverage:
+      EN: ["source coverage", "evidence class"]
+      JA: ["ソースカバレッジ", "証拠クラス", "根拠の網羅"]
+      VI: ["mức độ bao phủ nguồn", "bao phủ nguồn", "lớp bằng chứng"]
 source_languages:
   full_evidence_trace:
     - "ACCESS_VBA"

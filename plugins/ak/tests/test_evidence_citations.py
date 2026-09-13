@@ -90,3 +90,58 @@ def test_an_uncited_evidence_item_is_not_an_error(tmp_path: Path) -> None:
         "The menu opens 17 screens (`A99-P1-NAV-001`).",
     )
     assert run(outputs) == 0
+
+
+# --- A50: a document citing its own register ---------------------------------------
+
+REGISTER_DOC = "\n".join([
+    "# A99 — Phase 1",
+    "",
+    "The frontend holds 32 table objects. [A99-P1-SCHEMA-001]",
+    "",
+    "| ID | Observation | Evidence |",
+    "|---|---|---|",
+    "| OB-01 | Zero relationships are declared | [A99-P1-SCHEMA-001] |",
+    "",
+    "## Evidence Register",
+    "",
+    "| ID | Status | Class | Source |",
+    "|---|---|---|---|",
+    "| A99-P1-SCHEMA-001 | EXTRACTED | SCHEMA | bundle |",
+    "| A99-P1-DOCUMENT-001 | EXTRACTED | DOCUMENT | readme |",
+    "",
+])
+
+
+def test_an_item_only_listed_in_the_register_is_not_cited(tmp_path: Path) -> None:
+    """A50. This regexed the whole file, register included, so every item cited itself.
+
+    A06's Phase 1 reported `12 of 12 items cited`; seven were. The five that were not
+    included the project's only `TARGET_INTENT` item - the one record of what the
+    replacement is for supported no statement in the document carrying it.
+    """
+    outputs = write_outputs(tmp_path, [item("A99-P1-SCHEMA-001"),
+                                       item("A99-P1-DOCUMENT-001")], REGISTER_DOC)
+    cited = checker.cited_in_documents(sorted(outputs.glob("*.md")))
+    assert "A99-P1-SCHEMA-001" in cited, "cited in prose and in the observations table"
+    assert "A99-P1-DOCUMENT-001" not in cited, "listed in the register and nowhere else"
+
+
+def test_the_register_row_does_not_hide_a_real_citation(tmp_path: Path) -> None:
+    """Only the listing occurrence is skipped, never the id."""
+    outputs = write_outputs(tmp_path, [item("A99-P1-SCHEMA-001")], REGISTER_DOC)
+    assert checker.cited_in_documents(sorted(outputs.glob("*.md")))[
+        "A99-P1-SCHEMA-001"] == ["A99_Phase1_EN.md"]
+
+
+def test_the_register_is_found_by_shape_not_by_an_english_heading(tmp_path: Path) -> None:
+    """A49's lesson, applied here before it could be repeated.
+
+    The heading is `## Evidence Register` in English and `## Register bằng chứng` in
+    Vietnamese. Cutting the text at the English wording would have made this check the
+    next thing that only works in one language.
+    """
+    vietnamese = REGISTER_DOC.replace("## Evidence Register", "## Register bằng chứng")
+    outputs = write_outputs(tmp_path, [item("A99-P1-DOCUMENT-001")], vietnamese)
+    assert "A99-P1-DOCUMENT-001" not in checker.cited_in_documents(
+        sorted(outputs.glob("*.md")))

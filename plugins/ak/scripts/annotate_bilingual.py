@@ -182,7 +182,7 @@ def main() -> int:
 
     class Naming:
         def __init__(self) -> None:
-            self.terms = bilingual_contract.load_terms(PACKAGE)
+            self.terms = bilingual_contract.load_terms(PACKAGE, glossary)
             self.accepted = bilingual_contract.load_accepted(glossary)
             self.cache: dict[str, object] = {}
 

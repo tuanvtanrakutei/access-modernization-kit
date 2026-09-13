@@ -48,12 +48,41 @@ def read_text(path: Path) -> str:
     return ""
 
 
+# A register row lists an item; a citation rests a statement on one. The difference is
+# shape: the register prints the id as its row's first cell, and a citation appears in
+# prose or in some later cell of a table about something else.
+#
+# Deliberately not "cut the text at the Evidence Register heading". That heading is
+# `## Evidence Register` in English and `## Register bằng chứng` in Vietnamese, and a
+# check that keys on the English wording is A49 - which was found in the same review as
+# this. Shape survives translation.
+REGISTER_ROW = re.compile(r"^\s*\|\s*([A-Z][A-Z0-9]*-P\d+-[A-Z][A-Z0-9_]*-\d{3})\s*\|")
+
+
 def cited_in_documents(paths: list[Path]) -> dict[str, list[str]]:
-    """Map each cited id to the documents citing it."""
+    """Map each cited id to the documents citing it, not merely listing it.
+
+    A50. This used to regex the whole file - including the Evidence Register the same
+    document prints at the bottom - so every item cited itself and the count was the
+    register's own length. A06's Phase 1 read `12 of 12 items cited`; seven were.
+
+    That made the reverse-direction signal impossible to trip. Its purpose, stated in
+    this module's own docstring, is that *"a phase whose items are mostly uncited is
+    usually a phase that was written before its evidence"* - and since every phase
+    document the kit generates carries its register, the figure has been 100% on every
+    project that has ever run. A number that cannot fall is not a measurement.
+    """
     found: dict[str, list[str]] = {}
     for path in paths:
-        for identifier in sorted(set(CITATION_RE.findall(read_text(path)))):
-            found.setdefault(identifier, []).append(path.name)
+        for line in read_text(path).splitlines():
+            listed = REGISTER_ROW.match(line)
+            for identifier in sorted(set(CITATION_RE.findall(line))):
+                # An item listed in the register and cited in the prose is cited; only
+                # the listing occurrence is skipped, never the id.
+                if listed and identifier == listed.group(1):
+                    continue
+                if path.name not in found.setdefault(identifier, []):
+                    found[identifier].append(path.name)
     return found
 
 
@@ -211,7 +240,12 @@ def main() -> int:
         for identifier, where in dangling.items():
             print(f"  DANGLING {identifier} <- {', '.join(sorted(set(where)))}")
         if uncited:
-            print(f"  uncited (not an error): {len(uncited)} item(s)")
+            # Named, not counted. Before A50 this number could not be anything but
+            # zero, so nobody ever needed to know which item it was; now that it can
+            # fall, "5 item(s)" sends a reader back through the register by hand.
+            print(f"  uncited (not an error): {len(uncited)} item(s) are listed in the "
+                  "register and support no statement - "
+                  + ", ".join(uncited[:8]) + (", ..." if len(uncited) > 8 else ""))
         if unresolvable:
             print(f"  {len(unresolvable)} item(s) cite a path that does not exist "
                   f"under {workspace_root}:")

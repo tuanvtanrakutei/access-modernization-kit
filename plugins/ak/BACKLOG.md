@@ -12,6 +12,120 @@ that it should now work.
 
 ## Open
 
+### A50 - the citation check counts a document citing its own register
+
+**Observed 2026-09-13, reviewing A06's Phase 1.** `validate_evidence_citations` reported
+`PASS: 12 evidence items, 12 cited across 5 document(s)`. Seven were cited. The other
+five appear nowhere but the Evidence Register table at the bottom of the document being
+checked - and `cited_in_documents` regexes the whole file, register included, so every
+item cites itself.
+
+Which makes the reverse-direction signal structurally dead. Its own docstring says *"a
+phase whose items are mostly uncited is usually a phase that was written before its
+evidence, and worth seeing"*, and every phase document the kit generates prints its own
+register, so that number is 100% on every project that has ever run. It cannot fall.
+
+Measured on A06 Phase 1 by cutting the text at the register heading: **7 of 12, not
+12 of 12.** The five are `DOCUMENT-001`, `DOCUMENT-002`, `INTERVIEW-002`,
+`INTERVIEW-003` and `TARGET-001` - including the only `TARGET_INTENT` item in the
+project, so the one record of what the replacement is for supports no statement in the
+document that carries it.
+
+**Closed 2026-09-13.** A citation is now distinguished from a listing by **shape**: the
+register prints an id as its row's first cell, and a citation appears in prose or in a
+later cell of a table about something else. Only the listing occurrence is skipped, so an
+item both listed and cited still counts as cited.
+
+Deliberately not "cut the text at the Evidence Register heading". That heading is
+`## Evidence Register` in English and `## Register bằng chứng` in Vietnamese, and keying
+on the English wording is A49 - found in the same review. Shape survives translation, and
+a test asserts it on the Vietnamese spelling.
+
+A06 Phase 1 now reports **7 of 12**, and names the five: `DOCUMENT-001`, `DOCUMENT-002`,
+`INTERVIEW-002`, `INTERVIEW-003`, `TARGET-001`. Named rather than counted, because the
+number could not previously be anything but zero and "5 item(s)" sends a reader back
+through the register by hand. 1777 tests pass.
+
+### A49 - the conformance gate can only read English, and says a translated document is missing what it has
+
+**Observed 2026-09-13, on the first non-EN phase document the kit has produced.**
+`validate_phase_conformance` on A06:
+
+```
+Phase 1 - A06_Phase1_DataUnderstanding_EN.md: ok
+Phase 1 - A06_Phase1_DataUnderstanding_VI.md: 2 failure(s)
+    [content] naming_convention: no statement about how production names are treated
+    [apparatus] source_coverage: no per-class statement of what was available
+```
+
+The VI document has both. They are `## Quy ước đặt tên` and `## Mức độ bao phủ nguồn`,
+and the naming section says production names stay authoritative in as many words.
+`NAMING_SIGNALS` is `("naming convention", "production name", "romaji", "never
+translate")` and `source_coverage` tests `"source coverage" in lower` - English
+substrings, against a document the kit itself offered to generate in Vietnamese.
+
+Two things are wrong, and the second is the one A47 was about. The kit advertises
+`--languages EN,JA,VI` and its own gate reads one of them. And the failure text states
+that a document does not contain something it does contain, so a reader acting on the
+report would go and add a section that is already there - or conclude the translator
+skipped it.
+
+**Closed 2026-09-13.** The phrases moved into `specifications/language-support.yaml`
+under `human_languages.conformance_signals`, one list per language per check, and the
+document's language comes from the suffix the kit itself writes (`..._VI.md`). A suffix
+the spec does not carry searches every language's phrases - degrading to *looser*, never
+to a failure about a section the document has, because reporting a document as
+non-conformant for want of a translated checker is a defect in the checker.
+
+The JA list was wrong on its first draft and the reference set caught it:
+`SMS_Phase6_Synthesis_JA.md` writes `## データベースオブジェクト命名規約`, with 規約, and
+the draft had only 規則. That is `test_the_reference_set_passes_every_content_check`
+doing exactly what it is for - a content check the gold standard fails is a contract
+written wrong, not a document at fault - and it would have shipped as a false failure
+against every Japanese document.
+
+Proven across three languages both ways: a conformant EN, JA and VI document passes, and
+one that genuinely lacks the section still fails in all three. A test also asserts that
+every language in `output_languages` has phrases for every check, so adding a fourth
+output language without translating the gate fails here rather than in the field.
+1777 tests pass.
+
+### A48 - a glossary section named `terms` could not be used as a term
+
+**Closed 2026-09-13.** `input/decisions/glossary.yaml` has a `terms:` section, and
+`load_accepted` has always read it - as a whole-name override, which is the one thing a
+*term* is not for. A06 added `仕入` to it; a column called exactly `仕入` was translated,
+and `仕入単位` still came out `unit`. The section existed, was read, and could not do the
+job it is named after (A38's shape, in the naming contract).
+
+**What made it worth more than coverage**: a vocabulary with a hole in it does not
+return nothing, it returns the best match it has. A06 has seven columns named for a
+weekday - `月出荷` through `土出荷` - so `月` and `金` are single-character terms in
+`ja-en-terms.yaml`. With nothing longer above them the composer rendered
+
+```
+合計金額  -> total_friday
+月初在庫  -> monday_stock
+棚卸日    -> shelf_date
+```
+
+and labelled each `_partial_`, which a reader takes for *unfinished* rather than
+*wrong*. A migration team reading `total_friday` beside 合計金額 in a 1,234-row
+catalogue is the failure mode; the row looked like the 97 other incomplete ones.
+
+`load_terms(package, glossary)` now layers a project's **accepted** terms over the
+kit's, and `compose` already orders by length, so a project corrects a bad short match
+by adding the compound. Only `accepted` entries compose - feeding the kit's own
+`proposed` guesses back in as vocabulary would let one bad proposal spread through every
+name containing it - and a `columns:` entry stays a name, not a term.
+
+Proven on A06 with 28 terms added from the operator's warehouse vocabulary:
+**unresolved English names 114 -> 2** (97 `_partial_` + 17 `_no term matched_` -> 0
+and 2), `total_friday` and `monday_stock` gone from the catalogue. The 2 remaining are
+`赤黒フラグ` and `2回分`, deliberately left: 赤黒 is an accounting red/black convention
+and 2回分 a count of rounds, both need the operator, and a guess entered in the glossary
+would compose into every name containing them. 1765 tests pass.
+
 ### A47 - a Notion export does not carry answers, and the finding blamed a person for it
 
 **Observed 2026-09-10, when the operator said the answer had been supplied.** It had.

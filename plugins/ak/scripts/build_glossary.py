@@ -118,7 +118,9 @@ def main() -> int:
 
     target = space.input_dir("decisions") / "glossary.yaml"
     kept = existing(target)
-    terms = bilingual_contract.load_terms(PACKAGE)
+    # The project's own accepted terms compose too, so re-running after somebody
+    # adds vocabulary actually improves the proposals it writes back.
+    terms = bilingual_contract.load_terms(PACKAGE, target)
     accepted = {j: str(e.get("en"))
                 for j, e in kept.items()
                 if e.get("status") == "accepted" and e.get("en")}

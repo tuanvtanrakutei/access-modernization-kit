@@ -298,9 +298,11 @@ def test_a_dao_type_code_is_translated(workspace: Path) -> None:
     assert "Number (Long Integer)" in data
     assert "Number (Double)" in data
     assert "| 10 |" not in data
-    # The size is in characters and the two ends of a migration disagree about
-    # what that means; both readings are printed because only a person can pick.
-    assert "or 24B if the target sizes in bytes" in data
+    # The per-row byte figure was removed on 2026-09-13: the target is PostgreSQL,
+    # which sizes varchar in characters, so it was noise on every text row. The
+    # trap it warned about is stated once in the legend instead.
+    assert "24B" not in data and "72B" not in data
+    assert "A text size is declared in characters, not bytes" in data
 
 
 def test_unfillable_columns_are_present_and_marked(workspace: Path) -> None:
