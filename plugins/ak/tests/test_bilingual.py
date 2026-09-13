@@ -280,3 +280,34 @@ def test_only_an_accepted_term_becomes_vocabulary(tmp_path: Path) -> None:
 def test_no_glossary_is_not_an_error() -> None:
     assert bl.load_terms(PACKAGE, None) == bl.load_terms(PACKAGE)
     assert bl.project_terms(Path("nowhere.yaml")) == {}
+
+
+# --- A53: a separator is not an untranslated word ----------------------------------
+
+def test_a_separator_does_not_make_a_complete_name_partial(tmp_path: Path) -> None:
+    """`入荷・実績更新` composed as `receiving_actual_update` - correct and complete - and
+    still read `_partial_`, because the katakana middle dot matched no term and never
+    will. A reader chasing that marker looks for a missing word that does not exist.
+    """
+    terms = {"入荷": {"en": "receiving"}, "実績": {"en": "actual"}, "更新": {"en": "update"}}
+    rendered = bl.compose("入荷・実績更新", terms, {})
+    assert rendered.english == "receiving_actual_update"
+    assert rendered.is_complete
+
+
+def test_a_real_gap_is_still_partial() -> None:
+    """Narrowing what counts must not stop coverage falling when a word is missing."""
+    terms = {"入荷": {"en": "receiving"}, "更新": {"en": "update"}}
+    rendered = bl.compose("入荷・実績更新", terms, {})
+    assert not rendered.is_complete, "実績 is genuinely untranslated"
+
+
+def test_separators_are_decided_by_category_not_by_a_list() -> None:
+    """The next application will separate its words with something this one does not."""
+    assert bl._is_separator("・") and bl._is_separator("／") and bl._is_separator(" ")
+    assert not bl._is_separator("商") and not bl._is_separator("A") and not bl._is_separator("1")
+
+
+def test_a_name_that_is_only_separators_is_not_claimed_as_covered() -> None:
+    """Dividing by an empty countable set must not read as 100%."""
+    assert bl.compose("・・", {"商品": {"en": "product"}}, {}).covered == 0.0
