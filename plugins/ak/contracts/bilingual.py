@@ -83,7 +83,25 @@ class Rendered:
         return f"{self.japanese} ({self.english})"
 
 
-def load_terms(package_root: Path) -> dict[str, dict[str, Any]]:
+def load_terms(package_root: Path, glossary_path: Path | None = None) -> dict[str, dict[str, Any]]:
+    """The kit's vocabulary, with the project's own terms layered over it.
+
+    `glossary.yaml` has always had a `terms:` section and `load_accepted` has always
+    read it - as a whole-name override, which is the one thing a *term* is not for. So
+    a project that added `仕入` to it got `仕入` translated when a column was called
+    exactly that, and `仕入単位` still came out `unit`: the section existed, was read,
+    and could not do the job it is named after.
+
+    It matters beyond coverage, because a vocabulary with a hole in it does not return
+    nothing - it returns the best match it has. A06 has seven columns named for a
+    weekday (`月出荷` … `土出荷`), so `月` and `金` are single-character terms, and
+    without `月初` and `金額` above them the composer read `月初在庫` as `monday_stock`
+    and `合計金額` as `total_friday`. Both were labelled `_partial_`, which a reader
+    takes for *unfinished* rather than *wrong*.
+
+    Project terms win, and the longest match wins over both (`compose` orders by
+    length), so adding a compound is how a project corrects a bad short match.
+    """
     import yaml
 
     path = Path(package_root) / "specifications" / SPEC_NAME
@@ -92,7 +110,28 @@ def load_terms(package_root: Path) -> dict[str, dict[str, Any]]:
     # `Off` into a boolean, and a term dictionary for Japanese business names has
     # every reason to contain a column called `No`. A spec typo should read oddly,
     # not raise from inside a normaliser three calls away.
-    return {str(key): value for key, value in (data.get("terms") or {}).items()}
+    terms = {str(key): value for key, value in (data.get("terms") or {}).items()}
+    terms.update(project_terms(glossary_path))
+    return terms
+
+
+def project_terms(glossary_path: Path | None) -> dict[str, dict[str, Any]]:
+    """The `terms:` section of a project's glossary, as composable vocabulary.
+
+    Only entries a person marked `accepted`, for the same reason `load_accepted` reads
+    only those: a `proposed` row is what the kit guessed, and feeding a guess back in
+    as vocabulary would let one bad proposal spread across every name containing it.
+    """
+    if glossary_path is None or not Path(glossary_path).is_file():
+        return {}
+    import yaml
+
+    data = yaml.safe_load(Path(glossary_path).read_text(encoding="utf-8")) or {}
+    found: dict[str, dict[str, Any]] = {}
+    for japanese, entry in (data.get("terms") or {}).items():
+        if isinstance(entry, dict) and entry.get("status") == "accepted" and entry.get("en"):
+            found[str(japanese)] = {"en": str(entry["en"]), "provenance": "glossary"}
+    return found
 
 
 def normalise(text: str) -> str:

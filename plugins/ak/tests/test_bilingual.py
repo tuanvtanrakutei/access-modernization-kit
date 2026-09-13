@@ -219,3 +219,64 @@ def test_no_shipped_term_collides_with_another_under_nfkc() -> None:
         by_normal[unicodedata.normalize("NFKC", key)].add(str(entry.get("en")))
     clashes = {k: v for k, v in by_normal.items() if len(v) > 1}
     assert not clashes, clashes
+
+
+# --- the project's own vocabulary, and the wrong names it was needed for -----------
+
+GLOSSARY = "\n".join([
+    "terms:",
+    '  "仕入": {en: "purchase", status: "accepted"}',
+    '  "月初": {en: "beginning_of_month", status: "accepted"}',
+    '  "金額": {en: "amount", status: "accepted"}',
+    '  "棚卸": {en: "stocktake", status: "guessed_by_the_kit"}',
+    "columns:",
+    '  "受注日": {en: "order_date", status: "accepted"}',
+    "",
+])
+
+
+def glossary_file(tmp_path: Path) -> Path:
+    path = tmp_path / "glossary.yaml"
+    io.open(path, "w", encoding="utf-8", newline="\n").write(GLOSSARY)
+    return path
+
+
+def test_a_project_term_composes_inside_a_longer_name(tmp_path: Path) -> None:
+    """`glossary.yaml` has always had a `terms:` section, and `load_accepted` has
+    always read it - as a whole-name override, which is the one thing a *term* is not.
+
+    So a project that added `仕入` got it translated when a column was called exactly
+    that, and `仕入単位` still came out `unit`.
+    """
+    terms = bl.load_terms(PACKAGE, glossary_file(tmp_path))
+    assert bl.compose("仕入単位", terms, {}).english == "purchase_unit"
+
+
+def test_a_vocabulary_hole_returns_a_wrong_name_not_an_empty_one(tmp_path: Path) -> None:
+    """Why the section above is worth more than coverage.
+
+    A06 has seven columns named for a weekday (`月出荷` … `土出荷`), so `月` and `金`
+    are single-character terms. Without a longer term above them the composer read
+    `月初在庫` as `monday_stock` and `合計金額` as `total_friday` - and labelled both
+    `_partial_`, which a reader takes for *unfinished* rather than *wrong*.
+    """
+    kit = bl.load_terms(PACKAGE)
+    assert bl.compose("合計金額", kit, {}).english == "total_friday", (
+        "if this stops being wrong the kit spec changed; the test below is the fix")
+    with_project = bl.load_terms(PACKAGE, glossary_file(tmp_path))
+    assert bl.compose("合計金額", with_project, {}).english == "total_amount"
+    assert bl.compose("月初在庫", with_project, {}).english == "beginning_of_month_stock"
+
+
+def test_only_an_accepted_term_becomes_vocabulary(tmp_path: Path) -> None:
+    """A `proposed` row is what the kit guessed. Feeding a guess back in as vocabulary
+    would let one bad proposal spread across every name containing it."""
+    terms = bl.load_terms(PACKAGE, glossary_file(tmp_path))
+    assert "棚卸" not in terms
+    # And a `columns:` entry is a name, not a term - it must not compose either.
+    assert "受注日" not in terms
+
+
+def test_no_glossary_is_not_an_error() -> None:
+    assert bl.load_terms(PACKAGE, None) == bl.load_terms(PACKAGE)
+    assert bl.project_terms(Path("nowhere.yaml")) == {}

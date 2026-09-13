@@ -182,7 +182,7 @@ class Naming:
     """Renders every production name with its English proposal beside it."""
 
     def __init__(self, package: Path, glossary: Path) -> None:
-        self.terms = bilingual_contract.load_terms(package)
+        self.terms = bilingual_contract.load_terms(package, glossary)
         self.accepted = bilingual_contract.load_accepted(glossary)
         self._cache: dict[str, Any] = {}
 
@@ -293,19 +293,19 @@ def screen_meaning(meaning: Any, kind: str, name: str) -> str:
 
 
 def target_proposal(field: dict, types: dict[int, dict[str, str]]) -> str:
-    """A proposed target type, marked as a proposal, with the byte trap called out.
+    """A proposed target type, carrying the declared size and nothing else.
 
-    A `Short Text` size is a maximum in **characters**, and the two ends of a migration
-    do not agree on what a size means. The source stores CP932, at most 2 bytes per
-    full-width character; a UTF-8 target needs 3 for the same character, and 4 for some.
-    Whether that matters depends on the target, which is why the figure is reported and
-    not resolved: PostgreSQL and MySQL size `varchar(n)` in characters and `n` carries
-    over unchanged, while SQL Server `varchar(n)` and Oracle's default `VARCHAR2(n)`
-    size in bytes, where the same declaration truncates real Japanese data.
+    A text size is declared in **characters**, and a per-row byte figure used to be
+    printed beside it. The operator removed it on 2026-09-13, having seen it on 108
+    rows: the replacement's target is PostgreSQL, which sizes `varchar(n)` in
+    characters, so `n` carries over unchanged and the annotation was noise on every
+    row it appeared on.
 
-    A06 links three tables over ODBC to two SQL Server databases, so the byte-counting
-    end of that split is present in this very application. Choosing the type remains a
-    person's decision - the note says what each reading costs, and decides neither.
+    The trap it warned about is real and did not go away - SQL Server `varchar(n)` and
+    Oracle's default `VARCHAR2(n)` size in bytes, where a CP932 column re-declared at
+    its character count truncates real Japanese data. That belongs in the one place a
+    target type is actually chosen, so the catalogue legend states it once for the set
+    instead of repeating a number on every text column.
     """
     entry = types.get(field.get("type")) if isinstance(field.get("type"), int) else None
     if entry is None:
@@ -316,8 +316,6 @@ def target_proposal(field: dict, types: dict[int, dict[str, str]]) -> str:
     size = field.get("size")
     if "size" in hint and size:
         hint = hint.replace("size", str(size))
-        if entry.get("dao_constant") in ("dbText", "dbChar"):
-            return f"{hint} **or {int(size) * 3}B if the target sizes in bytes**"
     # No marker, for the same reason the English names carry none: a `?` on all 1,055
     # rows is wallpaper. The column heading and the legend say these are proposals.
     return hint
@@ -503,14 +501,15 @@ def data_catalogue(app_id: str, bundle: Path, types: dict[int, dict[str, str]],
         "| `English (proposed)` | Backticked alias, `_partial_`, or `_no term matched_` | Dictionary-based English cross-reference only. A name match does not establish the field's business meaning. |",
         "| `Type (current)` | Access/DAO declaration such as `Number (Long Integer)` or `Short Text(20)` | Type and declared size observed in the legacy database. Different tables may declare the same Japanese column differently. |",
         "| `Target type` | Proposed target type, `_design decision_`, or `_not extracted_` | "
-        "Migration guidance from the DAO type specification. It is not a final "
-        "target-schema decision. A text size is declared in **characters**: "
-        "`varchar(255)` carries over unchanged to PostgreSQL and MySQL, which also size "
-        "in characters, and `or 765B if the target sizes in bytes` is what the same "
-        "column needs on SQL Server `varchar` or Oracle's default `VARCHAR2`, which do "
-        "not. Taking the character figure to a byte-sizing target truncates real "
-        "Japanese data; this application already reaches two SQL Server databases over "
-        "ODBC, so both readings are live here and the choice belongs to a person. |",
+        "Migration guidance from the DAO type specification, carrying the size Access "
+        "declares. It is not a final target-schema decision. **A text size is declared "
+        "in characters, not bytes.** `varchar(255)` carries over unchanged to "
+        "PostgreSQL and MySQL, which also size in characters. On SQL Server `varchar` "
+        "or Oracle's default `VARCHAR2`, which size in bytes, the same column needs up "
+        "to three times that many bytes for CP932 Japanese text, and re-declaring it at "
+        "the character figure truncates real data. This application reaches two SQL "
+        "Server databases over ODBC, so check the target's rule once before applying "
+        "this column. |",
         "| `PK` | `PK` or `—` | `PK` means this column participates in the declared primary key of this table object. `—` means it does not. |",
         "| `FK` | `—` or a future declared marker | Foreign-key status from extracted schema. `—` currently means no foreign key is declared in the acquired schema; application joins may still exist. |",
         "| `Required` | `yes` or `no` | Access field-required attribute observed during extraction. It is not the same as a business rule that rejects every blank input. |",
