@@ -12,6 +12,34 @@ that it should now work.
 
 ## Open
 
+### A52 - a column name shaped like an identifier was reported as a dangling one
+
+**Observed 2026-09-14, writing A06's Phase 1.** `identifiers_resolve` failed both language
+variants with `1 dangling, first: ['d31']`. Nothing was dangling. A06's largest ODBC table,
+`受注年月商品`, is a month-by-product matrix whose columns are `k1` … `k31` and `d1` … `d31`,
+and the document names them - while `NAMESPACE_PATTERNS["d-"]` is `\bd\d{2}\b`.
+
+So a document was reported as citing an identifier it had not allocated, when what it had
+actually done was name a column. Acting on that report means inventing a `d31` entry in the
+identifier register to satisfy a checker, which is the failure this kit exists to prevent
+pointed at its own output.
+
+The reference set settles which way to resolve it, and settles it on evidence rather than
+preference: it writes namespace identifiers as **plain prose** in table cells
+(`| d01 | 店舗受注データ | .dat | …`) and writes column names **inside backticks**
+(`` `d31` ``, `` `合計数量 = d1+d2+...+d31` ``). The same collision already exists in the
+gold standard, and the gold standard already distinguishes the two by typography.
+
+**Closed 2026-09-14.** `prose()` blanks inline code spans and fenced blocks before any
+namespace pattern is applied - blanked rather than removed, so nothing downstream depends
+on offsets shifting - and every identifier scan now reads it: `identifiers_resolve`,
+`identifiers_wellformed`, the per-phase required-namespace check, `diagram_per_workflow`
+and the Phase 6 errata check. A mermaid diagram or a VBA excerpt is code whatever it
+happens to contain, which also stops a `WF-` in a code sample counting as a workflow.
+
+Proven both ways: A06's Phase 1 passes in both languages, and reverting `prose()` to return
+the text unchanged fails the two tests that name the case. 1786 tests pass.
+
 ### A51 - the kit's own tool was exported as the application's code, and nothing said which exporter wrote the file
 
 **Observed 2026-09-14, re-exporting A06 after the table cleanup.** The frontend reported
