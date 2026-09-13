@@ -1119,11 +1119,18 @@ def _per_object_behaviour(bundle: Path, forms: list[dict], reports: list[dict],
         f"call(s)**, **{totals['writes']} write(s)** and **{totals['hidden']} hidden "
         "control(s)**.",
         "",
+        "`Opens` counts `DoCmd.OpenForm` and `DoCmd.OpenReport` only. `DoCmd.OpenQuery` "
+        "and `DoCmd.OpenTable` open a query or a table rather than a screen, and a recount "
+        "that includes them will not match this total.",
+        "",
         "`Opens a built name` is an open call whose target is concatenated at run time. "
         "The name is never written down, so no reference search finds it and the object "
         "it opens appears in *Objects referenced by nothing* below while being in use. "
-        "The set of names such a call can produce depends on a control's value and is a "
-        "question for an operator, not a fact in the code.",
+        "The target is what the expression produces, never the quoted fragment before the "
+        "`&`: `\"受注数調整リスト\" & Me.fraレポート` opens `受注数調整リスト1` or "
+        "`受注数調整リスト2`, and no object is called `受注数調整リスト`. Which of them a "
+        "given run produces depends on a control's value and is a question for an "
+        "operator, not a fact in the code.",
         "",
         "`Writes` is **a lower bound**. A target is kept only when it matches a table "
         "this bundle knows - which is what discards the `UPDATE cnt` a raw scan returns "
