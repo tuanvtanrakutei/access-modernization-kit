@@ -57,6 +57,26 @@ document is JP-primary, with a Romaji alias for cross-reference. Never translate
      x.svg` - before publishing. A sequence diagram reads better than a flowchart for
      anything with an actor and an order; a flowchart with a red-filled node is the
      cheapest way to say "this is where it goes wrong".
+
+     Keep the document's own revision history out of it. How many drafts a figure went
+     through is a fact about the analysis, not about the application, and a developer
+     reading once does not need it: A06's Phase 2 carried a paragraph explaining that a
+     count had been "wrong twice before it was right", naming all three numbers and both
+     causes, and it was the hardest paragraph in the document to read.
+
+     That history belongs in `BACKLOG.md` and in the commit. What the document keeps is
+     the part a reader could otherwise get wrong - what a figure counts and what it
+     excludes, stated plainly, so that a recount giving a different number is explained
+     before it happens rather than after:
+
+         A recount can legitimately give a different number, so two exclusions are worth
+         stating. `DoCmd.OpenQuery` opens a query, not a screen: its 3 edges are excluded
+         here, and counting them gives 39.
+
+     The exception is a claim an earlier PUBLISHED phase made and this one corrects. That
+     is errata, it has its own register and its own `E-nn` identifier, and it is owed to
+     the reader because they may have acted on the earlier statement. A draft nobody
+     outside the run ever saw owes nothing.
 -->
 
 ## Contents
