@@ -271,4 +271,14 @@ rules:
 register:
   path: "runs/{RUN_ID}/outputs/{APP_ID}_Identifiers.json"
   written_by: "the phase that allocates, appended never rewritten"
-  fields: ["id", "namespace", "phase", "title", "evidence_ids", "severity", "superseded_by", "created_at"]
+  fields: ["id", "namespace", "phase", "title", "evidence_ids", "severity", "superseded_by", "resolved_by", "created_at"]
+  closing: >
+    An open `UK-` or `Q` is carried by every later phase until one of two fields is
+    set. `resolved_by` names the evidence id that answers it - the question is done,
+    and the answer is in the phase that found it. `superseded_by` names another
+    identifier that asks the same thing, which is how a duplicate stops being carried
+    twice: A06 allocated `Q108` asking what `Q103` already asked of the same owner
+    about the same file, because Phase 2 never re-read Phase 1's questions.
+
+    Neither field is a way to make a list shorter. An item with nothing in this phase
+    bearing on it stays open and is reported as unchanged.

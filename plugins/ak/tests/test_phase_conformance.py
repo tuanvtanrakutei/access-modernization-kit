@@ -494,3 +494,57 @@ def test_every_risk_namespace_is_owned_by_some_phase() -> None:
         assert phase in owners, (
             f"{phase} owns no risk namespace, so a risk it finds has nowhere to go"
         )
+
+
+# --- carrying the earlier phases' unknowns ----------------------------------
+#
+# Requested by the operator before Phase 3. Measured at that moment, A06's Phase 2
+# mentioned none of Phase 1's fifteen open UK-/Q items, and the cost was already in the
+# register: Q108 asks what Q103 already asked of the same owner about the same file.
+
+
+def test_a_phase_that_ignores_an_earlier_open_question_fails_apparatus() -> None:
+    registers = {"identifier_entries": [
+        {"id": "Q103", "namespace": "Q", "phase": 1},
+        {"id": "UK-D02", "namespace": "UK-", "phase": 1},
+    ]}
+    results = checker.apparatus_checks(2, "# X", registers)
+    result = next(r for r in results if r["check"] == "prior_unknowns_accounted")
+    assert result["status"] == "FAIL"
+    assert "Q103" in result["detail"] and "UK-D02" in result["detail"]
+
+
+def test_mentioning_the_item_is_enough_to_account_for_it() -> None:
+    """The check asks that the phase SAY something, not that it close anything.
+    `unchanged`, recorded deliberately, is information."""
+    registers = {"identifier_entries": [{"id": "Q103", "namespace": "Q", "phase": 1}]}
+    results = checker.apparatus_checks(
+        2, "| Q103 | Phase 1 | unchanged | no screen bears on it |", registers)
+    result = next(r for r in results if r["check"] == "prior_unknowns_accounted")
+    assert result["status"] == "PASS"
+
+
+def test_a_resolved_or_superseded_item_is_not_carried() -> None:
+    registers = {"identifier_entries": [
+        {"id": "Q6", "namespace": "Q", "phase": 1, "resolved_by": "A99-P1-INTERVIEW-001"},
+        {"id": "Q108", "namespace": "Q", "phase": 1, "superseded_by": "Q103"},
+    ]}
+    results = checker.apparatus_checks(3, "# X", registers)
+    result = next(r for r in results if r["check"] == "prior_unknowns_accounted")
+    assert result["status"] == "PASS"
+
+
+def test_phase_one_carries_nothing() -> None:
+    """There is no earlier phase, so the check must not run and must not invent a pass
+    that hides a later regression."""
+    registers = {"identifier_entries": [{"id": "Q1", "namespace": "Q", "phase": 1}]}
+    names = {r["check"] for r in checker.apparatus_checks(1, "# X", registers)}
+    assert "prior_unknowns_accounted" not in names
+
+
+def test_an_identifier_from_the_same_phase_is_not_carried() -> None:
+    """Only EARLIER phases. A phase does not have to cite its own unknowns twice."""
+    registers = {"identifier_entries": [{"id": "UK-S01", "namespace": "UK-", "phase": 2}]}
+    results = checker.apparatus_checks(2, "# X", registers)
+    result = next(r for r in results if r["check"] == "prior_unknowns_accounted")
+    assert result["status"] == "PASS"
