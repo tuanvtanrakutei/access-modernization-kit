@@ -12,6 +12,140 @@ that it should now work.
 
 ## Open
 
+### A58 - a question was put to a person that the bundle already answered
+
+**Observed 2026-09-14, when the operator said the screen catalogue was not tightly linked
+to Phase 2.** It was not, and the loose link had a measurable cost.
+
+**Q109 should never have been asked.** A06's Phase 2 asked warehouse operations *what are
+the option-group values behind `受注数調整リスト` and `残数記入リスト`* and listed it as
+blocking the enumeration of reports the application can open. `fraレポート` declares exactly
+two choices in the form definition - `バラのみ` at 1 and `ケースとバラ` at 2, defaulting to 2 -
+so `"受注数調整リスト" & Me.fraレポート` opens those two objects and nothing else. The four
+reports that look referenced by nothing are named, bounded and explained by the bundle.
+
+An interview is the one evidence class this kit cannot generate. Spending a question on
+something already acquired is worse than leaving it open, because the register then shows a
+closed question where no new evidence was gained.
+
+**The cause is that A55 only half-landed.** `ui/controls.json` reached the bundle - 1,924
+controls with caption, type, position, visibility, parent and click handler - and the
+catalogue read *counts* out of it and the names of hidden controls. Everything else sat
+unread. The catalogue now carries an `Interactive controls` section: 170 controls that carry
+a decision, with every option group expanded into its choices as `value` = label plus the
+default. The four figures add to the inventory - 170 interactive, 50 option buttons shown as
+choices, 1,034 text boxes, 670 decoration, 1,924 total - because a section listing a subset
+has to say what it left out or the count lies.
+
+**The same enumeration produced findings nobody had asked for.** `fra取込元` on the live
+daily import offers `1 = サーバー` and `2 = フロッピー`: a floppy-disk import path in an
+application being migrated in 2026. `fra分類` on four screens offers `保冷品` against
+`常温品` - a chilled/dry toggle inside an application named for dry warehousing.
+
+**And there was no shared key.** Phase 2 calls a screen `F-006`; the catalogue listed it
+under its production name with a `No.` column that is a display row number and changes when
+the bundle changes. The catalogue now reads the phase's identifier register and prints the
+`F-nnn` in a `Phase 2` column, so a reader holding either can find the other.
+
+**Also from the same reference read:** a category map by switchboard group, which existed
+only inside a diagram node where it could not be scanned; and a *What Phase 3 has to pick
+up* section, so the next phase does not re-derive what this one already knew it had not
+opened. The largest unexamined block in A06 is the seven `月次処理` functions - no screen
+analysed, no department named, and the one group the recovery procedure is silent about.
+
+**Not yet done:** nothing checks that an open question is not answerable from the bundle.
+Q109 was found by hand while building an unrelated section. The `Offers` column exists now,
+so a check could at least flag a question whose text names a control the catalogue
+enumerates.
+
+---
+
+### A57 - two rules the scheme declared and no code opened
+
+**Observed 2026-09-14, reported as an open decision at the end of A56 and settled by the
+operator.** `identifier-scheme.yaml` declares `owned_by` and `requires_severity` on every
+namespace. A grep for either across `scripts/` and `contracts/` returned nothing. Both were
+prose in a YAML file.
+
+**What that cost.** Phase 2 has to record risks, and no risk namespace was owned by phase 2:
+`RD` is phase 1, `RA` phase 3, `RW` phase 4, `RS` phase 5. So A06's Phase 2 took `RS` -
+whose letter reads as Screen and whose name is *Risk - security and compliance* - and filed
+five findings there, including "grouping carried by 222 line and rectangle controls". Phase
+5's `RS-01` was gone before Phase 5 ran. Twelve risks across both phases reached the register
+with no severity, and Phase 6 consolidates from the register rather than from the prose
+table, so it would have had nothing to rank by.
+
+**Fixed.** `RA` gains phase 2 as an owner and the five become `RA-01`..`RA-05`; `RS` carries
+a note saying the S is Security. `load_scheme_rules()` reads both fields, and two apparatus
+checks use them - `identifier_namespace_owned` and `severity_recorded`. Every RD and RA row
+now carries a severity, lifted out of Phase 1's published table rather than retyped so the
+register cannot disagree with the document a reader has already seen.
+
+**The first run of the new check found a third trespass nobody had mentioned:** `OB` was
+owned by phase 1 alone, and Phase 2 held eight. Unlike `RS` there is no semantic clash -
+every analysis phase produces observations - so the narrow ownership was an oversight and
+`OB` now names phases 1 to 5. A test asserts that every phase owns at least one risk
+namespace, which is the condition whose absence caused this.
+
+**And a defect the rename exposed.** Four of the five risks were in the register and in **no
+sentence of either document**. Phase 1's template ends with *Observations and Data Risks*;
+Phase 2's template had no such section, so thirteen identifiers had nowhere to be published.
+Phase 2 now has section 6 in the template and in both A06 variants, with severity and
+evidence per row.
+
+**Not yet done:** the same audit has not been run against the Phase 3 to 6 templates, which
+may have the same missing section. `RW` (phase 4) and `RS` (phase 5) have never been
+allocated by a real run, so neither has been exercised.
+
+---
+
+### A56 - a screen was published under a name no object in the application carries
+
+**Observed 2026-09-14, while reading another project's Phase 2 report as a reference for
+how to present this one.** That report heads every screen section with a Form Name AND a
+Caption. A06's Phase 2 had one name slot per screen, and for F-009 the slot held a caption.
+
+**`商品情報登録` is not an object.** It is the title bar on `商品情報設定画面` and the label
+on the switchboard button that opens it. No catalogue row carried it, because no such
+object exists - and the document that published it states the rule it was breaking two
+sections earlier: *the alias is the one the catalogue composes, so a name here and the same
+name in the catalogue cannot drift apart.* A stated rule with no reader is not a rule.
+
+**The fabricated name moved a finding onto the wrong screen.** The interview names a
+maintenance path of two captions, 『商品情報登録』『商品情報一覧登録』, and asks about
+`上記の画面` - the screen in `image 1.png` at 4,055 rows, whose caption is `商品情報一覧登録`,
+which is `商品情報画面`. The document folded both captions into one screen that does not
+exist and attached the add-and-delete answer to it. There are two screens the interview
+establishes, not one.
+
+**The cause is that nothing carried captions.** An interview, an operating procedure, a
+training manual and a screenshot all name a screen the way the operator does. Without the
+caption there is no way to resolve that to an object, so the name gets written down as it
+was heard. `contracts.screen_behaviour.caption()` now reads the form-level `Caption`
+- matching on definition depth, since a button's caption sits deeper - and the screen
+catalogue carries a `Caption` column for all 51 objects.
+
+**The column paid for itself immediately.** `新規事業部受注取込画面`, the hidden screen that
+writes the same four tables as the live daily import, carries the caption `受注データ取込` -
+character for character the live import's. It does not merely write what that screen writes;
+it presents itself to the operator as that screen. And `前日準備リスト` prints as
+`受注差分リスト`, so a report an operator asks for by name is filed under another.
+
+**Two hand-written aliases were found in the same sweep** - `daily_stock_report_print`
+against a catalogue composing `date_by_stock_report_print`, and `total_quantity` against
+`total_count_amount`. Both corrected.
+
+**Not yet done:** the sweep that found these was a scratch script, so nothing prevents the
+next one. A conformance check should fail a phase document that prints a backticked Japanese
+name no catalogue carries, or a `name (alias)` pair whose alias is not the catalogue's. Both
+are mechanical and neither exists.
+
+**The namespace question raised here was settled by the operator and is now A57:** `RA`
+gains phase 2 as an owner, the five become `RA-nn`, and both `owned_by` and
+`requires_severity` are read by a checker rather than declared and ignored.
+
+---
+
 ### A55 - the control inventory never reached the bundle, and the per-object mechanics were in the wrong document
 
 **Observed 2026-09-14, when the operator said Phase 2's per-screen section was hard to use

@@ -26,6 +26,45 @@ document is JP-primary, with a Romaji alias for cross-reference. Never translate
 | Japanese (production) | Romaji alias | Kind |
 |---|---|---|
 
+<!-- Compose this from the catalogue, never by hand. A hand-written alias is not a
+     small defect: a reader who searches the catalogue for the English this document
+     gave them finds nothing, and cannot tell whether the row is missing or the name
+     is. A06 published `daily_stock_report_print` against a catalogue composing
+     `date_by_stock_report_print`, and the rule forbidding it was stated in this very
+     section of the document that broke it.
+
+     The diagrams are where the reader needs this most. A node cannot carry
+     `その他データ (other_data)` eleven times, so a map of what a screen writes prints
+     production names alone - and a reader who cannot read Japanese gets nothing from
+     it. List the names the diagrams print bare, and say which section prints them. -->
+
+## Captions
+
+<!-- THE CAPTION IS NOT THE OBJECT NAME, and an operator names the caption.
+
+     A06 published a screen called `商品情報登録` for two drafts. No object in the
+     application carries that name: it is the title bar on `商品情報設定画面` and the
+     label on the switchboard button that opens it. The interview that is the entire
+     basis for the finding names two captions - 『商品情報登録』『商品情報一覧登録』 -
+     and the document had folded both into one screen that does not exist, attaching
+     the finding to the wrong object.
+
+     So whenever evidence names a screen in an operator's words - an interview, an
+     operating procedure, a screenshot, a training manual - resolve it through the
+     catalogue's Caption column before writing the name down. A screen an operator
+     calls by one name is filed under another.
+
+     Recording captions is cheap and pays twice more:
+       - `新規事業部受注取込画面` carries the caption `受注データ取込`, character for
+         character the caption on the live daily import. The hidden screen does not
+         merely write the same tables; it presents itself as the same screen.
+       - `前日準備リスト` prints as `受注差分リスト`, so the report an operator asks for
+         by name is not findable under it.
+
+     A caption establishes no meaning - it is a label, like the object name, and rule
+     EC-01 still applies. What it establishes is the join between what people say and
+     what the code contains. -->
+
 ## Source Coverage
 
 | Evidence class | Supplied | Scope | What its absence costs |
@@ -86,7 +125,8 @@ document is JP-primary, with a Romaji alias for cross-reference. Never translate
 3. [Per-Screen Analysis](#3-per-screen-analysis)
 4. [Shared UI and Validation Patterns](#4-shared-ui-and-validation-patterns)
 5. [Reachability and Missing Captures](#5-reachability-and-missing-captures)
-6. [Assumptions, Unknowns, and Questions](#6-assumptions-unknowns-and-questions)
+6. [Observations and Screen Risks](#6-observations-and-screen-risks)
+7. [Assumptions, Unknowns, and Questions](#7-assumptions-unknowns-and-questions)
 
 ---
 
@@ -143,6 +183,8 @@ flowchart TD
 
 ### {{F_ID}} — {{OBJECT_NAME}}
 
+- **Object:**
+- **Caption:**
 - **Purpose:**
 - **Who uses it:**
 - **Record source:**
@@ -226,7 +268,36 @@ flowchart TD
      order, control visibility. If an operator screenshot shows something the
      definition text does not carry, record it as an open question, not a finding. -->
 
-## 6. Assumptions, Unknowns, and Questions
+## 6. Observations and Screen Risks
+
+### Observations
+
+<!-- OB-nn. A property worth carrying forward that is not yet a rule or a risk.
+     Each cites evidence. -->
+
+| ID | Observation | Evidence |
+|---|---|---|
+
+### Risks
+
+<!-- RA-nn, severity HIGH/MEDIUM/LOW, and a mitigation or an explicit "none
+     proposed". A risk without a severity cannot be prioritised, and Phase 6
+     consolidates from the register rather than from this table - so the severity
+     has to reach BOTH.
+
+     RA, not RS. RS is Phase 5's and means security and compliance; a screen is
+     application layer. A06's Phase 2 published five findings as RS-nn, one of them
+     "grouping carried by 222 line and rectangle controls", and took Phase 5's
+     numbers before Phase 5 ran.
+
+     This section exists because A06's Phase 2 had none: thirteen identifiers were
+     allocated into the register with nowhere in the document to appear, and four
+     risks were never written down in any sentence a reader would see. -->
+
+| ID | Risk | Severity | Consequence at migration | Mitigation | Evidence |
+|---|---|---|---|---|---|
+
+## 7. Assumptions, Unknowns, and Questions
 
 ### Scope
 

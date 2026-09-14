@@ -54,6 +54,16 @@ from a database property, or under a name the code builds at run time — A06 ha
 reports opened as `"受注数調整リスト" & <option group>`, and no search can find a name that
 is never written down.
 
+**Carry the name the operator uses, beside the name the code uses.** A catalogue keyed only
+on object names cannot be joined to any evidence a person produced. An interview, an
+operating procedure and a training manual all name the *caption* — the title bar — and a
+screen an operator calls by one name is filed under another. A06 published a screen called
+`商品情報登録` because nothing carried captions: no object has that name; it is the caption
+on `商品情報設定画面`. The column is cheap and it pays on its own — it showed that a hidden
+screen carries the live daily import's caption character for character, and that
+`前日準備リスト` prints as `受注差分リスト`. A caption is a label and establishes no meaning
+(EC-01); what it establishes is the join.
+
 **Generated output is reproducible.** Re-running against an unchanged bundle produces an
 identical file: no timestamps, no run ids, sorted throughout. A diff between two catalogues
 is then a diff between two applications.

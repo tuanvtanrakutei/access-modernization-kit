@@ -77,3 +77,103 @@ def test_the_control_inventory_reaches_the_bundle() -> None:
 
     assert "controls" in empty_sections()["ui"], (
         "ui/controls.json fell through routing into databases/objects before A55")
+
+
+CAPTION_FORM = (
+    'Version =20\n'
+    'Begin Form\n'
+    '    RecordSelectors = NotDefault\n'
+    '    Caption ="商品情報登録"\n'
+    '    Begin Section\n'
+    '        Begin CommandButton\n'
+    '            Name ="商品情報設定ボタン"\n'
+    '            Caption ="押さないで"\n'
+    '        End\n'
+    '    End\n'
+    'End\n')
+
+
+def test_caption_is_the_forms_own_not_a_controls() -> None:
+    """The defect this exists for: A06 published a screen called `商品情報登録`, which is
+    the caption on `商品情報設定画面` and the label on the switchboard button that opens
+    it. Reading the first `Caption =` at any depth would have found a button's."""
+    assert behaviour.caption(CAPTION_FORM) == "商品情報登録"
+
+
+def test_an_object_declaring_no_caption_returns_empty() -> None:
+    """Access falls back to the object name at run time. Returning the name here would
+    publish a guess about a runtime nobody observed as though it were read from the
+    definition - `入荷実績入力` declares none."""
+    assert behaviour.caption('Begin Form\n    RecordSelectors = NotDefault\nEnd\n') == ""
+    assert behaviour.caption("") == ""
+    assert behaviour.caption(None) == ""
+
+
+# --- option groups: the enumeration that closed a question ------------------
+#
+# Phase 2 asked warehouse operations `What are the option-group values behind
+# 受注数調整リスト?` and routed it to a person, while `fraレポート` sat in the bundle
+# declaring both of them. A question spends the one kind of evidence this kit cannot
+# generate, so the enumeration has to come first.
+
+OPTION_FORM = (
+    'Begin Form\n'
+    '    Begin Section\n'
+    '        Begin OptionGroup\n'
+    '            Name =\"fraReport\"\n'
+    '            DefaultValue =\"2\"\n'
+    '            Begin\n'
+    '                Begin OptionButton\n'
+    '                    OptionValue =2\n'
+    '                    Name =\"opt34\"\n'
+    '                End\n'
+    '                Begin OptionButton\n'
+    '                    OptionValue =1\n'
+    '                    Name =\"opt32\"\n'
+    '                End\n'
+    '            End\n'
+    '        End\n'
+    '        Begin TextBox\n'
+    '            Name =\"plainBox\"\n'
+    '        End\n'
+    '    End\n'
+    'End\n')
+
+OPTION_CONTROLS = [
+    {"name": "fraReport", "type": behaviour.TYPE_OPTION_GROUP, "parent": "F"},
+    {"name": "opt34", "type": behaviour.TYPE_OPTION_BUTTON, "parent": "fraReport",
+      "attached_label": "cases and loose"},
+    {"name": "opt32", "type": behaviour.TYPE_OPTION_BUTTON, "parent": "fraReport",
+      "attached_label": "loose only"},
+    {"name": "plainBox", "type": behaviour.TYPE_TEXTBOX, "parent": "F"},
+]
+
+
+def test_an_option_group_is_enumerated_with_values_and_labels() -> None:
+    groups = behaviour.option_choices(OPTION_FORM, OPTION_CONTROLS)
+    assert len(groups) == 1
+    group = groups[0]
+    assert group["group"] == "fraReport"
+    assert group["default"] == "2"
+    assert [(c["value"], c["label"]) for c in group["choices"]] == [
+        ("1", "loose only"), ("2", "cases and loose")]
+
+
+def test_option_value_and_default_value_sit_on_opposite_sides_of_the_name() -> None:
+    """A single pending-value scan gets one and silently loses the other: `OptionValue`
+    is written above the `Name` it belongs to and `DefaultValue` below it."""
+    group = behaviour.option_choices(OPTION_FORM, OPTION_CONTROLS)[0]
+    assert group["default"] == "2", "DefaultValue is written below the group's Name"
+    assert group["choices"][0]["value"] == "1", "OptionValue is written above it"
+
+
+def test_a_control_without_an_option_value_does_not_inherit_the_one_above_it() -> None:
+    """Carrying a pending value forwards has to stop at the next block boundary, or the
+    following control steals it - here the text box would come out holding value 1."""
+    groups = behaviour.option_choices(OPTION_FORM, OPTION_CONTROLS)
+    assert "plainBox" not in {c["name"] for g in groups for c in g["choices"]}
+
+
+def test_a_definition_with_no_option_group_yields_nothing() -> None:
+    assert behaviour.option_choices(CAPTION_FORM, []) == []
+    assert behaviour.option_choices("", []) == []

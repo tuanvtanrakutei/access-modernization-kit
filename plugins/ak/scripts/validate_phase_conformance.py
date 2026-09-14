@@ -111,7 +111,37 @@ def load_scheme_patterns() -> dict[str, re.Pattern[str]]:
     return patterns
 
 
+def load_scheme_rules() -> dict[str, dict[str, Any]]:
+    """`owned_by` and `requires_severity`, which nothing read until A56.
+
+    The scheme declared both for every risk namespace and no code opened either, so
+    A06's Phase 2 allocated five findings into `RS` - owned by Phase 5, and named
+    "security and compliance" - and published them twice without anything objecting.
+    A stated rule with no reader is not a rule, which is the whole of A33.
+
+    Returns an empty mapping when the scheme cannot be read, so a checker that cannot
+    see the rule skips rather than accuses.
+    """
+    scheme = Path(__file__).resolve().parents[1] / "specifications" / "identifier-scheme.yaml"
+    try:
+        import yaml
+
+        data = yaml.safe_load(scheme.read_text(encoding="utf-8")) or {}
+    except Exception:
+        return {}
+    rules: dict[str, dict[str, Any]] = {}
+    for name, body in (data.get("namespaces") or {}).items():
+        body = body or {}
+        rules[name] = {
+            "owned_by": [str(p) for p in (body.get("owned_by") or [])],
+            "requires_severity": bool(body.get("requires_severity")),
+            "name": str(body.get("name") or name),
+        }
+    return rules
+
+
 SCHEME_PATTERNS: dict[str, re.Pattern[str]] = load_scheme_patterns()
+SCHEME_RULES: dict[str, dict[str, Any]] = load_scheme_rules()
 
 
 def load_conformance_signals() -> dict[str, dict[str, tuple[str, ...]]]:
@@ -387,6 +417,39 @@ def apparatus_checks(phase: int, text: str, registers: dict[str, Any],
             else "every identifier matches its namespace pattern",
         ))
 
+    entries = registers.get("identifier_entries")
+    if entries is not None and SCHEME_RULES:
+        mine = [e for e in entries if e.get("phase") == phase]
+
+        # Allocated into a namespace this phase does not own. A06's Phase 2 took five
+        # numbers out of RS, which is Phase 5's and means security - so a screen-layout
+        # finding was filed as a compliance one, and Phase 5's RS-01 was gone before
+        # Phase 5 ran.
+        trespass = []
+        for entry in mine:
+            rule = SCHEME_RULES.get(str(entry.get("namespace") or "").rstrip("-"))
+            if rule and rule["owned_by"] and f"phase{phase}" not in rule["owned_by"]:
+                trespass.append(f"{entry.get('id')} in {rule['name']} "
+                                f"({', '.join(rule['owned_by'])})")
+        results.append(check(
+            "identifier_namespace_owned", "apparatus", not trespass,
+            f"{len(trespass)} in a namespace this phase does not own: {trespass[:4]}"
+            if trespass else f"{len(mine)} allocation(s), every namespace owned",
+        ))
+
+        # `requires_severity` was declared on every risk namespace and read by nothing,
+        # so twelve risks reached the register with none. Phase 6 consolidates from the
+        # register, not from the prose table, and would have had nothing to rank by.
+        unrated = [str(entry.get("id")) for entry in mine
+                   if (SCHEME_RULES.get(str(entry.get("namespace") or "").rstrip("-"))
+                       or {}).get("requires_severity")
+                   and not str(entry.get("severity") or "").strip()]
+        results.append(check(
+            "severity_recorded", "apparatus", not unrated,
+            f"{len(unrated)} risk(s) with no severity: {sorted(unrated)[:6]}"
+            if unrated else "every risk that requires a severity carries one",
+        ))
+
     if phase == 6:
         errata = registers.get("errata_ids")
         if errata is None:
@@ -423,9 +486,23 @@ def load_registers(outputs: Path) -> dict[str, Any]:
         items = data.get("items") or data.get("entries") or []
         registers[key] = {item[field] for item in items if isinstance(item, dict) and field in item}
 
+    def entries_from(pattern: str, key: str) -> None:
+        """The whole row, not just its id - ownership and severity live in the row."""
+        matches = [m for where in (".", "registers")
+                   for m in sorted((outputs / where).glob(pattern))]
+        if len(matches) != 1:
+            return
+        try:
+            data = json.loads(read(matches[0]) or "{}")
+        except json.JSONDecodeError:
+            return
+        registers[key] = [item for item in (data.get("items") or data.get("entries") or [])
+                          if isinstance(item, dict)]
+
     ids_from("*_Evidence.json", "evidence_ids", "id")
     ids_from("*_Identifiers.json", "identifier_ids", "id")
     ids_from("*_Errata.json", "errata_ids", "id")
+    entries_from("*_Identifiers.json", "identifier_entries")
     registers["evidence_schema_errors"] = _schema_errors(outputs)
     registers["class_kind_violations"] = _class_kind_violations(outputs)
     matches = [m for where in (".", "registers")

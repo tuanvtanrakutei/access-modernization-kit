@@ -113,9 +113,15 @@ namespaces:
     name: "Technical observation"
     pattern: "^OB-[0-9]{2}$"
     example: "OB-05"
-    owned_by: [phase1]
+    owned_by: [phase1, phase2, phase3, phase4, phase5]
     requires_evidence: true
-    note: "A property of the system worth carrying forward that is not yet a rule or a risk."
+    note: >
+      A property of the system worth carrying forward that is not yet a rule or a risk.
+      Every analysis phase produces these; the namespace carried phase1 alone until
+      2026-09-14, when the first checker to read `owned_by` found Phase 2 holding eight
+      of them. Unlike RS, nothing about an observation is phase-specific, so the narrow
+      ownership was an oversight rather than a design - widening it invalidates no
+      allocation already made.
 
   RD:
     name: "Risk - data and integrity"
@@ -126,9 +132,16 @@ namespaces:
   RA:
     name: "Risk - application layer"
     pattern: "^RA-[0-9]{2}$"
-    owned_by: [phase3, phase6]
+    owned_by: [phase2, phase3, phase6]
     requires_evidence: true
     requires_severity: true
+    note: >
+      Phase 2 owns this as well as Phase 3. A screen is application layer, and until
+      2026-09-14 no risk namespace was owned by Phase 2 at all - so A06's Phase 2 put
+      five screen risks into RS, whose letter reads as Screen and whose name is
+      "security and compliance". One of them was "grouping carried by 222 line and
+      rectangle controls", which is not a security finding, and the numbers RS-01..05
+      were taken before Phase 5 could allocate a real one.
   RW:
     name: "Risk - workflow and operations"
     pattern: "^RW-[0-9]{2}$"
@@ -141,6 +154,8 @@ namespaces:
     owned_by: [phase5, phase6]
     requires_evidence: true
     requires_severity: true
+    note: >
+      The S is Security, not Screen. A screen-layer risk is RA.
 
   DISC:
     name: "Document-versus-code discrepancy"
