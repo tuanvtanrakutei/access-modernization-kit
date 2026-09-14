@@ -926,10 +926,130 @@ def definition_note(entry: dict | None) -> str:
     return f"{best.lines} line(s), balanced"
 
 
+def screen_indices(output: Path) -> dict[str, str]:
+    """`F-nnn` per object name, read from the phase register.
+
+    The catalogue and Phase 2 had no shared key. Phase 2 calls a screen `F-006` and the
+    catalogue listed it under `入荷実績入力` with a `No.` column that is a display row
+    number and changes when the bundle does - so a reader holding an `F-nnn` could not
+    find the row, and a reader holding a row could not find the analysis. The index is
+    allocated by the phase, so the catalogue reads it rather than inventing one.
+    """
+    matches = sorted(output.glob("*_Identifiers.json")) if output.is_dir() else []
+    if len(matches) != 1:
+        return {}
+    try:
+        data = json.loads(matches[0].read_text(encoding="utf-8") or "{}")
+    except json.JSONDecodeError:
+        return {}
+    return {str(e.get("title") or ""): str(e.get("id") or "")
+            for e in (data.get("entries") or data.get("items") or [])
+            if isinstance(e, dict) and str(e.get("namespace") or "") == "F-"}
+
+
+def _interactive_controls(bundle: Path, forms: list, reports: list,
+                          naming: Any) -> list[str]:
+    """Per object, the controls a reader has to decide about - and what they offer.
+
+    `ui/controls.json` reached the bundle in A55 and only counts were ever read out of
+    it. The cost was concrete: Phase 2 asked an operator `What are the option-group
+    values behind 受注数調整リスト?` and routed it to warehouse operations, while the
+    answer sat in the bundle - two choices, `バラのみ` at 1 and `ケースとバラ` at 2.
+
+    Decoration is counted and not listed. 448 labels, 135 lines and 87 rectangles
+    position the eye and carry no decision; the grouping they imply is a screenshot
+    question, not a row here.
+    """
+    controls_by_object: dict[str, list[dict]] = {}
+    for record in rows_of(read_json(bundle / "ui" / "controls.json")):
+        controls_by_object[str(record.get("object") or "")] = record.get("controls") or []
+
+    body: list[str] = []
+    groups_seen = decoration = interactive = fields = choices_shown = 0
+    for kind, items in (("form", forms), ("report", reports)):
+        for item in sorted(items, key=lambda i: (i.get("database_id", ""), i.get("name", ""))):
+            name = str(item.get("name") or "")
+            controls = controls_by_object.get(name, [])
+            if not controls:
+                continue
+            text = item.get("text") or ""
+            choices = {g["group"]: g
+                       for g in behaviour_contract.option_choices(text, controls)}
+            rows: list[str] = []
+            for control in sorted(controls, key=lambda c: str(c.get("name") or "")):
+                code = control.get("type")
+                if code in behaviour_contract.TYPE_DECORATION:
+                    decoration += 1
+                    continue
+                if code == behaviour_contract.TYPE_TEXTBOX:
+                    fields += 1
+                    continue
+                if code == behaviour_contract.TYPE_OPTION_BUTTON:
+                    # Listed, but inside its group's `Offers` rather than as its own
+                    # row - so it is neither interactive-listed nor unlisted, and the
+                    # four figures have to add up to the inventory or one of them lies.
+                    choices_shown += 1
+                    continue
+                label = behaviour_contract.TYPE_INTERACTIVE.get(code)
+                if label is None:
+                    continue
+                interactive += 1
+                cname = str(control.get("name") or "")
+                offers = ""
+                if code == behaviour_contract.TYPE_OPTION_GROUP:
+                    group = choices.get(cname)
+                    if group:
+                        groups_seen += 1
+                        offers = ", ".join(
+                            f"`{escape(c['value'])}` = {escape(c['label'])}"
+                            for c in group["choices"]) or "—"
+                        if group["default"]:
+                            offers += f" (default `{escape(group['default'])}`)"
+                caption = str(control.get("caption") or
+                              control.get("attached_label") or "").strip()
+                hook = str(control.get("on_click") or "").strip()
+                rows.append(
+                    f"| `{escape(name)}` | `{escape(cname)}` | {label} | "
+                    f"{('`' + escape(caption) + '`') if caption else '—'} | "
+                    f"{offers or '—'} | "
+                    f"{('`' + escape(hook) + '`') if hook else '—'} | "
+                    f"{'hidden' if control.get('visible') is False else 'visible'} |")
+            body += rows
+
+    return [
+        f"## Interactive controls ({interactive} of "
+        f"{interactive + decoration + fields + choices_shown} controls)",
+        "",
+        "Every control a reader has to decide about: buttons, option groups and their "
+        "choices, combo and list boxes, check boxes, toggles, and embedded subforms. "
+        f"A further {choices_shown} option button(s) appear as the choices inside their "
+        f"group's `Offers` rather than as rows of their own. The rest are not listed: "
+        f"{fields} text boxes, which are the objects' fields and are counted under "
+        f"`Bound fields` above, and {decoration} decoration - labels, lines and "
+        "rectangles - which position the eye and carry no decision. What grouping the "
+        "decoration implies is a SCREENSHOT question, not a row here.",
+        "",
+        f"**`Offers`** expands the {groups_seen} option group(s) into the choices each "
+        "presents, as `value` = label, with the default where one is declared. The value "
+        "is what the code receives: a screen opening `\"受注数調整リスト\" & <group>` opens "
+        "exactly the objects these values name, and nothing else. A `DefaultValue` "
+        "beginning `=` is an Access expression and is printed as the definition writes it.",
+        "",
+        "`On click` is the handler named in the definition. `—` means the control names "
+        "none, which is how a button whose handler was removed still looks like a button.",
+        "",
+        "| Object | Control | Type | Caption | Offers | On click | Visible |",
+        "|---|---|---|---|---|---|---|",
+        *body,
+        "",
+    ]
+
+
 def screen_catalogue(app_id: str, bundle: Path, facts_dir: Path,
                      derived: dict | None, naming: Any, meaning: Any,
                      shapes: dict[tuple[str, str, str], dict] | None = None,
-                     answers: dict | None = None) -> str:
+                     answers: dict | None = None,
+                     indices: dict[str, str] | None = None) -> str:
     forms = rows_of(read_json(bundle / "ui" / "forms" / "inventory.json"))
     reports = rows_of(read_json(bundle / "ui" / "reports" / "inventory.json"))
     macros = rows_of(read_json(bundle / "ui" / "macros" / "inventory.json"))
@@ -954,6 +1074,11 @@ def screen_catalogue(app_id: str, bundle: Path, facts_dir: Path,
         "say what the screen is connected to, which is not the same as what it is for: "
         f"a purpose needs a document or an interview ({NEEDS_DOC}).",
         "",
+        "`Phase 2` is the `F-nnn` that document gives the object, so a reader holding "
+        "one can find the other. It is an index rather than an identifier - it means "
+        "nothing on its own - and `—` marks an object Phase 2 has not given one, which "
+        "is a statement about that document and not about the object.",
+        "",
         "`Caption` is the title the operator reads, and it is **not** the object name. "
         "An interview or an operating procedure names the caption, because that is what "
         "the person at the screen sees - so a screen an operator calls by one name is "
@@ -974,10 +1099,11 @@ def screen_catalogue(app_id: str, bundle: Path, facts_dir: Path,
         out += [
             f"## {kind.capitalize()}s ({len(items)})",
             "",
-            "| No. | Object (production name) | Caption | English (proposed) | "
-            "Database | Record source | Bound fields | Event procedures | "
-            "Embedded controls | Referenced by | Definition text | Business purpose |",
-            "|---:|---|---|---|---|---|---:|---:|---|---:|---|---|",
+            "| No. | Phase 2 | Object (production name) | Caption | "
+            "English (proposed) | Database | Record source | Bound fields | "
+            "Event procedures | Embedded controls | Referenced by | Definition text | "
+            "Business purpose |",
+            "|---:|---|---|---|---|---|---|---:|---:|---|---:|---|---|",
         ]
         for number, item in enumerate(sorted(items, key=lambda i: (i.get("database_id", ""),
                                                                    i.get("name", ""))), 1):
@@ -988,8 +1114,10 @@ def screen_catalogue(app_id: str, bundle: Path, facts_dir: Path,
             events = fact.get("event_procedures") or []
             controls = fact.get("embedded_controls") or []
             title = behaviour_contract.caption(item.get("text") or "")
+            index = (indices or {}).get(name, "")
             out.append(
-                f"| {number} | `{escape(name)}` | "
+                f"| {number} | {('**' + index + '**') if index else '—'} | "
+                f"`{escape(name)}` | "
                 f"{('`' + escape(title) + '`') if title else '—'} | "
                 f"{naming.english(name)} | "
                 f"{escape(database)} | "
@@ -1003,6 +1131,7 @@ def screen_catalogue(app_id: str, bundle: Path, facts_dir: Path,
         out.append("")
 
     out += _per_object_behaviour(bundle, forms, reports, naming)
+    out += _interactive_controls(bundle, forms, reports, naming)
 
     unreached = [
         (item.get("database_id", ""), item.get("name", ""), kind)
@@ -1440,7 +1569,8 @@ def main() -> int:
             app_id, bundle, types, sql, naming, writes, meaning),
         f"{app_id}_ScreenCatalogue.md": screen_catalogue(
             app_id, bundle, space.extracted("ui-facts"), derived, naming, meaning,
-            definition_shapes(space), recorded_answers(space)),
+            definition_shapes(space), recorded_answers(space),
+            screen_indices(space.output_dir())),
         f"{app_id}_LogicCatalogue.md": logic_catalogue(
             app_id, bundle, derived, sql, naming, meaning),
     }
