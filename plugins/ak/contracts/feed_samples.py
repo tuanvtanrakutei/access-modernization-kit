@@ -422,6 +422,62 @@ def _vba_literal(value: str) -> str:
 _DIRECTIONS = (("acimport", "inbound"), ("acexport", "outbound"), ("aclink", "inbound"))
 
 
+
+# `DoCmd.OutputTo ObjectType, [ObjectName], [OutputFormat], [OutputFile], ...`
+_OUTPUT_TO = re.compile(r"(?i)(?:DoCmd\.)?OutputTo\b")
+# `acFormatXLS` -> `XLS`, which is what an operator calls the file.
+_OUTPUT_FORMAT = re.compile(r"(?i)^acFormat(.+)$")
+
+
+def _output_to_feeds(records: Iterable[dict]) -> list[Feed]:
+    """Every `DoCmd.OutputTo` call: Access's third way of writing a file.
+
+    A64. The scan knew `TransferText` and `TransferSpreadsheet` and Access has three
+    verbs, so A06's `電算データ作成画面` wrote an Excel file that appeared in no boundary
+    list, and `共通関数` held a generic exporter whose every argument is a variable.
+
+    Always outbound - there is no direction argument, and that is the whole difference
+    from the transfer verbs. The file argument is optional, so a call is kept without
+    one: Access prompts for the destination at run time, and a boundary whose
+    destination is chosen by whoever runs it is a finding, not a row to drop.
+    """
+    found: list[Feed] = []
+    for record in records:
+        text = str(record.get("text") or "")
+        declared_in = str(record.get("name") or record.get("object_name") or "")
+        for line in _vba_code_lines(text):
+            for match in _OUTPUT_TO.finditer(line):
+                arguments_text = line[match.end():].strip()
+                if arguments_text.startswith("(") and arguments_text.endswith(")"):
+                    arguments_text = arguments_text[1:-1].strip()
+                arguments = _vba_arguments(arguments_text)
+                if len(arguments) < 2:
+                    # `OutputTo` with only a type exports the active object. Nothing
+                    # names what leaves, so there is no boundary to record.
+                    continue
+                object_name = _vba_literal(arguments[1]) or arguments[1]
+                if not object_name:
+                    continue
+                declared_format = ""
+                if len(arguments) > 2:
+                    fmt = _OUTPUT_FORMAT.match(arguments[2].strip())
+                    declared_format = fmt.group(1) if fmt else arguments[2].strip()
+                path_expression = arguments[3].strip() if len(arguments) > 3 else ""
+                found.append(Feed(
+                    table=object_name,
+                    database_id=str(record.get("database_id") or ""),
+                    spec_name="",
+                    file_name=base_name(_vba_literal(path_expression)),
+                    declared_format=declared_format,
+                    header_declared="",
+                    origin="code",
+                    path_expression=path_expression,
+                    operation=f"OutputTo {arguments[0].strip()}".strip(),
+                    direction="outbound",
+                    declared_in=declared_in,
+                ))
+    return found
+
 def code_feeds(records: Iterable[dict]) -> list[Feed]:
     """Find every `TransferText` and `TransferSpreadsheet` call in definition text.
 
@@ -441,6 +497,7 @@ def code_feeds(records: Iterable[dict]) -> list[Feed]:
     attempted without a literal specification and file name.
     """
     found: list[Feed] = []
+    found += _output_to_feeds(records)
     call_pattern = re.compile(r"(?i)(?:DoCmd\.)?(TransferText|TransferSpreadsheet)\b")
     for record in records:
         text = str(record.get("text") or "")

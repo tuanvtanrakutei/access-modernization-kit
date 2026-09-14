@@ -63,6 +63,43 @@ rather than given an invented one.
 
 ---
 
+### A65 - a path called unresolvable, declared as a constant in the same file
+
+**Found 2026-09-14, running `$ak samples` after the A64 fix.** The checker reports:
+
+    NO LITERAL FILE  受注データ取込画面 -> tableName: TransferText acImportDelim uses
+                     `SMS受注データパス & Format(Me.受注日, "yyyymmdd") & ".csv"` for the
+                     file path, so no sample can be matched by name
+    UNCLAIMED        20260820.csv: no link and no import call in this bundle names this file
+
+Both statements are wrong in the same way. Twelve lines above that call, in the same
+definition:
+
+    Const SMS受注データパス = "\\server6\user\物流部\"
+
+So the path is `\\server6\user\物流部\yyyymmdd.csv`, the sample is named `20260820.csv`,
+and the two match. Phase 3 established exactly this by hand, and `feed_samples.py` contains
+no occurrence of the word `Const`.
+
+Four more rows say `NO LITERAL FILE` for the same reason - `酒受注データパス`,
+`幸松受注データパス`, `酒商品マスタパス` and `元商品マスタパス` are all constants with literal
+values. Five of the checker's eleven findings are answerable from the file they are
+reported against.
+
+**This is the same shape as A56 and A64 one level down.** A56: a name the code assigns from
+a literal a few lines above the call, published as a caption. A64: a verb the scan did not
+know. Here: a value the scan does not resolve, so a boundary the code fully declares is
+reported as undeclared - and the operator is asked for a sample that is already supplied
+and already matches.
+
+**Not yet done.** Resolving module-level `Const` within a definition is bounded and the
+payoff is measurable: it turns `UNCLAIMED` into a matched sample and four `NO LITERAL FILE`
+rows into resolved paths. What it must not do is follow a variable that is assigned more
+than once or from an expression - the honest answer there stays "not knowable from the
+code", which is what `共通関数` is and what the run-time object names in A06's screens are.
+
+---
+
 ### A64 - the boundary scan knows two export verbs and Access has three
 
 **Found while building A06's traceability matrix.** `DoCmd.OutputTo` writes a file and
@@ -81,9 +118,35 @@ at least one Excel file. `共通関数` is worse than a missing row: every argum
 variable, so it is a generic export helper whose targets are not knowable from the code -
 the same shape as the run-time object names in A06's screens.
 
-**Not yet done.** Fixing it changes the boundary count in the catalogue and in Phase 1,
-which is a correction to a published figure rather than a new finding, so it wants its own
-pass rather than being folded into the matrix work.
+**Fixed the same day.** `_output_to_feeds()` scans the third verb, and three things about
+`OutputTo` had to be respected rather than copied from the transfer path:
+
+  It is **always outbound**. There is no direction argument to read, so the transfer
+  path's "read argument 0 or drop the call" would have dropped every one.
+
+  Its first argument is an object **type** (`acOutputQuery`), not a name. The name is
+  argument 1.
+
+  Its file argument is **optional**. `DoCmd.OutputTo ParaOutType, ParaTBName, acFormatXLS`
+  is a real line in `共通関数` and Access prompts for the destination at run time. The
+  transfer path requires four arguments, and reusing that minimum would have dropped
+  exactly the site that matters most - a generic exporter whose object, format and
+  destination are all arguments, so what leaves through it is not knowable from the code
+  at all. A boundary whose destination is chosen by whoever runs it is a finding, not a
+  row to drop.
+
+The commented-out site in `メイン画面` stays out: `_vba_code_lines` drops whole-line
+comments, and a comment is not a call.
+
+**Published figures corrected**, which is the part that took longer than the scan. The
+boundary count is 37 in Phase 1's prose, in `RD-02`, in `Q103`, and spelled out in words
+in the section heading *Outbound - three files this application writes*; Phase 3 quotes
+the catalogue heading. All of it in two languages. 39 now: 24 links, 10 inbound code, 5
+outbound code. `OB-10` registered for the verb itself.
+
+**And a sentence carrying this report's own drafting history was found in Phase 1 EN**
+while editing beside it - *This report first recorded them as expressions* - the rule the
+phase templates state and the VI variant had already had removed. Gone.
 
 ---
 
