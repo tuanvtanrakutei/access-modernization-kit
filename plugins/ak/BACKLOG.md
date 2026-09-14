@@ -12,6 +12,144 @@ that it should now work.
 
 ## Open
 
+### A63 - a gate whose only remedy could not be carried out
+
+**Observed 2026-09-14, checking what Phase 4 needed before starting it.** Readiness read
+`missing:any:trigger_effect_output_trace`, and beside it the kit printed the way to fix
+that: *place sample inputs in `sources/samples/` and outputs it produces in
+`sources/reports-out/`*. A06 had done exactly that - one `SAMPLE_DATA`, fourteen
+`OUTPUT_SAMPLE`, both in the directories `evidence_classes` maps - and Phase 4 stayed
+BLOCKED.
+
+**Nothing in the package could produce the capability.** Listing every capability any
+code path emits gives eleven, and this is not among them: no adapter names it,
+`_declaration_capabilities` yields only `backend_authority_declared`, and the manifest has
+no field for it. So the instruction was unreachable, and an operator following it would
+supply evidence, see no change, and have nothing to try next. A26's shape once more - a
+gate answering a question it set itself - except that here the published remedy was the
+wrong one rather than the question.
+
+**The operator chose the strict reading.** The capability is named *which action writes
+which table and produces which output*, and samples answer the last third only: they are
+outputs, with nothing saying which action produced one. The other two thirds are the
+traceability matrix, which this kit already requires as a control output and already
+schemas. So `evidence_classes.trace_capability()` asks for both - at least one
+`SAMPLE_DATA` and one `OUTPUT_SAMPLE`, and at least one matrix row naming both a
+`data_target` and an `output`.
+
+**Reading the CSV rather than a phase document's prose** is deliberate: a heading differs
+per language and this has to hold for EN, VI and JA alike.
+
+**And the gate must not become circular.** `workflow_id` and `step` are Phase 4's to
+assign, so requiring them would block Phase 4 on a matrix only Phase 4 can complete. Only
+`data_target` and `output` are read; Phase 3 seeds the rows it can fill and Phase 4
+finishes them. The docstring says so, because the next reader's instinct will be to
+require the whole schema.
+
+**A test was protecting the unreachable remedy.** `test_requirements_separates_what_is_
+present_from_what_is_missing` asserted the supply routes were exactly `{files, runtime}` -
+the two that could never work. Updated, with the reason written beside it.
+
+Derived in `phase_evidence.phase_report`, not at acquisition: that is the only layer
+seeing both the bundle and the published outputs, and at acquisition time no phase has
+run, so nothing has yet said which action writes what. The acquisition-time
+`phase-readiness.json` still reports BLOCKED and that stays correct.
+
+**A06 is now READY for Phase 4**, on an 18-row matrix built from the export - handler
+names read out of the definitions, record sources from the screen catalogue, and every
+named output checked to exist in `input/report-samples/`. Twelve rows carry both columns;
+six write a table and produce no artifact, and those are left with an empty `output`
+rather than given an invented one.
+
+---
+
+### A65 - a path called unresolvable, declared as a constant in the same file
+
+**Found 2026-09-14, running `$ak samples` after the A64 fix.** The checker reports:
+
+    NO LITERAL FILE  受注データ取込画面 -> tableName: TransferText acImportDelim uses
+                     `SMS受注データパス & Format(Me.受注日, "yyyymmdd") & ".csv"` for the
+                     file path, so no sample can be matched by name
+    UNCLAIMED        20260820.csv: no link and no import call in this bundle names this file
+
+Both statements are wrong in the same way. Twelve lines above that call, in the same
+definition:
+
+    Const SMS受注データパス = "\\server6\user\物流部\"
+
+So the path is `\\server6\user\物流部\yyyymmdd.csv`, the sample is named `20260820.csv`,
+and the two match. Phase 3 established exactly this by hand, and `feed_samples.py` contains
+no occurrence of the word `Const`.
+
+Four more rows say `NO LITERAL FILE` for the same reason - `酒受注データパス`,
+`幸松受注データパス`, `酒商品マスタパス` and `元商品マスタパス` are all constants with literal
+values. Five of the checker's eleven findings are answerable from the file they are
+reported against.
+
+**This is the same shape as A56 and A64 one level down.** A56: a name the code assigns from
+a literal a few lines above the call, published as a caption. A64: a verb the scan did not
+know. Here: a value the scan does not resolve, so a boundary the code fully declares is
+reported as undeclared - and the operator is asked for a sample that is already supplied
+and already matches.
+
+**Not yet done.** Resolving module-level `Const` within a definition is bounded and the
+payoff is measurable: it turns `UNCLAIMED` into a matched sample and four `NO LITERAL FILE`
+rows into resolved paths. What it must not do is follow a variable that is assigned more
+than once or from an expression - the honest answer there stays "not knowable from the
+code", which is what `共通関数` is and what the run-time object names in A06's screens are.
+
+---
+
+### A64 - the boundary scan knows two export verbs and Access has three
+
+**Found while building A06's traceability matrix.** `DoCmd.OutputTo` writes a file and
+`contracts/feed_samples.py` does not look for it - `_DIRECTIONS` covers `acImport`,
+`acExport` and `acLink` on `TransferText`/`TransferSpreadsheet` only.
+
+Three sites in A06, two of them live:
+
+    電算データ作成画面:300   DoCmd.OutputTo acOutputQuery, "電算用データ", acFormatXLS, "C:\" & FileName
+    共通関数:488            DoCmd.OutputTo ParaOutType, ParaTBName, acFormatXLS
+    メイン画面:1069          commented out, to "C:\物流支援棚卸.xls"
+
+Neither live site appears in `A06_LogicCatalogue.md` -> *Files crossing the boundary
+(37)*, so that figure is a lower bound and Phase 1 section 6's outbound count is short by
+at least one Excel file. `共通関数` is worse than a missing row: every argument is a
+variable, so it is a generic export helper whose targets are not knowable from the code -
+the same shape as the run-time object names in A06's screens.
+
+**Fixed the same day.** `_output_to_feeds()` scans the third verb, and three things about
+`OutputTo` had to be respected rather than copied from the transfer path:
+
+  It is **always outbound**. There is no direction argument to read, so the transfer
+  path's "read argument 0 or drop the call" would have dropped every one.
+
+  Its first argument is an object **type** (`acOutputQuery`), not a name. The name is
+  argument 1.
+
+  Its file argument is **optional**. `DoCmd.OutputTo ParaOutType, ParaTBName, acFormatXLS`
+  is a real line in `共通関数` and Access prompts for the destination at run time. The
+  transfer path requires four arguments, and reusing that minimum would have dropped
+  exactly the site that matters most - a generic exporter whose object, format and
+  destination are all arguments, so what leaves through it is not knowable from the code
+  at all. A boundary whose destination is chosen by whoever runs it is a finding, not a
+  row to drop.
+
+The commented-out site in `メイン画面` stays out: `_vba_code_lines` drops whole-line
+comments, and a comment is not a call.
+
+**Published figures corrected**, which is the part that took longer than the scan. The
+boundary count is 37 in Phase 1's prose, in `RD-02`, in `Q103`, and spelled out in words
+in the section heading *Outbound - three files this application writes*; Phase 3 quotes
+the catalogue heading. All of it in two languages. 39 now: 24 links, 10 inbound code, 5
+outbound code. `OB-10` registered for the verb itself.
+
+**And a sentence carrying this report's own drafting history was found in Phase 1 EN**
+while editing beside it - *This report first recorded them as expressions* - the rule the
+phase templates state and the VI variant had already had removed. Gone.
+
+---
+
 ### A62 - the bilingual annotator named things that are not names
 
 **Observed 2026-09-14, running `annotate_bilingual.py` over A06's Phase 2 and Phase 3 at
@@ -47,6 +185,19 @@ it is why the tests assert both directions.
 where a pair is written by hand it sits inside the backticks. Stripping exactly that pattern
 returned Phase 3 EN to within 19 lines of the pre-annotation draft, and all 19 were
 corrections made deliberately in between.
+
+**And the rendering is inline, not a table.** The operator settled it in the same pass:
+*không cần lập bảng riêng, chỉ cần translate english name phía sau JP name* - the English
+beside the name is the whole of it. So `--no-appendix` was added and the appendix dropped
+from all six A06 documents, along with a `Names you will meet in the diagrams` table this
+analysis had introduced. A lookup table is a second place to maintain the same mapping, and
+the catalogues are already the first.
+
+Removing the table had a consequence worth writing down, because doing only half of it
+makes the document worse: the annotator marks the FIRST occurrence of each name, and the
+first occurrence of twenty-two names was inside the table that went. Deleting it left those
+names unannotated everywhere else, and Phase 2 dropped from 53 inline annotations to 31.
+Re-running put them on the real first mention. **Delete a table of names, then re-annotate.**
 
 **Not yet done:** `is_a_name` is a list of characters that disqualify a span, which is a
 denylist and will miss the next shape. The real question is whether the caller should be

@@ -622,3 +622,54 @@ def test_no_bundle_is_a_second_exit_code_and_not_a_clean_report(
     (tmp_path / "A05" / "input").mkdir(parents=True)
     code, output = run(tmp_path / "A05")
     assert code == 2 and "run `$ak acquire` first" in output
+
+
+# --- A64: Access's third export verb ----------------------------------------
+#
+# `code_feeds` knew TransferText and TransferSpreadsheet. A06's `電算データ作成画面`
+# wrote an Excel file through `DoCmd.OutputTo` and appeared in no boundary list, and
+# `共通関数` held a generic exporter whose every argument is a variable. The published
+# count was 37 and is 39.
+
+
+def _record(text: str, name: str = "F"):
+    return {"text": text, "name": name, "database_id": "DB1"}
+
+
+def test_output_to_is_a_boundary_and_is_always_outbound() -> None:
+    found = feeds.code_feeds([_record(
+        'DoCmd.OutputTo acOutputQuery, "電算用データ", acFormatXLS, "C:" & FileName, False')])
+    assert len(found) == 1
+    feed = found[0]
+    assert feed.direction == "outbound"
+    assert feed.table == "電算用データ"
+    assert feed.declared_format == "XLS"
+    assert feed.operation.startswith("OutputTo")
+
+
+def test_output_to_without_a_destination_is_still_a_boundary() -> None:
+    """`共通関数` is a real line: Access prompts for the file at run time. Dropping it
+    for want of a fourth argument would hide an exporter whose targets nobody knows."""
+    found = feeds.code_feeds([_record(
+        "DoCmd.OutputTo ParaOutType, ParaTBName, acFormatXLS", "共通関数")])
+    assert len(found) == 1
+    assert found[0].path_expression == "" and found[0].file_name == ""
+    assert found[0].table == "ParaTBName"
+
+
+def test_a_commented_output_to_is_not_a_boundary() -> None:
+    """A06's switchboard carries one, commented out. A comment is not a call."""
+    assert feeds.code_feeds([_record(
+        '\'    DoCmd.OutputTo acOutputQuery, "x", acFormatXLS, "C:\\y.xls", False')]) == []
+
+
+def test_output_to_naming_only_a_type_exports_the_active_object_and_is_skipped() -> None:
+    """Nothing names what leaves, so there is no boundary to record."""
+    assert feeds.code_feeds([_record("DoCmd.OutputTo acOutputForm")]) == []
+
+
+def test_the_transfer_verbs_still_work_beside_it() -> None:
+    found = feeds.code_feeds([_record(
+        'DoCmd.TransferText acExportDelim, , "商品マスタ", "C:\\m.csv", True')])
+    assert len(found) == 1 and found[0].direction == "outbound"
+    assert found[0].operation.startswith("TransferText")

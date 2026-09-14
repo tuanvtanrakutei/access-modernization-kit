@@ -295,3 +295,22 @@ def test_a_bilingual_table_row_is_not_annotated_twice() -> None:
 
     annotated, added = annotator.annotate(row, Naming())
     assert added == 0 and annotated == row
+
+
+def test_no_appendix_annotates_inline_and_writes_no_table(published: Path) -> None:
+    """The operator's rule: the English beside the name IS the bilingual rendering, and
+    a table at the end repeating every name is a second place to maintain."""
+    run(published, "--no-appendix")
+    for name in ("T01_Phase1_DataUnderstanding_EN.md",):
+        text = (published / "output" / name).read_text(encoding="utf-8")
+        assert annotator.APPENDIX_HEADING not in text
+        assert "(" in text, "inline annotation still happens without the appendix"
+
+
+def test_no_appendix_removes_an_appendix_an_earlier_run_wrote(published: Path) -> None:
+    """Re-running with the flag has to drop the table, not leave a stale one behind."""
+    run(published)
+    name = "T01_Phase1_DataUnderstanding_EN.md"
+    assert annotator.APPENDIX_HEADING in (published / "output" / name).read_text(encoding="utf-8")
+    run(published, "--no-appendix")
+    assert annotator.APPENDIX_HEADING not in (published / "output" / name).read_text(encoding="utf-8")

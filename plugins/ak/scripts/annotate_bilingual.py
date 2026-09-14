@@ -209,6 +209,12 @@ def main() -> int:
     parser.add_argument("--app-root", type=Path,
                         help="Workspace root; its output/ is annotated.")
     parser.add_argument("--outputs", type=Path, help="Annotate this directory instead.")
+    parser.add_argument(
+        "--no-appendix", action="store_true",
+        help="Annotate inline only. The appendix repeats every name a second "
+             "time, and a reader who has the English beside the name does not "
+             "need it.",
+    )
     parser.add_argument("--dry-run", action="store_true")
     args = parser.parse_args()
 
@@ -249,12 +255,15 @@ def main() -> int:
         text = path.read_text(encoding="utf-8")
         body = text.split(APPENDIX_HEADING)[0].rstrip("\n-\r \t")
         annotated, added = annotate(body, naming)
-        final = annotated.rstrip("\n") + "\n" + appendix(annotated, naming)
+        final = annotated.rstrip("\n") + "\n"
+        if not args.no_appendix:
+            final += appendix(annotated, naming)
         if args.dry_run:
             print(f"{path.name}: {added} first-mention annotation(s)")
         elif final != text:
             io.open(path, "w", encoding="utf-8", newline="\n").write(final)
-            print(f"{path.name}: {added} annotated, appendix refreshed")
+            print(f"{path.name}: {added} annotated"
+                  + ("" if args.no_appendix else ", appendix refreshed"))
         total += added
     if not args.dry_run:
         print(f"\n{total} name(s) annotated across {outputs}")
