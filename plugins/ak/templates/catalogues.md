@@ -12,6 +12,14 @@
   in return.
 -->
 
+## Who reads a catalogue
+
+**An agent does** — looking one row up, or checking a figure a phase document quotes. Not a
+developer reading start to finish; that is what the phase documents are for, and the two
+have opposite shapes. A catalogue is exhaustive, generated, sorted and reproducible, and
+carries no argument. A phase document carries the argument and quotes the catalogue's
+figures without recounting them.
+
 ## Why they exist
 
 A14 measured it: `A05_Phase1` named 20 of 118 tables, 4 of 328 distinct column names and

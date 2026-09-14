@@ -3,6 +3,26 @@
 {{APP_NAME}}. Six phase documents plus their control artifacts, produced by run
 `{{RUN_ID}}` on {{GENERATED_AT}}.
 
+## 0. Who reads what
+
+Each artefact here has one primary reader, and writing for the other one is the most
+expensive mistake available in this document set.
+
+| Artefact | Primary reader | Shape |
+|---|---|---|
+| `{{APP_ID}}_Phase1..6_*.md` | **A person** — a developer who has to rebuild the system, reading once, under time pressure | Claims, arguments, diagrams. Figures are quoted from the catalogues, never recounted |
+| `{{APP_ID}}_DataCatalogue.md`, `_ScreenCatalogue.md`, `_LogicCatalogue.md` | **An agent** — looking one row up, or checking a phase's figure | Exhaustive, generated, sorted, reproducible. No argument |
+| `{{APP_ID}}_Evidence.json`, `_Identifiers.json`, `_Errata.json` | **An agent**, and the conformance gates | Registers. Append-only; every claim in a phase resolves to a row here |
+| `.ak/bundles/<id>/` | **An agent**, and nothing else | The sealed acquisition. Never edited, never quoted directly by a phase |
+
+Two consequences worth stating because both have been got wrong:
+
+- **A list nobody will read end to end does not belong in a phase document.** It belongs
+  in a catalogue, with a pointer from the phase. A phase carried per-screen mechanics for
+  twelve screens by hand while the other thirty-nine had none, until the enumeration moved.
+- **An argument does not belong in a catalogue.** A catalogue that reasons cannot be
+  regenerated without losing the reasoning.
+
 ## 1. Start at Phase 6, and read its errata first
 
 Phase 6 opens with an errata table. It supersedes claims made in Phases 1–5 and

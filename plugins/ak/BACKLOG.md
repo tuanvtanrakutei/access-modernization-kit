@@ -12,6 +12,48 @@ that it should now work.
 
 ## Open
 
+### A60 - unknowns were carried and never revisited, and no artefact said who reads it
+
+**Two standing instructions from the operator, given 2026-09-14 before Phase 3 started.**
+Both were already the working rule and neither was written anywhere a later author would
+meet it, which is the same defect as A57 in a different register.
+
+**Every phase must account for the earlier phases' unknowns.** Measured before changing
+anything: A06's Phase 2 mentioned **none** of Phase 1's fifteen open `UK-D`/`Q` items.
+Two costs were already visible in the register.
+
+`Q6` - *商品情報 add and delete* - was answered on 2026-08-30 by the interview that Phase 2
+section 3.3 is built on, and had been carried as open ever since. Phase 6 consolidates
+from the register, so it would have reported an answered question as outstanding.
+
+`Q108` asks which column layout the consumer of `常温物流支援商品マスタ.csv` reads. `Q103`,
+raised a phase earlier, asks who consumes the outbound files **and in what layout**. Same
+question, same owner, same file, allocated twice because nobody re-read the first. An
+interview is the one evidence class this kit cannot generate; spending two questions on
+one thing is the cheapest waste available here.
+
+Fixed: a required `Carried forward from earlier phases` section in templates 2 to 6,
+placed BEFORE the phase's own unknowns; a `prior_unknowns_accounted` apparatus check that
+fails a phase leaving an earlier open item unmentioned; and `resolved_by` /
+`superseded_by` in the register contract, with the sentence that stops them being abused -
+*neither field is a way to make a list shorter*. A06's Phase 2 now carries all fifteen:
+two closed, four advanced, nine unchanged. Recording *unchanged* deliberately is
+information; silence is not.
+
+**Every artefact must say who reads it.** A phase document is read once by a developer
+rebuilding the system; a catalogue is read by an agent looking one row up; a register is
+read by the gates. Writing for the wrong reader produced the two worst drafts in this
+project - per-screen mechanics enumerated by hand inside a phase document (A55), and a
+phase document carrying its own revision history. `templates/readme.md` gains a section 0
+naming the reader of every artefact, and `templates/catalogues.md` states its own.
+
+**Not yet done:** the check asks that a phase MENTION each carried item, not that it
+reason about one. A table row reading `unchanged` with an empty justification passes.
+Nothing detects the duplicate case automatically either - `Q108` was found by reading the
+fifteen titles, and a similarity check over question text would have found it in a second.
+
+---
+
 ### A58 - a question was put to a person that the bundle already answered
 
 **Observed 2026-09-14, when the operator said the screen catalogue was not tightly linked

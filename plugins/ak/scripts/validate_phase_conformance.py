@@ -450,6 +450,27 @@ def apparatus_checks(phase: int, text: str, registers: dict[str, Any],
             if unrated else "every risk that requires a severity carries one",
         ))
 
+    # Every unknown and question an earlier phase left open has to be accounted for
+    # here, not silently carried to Phase 6. A06's Phase 2 named none of Phase 1's
+    # fifteen, and allocated `Q108` asking what `Q103` already asked of the same owner
+    # about the same file.
+    if entries is not None and phase > 1:
+        carried = [e for e in entries
+                   if str(e.get("namespace") or "") in ("UK-", "Q")
+                   and isinstance(e.get("phase"), int) and e["phase"] < phase
+                   and not str(e.get("resolved_by") or "").strip()
+                   and not str(e.get("superseded_by") or "").strip()]
+        scanned = prose(text)
+        unaccounted = sorted(str(e.get("id")) for e in carried
+                             if not re.search(rf"\b{re.escape(str(e.get('id')))}\b",
+                                              scanned))
+        results.append(check(
+            "prior_unknowns_accounted", "apparatus", not unaccounted,
+            f"{len(unaccounted)} open item(s) from an earlier phase are never mentioned: "
+            f"{unaccounted[:6]}" if unaccounted
+            else f"{len(carried)} open item(s) from earlier phases, each accounted for",
+        ))
+
     if phase == 6:
         errata = registers.get("errata_ids")
         if errata is None:

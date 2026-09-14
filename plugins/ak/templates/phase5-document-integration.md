@@ -239,6 +239,33 @@ flowchart LR
 
 ## 11. Unresolved Mismatches and Stakeholder Questions
 
+### Carried forward from earlier phases
+
+<!-- REQUIRED in every phase after the first, and written BEFORE this phase's own
+     unknowns and questions.
+
+     List every `UK-` and `Q` an earlier phase allocated and still open, and give each
+     a status:
+
+       resolved   - this phase's evidence answers it. Cite the evidence id, and say
+                    what the answer is. Mark it resolved in the register too.
+       advanced   - not closed, but something changed. Say what.
+       unchanged  - nothing this phase read bears on it. Still say so.
+       duplicate  - it asks what another identifier already asks. Name that one and
+                    stop carrying both.
+
+     A06's Phase 2 skipped this section and allocated `Q108`, which asks what Phase 1's
+     `Q103` already asked of the same owner about the same file. Two questions to one
+     person about one thing is the cheapest kind of waste to avoid and the easiest to
+     create.
+
+     Before allocating any new `UK-` or `Q`, read this list. An unknown that is already
+     open does not need a second identifier; an unknown this phase can close does not
+     need carrying. -->
+
+| ID | Raised in | Status | What this phase establishes |
+|---|---|---|---|
+
 ### Unknowns
 
 <!-- `UK-Pnn` - Documents, the letter this phase owns. Each names the evidence
