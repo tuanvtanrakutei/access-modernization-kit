@@ -17,7 +17,9 @@ contract here.
 """
 from __future__ import annotations
 
+import csv
 import hashlib
+import io
 import json
 from pathlib import Path
 from typing import Any
@@ -280,3 +282,46 @@ def claim_is_supportable(
         return False, (f"EC-07: a SCOPE claim requires TARGET_INTENT; {class_name} is "
                        "evidence about the legacy application")
     return False, f"{class_name} does not declare support for {claim_kind}"
+
+
+def trace_matrix_rows(app_root: Path | str) -> int:
+    """Rows of the traceability matrix that carry both a data target and an output.
+
+    `{APP_ID}_TraceabilityMatrix.csv` is a required control output and has a schema -
+    `user_action, screen, vba_event, processing, data_target, output` - so this reads
+    the artifact rather than a phase document's prose. A heading differs per language
+    and the same rule has to hold for EN, VI and JA.
+
+    A header with no rows counts as nothing, which is the point: the file existing is
+    not the evidence, the rows are.
+
+    Only `data_target` and `output` are read. `workflow_id` and `step` are Phase 4's to
+    assign, and requiring them here would make the gate circular - Phase 4 blocked on a
+    matrix only Phase 4 can complete. Phase 3 seeds the rows it can fill; Phase 4
+    finishes them.
+    """
+    root = Path(app_root)
+    candidates = list((root / "output").glob("*TraceabilityMatrix.csv"))
+    candidates += list((root / "output" / "registers").glob("*TraceabilityMatrix.csv"))
+    rows = 0
+    for path in candidates:
+        try:
+            text = path.read_text(encoding="utf-8")
+        except OSError:
+            continue
+        for row in csv.DictReader(io.StringIO(text)):
+            if (row.get("data_target") or "").strip() and (row.get("output") or "").strip():
+                rows += 1
+    return rows
+
+
+def trace_capability(app_root: Path | str, supplied: list[dict[str, Any]]) -> bool:
+    """Whether `trigger_effect_output_trace` is established for this workspace.
+
+    Both halves, because the capability names both. Samples are the outputs the
+    application really produced; the matrix is what says which action produced each.
+    Either alone answers a different question than the one Phase 4 asks.
+    """
+    classes = {str(item.get("evidence_class") or "") for item in supplied}
+    has_samples = "SAMPLE_DATA" in classes and "OUTPUT_SAMPLE" in classes
+    return has_samples and trace_matrix_rows(app_root) > 0

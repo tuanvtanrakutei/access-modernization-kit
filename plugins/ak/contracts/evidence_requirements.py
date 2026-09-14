@@ -73,7 +73,12 @@ SUPPLY: dict[str, tuple[str, list[tuple[str, str]]]] = {
     ),
     "trigger_effect_output_trace": (
         "which action writes which table and produces which output",
-        [(FILES, "place sample inputs the application reads in sources/samples/ and outputs it produces in sources/reports-out/"),
+        # Both halves, because the name has both. Samples alone answer only the last
+        # third - they are outputs, with nothing saying which action produced them -
+        # and for a long time supplying them was the whole printed remedy while
+        # nothing in the package could turn them into this capability (A63).
+        [(FILES, "supply sample inputs the application reads in input/samples/ and outputs it produces in input/report-samples/"),
+         (ANALYSIS, "seed output/{APP_ID}_TraceabilityMatrix.csv from Phase 3's action-to-effect section: one row per step, each naming its data_target and its output. Leave workflow_id and step empty - Phase 4 assigns those, and requiring them here would make the gate circular"),
          (RUNTIME, "run the application against a snapshot and record what each action changes")],
     ),
     "prior_phase_outputs_accepted": (

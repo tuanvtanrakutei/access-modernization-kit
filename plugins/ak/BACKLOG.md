@@ -12,6 +12,81 @@ that it should now work.
 
 ## Open
 
+### A63 - a gate whose only remedy could not be carried out
+
+**Observed 2026-09-14, checking what Phase 4 needed before starting it.** Readiness read
+`missing:any:trigger_effect_output_trace`, and beside it the kit printed the way to fix
+that: *place sample inputs in `sources/samples/` and outputs it produces in
+`sources/reports-out/`*. A06 had done exactly that - one `SAMPLE_DATA`, fourteen
+`OUTPUT_SAMPLE`, both in the directories `evidence_classes` maps - and Phase 4 stayed
+BLOCKED.
+
+**Nothing in the package could produce the capability.** Listing every capability any
+code path emits gives eleven, and this is not among them: no adapter names it,
+`_declaration_capabilities` yields only `backend_authority_declared`, and the manifest has
+no field for it. So the instruction was unreachable, and an operator following it would
+supply evidence, see no change, and have nothing to try next. A26's shape once more - a
+gate answering a question it set itself - except that here the published remedy was the
+wrong one rather than the question.
+
+**The operator chose the strict reading.** The capability is named *which action writes
+which table and produces which output*, and samples answer the last third only: they are
+outputs, with nothing saying which action produced one. The other two thirds are the
+traceability matrix, which this kit already requires as a control output and already
+schemas. So `evidence_classes.trace_capability()` asks for both - at least one
+`SAMPLE_DATA` and one `OUTPUT_SAMPLE`, and at least one matrix row naming both a
+`data_target` and an `output`.
+
+**Reading the CSV rather than a phase document's prose** is deliberate: a heading differs
+per language and this has to hold for EN, VI and JA alike.
+
+**And the gate must not become circular.** `workflow_id` and `step` are Phase 4's to
+assign, so requiring them would block Phase 4 on a matrix only Phase 4 can complete. Only
+`data_target` and `output` are read; Phase 3 seeds the rows it can fill and Phase 4
+finishes them. The docstring says so, because the next reader's instinct will be to
+require the whole schema.
+
+**A test was protecting the unreachable remedy.** `test_requirements_separates_what_is_
+present_from_what_is_missing` asserted the supply routes were exactly `{files, runtime}` -
+the two that could never work. Updated, with the reason written beside it.
+
+Derived in `phase_evidence.phase_report`, not at acquisition: that is the only layer
+seeing both the bundle and the published outputs, and at acquisition time no phase has
+run, so nothing has yet said which action writes what. The acquisition-time
+`phase-readiness.json` still reports BLOCKED and that stays correct.
+
+**A06 is now READY for Phase 4**, on an 18-row matrix built from the export - handler
+names read out of the definitions, record sources from the screen catalogue, and every
+named output checked to exist in `input/report-samples/`. Twelve rows carry both columns;
+six write a table and produce no artifact, and those are left with an empty `output`
+rather than given an invented one.
+
+---
+
+### A64 - the boundary scan knows two export verbs and Access has three
+
+**Found while building A06's traceability matrix.** `DoCmd.OutputTo` writes a file and
+`contracts/feed_samples.py` does not look for it - `_DIRECTIONS` covers `acImport`,
+`acExport` and `acLink` on `TransferText`/`TransferSpreadsheet` only.
+
+Three sites in A06, two of them live:
+
+    電算データ作成画面:300   DoCmd.OutputTo acOutputQuery, "電算用データ", acFormatXLS, "C:\" & FileName
+    共通関数:488            DoCmd.OutputTo ParaOutType, ParaTBName, acFormatXLS
+    メイン画面:1069          commented out, to "C:\物流支援棚卸.xls"
+
+Neither live site appears in `A06_LogicCatalogue.md` -> *Files crossing the boundary
+(37)*, so that figure is a lower bound and Phase 1 section 6's outbound count is short by
+at least one Excel file. `共通関数` is worse than a missing row: every argument is a
+variable, so it is a generic export helper whose targets are not knowable from the code -
+the same shape as the run-time object names in A06's screens.
+
+**Not yet done.** Fixing it changes the boundary count in the catalogue and in Phase 1,
+which is a correction to a published figure rather than a new finding, so it wants its own
+pass rather than being folded into the matrix work.
+
+---
+
 ### A62 - the bilingual annotator named things that are not names
 
 **Observed 2026-09-14, running `annotate_bilingual.py` over A06's Phase 2 and Phase 3 at

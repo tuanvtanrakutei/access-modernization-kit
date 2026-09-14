@@ -13,6 +13,7 @@ import json
 from pathlib import Path
 from typing import Any
 
+import evidence_classes
 import evidence_requirements
 import workspace as workspace_contract
 from classification import Classification
@@ -166,6 +167,16 @@ def phase_report(
 
     bundle_dir = newest_bundle(app_root)
     present, origin = supplied_capabilities(bundle_dir) if bundle_dir else (set(), {})
+
+    # A63. `trigger_effect_output_trace` is the one capability no adapter can report,
+    # because half of it is not in the databases: samples are the outputs the
+    # application really produced, and the traceability matrix is what says which
+    # action produced each. Derived here rather than at acquisition because this is
+    # the only layer that sees both the bundle and the published outputs - at
+    # acquisition time no phase has run, so nothing has said which action writes what.
+    if evidence_classes.trace_capability(app_root, evidence_classes.supplied_inventory(app_root)):
+        present = set(present) | {"trigger_effect_output_trace"}
+        origin["trigger_effect_output_trace"] = "supplied samples and the traceability matrix"
 
     # A waiver is granted against the capability, then reported, so the phase can
     # proceed while the record still says what was not proven.

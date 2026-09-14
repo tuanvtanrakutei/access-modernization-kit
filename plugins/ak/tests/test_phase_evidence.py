@@ -13,6 +13,7 @@ sys.path.insert(0, str(PACKAGE / "contracts"))
 sys.path.insert(0, str(PACKAGE / "scripts"))
 
 import evidence_requirements  # noqa: E402
+import evidence_classes
 import phase_evidence  # noqa: E402
 from classification import Classification  # noqa: E402
 
@@ -49,7 +50,10 @@ def test_requirements_separates_what_is_present_from_what_is_missing() -> None:
     assert blocked["status"] == "BLOCKED"
     gap = blocked["missing"][0]
     assert "trigger_effect_output_trace" in gap.get("alternatives", [gap["capability"]])
-    assert {item["route"] for item in gap["supply"]} == {"files", "runtime"}
+    # A63 added the analysis route. The two that were here described supplying
+    # samples and running the application, and neither could ever produce this
+    # capability - so the assertion was protecting an unreachable remedy.
+    assert {item["route"] for item in gap["supply"]} == {"files", "analysis", "runtime"}
 
 
 def _workspace(tmp_path: Path, capabilities: dict[str, list[str]] | None = None) -> Path:
@@ -198,3 +202,75 @@ def test_distilled_ui_facts_keep_relationships_and_drop_geometry() -> None:
     assert fact["event_procedures"] == ["Report_Open"]
     # Geometry is what the corpus renounces, and it must not survive distillation.
     assert "1410" not in json.dumps(fact, ensure_ascii=False)
+
+
+# --- A63: the capability that gated phase 4 and nothing could produce ---------
+#
+# `missing:any:trigger_effect_output_trace` was permanent. No adapter names it,
+# `_declaration_capabilities` yields only `backend_authority_declared`, and the manifest
+# has no field for it - so the remedy printed beside it changed nothing when followed.
+# A06 supplied one SAMPLE_DATA and fourteen OUTPUT_SAMPLE and stayed BLOCKED.
+
+HEADER = ("run_id,app_id,task_id,workflow_id,step,user_action,screen,vba_event,"
+          "processing,data_target,output,evidence_ids\n")
+
+
+def _trace_workspace(tmp_path, *, samples=True, outputs=True, matrix_rows=()):
+    root = tmp_path / "W"
+    (root / "output").mkdir(parents=True)
+    if samples:
+        (root / "input" / "samples").mkdir(parents=True)
+        (root / "input" / "samples" / "20260820.csv").write_text("a,b\n1,2\n", encoding="utf-8")
+    if outputs:
+        (root / "input" / "report-samples").mkdir(parents=True)
+        (root / "input" / "report-samples" / "r.csv").write_text("x\n1\n", encoding="utf-8")
+    if matrix_rows:
+        (root / "output" / "W_TraceabilityMatrix.csv").write_text(
+            HEADER + "".join(matrix_rows), encoding="utf-8")
+    return root
+
+
+def test_samples_alone_do_not_establish_the_trace(tmp_path) -> None:
+    """The half A06 had. Samples are outputs; nothing in them says which action made
+    one, and that is two thirds of what the capability is named for."""
+    root = _trace_workspace(tmp_path)
+    assert not evidence_classes.trace_capability(
+        root, evidence_classes.supplied_inventory(root))
+
+
+def test_a_matrix_alone_does_not_establish_it_either(tmp_path) -> None:
+    root = _trace_workspace(tmp_path, samples=False, outputs=False,
+                      matrix_rows=(",,,,,click,F1,Click,import,受注情報,out.csv,E1\n",))
+    assert not evidence_classes.trace_capability(
+        root, evidence_classes.supplied_inventory(root))
+
+
+def test_samples_and_a_matrix_row_establish_it(tmp_path) -> None:
+    root = _trace_workspace(tmp_path,
+                      matrix_rows=(",,,,,click,F1,Click,import,受注情報,out.csv,E1\n",))
+    assert evidence_classes.trace_capability(
+        root, evidence_classes.supplied_inventory(root))
+
+
+def test_a_header_with_no_rows_is_not_evidence(tmp_path) -> None:
+    root = _trace_workspace(tmp_path)
+    (root / "output" / "W_TraceabilityMatrix.csv").write_text(HEADER, encoding="utf-8")
+    assert evidence_classes.trace_matrix_rows(root) == 0
+
+
+def test_a_row_missing_its_target_or_output_does_not_count(tmp_path) -> None:
+    """Both columns, because a step that names neither where it wrote nor what it
+    produced is a step nobody can trace."""
+    root = _trace_workspace(tmp_path, matrix_rows=(
+        ",,,,,click,F1,Click,import,受注情報,,E1\n",      # no output
+        ",,,,,click,F2,Click,export,,out.csv,E2\n",      # no data target
+    ))
+    assert evidence_classes.trace_matrix_rows(root) == 0
+
+
+def test_workflow_id_is_not_required_so_the_gate_is_not_circular(tmp_path) -> None:
+    """Phase 4 assigns workflow_id and step. Requiring them would block phase 4 on a
+    matrix only phase 4 can complete."""
+    root = _trace_workspace(tmp_path,
+                      matrix_rows=(",,,,,click,F1,Click,import,受注情報,out.csv,E1\n",))
+    assert evidence_classes.trace_matrix_rows(root) == 1
