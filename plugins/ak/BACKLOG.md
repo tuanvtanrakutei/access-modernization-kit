@@ -12,6 +12,33 @@ that it should now work.
 
 ## Open
 
+### A68 - `clean` could offer the newest session for deletion
+
+**Found 2026-09-14 by CI, on a pull request that changed none of this.** Windows failed
+and Linux passed on `test_with_nothing_cited_the_newest_session_is_kept`: the survey
+offered `acquire-02` and kept `acquire-01`, the opposite of the rule it was asserting.
+
+**Not a flaky test - a tie with an arbitrary winner.** When nothing cites any session the
+survey keeps the newest, `max(loose, key=lambda p: p.stat().st_mtime)`. Windows' clock
+granularity is about 16ms, so two session directories written by the same command carry
+the *same* mtime, and `max` then returns whichever the directory listing yielded first.
+That can be the older one, and `clean` would offer the newest session for deletion while
+keeping an older one - the wrong answer for a command whose promise is that it deletes
+nothing that is live. The test had been passing on a timing accident since A61.
+
+**Fixed** by breaking the tie on the name: `(st_mtime, p.name)`. Both session naming
+schemes this kit writes - `acquire-NN` and the run id `YYYY-MM-DD-hash` - sort with the
+later session last. The test now sets both times with `os.utime` instead of touching one,
+so it exercises the mtime rule on every platform rather than on whichever clock runs it,
+and a second test covers the tie directly. Verified the tie test fails without the code
+change and passes with it.
+
+**Worth noting for the next newest-wins rule.** This file already had a second one, for
+packages, and it compares **names** (`package.name > newest[artifact].name`). Two readers
+of "newest" in one file that could disagree is the A33 shape; they now agree on ties.
+
+---
+
 ### A67 - errata could not be written by the phase that found the error
 
 **Found 2026-09-14, asked whether modernization can run before phases 5 and 6.** It can -

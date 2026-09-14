@@ -249,7 +249,14 @@ def superseded_sessions(space: Workspace, cited: set[str]) -> list[dict[str, Any
         if len(loose) == len(sessions):
             # Nothing cites any of them - a workspace that has acquired but not yet
             # published. Keep the newest rather than decide for the next run.
-            loose.remove(max(loose, key=lambda p: p.stat().st_mtime))
+            #
+            # The name breaks a tie, and a tie is not hypothetical: Windows' clock
+            # granularity is about 16ms, so two sessions written by the same command
+            # can carry the same mtime, and `max` then keeps whichever the directory
+            # listing happened to yield first - which can be the older one. Both
+            # session naming schemes this kit writes, `acquire-NN` and the run id
+            # `YYYY-MM-DD-hash`, sort with the later session last.
+            loose.remove(max(loose, key=lambda p: (p.stat().st_mtime, p.name)))
         for session in loose:
             found.append(entry(
                 space.root, session,

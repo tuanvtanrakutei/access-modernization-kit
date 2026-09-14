@@ -16,6 +16,7 @@ newest" deletes the evidence and keeps the husk.
 from __future__ import annotations
 
 import json
+import os
 import sys
 from pathlib import Path
 
@@ -82,12 +83,33 @@ def test_a_databases_last_session_is_never_offered(space: Workspace) -> None:
 def test_with_nothing_cited_the_newest_session_is_kept(space: Workspace) -> None:
     first = write(space.root / ".ak/staging/BACKEND/acquire-01/schema/tables.txt")
     second = write(space.root / ".ak/staging/BACKEND/acquire-02/schema/tables.txt")
-    second.parent.parent.touch()
+    # Set both times rather than touching one. `touch()` leaves the two a few
+    # microseconds apart, and Windows' clock granularity is about 16ms, so on CI they
+    # arrived equal and the tie decided the test instead of the rule.
+    os.utime(first.parent.parent, (1_700_000_000, 1_700_000_000))
+    os.utime(second.parent.parent, (1_700_000_600, 1_700_000_600))
 
     found = offered(space)
     assert ".ak/staging/BACKEND/acquire-01" in found
     assert ".ak/staging/BACKEND/acquire-02" not in found
     assert second.is_file() and first.is_file()  # survey removes nothing
+
+
+def test_sessions_written_in_the_same_clock_tick_keep_the_later_name(
+        space: Workspace) -> None:
+    """A tie is not hypothetical - it is what broke this file on Windows CI. With the
+    clock unable to separate them the name is the only signal left, and offering the
+    later session for deletion while keeping the earlier one is the wrong answer for a
+    command whose whole promise is that it deletes nothing that is live."""
+    write(space.root / ".ak/staging/BACKEND/acquire-01/schema/tables.txt")
+    write(space.root / ".ak/staging/BACKEND/acquire-02/schema/tables.txt")
+    for name in ("acquire-01", "acquire-02"):
+        os.utime(space.root / ".ak/staging/BACKEND" / name,
+                 (1_700_000_000, 1_700_000_000))
+
+    found = offered(space)
+    assert ".ak/staging/BACKEND/acquire-02" not in found
+    assert ".ak/staging/BACKEND/acquire-01" in found
 
 
 # --- kit directories in a place nothing resolves -----------------------------
