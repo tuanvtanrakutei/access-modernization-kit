@@ -82,6 +82,7 @@ One row per Django app that owns screens. The pipeline uses `module` for paralle
 | `FE_QUERY_LIB` | `{{FE_QUERY_LIB}}` | e.g. `TanStack Query` |
 | `FE_FORM_LIB` | `{{FE_FORM_LIB}}` | e.g. `react-hook-form + Zod` |
 | `FE_STYLE_LIB` | `{{FE_STYLE_LIB}}` | e.g. `Tailwind CSS` |
+| `PACKAGE_MANAGER` | `{{PACKAGE_MANAGER}}` | e.g. `pnpm`, `npm`, `yarn`. `FRONTEND_CODING.md` §15.2 tells the agent to run every frontend command through this one, so a project that leaves it unanswered gets whichever manager the agent happens to reach for — and a second lock file |
 | `FE_LINT_CMD` | `{{FE_LINT_CMD}}` | e.g. `npm run lint` |
 | `FE_UNIT_TEST_CMD` | `{{FE_UNIT_TEST_CMD}}` | e.g. `npm run test`, or `n/a` |
 | `FE_E2E_TEST_CMD` | `{{FE_E2E_TEST_CMD}}` | e.g. `npx playwright test` |

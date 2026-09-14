@@ -54,6 +54,11 @@ SEVERITY_ORDER = {"HIGH": 0, "MEDIUM": 1, "LOW": 2}
 DOC_EXAMPLE_TOKENS = {"PLACEHOLDER", "KEY", "SCREEN", "FIELD", "VALUE", "FILL"}
 # Per-row example tokens inside templates, e.g. {{SCREEN_1_KEY}}, {{SCREEN_2_URL}}.
 ROW_TOKEN_RE = re.compile(r"^SCREEN_\d+(_[A-Z_]+)?$")
+
+# `A01 Known_Issues.md #41` - a row in another subsystem's log. The SMS family copies
+# code between subsystems, and the comment that explains why a helper exists is worth
+# more with its origin attached than with the origin stripped to keep a checker quiet.
+EXTERNAL_ISSUE_RE = re.compile(r"\b[A-Z]\d{2}(?:'s)?\s+Known_Issues\.md\s*#\d+")
 # A bare lowercase single-word .md in prose is an illustration, not a reference:
 # "instead of splitting `legacy.md` and `new.md`" must not be read as two refs.
 PROSE_DOC_RE = re.compile(r"^[a-z][a-z0-9-]*\.md$")
@@ -276,11 +281,22 @@ def check_issues(f: Findings, docs_dir: str, issues_path: str, source_dir: str |
         cited: dict[int, set[str]] = {}
         for dirpath, dirnames, filenames in os.walk(source_dir):
             dirnames[:] = [d for d in dirnames if d not in {"__pycache__", "node_modules", ".git"}]
+            # `.claude` holds runtime symlinks to the plugin itself on some projects, and
+            # the plugin's own test fixtures cite issue numbers that are fixtures, not
+            # rows. Walking into it reported three dangling references to this checker's
+            # own tests.
+            dirnames[:] = [d for d in dirnames if d != ".claude"]
             for name in filenames:
                 if not name.endswith((".py", ".ts", ".tsx")):
                     continue
                 p = os.path.join(dirpath, name)
-                for n in re.findall(r"Known_Issues\.md\s*#(\d+)", read(p)):
+                # A citation qualified by another subsystem's code is that subsystem's
+                # row, not a broken one here. A06's backend inherits code from A01 and
+                # carries A01's issue numbers in the comments that explain why the code
+                # is shaped the way it is - removing the qualified ones before the scan
+                # keeps that provenance readable instead of making it a finding.
+                text = EXTERNAL_ISSUE_RE.sub("", read(p))
+                for n in re.findall(r"Known_Issues\.md\s*#(\d+)", text):
                     cited.setdefault(int(n), set()).add(rel(p, source_dir))
         for num in sorted(n for n in cited if n not in seen):
             f.add("HIGH", "dangling-issue-ref", ", ".join(sorted(cited[num])),

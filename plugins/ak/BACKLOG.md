@@ -12,6 +12,75 @@ that it should now work.
 
 ## Open
 
+### A71 - a citation qualified by another subsystem read as a broken one
+
+**Found 2026-09-14, first `validate-docs` run on the A06 project.** Five
+`dangling-issue-ref` findings, and none was a defect in A06.
+
+Three came from walking into `.claude`, which on a real project holds `ak-runtime`, a
+symlink to this plugin - so the scan read this checker's *own test fixtures* and reported
+their issue numbers as A06's broken references. `.claude` is now skipped.
+
+The other two were real code with real provenance. A06's backend inherits `auth_client`
+and `format_bulk_validation_errors` from A01, and the comments explaining why they exist
+cite A01's rows - both **resolved** there on 2026-07-30. The check assumed every
+`Known_Issues.md #N` in the source tree belonged to this project, so the only way to
+silence it was to delete the origin from the comment, which is the opposite of what a
+comment explaining inherited code is for.
+
+A citation qualified by a subsystem code - `A01 Known_Issues.md #41` - is now read as that
+subsystem's row and skipped. An unqualified one with no row is still a finding, which is
+the defect the check was written for and is covered by its own test.
+
+---
+
+### A70 - bootstrap did not copy the manuals its own document map promises
+
+**Found 2026-09-14, bootstrapping A06.** `PROJECT_CONFIG.md` section 11 states the
+document map uses fixed names *because the pipeline documents reference each other
+directly*, and `MASTER_WORKFLOW.md` cites its siblings by bare filename twelve times. The
+bootstrap skill's copy table listed none of them.
+
+So a freshly bootstrapped project's own `README.md` document map, and the `CLAUDE.md`
+pointer the same skill writes, both named `MASTER_WORKFLOW.md` - and it was not there.
+A06 got exactly that, and it was written by this session two hours earlier.
+
+**Confirmed against two working projects rather than reasoned about.** A01 and A05 both
+carry the manuals under their docs directory; A05 carries the same nine. A05's copies are
+also **substituted** - zero `{{...}}` left except the literal `{{PLACEHOLDER}}` example the
+checker ignores - which settles that a copied manual is meant to be resolved, not left
+holding template keys.
+
+The skill now copies all nine, and says to copy them unsubstituted, because at bootstrap
+time only five `PROJECT_CONFIG.md` rows are filled and substituting then would bake the
+rest in as literals.
+
+**Still open: nothing substitutes them.** `validate_docs.py` reports every unresolved
+placeholder in an instance document and, by design, never edits. No script resolves them
+once the config is filled, so A01 and A05 were resolved by hand or by an agent, and A06's
+was too - 54 keys across eleven documents in this session. That is the part worth
+automating next; the reporting half already exists and is what found this.
+
+---
+
+### A69 - a rule the frontend document states and no project could follow
+
+**Found 2026-09-14 by `validate-docs`, one `missing-config-key`.** `FRONTEND_CODING.md`
+section 15.2 tells the agent to run every frontend command through `{{PACKAGE_MANAGER}}`,
+with the reason attached - two managers in one repository produce two lock files and a
+dependency tree that differs on one machine and nowhere else. `templates/PROJECT_CONFIG.md`
+declared no such row, so every project bootstrapped from it inherited a rule with nothing
+behind the key.
+
+A05 had already hand-added the row to its own config. A project working around a template
+gap is the clearest evidence the gap is real, and it was invisible here because the check
+that finds it only ever ran against a project, never against the plugin's own template and
+docs - which ship together and can be checked together. That test now exists, and fails
+without the row.
+
+---
+
+
 ### A68 - `clean` could offer the newest session for deletion
 
 **Found 2026-09-14 by CI, on a pull request that changed none of this.** Windows failed
