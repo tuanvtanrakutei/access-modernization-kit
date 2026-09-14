@@ -673,3 +673,67 @@ def test_the_transfer_verbs_still_work_beside_it() -> None:
         'DoCmd.TransferText acExportDelim, , "商品マスタ", "C:\\m.csv", True')])
     assert len(found) == 1 and found[0].direction == "outbound"
     assert found[0].operation.startswith("TransferText")
+
+
+# --- A65: a path built from constants declared in the same file --------------
+#
+# `$ak samples` called `SMS受注データパス & Format(Me.受注日, "yyyymmdd") & ".csv"`
+# unresolvable, twelve lines below `Const SMS受注データパス = "\\server6\user\物流部\"`,
+# and said the same of four bare constant references that are complete literal paths.
+
+CONSTS = (
+    'Const SMS\u53d7\u6ce8\u30c7\u30fc\u30bf\u30d1\u30b9 = "' + chr(92) * 2 + 'server6' + chr(92) + 'user' + chr(92) + '"\n'
+    'Const LIQUOR = "C:' + chr(92) + '21.CSV"\n'
+)
+
+
+def test_a_bare_constant_resolves_to_a_literal_path() -> None:
+    found = feeds.code_feeds([{"database_id": "DB", "name": "F", "text": CONSTS +
+        'DoCmd.TransferText acImportDelim, "spec", "t", LIQUOR, True'}])
+    assert len(found) == 1
+    assert found[0].file_name == "21.CSV"
+    assert found[0].path_expression == "C:" + chr(92) + "21.CSV"
+
+
+def test_a_chain_holding_a_call_is_not_a_literal_path() -> None:
+    """`Format(...)` is known at run time and not before. The constants are still
+    substituted, because showing the directory beats showing a variable name - but the
+    file is not matched by name, and claiming otherwise would be the overclaim."""
+    found = feeds.code_feeds([{"database_id": "DB", "name": "F", "text": CONSTS +
+        'DoCmd.TransferText acImportDelim, "spec", "t", '
+        'SMS\u53d7\u6ce8\u30c7\u30fc\u30bf\u30d1\u30b9 & Format(Me.d, "yyyymmdd") & ".csv", True'}])
+    assert len(found) == 1
+    assert found[0].file_name == ""
+    assert chr(92) * 2 + "server6" in found[0].path_expression
+    assert "Format(Me.d" in found[0].path_expression
+
+
+def test_a_name_assigned_twice_resolves_to_nothing() -> None:
+    """A06's `受注調整データ出力画面` assigns `ObjectName` two different literals for two
+    different calls. Picking one would be right for one call and wrong for the other,
+    which is why only a single-assignment constant resolves."""
+    text = ('Const P = "C:' + chr(92) + 'a.csv"\n'
+            'Const P = "C:' + chr(92) + 'b.csv"\n'
+            'DoCmd.TransferText acImportDelim, "spec", "t", P, True')
+    found = feeds.code_feeds([{"database_id": "DB", "name": "F", "text": text}])
+    assert len(found) == 1 and found[0].file_name == ""
+
+
+def test_a_commented_constant_does_not_resolve_anything() -> None:
+    """A06 declares each path twice - a live block and a commented test block. If the
+    commented one counted, every path would resolve to `C:` and the whole boundary
+    would move onto the local disk."""
+    text = ('Const P = "C:' + chr(92) + 'real.csv"\n'
+            "'Const P = \"C:" + chr(92) + "test.csv\"\n"
+            'DoCmd.TransferText acImportDelim, "spec", "t", P, True')
+    found = feeds.code_feeds([{"database_id": "DB", "name": "F", "text": text}])
+    assert len(found) == 1 and found[0].file_name == "real.csv"
+
+
+def test_output_to_resolves_constants_too() -> None:
+    """Wired into both scans, because OutputTo builds its destination the same way and
+    a resolver in one verb and not the other is the drift A33 is about."""
+    found = feeds.code_feeds([{"database_id": "DB", "name": "F", "text": CONSTS +
+        'DoCmd.OutputTo acOutputQuery, "q", acFormatXLS, LIQUOR, False'}])
+    assert len(found) == 1
+    assert found[0].direction == "outbound" and found[0].file_name == "21.CSV"

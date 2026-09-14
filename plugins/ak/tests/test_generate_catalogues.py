@@ -234,8 +234,12 @@ def test_code_imports_are_listed_as_boundary_files(workspace: Path) -> None:
     # exactly that much and `_not extracted_` would hide it.
     assert "| `inbound_path` |" in logic
     assert "| inbound code |" in logic
-    # And the other direction, under a heading that promises both.
-    assert "| `\"C:\\stock.CSV\"` |" in logic
+    # And the other direction, under a heading that promises both. A65 changed the shape
+    # of this cell: a path the scan resolved is printed as a path, without VBA's quotes,
+    # which is what the link rows above it already print. Quotes survive only inside an
+    # expression that did NOT resolve, where they are what separates literal text from
+    # code - `"\\server6\user\物流部\" & Format(Me.受注日, "yyyymmdd") & ".csv"`.
+    assert "| `C:\\stock.CSV` |" in logic
     assert "| outbound code |" in logic
 
 

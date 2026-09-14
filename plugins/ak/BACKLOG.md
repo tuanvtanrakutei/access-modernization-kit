@@ -12,6 +12,29 @@ that it should now work.
 
 ## Open
 
+### A66 - an export row whose subject column is empty
+
+**Noticed 2026-09-14, reading A06's boundary table after A65.** One row prints an empty
+first cell:
+
+    | `` | 2003_A34936EA | outbound code | `共通関数` OutputTo ParaOutType -> `ParaTBName` | `XLS` | ...
+
+`OutputTo` takes its destination as an *optional* argument, which A64 handled correctly -
+the call is still an export and still belongs in the table. But the first column's subject
+is the file, and an empty pair of backticks there reads like an extraction that failed,
+which is the one thing it is not.
+
+**What the empty argument means is a separate claim and is not yet evidenced.** Access is
+documented to prompt the operator for a destination when `OutputFile` is omitted; if that
+holds, the cell should say so, because "the operator chooses where this goes" is a finding
+about the boundary rather than a gap in the scan. That needs confirming against the
+runtime before any document says it - CODE shows the argument is absent, not what Access
+then does.
+
+Pre-dates A65: the same row was empty before the resolver, for the same reason.
+
+---
+
 ### A63 - a gate whose only remedy could not be carried out
 
 **Observed 2026-09-14, checking what Phase 4 needed before starting it.** Readiness read
@@ -92,11 +115,39 @@ know. Here: a value the scan does not resolve, so a boundary the code fully decl
 reported as undeclared - and the operator is asked for a sample that is already supplied
 and already matches.
 
-**Not yet done.** Resolving module-level `Const` within a definition is bounded and the
-payoff is measurable: it turns `UNCLAIMED` into a matched sample and four `NO LITERAL FILE`
-rows into resolved paths. What it must not do is follow a variable that is assigned more
-than once or from an expression - the honest answer there stays "not knowable from the
-code", which is what `共通関数` is and what the run-time object names in A06's screens are.
+**Fixed the same day.** `_constants()` reads `Const NAME = "literal"` from a definition and
+`_resolve_path()` substitutes them into a `&` chain, wired into both the transfer scan and
+the `OutputTo` scan - one verb resolving and the other not is the drift A33 is about.
+
+Measured on A06: **five file names resolved** that had been reported as "no file named"
+(`幸松受注.CSV`, `２１商品.CSV`, `２１受注.CSV`, `Ｓ仕商品.txt`, `受注データ.CSV`), and three
+findings moved from `NO LITERAL FILE` to `NO SAMPLE` - from "nothing can be checked" to
+"this specification declares 26 columns and no sample exists to check it", which is a
+finding an operator can act on.
+
+**Two guards, and both earned their place on this application.**
+
+A name assigned more than once resolves to nothing. `受注調整データ出力画面` assigns
+`ObjectName` two different literals for two different calls, at lines 215 and 236 - so
+picking one would be right for one call and wrong for the other. The guard refuses it, and
+that refusal is the correct answer rather than a limitation.
+
+A commented declaration is not a declaration. A06 declares every path twice, a live block
+and a commented test block beneath it; if the commented one counted, every path would
+resolve to `C:` and the entire boundary would move onto the local disk.
+
+**A chain still holding a call does not become a literal path.** `Format(Me.受注日,
+"yyyymmdd")` is known at run time and not before, so the expression is reported with its
+constants substituted - `"\\server6\user\物流部\" & Format(...) & ".csv"` rather than
+`SMS受注データパス & Format(...)` - and the file is still not matched by name. The sample
+`20260820.csv` therefore stays `UNCLAIMED`, correctly: Phase 1 matched it by comparing 14
+field names against the specification, not by its name, and the checker's message now says
+so.
+
+**Two published statements corrected with it.** Phase 1 section 6.1 read *every path is a
+variable*, which is no longer true of any of them; and the `UNCLAIMED` text said *a call
+that builds its path from variables names no file at all*, which stopped being accurate the
+moment the variables resolved.
 
 ---
 
