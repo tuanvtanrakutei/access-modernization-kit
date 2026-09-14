@@ -53,11 +53,9 @@ next one. A conformance check should fail a phase document that prints a backtic
 name no catalogue carries, or a `name (alias)` pair whose alias is not the catalogue's. Both
 are mechanical and neither exists.
 
-**Also open, and a decision rather than a defect:** Phase 2 allocates `RS-01`..`RS-05`, but
-`identifier-scheme.yaml` gives `RS` to phase 5 and names it *Risk - security and
-compliance*, which is not what those five are. No risk namespace is owned by phase 2. Either
-`RA` gains phase 2 as an owner or the scheme needs one; the registry also records no
-`severity` on any `RD-`/`RS-` row although the scheme marks it required.
+**The namespace question raised here was settled by the operator and is now A57:** `RA`
+gains phase 2 as an owner, the five become `RA-nn`, and both `owned_by` and
+`requires_severity` are read by a checker rather than declared and ignored.
 
 ---
 

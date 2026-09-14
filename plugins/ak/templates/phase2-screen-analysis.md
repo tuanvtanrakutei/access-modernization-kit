@@ -125,7 +125,8 @@ document is JP-primary, with a Romaji alias for cross-reference. Never translate
 3. [Per-Screen Analysis](#3-per-screen-analysis)
 4. [Shared UI and Validation Patterns](#4-shared-ui-and-validation-patterns)
 5. [Reachability and Missing Captures](#5-reachability-and-missing-captures)
-6. [Assumptions, Unknowns, and Questions](#6-assumptions-unknowns-and-questions)
+6. [Observations and Screen Risks](#6-observations-and-screen-risks)
+7. [Assumptions, Unknowns, and Questions](#7-assumptions-unknowns-and-questions)
 
 ---
 
@@ -267,7 +268,36 @@ flowchart TD
      order, control visibility. If an operator screenshot shows something the
      definition text does not carry, record it as an open question, not a finding. -->
 
-## 6. Assumptions, Unknowns, and Questions
+## 6. Observations and Screen Risks
+
+### Observations
+
+<!-- OB-nn. A property worth carrying forward that is not yet a rule or a risk.
+     Each cites evidence. -->
+
+| ID | Observation | Evidence |
+|---|---|---|
+
+### Risks
+
+<!-- RA-nn, severity HIGH/MEDIUM/LOW, and a mitigation or an explicit "none
+     proposed". A risk without a severity cannot be prioritised, and Phase 6
+     consolidates from the register rather than from this table - so the severity
+     has to reach BOTH.
+
+     RA, not RS. RS is Phase 5's and means security and compliance; a screen is
+     application layer. A06's Phase 2 published five findings as RS-nn, one of them
+     "grouping carried by 222 line and rectangle controls", and took Phase 5's
+     numbers before Phase 5 ran.
+
+     This section exists because A06's Phase 2 had none: thirteen identifiers were
+     allocated into the register with nowhere in the document to appear, and four
+     risks were never written down in any sentence a reader would see. -->
+
+| ID | Risk | Severity | Consequence at migration | Mitigation | Evidence |
+|---|---|---|---|---|---|
+
+## 7. Assumptions, Unknowns, and Questions
 
 ### Scope
 

@@ -440,3 +440,57 @@ def test_the_gold_standard_allocates_nothing_off_scheme() -> None:
 def test_code_spans_are_excluded_here_too(tmp_path: Path) -> None:
     """A52's rule applies: a namespace-shaped token inside backticks is code."""
     assert checker.malformed_identifiers(checker.prose("the column `OB-S01` is text")) == []
+
+
+# --- the two scheme fields nothing read until A56 ----------------------------
+#
+# `owned_by` and `requires_severity` were declared on every risk namespace and opened
+# by no code. A06's Phase 2 allocated five findings into RS - Phase 5's namespace,
+# named "security and compliance", one of them about line and rectangle controls -
+# and eight into OB, and published them twice with nothing objecting.
+
+
+def test_a_phase_allocating_outside_its_namespaces_fails_apparatus() -> None:
+    registers = {"identifier_entries": [
+        {"id": "RS-01", "namespace": "RS-", "phase": 2, "severity": "HIGH"},
+    ]}
+    results = checker.apparatus_checks(2, "# X", registers)
+    result = next(r for r in results if r["check"] == "identifier_namespace_owned")
+    assert result["status"] == "FAIL" and "RS-01" in result["detail"]
+
+
+def test_the_owning_phase_may_allocate() -> None:
+    registers = {"identifier_entries": [
+        {"id": "RS-01", "namespace": "RS-", "phase": 5, "severity": "HIGH"},
+    ]}
+    results = checker.apparatus_checks(5, "# X", registers)
+    result = next(r for r in results if r["check"] == "identifier_namespace_owned")
+    assert result["status"] == "PASS"
+
+
+def test_a_risk_without_a_severity_fails_apparatus() -> None:
+    """Phase 6 consolidates from the register, not from the prose table, so a severity
+    printed in a document and absent from the register leaves nothing to rank by."""
+    registers = {"identifier_entries": [
+        {"id": "RD-05", "namespace": "RD-", "phase": 1},
+        {"id": "RD-06", "namespace": "RD-", "phase": 1, "severity": "  "},
+        {"id": "OB-01", "namespace": "OB-", "phase": 1},
+    ]}
+    results = checker.apparatus_checks(1, "# X", registers)
+    result = next(r for r in results if r["check"] == "severity_recorded")
+    assert result["status"] == "FAIL"
+    assert "RD-05" in result["detail"] and "RD-06" in result["detail"]
+    # OB- does not require one, so it must not be accused of lacking it.
+    assert "OB-01" not in result["detail"]
+
+
+def test_every_risk_namespace_is_owned_by_some_phase() -> None:
+    """A risk namespace nobody owns is one a phase will take from another - which is
+    what Phase 2 did, there being no risk namespace owned by phase 2 at all."""
+    risks = {n: r for n, r in checker.SCHEME_RULES.items() if r["requires_severity"]}
+    assert risks, "no namespace declares requires_severity; the rule has gone missing"
+    owners = {phase for rule in risks.values() for phase in rule["owned_by"]}
+    for phase in ("phase1", "phase2", "phase3", "phase4", "phase5"):
+        assert phase in owners, (
+            f"{phase} owns no risk namespace, so a risk it finds has nowhere to go"
+        )
