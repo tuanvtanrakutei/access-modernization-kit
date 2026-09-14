@@ -548,3 +548,83 @@ def test_an_identifier_from_the_same_phase_is_not_carried() -> None:
     results = checker.apparatus_checks(2, "# X", registers)
     result = next(r for r in results if r["check"] == "prior_unknowns_accounted")
     assert result["status"] == "PASS"
+
+
+# --- A67: a correction announced in the prose and registered nowhere ----------
+#
+# A06's Phase 3 corrected two published Phase 1 risks - the actor behind the `99`
+# placeholders, and what destroys 準備数 - wrote `**corrected**` in its carried-forward
+# table, and registered neither. Errata was checked in Phase 6 only, and `E-` was owned
+# by Phase 6 alone, so the remedy could not be carried out at the phase that found it.
+
+
+def test_a_phase_that_announces_a_correction_and_registers_none_fails() -> None:
+    results = checker.apparatus_checks(3, "| RD-05 | Phase 1 | **corrected** | \u00a76 |", {})
+    result = next(r for r in results if r["check"] == "corrections_registered")
+    assert result["status"] == "FAIL"
+    assert "E-" in result["detail"]
+
+
+def test_the_same_correction_with_an_entry_passes() -> None:
+    registers = {"errata_ids": {"E-02"}}
+    results = checker.apparatus_checks(
+        3, "| RD-05 | Phase 1 | **corrected** | E-02, \u00a76 |", registers)
+    result = next(r for r in results if r["check"] == "corrections_registered")
+    assert result["status"] == "PASS"
+
+
+def test_a_phase_that_corrects_nothing_is_not_asked_for_errata() -> None:
+    """Most phases correct nothing. A check that fires on all of them would be noise
+    and would teach the reader to skip it."""
+    results = checker.apparatus_checks(3, "# X", {})
+    result = next(r for r in results if r["check"] == "corrections_registered")
+    assert result["status"] == "PASS"
+
+
+def test_phase_one_is_never_asked_to_register_a_correction() -> None:
+    """Nothing is published before it, so it can correct nothing."""
+    names = {r["check"] for r in checker.apparatus_checks(1, "**corrected**", {})}
+    assert "corrections_registered" not in names
+
+
+def test_errata_cited_before_phase_six_must_resolve() -> None:
+    """The check ran inside `if phase == 6`, so an E- cited by Phase 3 resolved to
+    nothing and nobody was told."""
+    results = checker.apparatus_checks(3, "corrected by E-09.", {"errata_ids": {"E-01"}})
+    result = next(r for r in results if r["check"] == "errata_resolve")
+    assert result["status"] == "FAIL" and "E-09" in result["detail"]
+
+
+def test_an_errata_id_does_not_have_to_be_in_the_identifier_register() -> None:
+    """It has its own register and its own check. Requiring both means registering
+    every correction twice to satisfy two checkers."""
+    registers = {"identifier_ids": {"RD-05"}, "errata_ids": {"E-02"}}
+    results = checker.apparatus_checks(3, "RD-05 is corrected by E-02.", registers)
+    result = next(r for r in results if r["check"] == "identifiers_resolve")
+    assert result["status"] == "PASS", result["detail"]
+
+
+def test_phase_six_still_needs_a_register_at_all() -> None:
+    """Widening ownership must not weaken the one place the register is rendered."""
+    failed = {r["check"] for r in checker.apparatus_checks(6, "# X", {})
+              if r["status"] == "FAIL"}
+    assert "errata_register" in failed
+
+
+def test_the_scheme_lets_a_middle_phase_allocate_an_errata_id() -> None:
+    rules = checker.load_scheme_rules()
+    if not rules:
+        import pytest as _pytest
+        _pytest.skip("no PyYAML")
+    assert "phase3" in rules["E"]["owned_by"]
+    assert "phase1" not in rules["E"]["owned_by"]
+
+
+def test_a_middle_phase_errata_entry_is_not_a_namespace_trespass() -> None:
+    """`identifier_namespace_owned` read `owned_by` and would have rejected the entry
+    the contract asks that phase to write."""
+    registers = {"identifier_entries": [
+        {"id": "E-01", "namespace": "E-", "phase": 3, "title": "x"}]}
+    results = checker.apparatus_checks(3, "# X", registers)
+    result = next(r for r in results if r["check"] == "identifier_namespace_owned")
+    assert result["status"] == "PASS", result["detail"]

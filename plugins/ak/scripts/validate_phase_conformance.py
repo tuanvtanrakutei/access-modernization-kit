@@ -393,7 +393,12 @@ def apparatus_checks(phase: int, text: str, registers: dict[str, Any],
     else:
         used: set[str] = set()
         scanned = prose(text)
-        for pattern in NAMESPACE_PATTERNS.values():
+        for namespace, pattern in NAMESPACE_PATTERNS.items():
+            # A67. `E-` lives in the errata register, which is where the contract puts
+            # it and where `errata_resolve` looks. Requiring it here too would mean
+            # registering every correction twice to satisfy two checks.
+            if namespace == "E-":
+                continue
             used |= set(pattern.findall(scanned))
         dangling = sorted(used - allocated)
         results.append(check(
@@ -471,21 +476,42 @@ def apparatus_checks(phase: int, text: str, registers: dict[str, Any],
             else f"{len(carried)} open item(s) from earlier phases, each accounted for",
         ))
 
-    if phase == 6:
-        errata = registers.get("errata_ids")
-        if errata is None:
-            results.append(check(
-                "errata_register", "apparatus", False,
-                "Phase 6 without an errata register cannot supersede an earlier claim",
-            ))
-        else:
-            used = set(NAMESPACE_PATTERNS["E-"].findall(prose(text)))
-            dangling = sorted(used - errata)
-            results.append(check(
-                "errata_resolve", "apparatus", not dangling,
-                f"{len(dangling)} dangling, first: {dangling[:6]}" if dangling
-                else f"{len(used)} entry reference(s)",
-            ))
+    # A67. Errata was checked in Phase 6 only, and corrections do not wait for Phase 6.
+    # A06's Phase 3 corrected two published Phase 1 risks - the actor behind the `99`
+    # placeholders, and what destroys `準備数` - wrote **corrected** in its
+    # carried-forward table, and registered neither. The contract already allows this
+    # (ER-06: an entry may correct a claim in any phase); nothing enforced it, and `E-`
+    # was owned by Phase 6 alone, so the remedy could not be carried out before Phase 6
+    # existed.
+    errata = registers.get("errata_ids")
+    cited_errata = set(NAMESPACE_PATTERNS["E-"].findall(prose(text)))
+    if phase == 6 and errata is None:
+        results.append(check(
+            "errata_register", "apparatus", False,
+            "Phase 6 without an errata register cannot supersede an earlier claim",
+        ))
+    if cited_errata or errata is not None:
+        dangling = sorted(cited_errata - (errata or set()))
+        results.append(check(
+            "errata_resolve", "apparatus", not dangling,
+            f"{len(dangling)} dangling, first: {dangling[:6]}" if dangling
+            else f"{len(cited_errata)} entry reference(s)",
+        ))
+
+    # A correction a document announces and does not register is the prohibition in
+    # errata-contract.yaml: the prose stops saying the wrong thing and the record that
+    # the analysis changed its mind is gone, which is the record a reviewer needs.
+    if phase > 1:
+        announced = [signal for signal in signals_for("correction", path)
+                     if signal in lower]
+        results.append(check(
+            "corrections_registered", "apparatus", not announced or bool(cited_errata),
+            f"this document says an earlier claim was corrected ({announced[:3]}) and "
+            f"cites no E- entry; errata-contract.yaml forbids correcting a published "
+            f"claim without registering it" if announced and not cited_errata
+            else f"{len(cited_errata)} correction(s) registered" if cited_errata
+            else "no correction announced",
+        ))
     return results
 
 
