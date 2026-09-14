@@ -5,9 +5,10 @@ Every command here writes into a new directory rather than over the last one, wh
 is correct - an acquisition that overwrote the session a published finding cites
 would destroy the evidence for it - and it means that running the kit repeatedly
 leaves a workspace holding one live copy of each thing and a pile of superseded
-ones. Measured on the real A05 workspace on 2026-09-14: 2.4 GB across fourteen
-directories, of which one staging session, one export package and two databases
-were actually read by anything.
+ones. Measured on 2026-09-14 on the two real workspaces this kit has: A05 held 2.4 GB
+across fourteen directories, and A06 held 1.9 GB across eighty-three - sixty-six
+extraction sessions, twenty-six snapshots, seven bundles, eight export packages and
+two folders of database copies, for two databases and one published run.
 
 Nothing is deleted because it is old. Recency is not the question and on this
 workspace it gives the wrong answer: the newest staging session for the frontend
@@ -30,10 +31,9 @@ What it will never offer, whatever is asked, in either layout:
                                  leftovers beside referenced ones are offered.
   output/                        the published documents.
   .ak/staging/ (acquired/…)      the sessions something cites. This is the evidence.
-  .ak/bundles/ (acquired/…)      every bundle, superseded or not - `A05_Evidence.json`
-                                 cites a bundle id 26 times, and a register whose
-                                 citations no longer resolve is worse than a workspace
-                                 carrying 4 MB it does not read.
+  .ak/bundles/ (acquired/…)      the newest bundle, and every bundle something cites.
+                                 A05's register cites a superseded bundle 26 times,
+                                 three weeks after a newer one replaced it.
   .ak/runs/ (runs/)              run state and evidence registers.
 """
 from __future__ import annotations
@@ -49,7 +49,7 @@ from typing import Any
 PACKAGE = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(PACKAGE / "contracts"))
 
-from workspace import INPUT_DIRS, OWNED_DIRS, Workspace  # noqa: E402
+from workspace import INPUT_DIRS, OWNED_DIRS, Workspace, find_bundle_dirs  # noqa: E402
 
 # Whole directories that are disposable by construction, whatever a workspace cites:
 # copies of a file that is still sitting in `input/`, and the output of a component
@@ -116,9 +116,12 @@ TOP_SEGMENTS: tuple[str, ...] = (
 )
 
 # Everything a path can be made of, stopping at the characters that end one in prose,
-# in JSON and in a Markdown link. Full-width brackets are deliberately absent: they
-# are inside real filenames here (`品揃支援（windows11専用）.mdb`).
-_PATH_TOKEN = re.compile("[^\\s\"'<>|*?,;)\\]}]+")
+# in JSON, in a Markdown link and in a Markdown table cell. The backtick is in that
+# list because A06's Phase 1 cites the bundle it supersedes as `.ak/bundles/…` inside
+# a table, and a key carrying a trailing backtick matches nothing. Full-width brackets
+# are deliberately absent: they are inside real filenames here
+# (`品揃支援（windows11専用）.mdb`).
+_PATH_TOKEN = re.compile("[^\\s\"'`<>|*?,;)\\]}]+")
 
 # Access leaves these beside a database it opened. Never cited, never input.
 DROPPINGS: tuple[str, ...] = ("*.ldb", "*.laccdb", "~*.mdb", "~*.accdb", "*.tmp")
@@ -137,7 +140,7 @@ def paths_in(text: str) -> set[str]:
                 continue
             if at and (token[at - 1].isalnum() or token[at - 1] in "-_."):
                 continue  # part of a longer name, e.g. `no-input/foo`
-            found.add(token[at:].rstrip("/"))
+            found.add(token[at:].rstrip("/."))
             break
     return found
 
@@ -262,8 +265,25 @@ def superseded_sessions(space: Workspace, cited: set[str]) -> list[dict[str, Any
 
 
 def package_artifact(name: str) -> str:
-    """`WINDOWS11_45D0FDDD-2026-09-08` -> `WINDOWS11_45D0FDDD`."""
-    return re.sub("-[0-9]{4}-[0-9]{2}-[0-9]{2}$", "", name)
+    """`WINDOWS11_45D0FDDD-2026-09-08` -> `WINDOWS11_45D0FDDD`.
+
+    The trailing variant an operator adds when the same day is exported twice comes
+    off with the date. A06 holds `-2026-09-10`, `-2026-09-10_new`, `-2026-09-14` and
+    `-2026-09-14b` for each of two artifacts, and reading those as eight artifacts
+    rather than two makes every one of them the newest of its own family, which is
+    the guard below refusing to fire at all.
+    """
+    return re.sub("-[0-9]{4}-[0-9]{2}-[0-9]{2}[A-Za-z0-9_-]*$", "", name)
+
+
+def _made_later(package: Path, than: Path) -> bool:
+    """Which export an operator made last. By mtime, because the name cannot say.
+
+    `-2026-09-14b` against `-2026-09-14_new` is a comparison of two suffixes a person
+    invented, and sorting them decides nothing. The directory's mtime moves when the
+    export writes into it, which is the event being asked about.
+    """
+    return (package.stat().st_mtime, package.name) > (than.stat().st_mtime, than.name)
 
 
 def superseded_packages(space: Workspace, cited: set[str]) -> list[dict[str, Any]]:
@@ -285,7 +305,7 @@ def superseded_packages(space: Workspace, cited: set[str]) -> list[dict[str, Any
     newest: dict[str, Path] = {}
     for package in packages:
         artifact = package_artifact(package.name)
-        if artifact not in newest or package.name > newest[artifact].name:
+        if artifact not in newest or _made_later(package, newest[artifact]):
             newest[artifact] = package
     found = []
     for package in packages:
@@ -304,35 +324,76 @@ def superseded_packages(space: Workspace, cited: set[str]) -> list[dict[str, Any
 
 
 def unreferenced_supplied(space: Workspace, cited: set[str]) -> list[dict[str, Any]]:
-    """A file in `input/access/` that no artifact declares.
+    """Anything in `input/access/` that no artifact declares.
 
     Acquisition never writes here - it snapshots into `.ak/snapshots/` - so what
     accumulates is what a person copied in: a lock file Access left behind, and the
-    previous copy of a database beside the one now declared. Offered only when some
-    file here *is* declared, so a freshly filled `input/access/` with no manifest yet
-    is left alone, and never for a file the manifest names.
+    keep-a-copy-before-I-break-it folder. A06 holds `precleanup/` and
+    `pretabledelete/`, 135 MB of three `.mdb` copies no artifact names, beside the
+    48 MB of databases that two artifacts do. Directories count, which is why this
+    reads entries rather than files.
+
+    Offered only when something here *is* declared, so a freshly filled
+    `input/access/` with no manifest yet is left alone, and never for what the
+    manifest names.
     """
     root = space.input_dir("access")
     if not root.is_dir():
         return []
-    files = sorted(p for p in root.iterdir() if p.is_file())
-    if not any(is_cited(relative(space.root, p), cited) for p in files):
+    entries = sorted(root.iterdir())
+    if not any(is_cited(relative(space.root, path), cited) for path in entries):
         return []
     found = []
-    for path in files:
+    for path in entries:
         if is_cited(relative(space.root, path), cited):
             continue
-        dropping = any(path.match(pattern) for pattern in DROPPINGS)
+        dropping = path.is_file() and any(path.match(pattern) for pattern in DROPPINGS)
         found.append(entry(
             space.root, path,
             "A lock or temporary file Access left behind" if dropping
-            else "A supplied file no artifact declares",
+            else "A supplied copy no artifact declares",
             "Nothing. Access writes it while a database is open and rebuilds it."
             if dropping else
-            "The file itself. Nothing in the manifest, the register or a bundle "
-            "names it - if it is a database you have not declared yet, add it to "
-            "manifest.yaml before running this.",
+            "The copy itself, and it may be the only one. Nothing in the manifest, "
+            "the register or a bundle names it - if it is a database you have not "
+            "declared yet, add it to manifest.yaml before running this.",
             "input",
+        ))
+    return found
+
+
+def superseded_bundles(space: Workspace, cited: set[str]) -> list[dict[str, Any]]:
+    """A sealed bundle nothing cites.
+
+    Every reader here takes the newest bundle by `bundle.json` mtime, so an earlier
+    one is read by nobody - but "read by nobody" is not "referenced by nobody", and
+    the difference is the whole reason this asks. A05's `A05_Evidence.json` cites the
+    superseded `bundle-fcf525…` 26 times, three weeks after a newer bundle replaced
+    it; deleting it on age would leave a register whose citations resolve to nothing.
+    A06's seven bundles divide the other way: `2026-09-14-0164ac59` is cited 28 times
+    and `2026-09-10-50cfe32e` twice, and the remaining five are named nowhere at all,
+    by directory, by bundle id or by digest.
+
+    The newest is kept whatever the answer, because it is what the next phase reads
+    and a workspace that has acquired but not yet published cites nothing.
+    """
+    bundles = find_bundle_dirs(space)
+    if len(bundles) < 2:
+        return []
+    newest = max(bundles, key=lambda path: (path / "bundle.json").stat().st_mtime)
+    found = []
+    for bundle in sorted(bundles):
+        key = relative(space.root, bundle)
+        if bundle == newest or is_cited(key, cited):
+            continue
+        found.append(entry(
+            space.root, bundle,
+            "A sealed bundle nothing cites",
+            "The sealed record of that acquisition. Nothing names it - not a "
+            "citation, not a phase document, not the register - and the bundle every "
+            "command reads is kept. It cannot be rebuilt if the database has changed "
+            "since, so decline this one if you are unsure.",
+            "kit",
         ))
     return found
 
@@ -343,6 +404,7 @@ def survey(space: Workspace) -> list[dict[str, Any]]:
         disposable(space)
         + stray_kit_dirs(space, cited)
         + superseded_sessions(space, cited)
+        + superseded_bundles(space, cited)
         + superseded_packages(space, cited)
         + unreferenced_supplied(space, cited)
     )

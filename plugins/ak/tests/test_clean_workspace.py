@@ -135,6 +135,33 @@ def test_a_superseded_export_package_is_offered_and_the_newest_is_not(space: Wor
     assert "input/exports/FRONTEND-2026-09-08" not in found  # newest for its artifact
 
 
+def test_a_same_day_variant_is_the_same_artifact(space: Workspace) -> None:
+    """A06 exported four times per artifact: `-2026-09-10`, `_new`, `-2026-09-14`, `b`.
+
+    Read as four artifacts rather than one, each is the newest of its own family and
+    the guard below never fires - which is how eight packages accumulated.
+    """
+    assert clean.package_artifact("2003_A34936EA-2026-09-10_new") == "2003_A34936EA"
+    assert clean.package_artifact("2003_A34936EA-2026-09-14b") == "2003_A34936EA"
+
+    for name in ("FRONTEND-2026-09-10", "FRONTEND-2026-09-10_new",
+                 "FRONTEND-2026-09-14", "FRONTEND-2026-09-14b"):
+        write(space.root / "input/exports" / name / "forms" / "menu.txt")
+    (space.root / "input/exports/FRONTEND-2026-09-14b").touch()
+    write(space.root / "manifest.yaml", MANIFEST + """- id: FRONTEND_EXPORT
+  source_ref:
+    type: local_path
+    value: input/exports/FRONTEND-2026-09-14b
+""")
+
+    found = {path for path in offered(space) if path.startswith("input/exports")}
+    assert found == {
+        "input/exports/FRONTEND-2026-09-10",
+        "input/exports/FRONTEND-2026-09-10_new",
+        "input/exports/FRONTEND-2026-09-14",
+    }
+
+
 def test_nothing_is_offered_when_no_package_is_cited(space: Workspace) -> None:
     """Exported but not yet acquired - every package is still someone's next step."""
     for name in ("FRONTEND-2026-09-01", "FRONTEND-2026-09-08"):
@@ -158,6 +185,43 @@ def test_an_undeclared_database_is_left_alone_when_nothing_is_declared(tmp_path:
     write(tmp_path / "input/access/one.mdb")
     write(tmp_path / "input/access/two.mdb")
     assert not offered(Workspace(tmp_path))
+
+
+def test_a_keep_a_copy_folder_is_offered(space: Workspace) -> None:
+    """A06 holds `precleanup/` and `pretabledelete/`, 135 MB no artifact names."""
+    write(space.root / "input/access/pretabledelete/before.mdb")
+    found = offered(space)
+    assert found["input/access/pretabledelete"]["kind"] == "directory"
+    assert found["input/access/pretabledelete"]["guard"] == "input"
+
+
+# --- bundles -----------------------------------------------------------------
+
+
+def bundle(root: Path, name: str) -> Path:
+    write(root / ".ak/bundles" / name / "bundle.json", json.dumps({"bundle_id": name}))
+    return root / ".ak/bundles" / name
+
+
+def test_a_bundle_nothing_cites_goes_and_a_cited_one_stays(space: Workspace) -> None:
+    """A05's register cites a superseded bundle 26 times; five of A06's seven, never."""
+    superseded = bundle(space.root, "2026-09-10-aaaaaaaa")
+    cited = bundle(space.root, "2026-09-10-bbbbbbbb")
+    newest = bundle(space.root, "2026-09-14-cccccccc")
+    (newest / "bundle.json").touch()
+    write(space.root / "output/A06_Phase1.md",
+          "| Supersedes | `.ak/bundles/2026-09-10-bbbbbbbb`, before the table removal |")
+
+    found = offered(space)
+    assert ".ak/bundles/2026-09-10-aaaaaaaa" in found
+    assert ".ak/bundles/2026-09-10-bbbbbbbb" not in found  # cited, in a table cell
+    assert ".ak/bundles/2026-09-14-cccccccc" not in found  # what every command reads
+    assert superseded.is_dir() and cited.is_dir()
+
+
+def test_a_lone_bundle_is_never_offered(space: Workspace) -> None:
+    bundle(space.root, "2026-09-10-aaaaaaaa")
+    assert not [path for path in offered(space) if path.startswith(".ak/bundles")]
 
 
 # --- removal -----------------------------------------------------------------
@@ -200,6 +264,10 @@ def test_a_protected_path_is_refused(space: Workspace) -> None:
      "input/exports/FRONTEND-2026-09-04"),
     ("input/access/品揃支援（windows11専用）.mdb",
      "input/access/品揃支援（windows11専用）.mdb"),
+    ("| Supersedes | `.ak/bundles/2026-09-10-50cfe32e`, before the removal |",
+     ".ak/bundles/2026-09-10-50cfe32e"),
+    ("The text was read out of .ak/staging/FRONTEND/fresh-01.",
+     ".ak/staging/FRONTEND/fresh-01"),
 ])
 def test_a_citation_reduces_to_one_workspace_relative_key(text: str, expected: str) -> None:
     assert expected in clean.paths_in(text)
