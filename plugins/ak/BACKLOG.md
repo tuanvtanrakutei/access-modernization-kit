@@ -48,6 +48,19 @@ where a pair is written by hand it sits inside the backticks. Stripping exactly 
 returned Phase 3 EN to within 19 lines of the pre-annotation draft, and all 19 were
 corrections made deliberately in between.
 
+**And the rendering is inline, not a table.** The operator settled it in the same pass:
+*không cần lập bảng riêng, chỉ cần translate english name phía sau JP name* - the English
+beside the name is the whole of it. So `--no-appendix` was added and the appendix dropped
+from all six A06 documents, along with a `Names you will meet in the diagrams` table this
+analysis had introduced. A lookup table is a second place to maintain the same mapping, and
+the catalogues are already the first.
+
+Removing the table had a consequence worth writing down, because doing only half of it
+makes the document worse: the annotator marks the FIRST occurrence of each name, and the
+first occurrence of twenty-two names was inside the table that went. Deleting it left those
+names unannotated everywhere else, and Phase 2 dropped from 53 inline annotations to 31.
+Re-running put them on the real first mention. **Delete a table of names, then re-annotate.**
+
 **Not yet done:** `is_a_name` is a list of characters that disqualify a span, which is a
 denylist and will miss the next shape. The real question is whether the caller should be
 passing spans at all, rather than resolving each against the catalogue - a name the
