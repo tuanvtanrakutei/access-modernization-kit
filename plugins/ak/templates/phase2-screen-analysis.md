@@ -309,10 +309,18 @@ flowchart TD
 
 ### Assumptions
 
+<!-- `AS-nn`. A belief the phase relies on that the evidence does not
+     establish. `If wrong` says what in this document stops holding, which is
+     what makes it worth writing down rather than a disclaimer. -->
+
 | ID | Assumption | If wrong |
 |---|---|---|
 
 ### Unknowns
+
+<!-- `UK-Snn` - Screens, the letter this phase owns. Each names the evidence
+     class that would close it, so the operator is told what to fetch rather than
+     that something is missing. -->
 
 | ID | Unknown | Why it matters | What would settle it | Who can settle it |
 |---|---|---|---|---|
