@@ -12,6 +12,79 @@ that it should now work.
 
 ## Open
 
+### A61 - a workspace kept every copy every re-run made, and `clean` could only name four
+
+**Measured on `D:\Anrakutei\fresh\A05` on 2026-09-14, before changing anything.** The
+workspace held **2.4 GB in fourteen directories**, of which one staging session, one
+export package and two databases were read by anything at all. `$ak clean` knew four
+fixed paths and offered 1,760 MB of it; the remaining 591 MB it could not describe,
+because nothing in the command could ask whether a directory was still in use.
+
+Every command here writes into a new directory rather than over the last one. That is
+correct - an acquisition that overwrote the session a published finding cites would
+destroy the evidence for it - and it is exactly why re-running the kit leaves a pile:
+
+| what | on A05 | cited |
+|---|---|---|
+| `.ak/snapshots/acquire-*` | 3 runs, 1,760.3 MB | no - copies of `input/access/` |
+| `snapshots/` at the workspace root | 586.8 MB | no |
+| `staging/` at the workspace root | 51 files, 1.2 MB | no |
+| `.ak/staging/<db>/acquire-*` | 6 sessions, 3.4 MB | no |
+| `.ak/staging/<db>/fresh-01` | 2 sessions, 4.4 MB | **yes, 30 times** |
+| `input/exports/<artifact>-<date>` | 3 packages, 13.4 MB | one of the three |
+
+The two top-level directories are the clearest case. In the current layout
+`Workspace.owned()` is the only thing that resolves those names and it answers
+`.ak/<name>`, so a `staging/` at the top level is not a second copy the code might
+read - it is a copy the code **cannot reach**. They were written by a run given
+`--output-root` pointing at the workspace root.
+
+**The rule that looked obvious is the one that destroys the evidence.** "Keep the
+newest" inverts on this workspace. The newest staging session for the frontend holds
+**four files** - that acquisition declared `skip_object_export`, so it collected schema
+and stopped - while `fresh-01`, three weeks older, holds **165 definition texts** (51
+forms, 63 reports, 43 queries, 7 modules, 1 macro) and is the session `A05_Evidence.json`
+names in 30 citations. A date-based or mtime-based clean deletes the evidence and keeps
+the husk.
+
+So the question the command now asks of each candidate is the literal one - *does
+anything cite it* - answered by reading the manifest, the evidence register, the phase
+documents, the run fragments and the sealed bundles, and reducing every citation
+(absolute Windows path, Markdown link, JSON string) to one workspace-relative key.
+On A05 it offers **2,351.9 MB across nine directories** and refuses `fresh-01`, both
+declared databases, and all three export packages.
+
+Three guards, because a wrong answer here is unrecoverable and a right one only saves
+disk:
+
+- **A database's last staging session is never offered**, cited or not. A rule that can
+  empty staging for a database is a rule that deletes evidence on a workspace nobody has
+  published from yet.
+- **Anything under `input/` needs `--include-input` on top of `--delete`**, and is
+  reported either way. That directory is what a person supplied; the guarantee that the
+  kit does not own it should not weaken silently. Within it, the newest export package
+  for an artifact is never offered - it is the one they have just made for the next run -
+  and nothing is offered at all unless some package or file there is already cited, so a
+  filled-but-not-yet-acquired workspace is left alone.
+- **Every bundle is protected, superseded or not.** `A05_Evidence.json` cites a bundle
+  id 26 times, and a register whose citations no longer resolve is worse than a workspace
+  carrying 4 MB it does not read.
+
+**Related defect, fixed in practice by running this.** `derive_graph_facts.latest_sessions`
+takes the newest session per database by mtime, which on A05 today is the four-file one -
+so the deriver reads no definition text at all for the frontend. Removing the superseded
+sessions makes it correct, which is the wrong way round: the function should ask what is
+cited, or staging should not be able to hold a session nothing reads.
+
+**Not yet done.** `generate_catalogues.sql_and_code_sources` globs `*/*/<kind>/*.txt`
+across *every* session and lets the last one in sorted order win; on A05 `fresh-01`
+happens to sort after `acquire-*`, so the right text wins by accident of naming. Nothing
+detects a workspace whose top-level and `.ak/` copies disagree, either - the command
+offers the top-level one on the grounds that no accessor resolves it, which is true and
+is not the same as proving the two hold the same bytes.
+
+---
+
 ### A60 - unknowns were carried and never revisited, and no artefact said who reads it
 
 **Two standing instructions from the operator, given 2026-09-14 before Phase 3 started.**

@@ -130,6 +130,10 @@ def parse_args() -> argparse.Namespace:
     )
     clean.add_argument("--app-root", required=True)
     clean.add_argument("--delete", action="store_true", help="Actually remove; without it the command only reports.")
+    clean.add_argument(
+        "--include-input", action="store_true",
+        help="Also remove the leftovers under input/; they are reported either way.",
+    )
     clean.add_argument("--json", action="store_true")
 
     references = commands.add_parser(
@@ -493,6 +497,8 @@ def main() -> int:
         clean_args = ["--app-root", args.app_root]
         if args.delete:
             clean_args.append("--delete")
+        if args.include_input:
+            clean_args.append("--include-input")
         if args.json:
             clean_args.append("--json")
         return run("clean_workspace.py", *clean_args)

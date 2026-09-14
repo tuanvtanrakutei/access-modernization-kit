@@ -28,6 +28,7 @@ sys.path.insert(0, str(PACKAGE / "contracts"))
 import bundle as bundle_contract  # noqa: E402
 from adapters.base import AcquisitionPlan  # noqa: E402
 from adapters.managed_access.adapter import _reclaim_snapshots, _snapshot_dir  # noqa: E402
+from workspace import Workspace  # noqa: E402
 
 
 def _derive_module():
@@ -208,8 +209,11 @@ def test_clean_reports_before_it_removes_anything(tmp_path: Path) -> None:
     """The point of the command is that a person sees what is about to go."""
     clean = _clean_module()
     workspace = _workspace(tmp_path)
-    found = {entry["path"] for entry in clean.survey(workspace)}
+    found = {entry["path"] for entry in clean.survey(Workspace(workspace))}
     assert found == {"acquired/staging/_snapshots", "graphify-out"}
+    # `acquired/staging/DB1/acq-1` is the only session DB1 has, so it is not a
+    # candidate whatever cites it - a rule that can empty staging for a database is
+    # a rule that deletes evidence on a workspace nobody has published from yet.
     # Surveying changes nothing.
     assert (workspace / "acquired/staging/_snapshots/app.mdb").is_file()
 
@@ -230,7 +234,7 @@ def test_clean_never_touches_the_evidence_or_the_inputs(tmp_path: Path) -> None:
 def test_every_reclaimable_entry_states_what_would_be_lost() -> None:
     """A delete an operator cannot evaluate is one they will decline or regret."""
     clean = _clean_module()
-    for _, what, losing in clean.RECLAIMABLE:
+    for _, what, losing in clean.DISPOSABLE:
         assert what and losing
 
 
@@ -244,9 +248,9 @@ def test_a_reclaimable_entry_can_never_name_a_protected_path(tmp_path: Path) -> 
     clean = _clean_module()
     workspace = _workspace(tmp_path)
     for relative in clean.PROTECTED:
-        assert clean._is_protected(workspace, workspace / relative)
-    assert clean._is_protected(workspace, workspace)
-    assert not clean._is_protected(workspace, workspace / "graphify-out")
+        assert clean.is_protected(workspace, workspace / relative)
+    assert clean.is_protected(workspace, workspace)
+    assert not clean.is_protected(workspace, workspace / "graphify-out")
 
 
 # --- the resolver: one place knows both layouts -----------------------------
