@@ -30,7 +30,7 @@ part of this per-app sequence — most users only ever need them once, if at all
 | `$ak documents --app-root <PATH>` | Normalize XLSX/DOCX/PPTX/PDF and legacy-encoded text into citable UTF-8 with provenance. Required before Phase 5, which is BLOCKED without DOCUMENT evidence. |
 | `$ak citations --outputs <DIR>` | Fail when a published document cites an evidence id that does not exist. |
 | `$ak conformance --outputs <DIR>` | Check a published phase document carries what the phase contract promises: named terms, diagrams, identifier vocabularies, resolvable citations. |
-| `$ak clean --app-root <PATH>` | Report what a workspace no longer needs - disposable database snapshots, retired trees - and remove it with `--delete`. Reports by default. |
+| `$ak clean --app-root <PATH>` | Report what a workspace no longer needs - disposable snapshots, superseded extraction sessions and export packages, kit directories written outside `.ak/` - and remove it with `--delete`. A candidate is offered only when nothing cites it; entries under `input/` also need `--include-input`. Reports by default. |
 | `$ak import-sources --source <DIR> ...` | Write the producer manifest an already-exported source tree needs before it can be imported. Without it an operator holding a perfectly good export has no way in. |
 | `$ak catalogues --app-root <PATH>` | Generate the exhaustive per-entity catalogues from the bundle - every table, column, index, form, report, query. What a narrative cannot carry (A14). |
 | `$ak glossary --app-root <PATH>` | Propose an English name for every production name, for a person to accept. Nobody starts either register from a blank page. |
