@@ -106,3 +106,35 @@ def hidden_controls(controls: Iterable[dict]) -> list[str]:
     return sorted(str(control.get("name") or "")
                   for control in controls
                   if control.get("visible") is False and control.get("name"))
+
+
+def caption(text: str) -> str:
+    """The title bar an operator reads, which is not the object's name.
+
+    An object name is what code and the catalogue use; a caption is what the person at
+    the screen sees, and an interview or an operating procedure names the caption. A06
+    published a screen called `商品情報登録` for that reason - a name no object in the
+    application carries. It is the caption on `商品情報設定画面`.
+
+    The three captions this recovered from A06 are each a finding on their own:
+
+      `メイン画面`               -> `メニュー`
+      `新規事業部受注取込画面`    -> `受注データ取込`, character for character the caption on
+                                 the live daily import `受注データ取込画面`. The hidden
+                                 screen does not merely write the same four tables; it
+                                 presents itself to the operator as the same screen.
+      `前日準備リスト`            -> `受注差分リスト`, so the report an operator would ask for
+                                 by name is filed under a different one.
+
+    An object may declare none, and Access then shows the object name. Returns "" there
+    rather than inventing the fallback, because "declares no caption" is a fact and
+    "the caption equals the name" is a guess about a runtime we did not observe.
+    """
+    for line in str(text or "").splitlines():
+        # Form-level properties sit at exactly four spaces; a section or control opens
+        # its own `Begin` at that depth and carries its properties deeper. Matching on
+        # depth is what keeps a button's caption - A06's switchboard has one reading
+        # `商品情報登録` - from being read as the form's.
+        if line.startswith('    Caption =') and not line.startswith('     '):
+            return line.split("=", 1)[1].strip().strip('"')
+    return ""

@@ -26,6 +26,45 @@ document is JP-primary, with a Romaji alias for cross-reference. Never translate
 | Japanese (production) | Romaji alias | Kind |
 |---|---|---|
 
+<!-- Compose this from the catalogue, never by hand. A hand-written alias is not a
+     small defect: a reader who searches the catalogue for the English this document
+     gave them finds nothing, and cannot tell whether the row is missing or the name
+     is. A06 published `daily_stock_report_print` against a catalogue composing
+     `date_by_stock_report_print`, and the rule forbidding it was stated in this very
+     section of the document that broke it.
+
+     The diagrams are where the reader needs this most. A node cannot carry
+     `その他データ (other_data)` eleven times, so a map of what a screen writes prints
+     production names alone - and a reader who cannot read Japanese gets nothing from
+     it. List the names the diagrams print bare, and say which section prints them. -->
+
+## Captions
+
+<!-- THE CAPTION IS NOT THE OBJECT NAME, and an operator names the caption.
+
+     A06 published a screen called `商品情報登録` for two drafts. No object in the
+     application carries that name: it is the title bar on `商品情報設定画面` and the
+     label on the switchboard button that opens it. The interview that is the entire
+     basis for the finding names two captions - 『商品情報登録』『商品情報一覧登録』 -
+     and the document had folded both into one screen that does not exist, attaching
+     the finding to the wrong object.
+
+     So whenever evidence names a screen in an operator's words - an interview, an
+     operating procedure, a screenshot, a training manual - resolve it through the
+     catalogue's Caption column before writing the name down. A screen an operator
+     calls by one name is filed under another.
+
+     Recording captions is cheap and pays twice more:
+       - `新規事業部受注取込画面` carries the caption `受注データ取込`, character for
+         character the caption on the live daily import. The hidden screen does not
+         merely write the same tables; it presents itself as the same screen.
+       - `前日準備リスト` prints as `受注差分リスト`, so the report an operator asks for
+         by name is not findable under it.
+
+     A caption establishes no meaning - it is a label, like the object name, and rule
+     EC-01 still applies. What it establishes is the join between what people say and
+     what the code contains. -->
+
 ## Source Coverage
 
 | Evidence class | Supplied | Scope | What its absence costs |
@@ -143,6 +182,8 @@ flowchart TD
 
 ### {{F_ID}} — {{OBJECT_NAME}}
 
+- **Object:**
+- **Caption:**
 - **Purpose:**
 - **Who uses it:**
 - **Record source:**

@@ -12,6 +12,55 @@ that it should now work.
 
 ## Open
 
+### A56 - a screen was published under a name no object in the application carries
+
+**Observed 2026-09-14, while reading another project's Phase 2 report as a reference for
+how to present this one.** That report heads every screen section with a Form Name AND a
+Caption. A06's Phase 2 had one name slot per screen, and for F-009 the slot held a caption.
+
+**`商品情報登録` is not an object.** It is the title bar on `商品情報設定画面` and the label
+on the switchboard button that opens it. No catalogue row carried it, because no such
+object exists - and the document that published it states the rule it was breaking two
+sections earlier: *the alias is the one the catalogue composes, so a name here and the same
+name in the catalogue cannot drift apart.* A stated rule with no reader is not a rule.
+
+**The fabricated name moved a finding onto the wrong screen.** The interview names a
+maintenance path of two captions, 『商品情報登録』『商品情報一覧登録』, and asks about
+`上記の画面` - the screen in `image 1.png` at 4,055 rows, whose caption is `商品情報一覧登録`,
+which is `商品情報画面`. The document folded both captions into one screen that does not
+exist and attached the add-and-delete answer to it. There are two screens the interview
+establishes, not one.
+
+**The cause is that nothing carried captions.** An interview, an operating procedure, a
+training manual and a screenshot all name a screen the way the operator does. Without the
+caption there is no way to resolve that to an object, so the name gets written down as it
+was heard. `contracts.screen_behaviour.caption()` now reads the form-level `Caption`
+- matching on definition depth, since a button's caption sits deeper - and the screen
+catalogue carries a `Caption` column for all 51 objects.
+
+**The column paid for itself immediately.** `新規事業部受注取込画面`, the hidden screen that
+writes the same four tables as the live daily import, carries the caption `受注データ取込` -
+character for character the live import's. It does not merely write what that screen writes;
+it presents itself to the operator as that screen. And `前日準備リスト` prints as
+`受注差分リスト`, so a report an operator asks for by name is filed under another.
+
+**Two hand-written aliases were found in the same sweep** - `daily_stock_report_print`
+against a catalogue composing `date_by_stock_report_print`, and `total_quantity` against
+`total_count_amount`. Both corrected.
+
+**Not yet done:** the sweep that found these was a scratch script, so nothing prevents the
+next one. A conformance check should fail a phase document that prints a backticked Japanese
+name no catalogue carries, or a `name (alias)` pair whose alias is not the catalogue's. Both
+are mechanical and neither exists.
+
+**Also open, and a decision rather than a defect:** Phase 2 allocates `RS-01`..`RS-05`, but
+`identifier-scheme.yaml` gives `RS` to phase 5 and names it *Risk - security and
+compliance*, which is not what those five are. No risk namespace is owned by phase 2. Either
+`RA` gains phase 2 as an owner or the scheme needs one; the registry also records no
+`severity` on any `RD-`/`RS-` row although the scheme marks it required.
+
+---
+
 ### A55 - the control inventory never reached the bundle, and the per-object mechanics were in the wrong document
 
 **Observed 2026-09-14, when the operator said Phase 2's per-screen section was hard to use

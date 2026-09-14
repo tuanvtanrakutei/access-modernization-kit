@@ -77,3 +77,33 @@ def test_the_control_inventory_reaches_the_bundle() -> None:
 
     assert "controls" in empty_sections()["ui"], (
         "ui/controls.json fell through routing into databases/objects before A55")
+
+
+CAPTION_FORM = (
+    'Version =20\n'
+    'Begin Form\n'
+    '    RecordSelectors = NotDefault\n'
+    '    Caption ="商品情報登録"\n'
+    '    Begin Section\n'
+    '        Begin CommandButton\n'
+    '            Name ="商品情報設定ボタン"\n'
+    '            Caption ="押さないで"\n'
+    '        End\n'
+    '    End\n'
+    'End\n')
+
+
+def test_caption_is_the_forms_own_not_a_controls() -> None:
+    """The defect this exists for: A06 published a screen called `商品情報登録`, which is
+    the caption on `商品情報設定画面` and the label on the switchboard button that opens
+    it. Reading the first `Caption =` at any depth would have found a button's."""
+    assert behaviour.caption(CAPTION_FORM) == "商品情報登録"
+
+
+def test_an_object_declaring_no_caption_returns_empty() -> None:
+    """Access falls back to the object name at run time. Returning the name here would
+    publish a guess about a runtime nobody observed as though it were read from the
+    definition - `入荷実績入力` declares none."""
+    assert behaviour.caption('Begin Form\n    RecordSelectors = NotDefault\nEnd\n') == ""
+    assert behaviour.caption("") == ""
+    assert behaviour.caption(None) == ""

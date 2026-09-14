@@ -954,6 +954,12 @@ def screen_catalogue(app_id: str, bundle: Path, facts_dir: Path,
         "say what the screen is connected to, which is not the same as what it is for: "
         f"a purpose needs a document or an interview ({NEEDS_DOC}).",
         "",
+        "`Caption` is the title the operator reads, and it is **not** the object name. "
+        "An interview or an operating procedure names the caption, because that is what "
+        "the person at the screen sees - so a screen an operator calls by one name is "
+        "filed here under another, and matching the two is what this column is for. "
+        "`—` means the object declares no caption and Access shows its name instead.",
+        "",
         "**Layout is invisible here and everywhere.** A definition carries control "
         "positions but not what an operator can see, reach by tab order, or read as "
         "grouped. That needs SCREENSHOT evidence.",
@@ -968,10 +974,10 @@ def screen_catalogue(app_id: str, bundle: Path, facts_dir: Path,
         out += [
             f"## {kind.capitalize()}s ({len(items)})",
             "",
-            "| No. | Object (production name) | English (proposed) | Database | "
-            "Record source | Bound fields | Event procedures | Embedded controls | "
-            "Referenced by | Definition text | Business purpose |",
-            "|---:|---|---|---|---|---:|---:|---|---:|---|---|",
+            "| No. | Object (production name) | Caption | English (proposed) | "
+            "Database | Record source | Bound fields | Event procedures | "
+            "Embedded controls | Referenced by | Definition text | Business purpose |",
+            "|---:|---|---|---|---|---|---:|---:|---|---:|---|---|",
         ]
         for number, item in enumerate(sorted(items, key=lambda i: (i.get("database_id", ""),
                                                                    i.get("name", ""))), 1):
@@ -981,8 +987,11 @@ def screen_catalogue(app_id: str, bundle: Path, facts_dir: Path,
             bound = fact.get("bound_fields") or []
             events = fact.get("event_procedures") or []
             controls = fact.get("embedded_controls") or []
+            title = behaviour_contract.caption(item.get("text") or "")
             out.append(
-                f"| {number} | `{escape(name)}` | {naming.english(name)} | "
+                f"| {number} | `{escape(name)}` | "
+                f"{('`' + escape(title) + '`') if title else '—'} | "
+                f"{naming.english(name)} | "
                 f"{escape(database)} | "
                 f"{('`' + escape(source) + '`') if source else '**none declared**'} | "
                 f"{len(bound)} | {len(events)} | "
