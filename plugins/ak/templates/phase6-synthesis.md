@@ -43,6 +43,53 @@ JP-primary with a Romaji alias where they are Japanese. Never translate.
      largest unknown. Then the three things the replacement team must act on first.
      Say what the evidence did NOT cover, here, not only in an appendix. -->
 
+<!-- WHO READS THIS, AND WHAT THAT COSTS YOU
+
+     A reference file is read by an agent. A phase document is read by a developer who
+     has to rebuild the system, and they read it once, under time pressure, looking for
+     what they must not get wrong. Two habits follow:
+
+     Open with what they must not get wrong. A short numbered list, each item pointing at
+     the section that proves it. A06's Phase 2 was correct and unusable before it had one:
+     the fact that re-running the morning import destroys the quantities staff typed the
+     night before was in the document, four sections deep, in prose.
+
+     Diagram a mechanism; tabulate a set; write prose only for what neither can hold.
+     One required diagram per phase is a floor, not a budget. Reach for one whenever the
+     thing being described has a shape: an order of steps, a cycle, a lifecycle with a
+     failure branch, a fan-out from one object to many, or three artefacts that should
+     agree and do not. A06's Phase 2 carries five and is shorter than the four-diagram
+     draft it replaced, because each one removed a paragraph that was describing a picture.
+
+     Mermaid renders, or it is not evidence a reader can see. Check it - `mmdc -i x.mmd -o
+     x.svg` - before publishing. A sequence diagram reads better than a flowchart for
+     anything with an actor and an order; a flowchart with a red-filled node is the
+     cheapest way to say "this is where it goes wrong".
+
+     Keep the document's own revision history out of it. How many drafts a figure went
+     through is a fact about the analysis, not about the application, and a developer
+     reading once does not need it: A06's Phase 2 carried a paragraph explaining that a
+     count had been "wrong twice before it was right", naming all three numbers and both
+     causes, and it was the hardest paragraph in the document to read.
+
+     That history belongs in `BACKLOG.md` and in the commit. What the document keeps is
+     the part a reader could otherwise get wrong - what a figure counts and what it
+     excludes, stated plainly, so that a recount giving a different number is explained
+     before it happens rather than after:
+
+         A recount can legitimately give a different number, so two exclusions are worth
+         stating. `DoCmd.OpenQuery` opens a query, not a screen: its 3 edges are excluded
+         here, and counting them gives 39.
+
+     The exception is a claim an earlier PUBLISHED phase made and this one corrects. That
+     is errata, it has its own register and its own `E-nn` identifier, and it is owed to
+     the reader because they may have acted on the earlier statement. A draft nobody
+     outside the run ever saw owes nothing.
+     For this phase: the synthesis is read by people who will read nothing else, so
+     it carries the fewest words and the most pictures. Every diagram here is one a
+     reader met in an earlier phase, redrawn at one level less detail.
+-->
+
 ## Contents
 
 1. [System Overview](#1-system-overview)

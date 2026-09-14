@@ -221,3 +221,38 @@ def test_phase5_requires_the_landscape_half_it_used_to_omit(contract: dict) -> N
 def test_the_header_every_phase_document_opens_with_is_specified(contract: dict) -> None:
     blocks = {block["block"] for block in contract["required_document_header"]}
     assert blocks == {"naming_convention", "source_coverage"}
+
+
+def test_every_phase_template_names_the_namespaces_that_phase_owns() -> None:
+    """A phase that allocates an identifier its own template never mentions invents the
+    shape at writing time, and nothing objects.
+
+    The audit behind A57 found three: `AS-` was named in no template at all, though all
+    five phases allocate assumptions; `OB-` had no home in phases 3 to 5 after A57
+    widened its ownership; and only Phase 1 named its `UK-` letter. Phase 5 had no
+    Assumptions section whatsoever.
+    """
+    scheme = yaml.safe_load(
+        (PACKAGE / "specifications" / "identifier-scheme.yaml").read_text(encoding="utf-8"))
+    templates = {
+        1: "phase1-data-understanding.md", 2: "phase2-screen-analysis.md",
+        3: "phase3-logic-processing.md", 4: "phase4-workflow-reconstruction.md",
+        5: "phase5-document-integration.md", 6: "phase6-synthesis.md",
+    }
+    missing = []
+    for namespace, body in (scheme.get("namespaces") or {}).items():
+        body = body or {}
+        # The literal head of the pattern, so `Q` and the lowercase `d`/`r` namespaces
+        # are looked for as they are actually written rather than as `Q-`.
+        head = re.match(r"\^((?:[A-Za-z]|-)+)", str(body.get("pattern") or ""))
+        if not head:
+            continue
+        prefix = head.group(1)
+        for owner in body.get("owned_by") or []:
+            phase = int(str(owner).removeprefix("phase"))
+            if prefix not in read(templates[phase]):
+                missing.append(f"{prefix} in phase {phase}")
+    assert not missing, (
+        f"{sorted(missing)} - each phase allocates these and its template never shows "
+        "the reader what they look like"
+    )

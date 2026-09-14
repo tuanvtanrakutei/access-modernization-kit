@@ -261,6 +261,10 @@ erDiagram
 
 ### Assumptions
 
+<!-- `AS-nn`. A belief the phase relies on that the evidence does not
+     establish. `If wrong` says what in this document stops holding, which is
+     what makes it worth writing down rather than a disclaimer. -->
+
 | ID | Assumption | If wrong |
 |---|---|---|
 
