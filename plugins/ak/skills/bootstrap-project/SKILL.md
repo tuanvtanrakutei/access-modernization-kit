@@ -55,6 +55,35 @@ directory:
 | `Final_Acceptance_README.md` | `{{DOCS_DIR}}/Final_Acceptance/README.md` |
 | `Bug_Reports_README.md` | `{{DOCS_DIR}}/Bug_Reports/README.md` |
 
+And copy, unchanged, from `${CLAUDE_PLUGIN_ROOT}/modernize/docs/` into the same directory:
+
+| Document | Becomes |
+|---|---|
+| `MASTER_WORKFLOW.md` | `{{DOCS_DIR}}/MASTER_WORKFLOW.md` |
+| `TRACEBACK_GATES.md` | `{{DOCS_DIR}}/TRACEBACK_GATES.md` |
+| `LEGACY_EVIDENCE.md` | `{{DOCS_DIR}}/LEGACY_EVIDENCE.md` |
+| `BACKEND_CODING.md` | `{{DOCS_DIR}}/BACKEND_CODING.md` |
+| `BACKEND_TESTING.md` | `{{DOCS_DIR}}/BACKEND_TESTING.md` |
+| `FRONTEND_CODING.md` | `{{DOCS_DIR}}/FRONTEND_CODING.md` |
+| `FRONTEND_TESTING.md` | `{{DOCS_DIR}}/FRONTEND_TESTING.md` |
+| `CONVENTIONS.md` | `{{DOCS_DIR}}/CONVENTIONS.md` |
+| `PHASE_OUTPUT_GUIDE.md` | `{{DOCS_DIR}}/PHASE_OUTPUT_GUIDE.md` |
+
+These are not optional extras. `PROJECT_CONFIG.md` §11 states the document map uses fixed
+names *because the pipeline documents reference each other directly*, and
+`MASTER_WORKFLOW.md` cites its siblings by bare filename twelve times. Copying the
+templates without them produces a project whose own `README.md` and `CLAUDE.md` pointer
+both name `MASTER_WORKFLOW.md` and whose `MASTER_WORKFLOW.md` is not there — which is what
+A06 got. A project holds its own copies so that a plugin upgrade cannot silently change
+the manual a half-finished screen was planned against.
+
+Copy them **unsubstituted**, like every other template here. They carry `{{...}}` keys that
+resolve from `PROJECT_CONFIG.md`, and at this point only five of its rows are filled — so
+substituting now would resolve five keys and bake the rest in as literal placeholders.
+`validate-docs` reports every one that is still unresolved, which is the signal to
+substitute once the config is filled. Say so in Step 5: the manuals are copied and not yet
+resolved, and the first `validate-docs` run will list what is outstanding.
+
 Create the seven per-screen folders named above if they do not exist. Do not auto-fill
 `PROJECT_CONFIG.md`'s `{{...}}` placeholders beyond the five values collected in Step 1
 (`DOCS_DIR`, `AK_RUN_DIR`, `PROJECT_NAME`, `SUBSYSTEM_CODE`, `LEGACY_VARIANT` — write each
