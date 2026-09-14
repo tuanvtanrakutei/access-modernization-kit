@@ -12,6 +12,85 @@ that it should now work.
 
 ## Open
 
+### A68 - `clean` could offer the newest session for deletion
+
+**Found 2026-09-14 by CI, on a pull request that changed none of this.** Windows failed
+and Linux passed on `test_with_nothing_cited_the_newest_session_is_kept`: the survey
+offered `acquire-02` and kept `acquire-01`, the opposite of the rule it was asserting.
+
+**Not a flaky test - a tie with an arbitrary winner.** When nothing cites any session the
+survey keeps the newest, `max(loose, key=lambda p: p.stat().st_mtime)`. Windows' clock
+granularity is about 16ms, so two session directories written by the same command carry
+the *same* mtime, and `max` then returns whichever the directory listing yielded first.
+That can be the older one, and `clean` would offer the newest session for deletion while
+keeping an older one - the wrong answer for a command whose promise is that it deletes
+nothing that is live. The test had been passing on a timing accident since A61.
+
+**Fixed** by breaking the tie on the name: `(st_mtime, p.name)`. Both session naming
+schemes this kit writes - `acquire-NN` and the run id `YYYY-MM-DD-hash` - sort with the
+later session last. The test now sets both times with `os.utime` instead of touching one,
+so it exercises the mtime rule on every platform rather than on whichever clock runs it,
+and a second test covers the tie directly. Verified the tie test fails without the code
+change and passes with it.
+
+**Worth noting for the next newest-wins rule.** This file already had a second one, for
+packages, and it compares **names** (`package.name > newest[artifact].name`). Two readers
+of "newest" in one file that could disagree is the A33 shape; they now agree on ties.
+
+---
+
+### A67 - errata could not be written by the phase that found the error
+
+**Found 2026-09-14, asked whether modernization can run before phases 5 and 6.** It can -
+the modernize pipeline reads Phase 2's content and treats phase 4 and phase 6 as gate
+signals only, and `NOT_REQUESTED` satisfies them. Which makes the real question *what
+happens when modernization finds a published claim wrong*, and that is where the kit had a
+hole.
+
+`errata-contract.yaml` is explicit that a published claim is never silently edited, and
+ER-06 already allows an entry to correct a claim in any phase. But `E-` was
+`owned_by: [phase6]`, and the errata checks ran inside `if phase == 6`. So a correction
+found in Phase 3 had no identifier it was allowed to allocate, no register the checker
+would look at, and nothing that noticed the register was missing.
+
+**A06 shows both halves of the failure.** Phase 3 corrected two published Phase 1 risks -
+the actor behind the `99` placeholders, and what destroys `準備数` - and wrote
+`**corrected**` in its carried-forward table. No register existed. And step 1 of the
+procedure was never done at all: **Phase 1 still said the wrong thing**, in both
+languages. Its RD-05 still read *destroyed by re-running the import* with the mitigation
+*make the import idempotent*, which Phase 3 had shown fixes nothing because the import
+already is. Anyone reading Phase 1 to plan a migration read that.
+
+Two more corrections had been made silently while fixing A64 and A65 - the outbound file
+count, and *every path is a variable* - with no entry either.
+
+**Fixed.**
+
+`E-` is now owned by phases 2 to 6 with `rendered_by: phase6`; Phase 1 is excluded because
+nothing is published before it. `errata_resolve` runs for any phase that cites an `E-`,
+and Phase 6 alone still has to have a register at all. `E-` is excluded from
+`identifiers_resolve`, because it has its own register and requiring both means
+registering every correction twice to satisfy two checkers.
+
+New check `corrections_registered`, and new rule ER-07 for it to enforce: a phase that
+announces it corrected an earlier claim cites at least one `E-`. The phrases are in
+`language-support.yaml` per language and deliberately narrow - A06 announced it as
+`**corrected**` and `**đã sửa**`, and a looser pattern would fire on any sentence about a
+correction. The check found exactly the two documents that made the corrections and stayed
+silent on the other six.
+
+A06 now carries `A06_Errata.json` with E-01 to E-04, each marked in the document that
+carried the wrong claim, and the two evidence items whose statements are now wrong carry a
+note pointing at the entry rather than being rewritten (ER-04).
+
+**The cause classes are the finding.** Three of the four are `EVIDENCE_MISREAD` - a source
+that was in the bundle and was not read: the `Const` declarations twelve lines above the
+call, the recovery memo that says the opposite of what was published about `準備数`, and
+the third export verb. That is one pattern, not three incidents, and it is the pattern to
+watch for during modernization.
+
+---
+
 ### A66 - an export row whose subject column is empty
 
 **Noticed 2026-09-14, reading A06's boundary table after A65.** One row prints an empty

@@ -134,3 +134,14 @@ rules:
     rule: >
       An errata entry may correct a claim in any phase, including one published in
       an earlier run of the same app. The affected list names the run.
+
+  - id: ER-07
+    rule: >
+      A phase that announces it has corrected an earlier phase's published claim
+      cites at least one E-. The entry is written when the correction is made, not
+      when Phase 6 is written: by then the wrong claim has stood through every phase
+      in between, and whoever rebuilt from it has already acted on it.
+    on_violation: >
+      The prose stops saying the wrong thing and no record survives that it ever did.
+      This is the prohibition above, reached by omission rather than by editing.
+    checked_by: "validate_phase_conformance.py, check `corrections_registered`"

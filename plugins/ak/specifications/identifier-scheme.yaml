@@ -202,7 +202,15 @@ namespaces:
     name: "Errata entry"
     pattern: "^E-[0-9]{2}$"
     example: "E-01"
-    owned_by: [phase6]
+    # A67. Phase 6 renders the register; it is not the only phase allowed to write to
+    # it. ER-06 already says an entry may correct a claim in any phase, and a
+    # correction found in Phase 3 cannot wait for Phase 6 - by then the wrong claim
+    # has been published for the length of three more phases, and anyone rebuilding
+    # from it has already acted. A06's Phase 3 corrected two Phase 1 risks and could
+    # allocate nothing, so it wrote the correction into prose and the register stayed
+    # empty. Phase 1 is excluded because there is nothing published before it.
+    owned_by: [phase2, phase3, phase4, phase5, phase6]
+    rendered_by: phase6
     requires_evidence: true
     note: "Governed by errata-contract.yaml."
 

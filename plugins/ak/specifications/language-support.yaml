@@ -23,6 +23,15 @@ human_languages:
       EN: ["source coverage", "evidence class"]
       JA: ["ソースカバレッジ", "証拠クラス", "根拠の網羅"]
       VI: ["mức độ bao phủ nguồn", "bao phủ nguồn", "lớp bằng chứng"]
+    # A67. What a document says when it has corrected an earlier phase's published
+    # claim. A06's Phase 3 wrote `**corrected**` in its carried-forward table and
+    # `**đã sửa**` in the Vietnamese, and registered no errata entry for either.
+    # These are deliberately narrow: `corrects` alone would fire on any sentence
+    # about a correction the document is only describing.
+    correction:
+      EN: ["**corrected**", "this phase corrects", "supersedes the published"]
+      JA: ["**訂正**", "本フェーズで訂正", "既刊の記述を訂正"]
+      VI: ["**đã sửa**", "phase này sửa lại", "thay thế phát biểu đã publish"]
 source_languages:
   full_evidence_trace:
     - "ACCESS_VBA"
