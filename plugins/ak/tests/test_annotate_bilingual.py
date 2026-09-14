@@ -228,3 +228,70 @@ def test_an_annotation_from_the_older_marked_form_is_still_recognised() -> None:
     text, added = annotator.annotate(body, Naming())
     assert text == body
     assert added == 0
+
+
+# --- what is a name, and what only looks like one ---------------------------
+#
+# The composer answers whatever it is handed. Run against A06's Phase 2 and Phase 3
+# without this guard it produced 43 annotations per language that name nothing:
+# `\\server6\user\物流部\` (server6_user_logistics_dept), `inner join 商品マスタ`
+# (inner join_product_master), `店舗コード between 127000 and 127999`, and - worst -
+# `メイン画面 (main_screen)` annotated a second time as (main_screen_main_screen),
+# because the idempotency check only looks AFTER the closing backtick.
+
+
+def test_a_path_is_not_a_name() -> None:
+    for span in (r"forms/受注データ取込画面.txt",
+                 "\\\\smsdb\\data\\品揃支援\\２１受注.CSV",
+                 "C:\\２１受注.CSV"):
+        assert not annotator.is_a_name(span), span
+
+
+def test_a_phrase_or_a_range_is_not_a_name() -> None:
+    for span in ("店舗コード between 127000 and 127999",
+                 "商品コード 4000–4999",
+                 "insert into 受注情報 … where 受注情報.商品コード is Null"):
+        assert not annotator.is_a_name(span), span
+
+
+def test_code_is_not_a_name() -> None:
+    for span in ('Format(受注日,"yyyymmdd") & ".csv"', "棚卸除外ＦＬＧ = 0",
+                 "担当者:10"):
+        assert not annotator.is_a_name(span), span
+
+
+def test_a_span_that_already_carries_its_alias_is_not_annotated_again() -> None:
+    """`ALREADY` only looks after the closing backtick, so a pair written by hand
+    INSIDE the backticks was invisible to it and got a second alias."""
+    assert not annotator.is_a_name("メイン画面 (main_screen)")
+    assert not annotator.is_a_name("受注情報 (order_info)")
+
+
+def test_a_vba_procedure_keeps_its_empty_parentheses_and_is_still_a_name() -> None:
+    """The first version of the guard refused every `(`, which silently dropped every
+    function in the document - the opposite defect, and quieter."""
+    for span in ("SMS受注取込()", "酒受注取込()", "新規商品追加()"):
+        assert annotator.is_a_name(span), span
+
+
+def test_an_ordinary_object_name_is_still_a_name() -> None:
+    for span in ("受注情報", "商品マスタ", "受注数調整リスト1", "常温物流支援商品マスタ.csv",
+                 "chkSMS受注", "取込開始ボタン_Click"):
+        assert annotator.is_a_name(span), span
+
+
+def test_a_bilingual_table_row_is_not_annotated_twice() -> None:
+    """A table with a `Japanese (production)` column and an `English (proposed)`
+    column already prints both. Annotating the first cell puts the alias twice on one
+    line - 46 rows across the published set."""
+    row = "| `受注情報` | `order_info` | one day of orders |\n"
+
+    class Naming:
+        def of(self, name):
+            class R:
+                english = "order_info"
+                is_complete = True
+            return R()
+
+    annotated, added = annotator.annotate(row, Naming())
+    assert added == 0 and annotated == row

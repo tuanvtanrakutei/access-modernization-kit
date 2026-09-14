@@ -12,6 +12,51 @@ that it should now work.
 
 ## Open
 
+### A62 - the bilingual annotator named things that are not names
+
+**Observed 2026-09-14, running `annotate_bilingual.py` over A06's Phase 2 and Phase 3 at
+the operator's request.** It annotated 82 spans in Phase 2 and 76 in Phase 3, and **43 per
+language named nothing**. The output was worse than the unannotated document, because an
+alias printed beside a path tells a reader the path has an English name.
+
+**The composer answers whatever it is handed.** That is correct for a composer and wrong
+for a caller that hands it every backticked span in a document. What came back:
+
+    `\\smsdb\data\品揃支援\２１受注.CSV`   -> (smsdb_data_assortment_support_21_order_csv)
+    `inner join 商品マスタ`                -> (inner join_product_master)
+    `店舗コード between 127000 and 127999`  -> (store_cd_between 127000 and_127999)
+    `Format(受注日,"yyyymmdd") & ".csv"`   -> (format_order_date_yyyymmdd_csv)
+    `担当者:10`                          -> (employee_10)
+
+**And the idempotency check looked in the wrong place.** `ALREADY` matches a parenthesis
+AFTER the closing backtick, and these documents write the pair INSIDE it - `メイン画面
+(main_screen)` - so seventeen names that already carried an alias were given a second one:
+`(main_screen_main_screen)`, `(order_data_import_screen_order_data_import_scr...)`.
+
+**A table that prints both names in two columns got the alias twice on one line**, 46 rows
+of it, because nothing checked whether the line already carried the English.
+
+`is_a_name()` now refuses a span containing a path separator, a space, `=` or `:`, and a
+parenthesis with something between the parentheses. Empty parentheses stay - `SMS受注取込()`
+is a VBA procedure and the first version of this guard refused every `(`, which silently
+dropped every function in the document. That is the opposite defect and the quieter one, and
+it is why the tests assert both directions.
+
+**Reverting was possible because the damage had a shape.** The annotator only ever appends
+` (alias)` after a closing backtick, and nothing in these documents was authored that way -
+where a pair is written by hand it sits inside the backticks. Stripping exactly that pattern
+returned Phase 3 EN to within 19 lines of the pre-annotation draft, and all 19 were
+corrections made deliberately in between.
+
+**Not yet done:** `is_a_name` is a list of characters that disqualify a span, which is a
+denylist and will miss the next shape. The real question is whether the caller should be
+passing spans at all, rather than resolving each against the catalogue - a name the
+catalogue does not carry is not a name this kit can annotate, and that test is exact where
+this one is heuristic. Phase 1 was left at its reviewed state and still has 63 unannotated
+names.
+
+---
+
 ### A61 - a workspace kept every copy every re-run made, and `clean` could only name four
 
 **Measured on `D:\Anrakutei\fresh\A05` on 2026-09-14, before changing anything.** The

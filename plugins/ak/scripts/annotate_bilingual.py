@@ -55,6 +55,39 @@ JAPANESE = re.compile(r"[぀-ヿ一-鿿＀-￯]")
 # is short and has no dot.
 ALREADY = re.compile(r"\s*\([a-z0-9_.\-]+\??(?:\s+partial)?\)")
 
+# A backticked span is only a NAME when it is one. The composer answers whatever it is
+# handed, so handing it a path or a SQL fragment gets a confident string back:
+# A06 published `\\server6\user\物流部\` (server6_user_logistics_dept) and
+# `inner join 商品マスタ` (inner join_product_master) this way. Neither is a second name
+# for the thing beside it, and printing one tells a reader it has an English name.
+#
+# Four shapes are refused, each from a real defect in that run:
+NOT_A_NAME = (
+    ("/", "a path"),          # forms/受注データ取込画面.txt
+    ("\\", "a path"),         # \\smsdb\data\品揃支援\２１受注.CSV
+    (" ", "a phrase"),        # 店舗コード between 127000 and 127999
+    ("=", "code"),            # 棚卸除外ＦＬＧ = 0
+    (":", "a column and a value"),   # 担当者:10 - `employee_10` names nothing
+)
+# Parentheses with something between them are a call or an alias already printed:
+# `Format(受注日,"yyyymmdd")` and `メイン画面 (main_screen)`. Empty ones are part of a
+# VBA procedure's name - `SMS受注取込()` - and refusing those was a first attempt at
+# this rule that silently dropped every function in the document.
+CALL_OR_ALIAS = re.compile(r"\(.+\)")
+
+
+def is_a_name(span: str) -> bool:
+    """Whether a backticked span is an object name rather than a path, phrase or code.
+
+    A span that already carries its own alias - `メイン画面 (main_screen)`, written that
+    way by hand inside the backticks - is refused too. The `ALREADY` check only looks
+    AFTER the closing backtick, so without this the annotator appended a second alias
+    and produced `(main_screen_main_screen)`. 17 of those in one run.
+    """
+    if CALL_OR_ALIAS.search(span):
+        return False
+    return not any(mark in span for mark, _ in NOT_A_NAME)
+
 
 def fenced_spans(text: str) -> list[tuple[int, int]]:
     """Where the code blocks are, so nothing is inserted into one."""
@@ -88,11 +121,24 @@ def annotate(text: str, naming: object, seen: set[str] | None = None) -> tuple[s
             continue
         if not JAPANESE.search(name):
             continue
+        if not is_a_name(name):
+            continue
         if name in seen:
             continue
         if ALREADY.match(text, match.end()):
             seen.add(name)
             continue
+        # A row of a bilingual table already carries the English in its own column.
+        # Annotating it puts the alias twice on one line, which is what a table with
+        # a `Japanese (production)` and an `English (proposed)` column is for.
+        line_start = text.rfind("\n", 0, match.start()) + 1
+        line_end = text.find("\n", match.end())
+        line = text[line_start:line_end if line_end != -1 else len(text)]
+        if line.lstrip().startswith("|"):
+            rendered = naming.of(name)  # type: ignore[attr-defined]
+            if rendered.english and f"`{rendered.english}`" in line:
+                seen.add(name)
+                continue
         rendered = naming.of(name)  # type: ignore[attr-defined]
         if not rendered.english or not rendered.is_complete:
             # A partial proposal is not printed inline. It would put a half-finished
