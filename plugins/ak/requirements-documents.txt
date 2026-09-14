@@ -7,7 +7,7 @@
 #
 #   pip install -r plugins/ak/requirements-documents.txt
 openpyxl>=3.1.5,<4
-pypdf>=6.0.0,<7
+pypdf>=6.17.0,<7
 python-docx>=1.2.0,<2
 xlrd>=2.0.2,<3
 python-pptx>=1.0.2,<2
