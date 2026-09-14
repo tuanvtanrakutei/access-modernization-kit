@@ -445,6 +445,7 @@ def _output_to_feeds(records: Iterable[dict]) -> list[Feed]:
     for record in records:
         text = str(record.get("text") or "")
         declared_in = str(record.get("name") or record.get("object_name") or "")
+        constants = _constants(text)
         for line in _vba_code_lines(text):
             for match in _OUTPUT_TO.finditer(line):
                 arguments_text = line[match.end():].strip()
@@ -463,20 +464,95 @@ def _output_to_feeds(records: Iterable[dict]) -> list[Feed]:
                     fmt = _OUTPUT_FORMAT.match(arguments[2].strip())
                     declared_format = fmt.group(1) if fmt else arguments[2].strip()
                 path_expression = arguments[3].strip() if len(arguments) > 3 else ""
+                resolved, is_literal = _resolve_path(path_expression, constants)
                 found.append(Feed(
                     table=object_name,
                     database_id=str(record.get("database_id") or ""),
                     spec_name="",
-                    file_name=base_name(_vba_literal(path_expression)),
+                    file_name=base_name(resolved) if is_literal else "",
                     declared_format=declared_format,
                     header_declared="",
                     origin="code",
-                    path_expression=path_expression,
+                    path_expression=resolved or path_expression,
                     operation=f"OutputTo {arguments[0].strip()}".strip(),
                     direction="outbound",
                     declared_in=declared_in,
                 ))
     return found
+
+
+# `Const NAME = "literal"`, module level or inside a procedure.
+_CONST = re.compile(r'(?i)^\s*(?:Public\s+|Private\s+)?Const\s+([^\s=]+)\s*=\s*"([^"]*)"\s*$')
+
+
+def _constants(text: str) -> dict[str, str]:
+    """String constants a definition declares, keeping only names assigned once.
+
+    A06 declares each import path twice - a live block and a commented-out test block
+    beneath it - and `_vba_code_lines` has already dropped the commented one. A name
+    that is still assigned twice after that resolves to nothing: picking the last
+    would be picking by file order.
+    """
+    seen: dict[str, str] = {}
+    twice: set[str] = set()
+    for line in _vba_code_lines(text):
+        match = _CONST.match(line)
+        if not match:
+            continue
+        name = match.group(1).strip()
+        if name in seen and seen[name] != match.group(2):
+            twice.add(name)
+        seen[name] = match.group(2)
+    return {name: value for name, value in seen.items() if name not in twice}
+
+
+def _resolve_path(expression: str, constants: dict[str, str]) -> tuple[str, bool]:
+    """Substitute constants into a `&` chain. Returns the text and whether it is literal.
+
+    Literal means every part resolved, so the result is a real path a sample can be
+    matched against. A part that is a call or an unknown name keeps its own text, and
+    the caller must not treat the result as a file name - `Format(Me.受注日,
+    "yyyymmdd")` is knowable at run time and not before.
+    """
+    raw = (expression or "").strip()
+    if not raw:
+        return "", False
+    rendered: list[str] = []
+    resolved: list[str] = []
+    literal = True
+    for part in _vba_split_concat(raw):
+        if len(part) >= 2 and part[0] == '"' and part[-1] == '"':
+            value = _vba_literal(part)
+            resolved.append(value)
+            rendered.append(f'"{value}"')
+        elif part in constants:
+            resolved.append(constants[part])
+            rendered.append(f'"{constants[part]}"')
+        else:
+            rendered.append(part)
+            literal = False
+    if literal:
+        return "".join(resolved), True
+    return " & ".join(rendered), False
+
+
+def _vba_split_concat(text: str) -> list[str]:
+    """Split on `&` at depth zero, outside string literals."""
+    parts: list[str] = []
+    depth = quoted = 0
+    start = 0
+    for index, char in enumerate(text):
+        if char == '"':
+            quoted = 1 - quoted
+        elif not quoted and char == "(":
+            depth += 1
+        elif not quoted and char == ")":
+            depth = max(0, depth - 1)
+        elif not quoted and char == "&" and depth == 0:
+            parts.append(text[start:index])
+            start = index + 1
+    parts.append(text[start:])
+    return [part for part in (piece.strip() for piece in parts) if part]
 
 def code_feeds(records: Iterable[dict]) -> list[Feed]:
     """Find every `TransferText` and `TransferSpreadsheet` call in definition text.
@@ -502,6 +578,10 @@ def code_feeds(records: Iterable[dict]) -> list[Feed]:
     for record in records:
         text = str(record.get("text") or "")
         declared_in = str(record.get("name") or record.get("object_name") or "")
+        # A65. A path assembled from constants declared in this same definition is a
+        # path, not an unknown. Five of A06's eleven sample findings were answerable
+        # from the file they were reported against.
+        constants = _constants(text)
         for line in _vba_code_lines(text):
             for match in call_pattern.finditer(line):
                 arguments_text = line[match.end():].strip()
@@ -522,7 +602,9 @@ def code_feeds(records: Iterable[dict]) -> list[Feed]:
                 is_text = match.group(1).casefold() == "transfertext"
                 spec_name = _vba_literal(arguments[1]) if is_text else ""
                 table_value = _vba_literal(arguments[2]) or arguments[2]
-                path_value = _vba_literal(arguments[3])
+                path_value, path_is_literal = _resolve_path(arguments[3], constants)
+                if not path_is_literal:
+                    path_value = ""
                 header = ""
                 if len(arguments) > 4:
                     header_value = arguments[4].strip().casefold()
@@ -541,7 +623,8 @@ def code_feeds(records: Iterable[dict]) -> list[Feed]:
                     declared_format=declared_format,
                     header_declared=header,
                     origin="code",
-                    path_expression=arguments[3],
+                    path_expression=_resolve_path(arguments[3], constants)[0]
+                    or arguments[3],
                     operation=f"{match.group(1)} {transfer_type}".strip(),
                     direction=direction,
                     declared_in=declared_in,

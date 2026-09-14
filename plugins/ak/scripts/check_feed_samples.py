@@ -193,8 +193,11 @@ def main() -> int:
             # would not tell them which one to look in.
             findings.append(("UNCLAIMED", path.relative_to(samples_root).as_posix(),
                              "no link and no import call in this bundle names this "
-                             "file. A call that builds its path from variables names "
-                             "no file at all, so a sample for one of those lands here"))
+                             "file. A path whose last part is decided at run time - "
+                             "a date, a name the operator types - names no file even "
+                             "when its directory is known, so a sample for one of "
+                             "those lands here. Matching it needs the layout, not "
+                             "the name (EC-02)"))
 
     spread = feeds_contract.encoding_spread(read)
     if spread:
