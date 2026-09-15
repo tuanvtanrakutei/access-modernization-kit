@@ -12,6 +12,38 @@ that it should now work.
 
 ## Open
 
+### A74 - a measurement of the live data had no evidence class to sit in
+
+**Found 2026-09-15, answering two open questions on an A06 screen by querying the database
+instead of asking an operator.** The measurement was a row count and a distribution: which
+codes a two-row lookup master holds, how a foreign column's values are actually spread, and
+whether any row points at a code the master does not have. It answered both questions, and
+then fitted nowhere.
+
+`SAMPLE_DATA` is the closest name and the wrong class: it means *a real file the application
+reads, as the producer actually wrote it* - an inbound feed, not the database the application
+owns. `SCHEMA` is the definition rather than the contents. `ENVIRONMENT` is the machine, the
+share and the paths. Filed as `SAMPLE_DATA` the item was refused by
+`evidence_class_supports_claim`, correctly: `SAMPLE_DATA` supports `FORMAT` only, and the
+statement was not about format.
+
+**Closed.** `DATA_STATE` added, for the same reason `ENVIRONMENT` was added before it - a
+finding with no class to sit in. It `supports: [STRUCTURE]` and `corroborates: [BEHAVIOUR,
+USAGE]`, which is the distinction it exists to keep: **that no row uses a code is a fact;
+that nobody ever wanted to is a reading**, and EC-01 still reserves that for a DOCUMENT or an
+INTERVIEW. A class that supported USAGE would have erased the difference, and the first item
+written for this one claimed exactly that and was refused.
+
+It carries ENVIRONMENT's two cautions - it goes stale, and it describes one deployment - plus
+its own: a row count is true of the moment it was taken.
+
+**And a second gap the first one exposed.** `specifications/evidence-classes.yaml` defines a
+class; `schemas/evidence.schema.json` decides whether a register carrying it validates at
+all. They were joined by nothing, so adding the class to the yaml alone left the schema
+rejecting the very item it was created for - and the error names the enum rather than the
+class, so it reads as a typo rather than as drift. `tests/test_evidence_class_registry.py`
+now holds them together in both directions, and fails against the yaml-only state.
+
 ### A73 - an empty collection wrote no file, so "none" and "not collected" looked identical
 
 **Found 2026-09-15, running the A72 extractor against A06's real data file.** `A72` was
