@@ -156,14 +156,6 @@ types:
 # What the extraction does not carry, so no catalogue may state it. Named here rather
 # than left as silence, per rule EC-06: every gap gets a name.
 not_extracted:
-  - field: "AutoNumber / generated"
-    why: >-
-      Requires the field's DAO Attributes (dbAutoIncrField). The extractor reads name,
-      type, size and required only.
-  - field: "Default value"
-    why: "Requires Field.DefaultValue, not collected."
-  - field: "Validation rule"
-    why: "Requires Field.ValidationRule, not collected."
   - field: "Decimal precision and scale"
     why: "Requires Field.Precision and Field.Scale, meaningful only for dbNumeric/dbDecimal."
   - field: "Foreign key"
@@ -171,3 +163,32 @@ not_extracted:
       Requires a declared relationship. This is not a collection gap - the A05
       databases declare zero relationships - so absence of an FK column in a catalogue
       is a finding about the application, not about the extraction.
+
+# Collected since A72, and therefore statable. Each is read per field inside its own
+# try/catch: a linked table can refuse a property without costing the rest of the row.
+# `null` means the property was not set or could not be read, and is not the same fact
+# as an empty string - Access writes "" for a text field that defaults to empty.
+collected_field_properties:
+  - key: default_value
+    from: "Field.DefaultValue"
+    carries: >-
+      A value the application never types. A `Date()` default is a business rule about
+      when a row belongs to, and it is invisible in both the form definition and the code.
+  - key: validation_rule
+    from: "Field.ValidationRule"
+    carries: >-
+      A constraint enforced by the engine on every write, including writes from code that
+      no form mediates. A replacement that reads only the screens will not find it.
+  - key: validation_text
+    from: "Field.ValidationText"
+    carries: "The message an operator has been reading for years when the rule fires."
+  - key: allow_zero_length
+    from: "Field.AllowZeroLength"
+    carries: >-
+      Whether an empty string is a legal value distinct from null. Decides whether a
+      migration may collapse the two, which is usually done without asking.
+  - key: attributes
+    from: "Field.Attributes"
+    carries: >-
+      The DAO attribute bitmask. `dbAutoIncrField` (0x10) is the one that settles whether
+      a key is generated, which no other collected property answers.
