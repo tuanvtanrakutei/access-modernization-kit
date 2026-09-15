@@ -12,6 +12,101 @@ that it should now work.
 
 ## Open
 
+### A73 - an empty collection wrote no file, so "none" and "not collected" looked identical
+
+**Found 2026-09-15, running the A72 extractor against A06's real data file.** `A72` was
+supposed to close two A06 questions at once. It closed one: `保管場所コード` came back with
+`default_value: "0"`, which settles whether the `0` on the legacy new-record row is a stored
+default or a rendering artefact. The other produced no file at all.
+
+`Write-Extraction` serialised its two schema files by piping:
+
+```powershell
+$relations | ConvertTo-Json -Depth 12 | Set-Content ... 'schema/relations.json'
+```
+
+Piping an **empty** collection sends `ConvertTo-Json` nothing, so it emits nothing and
+`Set-Content` writes nothing. Measured in PowerShell 5.1 on this host:
+
+```
+[System.Collections.ArrayList]::new() | ConvertTo-Json                ->  (no output)
+ConvertTo-Json -InputObject @([System.Collections.ArrayList]::new())  ->  []
+```
+
+So `schema/relations.json` was **absent from every database that declares no
+relationships** - and absent is exactly what an older extractor that never wrote the file
+leaves behind. Two different facts, one observable state.
+
+**It cost a decision on a live screen.** A06's bundle has no `relations.json`, which was read
+here as "this export predates the feature", so whether Jet declared referential integrity
+between `商品情報.保管場所` and `保管場所マスタ` was recorded as unknowable (A06
+Known_Issues #5), and `保管場所登録画面` could not say whether refusing to delete a
+referenced row restored legacy behaviour or invented it. The fixed extractor answered it in
+one line - `[]` - so the refusal is a new guard, and the business flow's claim that a legacy
+delete silently stranded products is confirmed rather than assumed.
+
+**The single-item case is the worse half, and has been missed only by luck.** A pipe unrolls
+a one-element collection into a scalar, so a database with exactly one table would write
+`{...}` where every consumer expects `[{...}]`. Every one of them does `json.load` then
+iterates.
+
+**Closed.** Both writes use `ConvertTo-Json -InputObject @(...)`, which forces array shape in
+both directions. `tests/test_extraction_json_shape.py` holds it: two of its three tests fail
+against the previous script. The check for a reintroduced pipe is scoped to the two
+collection variables on purpose - `$componentIndex` and `$result` are a single `[ordered]@{}`
+each, and piping one object is correct.
+
+**Corrects A72.** That entry said the current extractor "writes `schema/relations.json`
+unconditionally", and used the file's absence from A06's bundle as evidence that the export
+predates release 2.12. The first half was false and the second therefore unsupported. A06's
+export may or may not be old; nothing in this repository shows it either way, and the
+question stopped mattering once the re-extraction produced the file.
+
+### A72 - the extractor did not read the properties its own taxonomy calls a hiding place
+
+**Found 2026-09-15, writing Stage 1 for A06's `保管場所登録画面`.** The screen has two
+columns, one button, and four lines of VBA that close the form. Every business rule about
+it has to come from the table definition, and the table definition in the bundle carries
+`name`, `type`, `size` and `required` - nothing else.
+
+`modernize/docs/LEGACY_EVIDENCE.md` §2 lists table definitions as a place business rules
+live and names the properties by hand: `Required`, `AllowZeroLength`, `DefaultValue`,
+`ValidationRule`, `ValidationText`. It even states why they are missed - *validation rules
+are properties, invisible unless explicitly dumped* - and §3 tells an operator doing a
+manual export to dump them. So the package documented a manual path that produces
+**stronger** evidence than its own extractor, for the one object class where a screen with
+no code has nowhere else to look.
+
+It was not hidden. `specifications/dao-field-types.yaml` listed both under
+`not_extracted` with an honest reason, which is why this survived: a named gap reads as a
+decision, and nobody re-asked whether it was still the right one. EC-06 makes naming the
+gap mandatory; it does not make the gap correct.
+
+**Closed.** `extract_access.ps1` now reads `DefaultValue`, `ValidationRule`,
+`ValidationText`, `AllowZeroLength` and `Attributes`, each inside its own `try/catch` -
+a linked table refuses some of them depending on what the link supports, and one refusal
+must not cost the other four or the field row. Unset and empty stay distinct: Access
+writes `""` for a text field defaulting to the empty string, and a catalogue that
+collapses the two cannot say which it saw. `dao-field-types.yaml` moves the three closed
+entries out of `not_extracted` into `collected_field_properties`, each with what it
+carries; `Precision`/`Scale` and the foreign-key note stay, the latter because it was
+never a collection gap.
+
+`tests/test_field_properties.py` holds the taxonomy and the extractor together: adding a
+property to the table-definitions row of `LEGACY_EVIDENCE.md` fails until the extractor
+reads it. Five of its six tests fail against the previous script.
+
+**Proven on a live host, 2026-09-15.** Re-run against A06's real data file through the
+managed adapter: `保管場所コード` comes back `default_value: "0"`, `名称` comes back
+`allow_zero_length: false`, and neither field carries a validation rule. So the `0` on
+the legacy blank row **is** a stored default, and an empty string was already illegal in
+the name column while NULL was not - both of which Stage 1 had to leave open.
+
+**One claim in the paragraph this replaces was wrong**: that the extractor writes
+`schema/relations.json` unconditionally, and that its absence from A06's bundle therefore
+dated the export. It did not write it for a database with no relationships at all - see
+A73, which this run found.
+
 ### A71 - a citation qualified by another subsystem read as a broken one
 
 **Found 2026-09-14, first `validate-docs` run on the A06 project.** Five

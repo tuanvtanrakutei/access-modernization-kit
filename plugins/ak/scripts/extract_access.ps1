@@ -391,7 +391,33 @@ function Read-JetLayer($Database) {
         try {
             $fields = @()
             foreach ($field in $table.Fields) {
-                $fields += [ordered]@{ name = [string]$field.Name; type = [int]$field.Type; size = [int]$field.Size; required = [bool]$field.Required }
+                # `LEGACY_EVIDENCE.md` names table definitions as a place business rules
+                # live and lists these four properties by name, and its manual-export
+                # instructions tell an operator to dump them. Reading name/type/size/
+                # required only made this extractor produce weaker evidence than the
+                # manual path the same package documents. A72.
+                #
+                # Each property is read on its own. A linked table's fields raise on
+                # some of them depending on what the link supports, and one refusal
+                # must not cost the other three or the field itself.
+                $default = $null
+                $validationRule = $null
+                $validationText = $null
+                $allowZeroLength = $null
+                $attributes = $null
+                try { $default = [string]$field.DefaultValue } catch {}
+                try { $validationRule = [string]$field.ValidationRule } catch {}
+                try { $validationText = [string]$field.ValidationText } catch {}
+                try { $allowZeroLength = [bool]$field.AllowZeroLength } catch {}
+                try { $attributes = [int]$field.Attributes } catch {}
+                # An empty string and an unset property are different facts: Access
+                # writes "" for a text field defaulting to the empty string, and the
+                # property is absent when no default was ever set. Keeping $null
+                # distinct from "" is what lets a catalogue say which one it saw.
+                if ($default -eq '') { $default = $null }
+                if ($validationRule -eq '') { $validationRule = $null }
+                if ($validationText -eq '') { $validationText = $null }
+                $fields += [ordered]@{ name = [string]$field.Name; type = [int]$field.Type; size = [int]$field.Size; required = [bool]$field.Required; default_value = $default; validation_rule = $validationRule; validation_text = $validationText; allow_zero_length = $allowZeroLength; attributes = $attributes }
             }
             $indexes = @()
             foreach ($index in $table.Indexes) {
@@ -553,8 +579,21 @@ function Read-JetLayer($Database) {
 }
 
 function Write-Extraction {
-    $tables | ConvertTo-Json -Depth 12 | Set-Content -LiteralPath (Join-Path $root 'schema/tables.json') -Encoding UTF8
-    $relations | ConvertTo-Json -Depth 12 | Set-Content -LiteralPath (Join-Path $root 'schema/relations.json') -Encoding UTF8
+    # `-InputObject @(...)`, not a pipe, and the `@()` is not decoration. A73.
+    #
+    # Piping an EMPTY collection into ConvertTo-Json sends it no objects, so it emits
+    # nothing and Set-Content writes no file at all. `schema/relations.json` was therefore
+    # absent from every database that declares zero relationships - and absent is exactly
+    # what an older extractor that never wrote the file looks like. A06's bundle was read
+    # as the second when it was the first, which turned "this application declares no
+    # relationships" into "we cannot know whether it does", and left a screen unable to
+    # say whether the legacy engine already refused a delete.
+    #
+    # The one-element case is worse than the empty one: a pipe unrolls a single-item
+    # collection into a scalar, so a database with exactly one table would write `{...}`
+    # where every consumer expects `[{...}]`. `@()` forces array shape in both directions.
+    ConvertTo-Json -InputObject @($tables) -Depth 12 | Set-Content -LiteralPath (Join-Path $root 'schema/tables.json') -Encoding UTF8
+    ConvertTo-Json -InputObject @($relations) -Depth 12 | Set-Content -LiteralPath (Join-Path $root 'schema/relations.json') -Encoding UTF8
     $generatedAt = [DateTime]::UtcNow.ToString('o')
     $componentIndex = [ordered]@{ schema_version = '2.1'; app_id = $DatabaseId; generated_at = $generatedAt; components = $components }
     $componentIndex | ConvertTo-Json -Depth 15 | Set-Content -LiteralPath (Join-Path $root 'component-index.json') -Encoding UTF8
