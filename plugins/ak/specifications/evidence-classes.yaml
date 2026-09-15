@@ -93,6 +93,30 @@ evidence_classes:
       true of the machine observed is not thereby true of every machine that runs
       the application.
 
+  DATA_STATE:
+    means: >
+      The observed contents of the live data at a point in time: how many rows a table
+      holds, how a column's values are actually distributed, whether a value a schema
+      permits is one the data ever uses.
+    typical_source_types: ["RUNTIME"]
+    typical_locations: ["an aggregate query against a read-only copy of the database"]
+    supports: [STRUCTURE]
+    corroborates: [BEHAVIOUR, USAGE]
+    cannot_support: [MEANING, INTENT, FORMAT]
+    note: >
+      Added for the same reason ENVIRONMENT was: a finding had no class to sit in. A06
+      measured 保管場所マスタ and found every one of 5,020 product rows on a single code,
+      with the second code used by nothing - which answered two open questions and fitted
+      nowhere. SAMPLE_DATA is a file the application reads, not the database it owns;
+      SCHEMA is the definition, not the contents.
+
+      It carries ENVIRONMENT's two cautions and one of its own. It goes stale - a row
+      count is true of the moment it was taken, so an item of this class is worth little
+      without its observation date. It describes one database, not every deployment. And
+      it **corroborates** usage rather than establishing it: that no product uses a code
+      is a fact, that nobody ever wanted to is a reading, and EC-01 still requires a
+      DOCUMENT or an INTERVIEW before the reading becomes a claim.
+
   CODE:
     means: "VBA, macro and SQL text as written."
     typical_source_types: ["VBA", "SQL"]

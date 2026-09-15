@@ -148,6 +148,7 @@
             "SCHEMA",
             "CODE",
             "ENVIRONMENT",
+            "DATA_STATE",
             "UI_DEFINITION",
             "SCREENSHOT",
             "SAMPLE_DATA",
