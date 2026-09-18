@@ -7,6 +7,8 @@ import argparse
 import base64
 import json
 import os
+import shutil
+import stat
 import subprocess
 import sys
 import uuid
@@ -217,11 +219,20 @@ def parse_args() -> argparse.Namespace:
     )
     migrate.add_argument("--json", action="store_true")
 
-    install = commands.add_parser("install", help="Install the skill for a non-Codex runtime.")
-    install.add_argument("--runtime", choices=("codex", "claude", "generic"), required=True)
-    install.add_argument("--project", help="Claude project directory; required for --runtime claude.")
+    install = commands.add_parser("install", help="Install package skills for coding agent runtimes.")
+    install.add_argument(
+        "--runtime",
+        choices=("claude", "codex", "gemini", "antigravity", "agents", "all", "generic"),
+        required=True,
+        help="Agent runtime target (claude, codex, gemini/antigravity, agents, all, generic).",
+    )
+    install.add_argument(
+        "--project",
+        help="Project directory (required for claude, agents, all; optional for codex/gemini/antigravity).",
+    )
     install.add_argument("--destination", help="Skill destination; required for --runtime generic.")
     install.add_argument("--dry-run", action="store_true", help="Print the planned installation without changing files.")
+    install.add_argument("--force", action="store_true", help="Recreate links even if destination already exists or targets a different path.")
 
     init = commands.add_parser("init", help="Create or safely adopt one legacy app workspace.")
     init_location = init.add_mutually_exclusive_group(required=True)
@@ -340,24 +351,49 @@ def classification_result(classification: object, profile: str | None = None) ->
     }
 
 
-def install_destination(args: argparse.Namespace) -> Path:
-    if args.runtime == "codex":
-        return Path(os.environ.get("USERPROFILE", str(Path.home()))) / ".codex" / "skills" / "investigate"
-    if args.runtime == "claude":
-        if not args.project:
-            raise ValueError("--project is required for --runtime claude")
-        return Path(args.project).expanduser().resolve() / ".claude" / "skills" / "investigate"
-    if not args.destination:
-        raise ValueError("--destination is required for --runtime generic")
-    return Path(args.destination).expanduser().resolve()
+def discover_package_skills() -> list[str]:
+    """Dynamically discover all package skills containing a SKILL.md."""
+    skills_dir = PACKAGE / "skills"
+    if not skills_dir.is_dir():
+        return []
+    return sorted([
+        entry.name
+        for entry in skills_dir.iterdir()
+        if entry.is_dir() and (entry / "SKILL.md").is_file()
+    ])
+
+
+def remove_directory_link(link: Path) -> None:
+    """Safely remove a directory junction or symlink without modifying target files."""
+    if not os.path.lexists(link):
+        return
+    if os.name == "nt":
+        try:
+            attrs = os.lstat(link).st_file_attributes
+            if attrs & stat.FILE_ATTRIBUTE_REPARSE_POINT:
+                try:
+                    link.rmdir()
+                except OSError:
+                    link.unlink()
+                return
+        except OSError:
+            pass
+    if link.is_symlink() or os.path.islink(link):
+        link.unlink()
+    elif link.is_file():
+        link.unlink()
+    elif link.is_dir():
+        shutil.rmtree(link)
 
 
 def create_directory_link(link: Path, target: Path) -> int:
+    resolved_target = target.resolve()
+    resolved_link = link.resolve(strict=False)
     if os.name != "nt":
-        link.symlink_to(target, target_is_directory=True)
+        link.symlink_to(resolved_target, target_is_directory=True)
         return 0
     quote = lambda value: "'" + str(value).replace("'", "''") + "'"
-    command = f"New-Item -ItemType Junction -Path {quote(link)} -Target {quote(target)} | Out-Null"
+    command = f"New-Item -ItemType Junction -Path {quote(resolved_link)} -Target {quote(resolved_target)} | Out-Null"
     encoded = base64.b64encode(command.encode("utf-16le")).decode("ascii")
     result = subprocess.run(
         ["powershell.exe", "-NoProfile", "-NonInteractive", "-EncodedCommand", encoded],
@@ -370,52 +406,230 @@ def create_directory_link(link: Path, target: Path) -> int:
     return result.returncode
 
 
-def install_skill(args: argparse.Namespace) -> int:
+def _link_pair(link: Path, target: Path, force: bool) -> tuple[bool, str | None]:
+    target_resolved = target.resolve()
+    if os.path.lexists(link):
+        try:
+            if link.resolve() == target_resolved:
+                return True, None
+        except Exception:
+            pass
+        if not force:
+            return False, f"ERROR: destination already exists and targets a different path: {link}"
+        remove_directory_link(link)
+
+    link.parent.mkdir(parents=True, exist_ok=True)
+    if create_directory_link(link, target_resolved) != 0:
+        return False, f"ERROR: failed to create directory link from {link} to {target_resolved}"
+    return True, None
+
+
+def install_destination(args: argparse.Namespace) -> Path:
     if args.runtime == "codex":
-        print("ak is installed for Codex through `codex plugin add ak@access-modernization-kit`.")
-        print("Do not create a manual .codex/skills link.")
-        return 0
-    try:
-        destination = install_destination(args)
-    except ValueError as exc:
-        print(f"ERROR: {exc}")
-        return 2
-    source = PACKAGE.resolve()
+        if args.project:
+            return Path(args.project).expanduser().resolve() / ".codex" / "skills"
+        return Path(os.environ.get("USERPROFILE", str(Path.home()))) / ".codex" / "skills"
     if args.runtime == "claude":
-        runtime_root = destination.parents[1] / "ak-runtime"
-        skill_source = runtime_root / "skills" / "investigate"
+        if not args.project:
+            raise ValueError("--project is required for --runtime claude")
+        return Path(args.project).expanduser().resolve() / ".claude" / "skills"
+    if args.runtime in ("gemini", "antigravity"):
+        if args.project:
+            return Path(args.project).expanduser().resolve() / ".agents" / "skills"
+        return Path(os.environ.get("USERPROFILE", str(Path.home()))) / ".gemini" / "config" / "skills"
+    if args.runtime == "agents":
+        if not args.project:
+            raise ValueError("--project is required for --runtime agents")
+        return Path(args.project).expanduser().resolve() / ".agents" / "skills"
+    if not args.destination:
+        raise ValueError("--destination is required for --runtime generic")
+    return Path(args.destination).expanduser().resolve()
+
+
+def install_skill(args: argparse.Namespace) -> int:
+    skills = discover_package_skills()
+    if not skills:
+        print("ERROR: No skills discovered in package.")
+        return 1
+
+    runtime = args.runtime
+    force = getattr(args, "force", False)
+
+    if runtime == "all":
+        if not args.project:
+            print("ERROR: --project is required for --runtime all")
+            return 2
+        project_dir = Path(args.project).expanduser().resolve()
+        source = PACKAGE.resolve()
+        targets = [
+            ("Claude", project_dir / ".claude"),
+            ("Codex", project_dir / ".codex"),
+            ("agents", project_dir / ".agents"),
+        ]
+        if args.dry_run:
+            for name, r_dir in targets:
+                runtime_root = r_dir / "ak-runtime"
+                skills_root = r_dir / "skills"
+                print(f"Would install package runtime for {name}: {runtime_root} -> {source}")
+                for s in skills:
+                    print(f"Would install {name} skill: {skills_root / s} -> {runtime_root / 'skills' / s}")
+            return 0
+
+        for name, r_dir in targets:
+            runtime_root = r_dir / "ak-runtime"
+            skills_root = r_dir / "skills"
+            ok, err = _link_pair(runtime_root, source, force)
+            if not ok:
+                print(err)
+                return 2 if "already exists" in (err or "") else 1
+            for s in skills:
+                ok, err = _link_pair(skills_root / s, runtime_root / "skills" / s, force)
+                if not ok:
+                    print(err)
+                    return 2 if "already exists" in (err or "") else 1
+        print(f"Installed ak for all runtimes (claude, codex, agents) in {project_dir}")
+        print("Restart or open a new session so your coding assistant discovers the skills.")
+        return 0
+
+    if runtime == "claude":
+        if not args.project:
+            print("ERROR: --project is required for --runtime claude")
+            return 2
+        project_dir = Path(args.project).expanduser().resolve()
+        runtime_root = project_dir / ".claude" / "ak-runtime"
+        skills_root = project_dir / ".claude" / "skills"
+        source = PACKAGE.resolve()
         if args.dry_run:
             print(f"Would install package runtime for Claude: {runtime_root} -> {source}")
-            print(f"Would install Claude skill: {destination} -> {skill_source}")
+            for s in skills:
+                print(f"Would install Claude skill: {skills_root / s} -> {runtime_root / 'skills' / s}")
             return 0
-        for link, target in ((runtime_root, source), (destination, skill_source)):
-            if link.exists():
-                if link.resolve() == target.resolve():
-                    continue
-                print(f"ERROR: destination already exists and targets a different path: {link}")
-                return 2
-            link.parent.mkdir(parents=True, exist_ok=True)
-            if create_directory_link(link, target) != 0:
-                return 1
-        print(f"Installed ak for Claude: {destination}")
+        ok, err = _link_pair(runtime_root, source, force)
+        if not ok:
+            print(err)
+            return 2 if "already exists" in (err or "") else 1
+        for s in skills:
+            ok, err = _link_pair(skills_root / s, runtime_root / "skills" / s, force)
+            if not ok:
+                print(err)
+                return 2 if "already exists" in (err or "") else 1
+        print(f"Installed ak for Claude: {skills_root}")
         print("Restart or open a new Claude session so it discovers the skill.")
         return 0
-    source = PACKAGE / "skills" / "investigate"
-    if args.dry_run:
-        print(f"Would install ak for {args.runtime}: {destination} -> {source}")
-        return 0
-    if destination.exists():
-        if destination.resolve() == source:
-            print(f"ak is already installed for {args.runtime}: {destination}")
+
+    if runtime == "codex":
+        if args.project:
+            project_dir = Path(args.project).expanduser().resolve()
+            runtime_root = project_dir / ".codex" / "ak-runtime"
+            skills_root = project_dir / ".codex" / "skills"
+            source = PACKAGE.resolve()
+            if args.dry_run:
+                print(f"Would install package runtime for Codex: {runtime_root} -> {source}")
+                for s in skills:
+                    print(f"Would install Codex skill: {skills_root / s} -> {runtime_root / 'skills' / s}")
+                return 0
+            ok, err = _link_pair(runtime_root, source, force)
+            if not ok:
+                print(err)
+                return 2 if "already exists" in (err or "") else 1
+            for s in skills:
+                ok, err = _link_pair(skills_root / s, runtime_root / "skills" / s, force)
+                if not ok:
+                    print(err)
+                    return 2 if "already exists" in (err or "") else 1
+            print(f"Installed ak for Codex: {skills_root}")
+            print("Restart or open a new Codex session so it discovers the skill.")
             return 0
-        print(f"ERROR: destination already exists and targets a different path: {destination}")
-        return 2
-    destination.parent.mkdir(parents=True, exist_ok=True)
-    if create_directory_link(destination, source) != 0:
-        return 1
-    print(f"Installed ak for {args.runtime}: {destination}")
-    print("Restart or open a new agent session so it discovers the skill.")
-    return 0
+        else:
+            skills_root = Path(os.environ.get("USERPROFILE", str(Path.home()))) / ".codex" / "skills"
+            if args.dry_run:
+                for s in skills:
+                    print(f"Would install Codex skill: {skills_root / s} -> {PACKAGE / 'skills' / s}")
+                return 0
+            for s in skills:
+                ok, err = _link_pair(skills_root / s, PACKAGE / "skills" / s, force)
+                if not ok:
+                    print(err)
+                    return 2 if "already exists" in (err or "") else 1
+            print(f"Installed ak for Codex: {skills_root}")
+            print("Restart or open a new Codex session so it discovers the skill.")
+            return 0
+
+    if runtime in ("agents", "gemini", "antigravity"):
+        if args.project:
+            project_dir = Path(args.project).expanduser().resolve()
+            runtime_root = project_dir / ".agents" / "ak-runtime"
+            skills_root = project_dir / ".agents" / "skills"
+            source = PACKAGE.resolve()
+            if args.dry_run:
+                print(f"Would install package runtime for {runtime}: {runtime_root} -> {source}")
+                for s in skills:
+                    print(f"Would install {runtime} skill: {skills_root / s} -> {runtime_root / 'skills' / s}")
+                return 0
+            ok, err = _link_pair(runtime_root, source, force)
+            if not ok:
+                print(err)
+                return 2 if "already exists" in (err or "") else 1
+            for s in skills:
+                ok, err = _link_pair(skills_root / s, runtime_root / "skills" / s, force)
+                if not ok:
+                    print(err)
+                    return 2 if "already exists" in (err or "") else 1
+            print(f"Installed ak for {runtime}: {skills_root}")
+            print(f"Restart or open a new agent session so it discovers the skill.")
+            return 0
+        else:
+            if runtime == "agents":
+                print("ERROR: --project is required for --runtime agents")
+                return 2
+            skills_root = Path(os.environ.get("USERPROFILE", str(Path.home()))) / ".gemini" / "config" / "skills"
+            if args.dry_run:
+                for s in skills:
+                    print(f"Would install {runtime} skill: {skills_root / s} -> {PACKAGE / 'skills' / s}")
+                return 0
+            for s in skills:
+                ok, err = _link_pair(skills_root / s, PACKAGE / "skills" / s, force)
+                if not ok:
+                    print(err)
+                    return 2 if "already exists" in (err or "") else 1
+            print(f"Installed ak for {runtime}: {skills_root}")
+            print(f"Restart or open a new agent session so it discovers the skill.")
+            return 0
+
+    if runtime == "generic":
+        if not args.destination:
+            print("ERROR: --destination is required for --runtime generic")
+            return 2
+        destination = Path(args.destination).expanduser().resolve()
+        if destination.name in skills:
+            source = PACKAGE / "skills" / destination.name
+            if args.dry_run:
+                print(f"Would install ak for generic: {destination} -> {source}")
+                return 0
+            ok, err = _link_pair(destination, source, force)
+            if not ok:
+                print(err)
+                return 2 if "already exists" in (err or "") else 1
+            print(f"Installed ak for generic: {destination}")
+            print("Restart or open a new agent session so it discovers the skill.")
+            return 0
+        else:
+            if args.dry_run:
+                print(f"Would install ak for generic: {destination}")
+                for s in skills:
+                    print(f"Would install generic skill: {destination / s} -> {PACKAGE / 'skills' / s}")
+                return 0
+            for s in skills:
+                ok, err = _link_pair(destination / s, PACKAGE / "skills" / s, force)
+                if not ok:
+                    print(err)
+                    return 2 if "already exists" in (err or "") else 1
+            print(f"Installed ak for generic: {destination}")
+            print("Restart or open a new agent session so it discovers the skill.")
+            return 0
+
+    print(f"ERROR: Unsupported runtime: {runtime}")
+    return 2
 
 
 def main() -> int:

@@ -104,6 +104,32 @@ def test_friendly_cli_entrypoint(tmp_path: Path) -> None:
     run_script("ak.py", "install", "--runtime", "claude", "--project", str(claude_project))
     assert (claude_project / ".claude" / "ak-runtime").resolve() == PACKAGE.resolve()
     assert (claude_project / ".claude" / "skills" / "investigate").resolve() == (PACKAGE / "skills" / "investigate").resolve()
+    assert (claude_project / ".claude" / "skills" / "modernize-screen").resolve() == (PACKAGE / "skills" / "modernize-screen").resolve()
+
+    codex_project = tmp_path / "codex-project"
+    run_script("ak.py", "install", "--runtime", "codex", "--project", str(codex_project))
+    assert (codex_project / ".codex" / "ak-runtime").resolve() == PACKAGE.resolve()
+    assert (codex_project / ".codex" / "skills" / "investigate").resolve() == (PACKAGE / "skills" / "investigate").resolve()
+    assert (codex_project / ".codex" / "skills" / "modernize-screen").resolve() == (PACKAGE / "skills" / "modernize-screen").resolve()
+
+    agents_project = tmp_path / "agents-project"
+    run_script("ak.py", "install", "--runtime", "agents", "--project", str(agents_project))
+    assert (agents_project / ".agents" / "ak-runtime").resolve() == PACKAGE.resolve()
+    assert (agents_project / ".agents" / "skills" / "investigate").resolve() == (PACKAGE / "skills" / "investigate").resolve()
+    assert (agents_project / ".agents" / "skills" / "modernize-screen").resolve() == (PACKAGE / "skills" / "modernize-screen").resolve()
+
+    all_project = tmp_path / "all-project"
+    run_script("ak.py", "install", "--runtime", "all", "--project", str(all_project))
+    for runtime_dir in (".claude", ".codex", ".agents"):
+        assert (all_project / runtime_dir / "ak-runtime").resolve() == PACKAGE.resolve()
+        assert (all_project / runtime_dir / "skills" / "investigate").resolve() == (PACKAGE / "skills" / "investigate").resolve()
+        assert (all_project / runtime_dir / "skills" / "modernize-screen").resolve() == (PACKAGE / "skills" / "modernize-screen").resolve()
+
+    # Reinstall with --force
+    run_script("ak.py", "install", "--runtime", "all", "--project", str(all_project), "--force")
+    for runtime_dir in (".claude", ".codex", ".agents"):
+        assert (all_project / runtime_dir / "ak-runtime").resolve() == PACKAGE.resolve()
+        assert (all_project / runtime_dir / "skills" / "investigate").resolve() == (PACKAGE / "skills" / "investigate").resolve()
     run_script(
         "ak.py", "init",
         "--root", str(tmp_path),
