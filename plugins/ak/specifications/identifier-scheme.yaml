@@ -221,9 +221,13 @@ namespaces:
     owned_by: [phase1, phase2, phase3, phase4, phase5]
     requires_evidence: false
     note: >
-      Lives in the question list. When answered, the answer becomes INTERVIEW-class
-      evidence with its own evidence ID, and the question is marked resolved
-      against it - the two are never the same record.
+      The ask. When answered, the answer becomes INTERVIEW-class evidence with its own
+      evidence ID, and the question is marked resolved against it - the two are never
+      the same record. An open Q carries a `needs` block (see `register.needs`), which
+      is what makes it routable: who can answer, what waits on it, what the pipeline
+      proceeds on meanwhile. A Q asks about a `UK-` through `needs.gap`; the unknown is
+      the gap in the document and the question is the action, so a pair is two records
+      doing two jobs and not a duplicate.
 
   d:
     name: "Inbound data file crossing the boundary"
@@ -273,13 +277,43 @@ rules:
     rule: "Every F- appears with the object's real name beside it, in every document and every generated key."
     on_violation: "A reader cannot tell which screen is meant."
 
+  # A75. The next four govern the `needs` block. They exist because a person was asked in
+  # ten places and the register knew none of it: the fields were prose in four tables.
+  - id: ID-07
+    rule: >
+      Every open `Q` carries a `needs` block, and every open `UK-` either carries one or
+      is named by a `Q`'s `needs.gap`.
+    on_violation: "A question exists that no queue can route, rank or block on."
+
+  - id: ID-08
+    rule: >
+      `needs.party` is a canonical party in `input/decisions/parties.yaml`, as are every
+      `needs.also` and the party each `needs.named` person is listed under. A DISPOSITION,
+      SCOPE or POLICY belongs to the `decider`.
+    on_violation: "An owner nobody can be sent to. One department under two spellings is two agendas."
+
+  - id: ID-09
+    rule: >
+      Every identifier a `needs` block names resolves in the register. `default` is an
+      `AS-` (or `mitigation` on a risk's DISPOSITION), `gap` is a `UK-` and appears only on
+      a `Q`, `blocks` is not empty unless the kind is POLICY, `depends_on` has no cycle,
+      and no field outside the declared ones is present.
+    on_violation: "A reference that points nowhere, an agenda that cannot be ordered, or a misspelt field that does nothing while looking like one that works."
+
+  - id: ID-10
+    rule: >
+      A phase's own Questions and Unknowns tables agree with the register on party, blocks,
+      default and whether an item is closed. A cell that is prose, naming nothing a program
+      can follow, is counted and not compared.
+    on_violation: "The document and the register describe two different questions; a reader acts on one and the queue on the other."
+
 # ---------------------------------------------------------------------------
 # Where allocations live.
 # ---------------------------------------------------------------------------
 register:
   path: "runs/{RUN_ID}/outputs/{APP_ID}_Identifiers.json"
   written_by: "the phase that allocates, appended never rewritten"
-  fields: ["id", "namespace", "phase", "title", "evidence_ids", "severity", "superseded_by", "resolved_by", "created_at"]
+  fields: ["id", "namespace", "phase", "title", "evidence_ids", "severity", "superseded_by", "resolved_by", "created_at", "needs"]
   closing: >
     An open `UK-` or `Q` is carried by every later phase until one of two fields is
     set. `resolved_by` names the evidence id that answers it - the question is done,
@@ -290,3 +324,31 @@ register:
 
     Neither field is a way to make a list shorter. An item with nothing in this phase
     bearing on it stays open and is reported as unchanged.
+
+  # A75. What makes an entry a queue item, and what the queue may read from it. The module
+  # `contracts/decision_queue.py` holds the validator; `schemas/decision-needs.schema.json`
+  # holds the same structure for tools that do not import it; a test holds the three
+  # together, because a contract stated in two places drifts in one of them (A74).
+  needs:
+    purpose: >
+      An entry is a queue item if and only if it carries a `needs` block. The block holds
+      the fields a person routing the question needs and a program cannot recover from a
+      table cell: who can answer, what waits on it, and what the pipeline does meanwhile.
+      Status is not one of them. It is derived from `resolved_by` and `superseded_by`.
+    kinds:
+      FACT: "What the legacy system does, means, or who uses it. Settled by INTERVIEW or DOCUMENT evidence (EC-01)."
+      DISPOSITION: "What the new system does about a legacy behaviour: preserve, fix, drop or defer. Settled by TARGET_INTENT."
+      SCOPE: "Whether a screen, report, table or boundary file is in the replacement. Settled by TARGET_INTENT (EC-07)."
+      POLICY: "A rule that settles a class of the others. Settled by TARGET_INTENT."
+    risk_classes: ["technical", "data", "retired", "behaviour"]
+    fields:
+      kind: "One of the kinds above. Required."
+      party: "Canonical name in input/decisions/parties.yaml. Required. The `decider` for every kind but FACT."
+      also: "Other canonical parties who can answer. Optional."
+      named: "People inside the party who can answer, each listed under a party in parties.yaml. Optional."
+      blocks: "Identifiers, or `object:<production name>`, that cannot be finalised without it. Required and non-empty except for a POLICY."
+      default: "The AS- the pipeline proceeds on while the item is open, or `mitigation` for a risk's DISPOSITION. Absent means the item blocks what it names."
+      gap: "The UK- this question asks about. A Q only."
+      depends_on: "Items to settle first. No cycles."
+      class: "Risks only: technical, data, retired or behaviour, the key into standing policy."
+      options: "DISPOSITION and SCOPE: the choices, at least two."

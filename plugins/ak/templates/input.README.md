@@ -64,12 +64,13 @@ One real example of each inbound file, as the sender produces it — not a file 
 to look right. Anonymise the values if you must, but keep the column count and the
 widths: those are the thing being read.
 
-### `decisions/` — the two files you edit
+### `decisions/` — the files you edit
 
 | File | What it settles |
 |---|---|
 | `glossary.yaml` | The English name for each production name. Change any that is wrong and set `status: accepted`; an accepted name always wins over a composed one. |
 | `meanings.yaml` | Business meaning per table or column. **An entry must name its source** — `evidence_class` (DOCUMENT or INTERVIEW) and `source` — or it is ignored and the cell keeps reading `_needs DOCUMENT_`. |
+| `parties.yaml` | Who can be asked a question, under one canonical name each. A phase writes a party's name in its Questions table and the register; every spelling already in a document goes under `aliases`, so `常温庫` and "Warehouse operations" are one party and one agenda. People who sit inside a department go under its `people`. The `decider` — whoever is building the new system, and who settles every disposition and scope decision — needs no entry. |
 
 That last rule is the same discipline the kit applies to itself: a meaning with no
 source is the kind of claim that becomes a fact by repetition.

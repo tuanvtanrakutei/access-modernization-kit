@@ -12,6 +12,75 @@ that it should now work.
 
 ## Open
 
+### A75 - a person is asked in ten places, and the register knows none of it
+
+**Found 2026-10-01, asking what a developer would have to decide on A06 and finding no list
+to read it from.** The end goal is a modernization process that is about 95% automated, and
+that only means something if the decisions that remain can be enumerated. They could not
+be. One open item lived in a `Questions` table, again in an `Unknowns` table that mostly
+asked it twice, in an `Assumptions` table naming what the pipeline proceeded on meanwhile,
+and in a risk's Mitigation column - while the register beside them carried an id and a
+title. Design: `docs/superpowers/specs/2026-10-01-decision-queue-design.md`, four slices.
+This entry records slice 1 and what running it found.
+
+**Measured on A06's phase 1 to 4 documents with a script that wrote nothing.**
+
+- All 24 UK, 21 Q, 14 AS and 18 risk rows parse out of the markdown and every identifier in
+  a table is in the register, so the fields can be moved into the register rather than
+  re-derived.
+- 39 open Q and UK entries. About 15 of the 20 open unknowns have a question asking the same
+  thing (read from titles, not computed); a text-overlap check finds 4 of them at 0.30, so a
+  link has to be declared when the item is allocated.
+- 12 spellings of the owner across those 39 cells: the same department is `常温庫` (9),
+  "Warehouse operations" (10) and `常温庫 / システム課` (3).
+- All 14 assumptions carry an "If wrong", and all 18 risks a Mitigation, five of them waiting
+  on an open Q or UK by name. The default and the recommended answer were already written;
+  nothing linked them to the question.
+
+**Three items nobody had looked for.** The first run of the new agreement check on A06's
+published documents reported Q120 (E-11), Q106 and UK-S03 (E-10): each row says it is
+answered or withdrawn, and the register lists all three as open. The 39 "open" entries were
+36. They are listed under `close:` in the backfill proposal, waiting for the evidence id that
+answers each.
+
+**A wrong reading, corrected.** The design first said Q120's owner cell held an evidence id
+because a `|` inside the question had shifted every column. The row has exactly four cells.
+When it was marked answered its cells were rewritten in place: the Blocks column holds the
+original question, the Owner column an evidence id, and the real Blocks and Owner are gone.
+A row-width check exists anyway, because positional parsing is only safe for a row of the
+header's width, but A06 does not show that defect and no A06 evidence is claimed for it.
+
+**Landed (slice 1).**
+
+- `register.needs` in `identifier-scheme.yaml`, rules ID-07 to ID-10, `schemas/decision-needs.schema.json`
+  and `contracts/decision_queue.py`, held together by a test that fails if any of the three
+  states the contract differently (A74).
+- `input/decisions/parties.yaml`: one canonical name per party, spellings under `aliases`.
+  The decider needs no entry.
+- Two apparatus checks. `decision_fields_present` holds the register to the contract;
+  `decision_tables_agree` holds a phase's own Questions and Unknowns tables to the register on
+  party, blocks, default and whether the item is closed. Columns are read by position, so the
+  Vietnamese table is the same table as the English one.
+- Templates 1 to 5 carry `Party`, `Default` and `Asked as`, and say how to close a row without
+  rewriting it.
+- `$ak backfill-needs`: proposes from the documents, marks everything it could not read
+  `UNDECIDED`, and `--apply` refuses a proposal that still has one. All or nothing, in the
+  register's own format, with the previous file kept under `.ak/backups/`.
+
+**Not done, and where the checks are weaker than they look.**
+
+- Slices 2 to 4: `$ak decisions` and the generated `QuestionList.md`, policy and
+  DISPOSITION items from risks, and the consumers (modernize pre-flight, Stage 1 removal).
+- A document published before the contract keeps prose in its Blocks and Default cells. The
+  agreement check counts those cells and reports the count in its result; it does not fail
+  them, so a pre-contract document reads as PASS with a number beside it.
+- The checks prove that a `blocks` identifier exists and that the document and the register
+  agree. They cannot prove that it is the *right* identifier, or that `party` is the right
+  department. That is a reading, and the backfill is where a person makes it.
+- Nothing yet generates the document tables from the register. Both are written, and a check
+  keeps them honest, which is the direction A12 warned about: a register derived from its own
+  subject checks nothing.
+
 ### A74 - a measurement of the live data had no evidence class to sit in
 
 **Found 2026-09-15, answering two open questions on an A06 screen by querying the database

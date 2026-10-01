@@ -36,6 +36,7 @@ part of this per-app sequence — most users only ever need them once, if at all
 | `$ak glossary --app-root <PATH>` | Propose an English name for every production name, for a person to accept. Nobody starts either register from a blank page. |
 | `$ak bilingual --app-root <PATH>` | Print the English name beside every production name in the narratives. |
 | `$ak meanings --app-root <PATH>` | List every table and column still needing a business meaning, blank, for a person to fill. An entry must name its source or it is ignored. |
+| `$ak backfill-needs --app-root <PATH>` | Give a workspace's open questions the `needs` block the decision queue reads (A75): who can answer, what waits on it, what the pipeline proceeds on meanwhile. It proposes from the phase documents and marks what it could not read `UNDECIDED`; `--apply` writes the reviewed proposal and refuses one that still has a `UNDECIDED`. |
 | `$ak interviews --app-root <PATH>` | Read the Q&A register and the pages it indexes, and report where they disagree: a question marked answered whose page holds no answer, one still open, one the register does not list. |
 | `$ak samples --app-root <PATH>` | Compare each supplied sample with the import specification its link names: field count, header names, and `StartRow`. |
 | `$ak completeness --app-root <PATH>` | Record each object's definition-text shape and compare it with the last record and the other acquisition route. Integrity says the bytes arrived; this says whether all of them did. |

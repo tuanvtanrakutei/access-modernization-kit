@@ -38,6 +38,12 @@ import sys
 from pathlib import Path
 from typing import Any
 
+PACKAGE = Path(__file__).resolve().parents[1]
+if str(PACKAGE / "contracts") not in sys.path:
+    sys.path.insert(0, str(PACKAGE / "contracts"))
+
+import decision_queue  # noqa: E402
+
 PHASE_FILE = re.compile(r"Phase([1-6])_", re.IGNORECASE)
 MERMAID = re.compile(r"^```mermaid", re.MULTILINE)
 PLACEHOLDER = re.compile(r"\{\{[A-Z_]+\}\}")
@@ -476,6 +482,39 @@ def apparatus_checks(phase: int, text: str, registers: dict[str, Any],
             else f"{len(carried)} open item(s) from earlier phases, each accounted for",
         ))
 
+    # A75. A person was asked in ten places and the register knew none of it: the owner of
+    # a question, what waited on it, and what the pipeline did meanwhile were prose in four
+    # tables. These two checks hold the fields where a program can read them, and hold the
+    # document to the register (ID-07 to ID-10, and `register.needs` in the scheme).
+    if entries is not None:
+        parties = registers.get("parties")
+        mine = [e for e in entries if e.get("phase") == phase]
+        asks = [e for e in mine if e.get("namespace") in ("Q", "UK-")]
+        problems = decision_queue.validate_register(entries, parties, phase)
+        if parties is None and (asks or any(isinstance(e.get("needs"), dict) for e in mine)):
+            problems.append(
+                "there is no input/decisions/parties.yaml, so no party can be checked and "
+                "no question routed")
+        elif parties is not None:
+            problems += [f"parties.yaml: {p}" for p in parties.problems]
+        results.append(check(
+            "decision_fields_present", "apparatus", not problems,
+            f"{len(problems)} problem(s), first: {problems[:3]}" if problems
+            else f"{len(asks)} question(s) and unknown(s) allocated here, each routable"
+            if asks else "no question or unknown allocated in this phase",
+        ))
+
+        comparison = decision_queue.compare_document(
+            text, phase, entries, parties, signals_for("closed_item", path))
+        note = (f"; {comparison.unstructured} cell(s) are prose, name nothing a program can "
+                f"follow, and were not compared" if comparison.unstructured else "")
+        results.append(check(
+            "decision_tables_agree", "apparatus", not comparison.findings,
+            f"{len(comparison.findings)} disagreement(s), first: {comparison.findings[:3]}"
+            if comparison.findings
+            else f"{comparison.compared} row(s) compared against the register{note}",
+        ))
+
     # A67. Errata was checked in Phase 6 only, and corrections do not wait for Phase 6.
     # A06's Phase 3 corrected two published Phase 1 risks - the actor behind the `99`
     # placeholders, and what destroys `準備数` - wrote **corrected** in its
@@ -550,6 +589,11 @@ def load_registers(outputs: Path) -> dict[str, Any]:
     ids_from("*_Identifiers.json", "identifier_ids", "id")
     ids_from("*_Errata.json", "errata_ids", "id")
     entries_from("*_Identifiers.json", "identifier_entries")
+    # Next to glossary.yaml and meanings.yaml, which `outputs.parent` already reaches for
+    # the same reason (annotate_bilingual). None when the file is absent, which the check
+    # reports; a project that predates the file is not the same as one that wrote it wrong.
+    registers["parties"] = decision_queue.load_parties(
+        outputs.parent / "input" / "decisions" / "parties.yaml")
     registers["evidence_schema_errors"] = _schema_errors(outputs)
     registers["class_kind_violations"] = _class_kind_violations(outputs)
     matches = [m for where in (".", "registers")
