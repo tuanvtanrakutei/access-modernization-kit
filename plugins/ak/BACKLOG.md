@@ -1515,6 +1515,59 @@ database is a question about the estate, not a fact in the connect string - and 
 it is unanswerable from the string at all, since a DSN is a client-side alias. The kit
 reports the grouping and names the ambiguity; a person resolves it.
 
+### A36 - an inventory of object names satisfies the class defined as their definitions
+
+**Observed 2026-09-10, preparing to run Phase 1 on A06.** `evidence-classes.yaml` defines
+the class Phase 2 requires in one sentence:
+
+> UI_DEFINITION means: SaveAsText form and report definitions: record sources, bound
+> fields, event procedures, embedded controls.
+
+A06's bundle carries **38 form names, no text and no `source_paths`** - the run declared
+`skip_object_export: true`, so the DAO tier collected the object inventory without
+starting an Access host to export any definition. `$ak derive` says the same thing from
+the other end: `distilled 0 UI objects`.
+
+Readiness reports **phase2 READY**, with `UI_DEFINITION` present, because
+`CLASS_FROM_CAPABILITY` maps both `access_object_inventory` and `ui_object_inventory`
+onto it. Those two capabilities prove objects **exist**. The class is defined as their
+**definitions**. So a phase whose characteristic claim is "what each screen is, how it is
+reached, and who uses it" would be told it has the evidence for it, and hold 38 names.
+
+This is A26's and A34's shape a third time: a gate satisfied by something weaker than the
+thing it stands for. It is also the sharpest instance yet, because unlike those two the
+gap is stated in the contract's own words - the sentence above and the capability mapping
+are in the same repository and disagree.
+
+**What is not yet decided, and it is a real question rather than a formality.** Either the
+mapping splits - a name inventory establishing something narrower than `UI_DEFINITION`,
+which needs a class or a capability that does not exist yet - or `UI_DEFINITION` is
+satisfied only by a capability that means definition text was exported, which the
+extractor would then have to emit separately in its two tiers. The second is closer to
+what the sentence says; the first avoids inventing a class to describe an absence.
+
+**It also suppresses the only instruction that would fix it, which is the sharper half
+and was found by an operator asking where the exporter lives.** `contracts/
+phase_evidence.py` builds the remedy with the path resolved for the install in use:
+
+    #   1. import <PACKAGE>/tools/ExportAccessObjects.bas into its VBA project
+
+That is exactly the right answer to "where is the file", and it is emitted **only when
+the capability is missing**. On A06 the capability is not missing - a name inventory
+satisfied it - so `$ak phase requirements --phase 2` returns `missing: []`,
+`reasons: []`, `degraded: []`, `status: READY`, and never mentions the exporter at all.
+
+So the defect hides itself: the gate believes it has the definitions, and therefore
+never tells anybody how to get them. An operator following the kit's own output would
+have no reason to think anything was absent.
+
+**What it costs on A06 right now**, which is why this is not deferred quietly: Phase 2
+must not be run against this bundle, and Phase 3 is thinner than it looks. Event
+procedures live inside form definitions, so the 7 VBA modules and 28 saved queries the
+bundle does carry are the standalone code and not the code behind the screens. A05 by
+comparison carried 51 forms and 67 reports at 5.6 MB of definition text, through the
+imported route.
+
 ### A34 - a run that read none of the backend still sealed a VALID bundle and reported Phase 1 READY
 
 **Observed 2026-09-09 on A06, found because A33's improved conflict message named the
