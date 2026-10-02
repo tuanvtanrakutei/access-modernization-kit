@@ -352,3 +352,4 @@ register:
       depends_on: "Items to settle first. No cycles."
       class: "Risks only: technical, data, retired or behaviour, the key into standing policy."
       options: "DISPOSITION and SCOPE: the choices, at least two."
+      qa: "The customer's Q&A register ids this item was posted as, once a person has posted it (`$ak decisions --link`). Read by `$ak decisions` to tell what is already with the customer. Optional."

@@ -33,7 +33,6 @@ import os
 import re
 import sys
 from collections import Counter
-from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -43,6 +42,7 @@ for _path in (PACKAGE / "contracts", PACKAGE / "scripts"):
         sys.path.insert(0, str(_path))
 
 import decision_queue as dq  # noqa: E402
+import decision_register as dr  # noqa: E402
 import workspace as workspace_contract  # noqa: E402
 
 UNDECIDED = "UNDECIDED"
@@ -52,78 +52,7 @@ LANGUAGE_SUFFIX = re.compile(r"_([A-Z]{2})\.md$")
 PHASE_FILE = re.compile(r"Phase([1-6])_", re.IGNORECASE)
 
 
-class Problem(Exception):
-    """Something that stops the run and is worth saying in one line."""
-
-
-def register_path(output: Path) -> Path:
-    found = [m for where in (".", "registers") for m in sorted((output / where).glob("*_Identifiers.json"))]
-    if len(found) != 1:
-        raise Problem(f"expected one *_Identifiers.json under {output}, found {len(found)}")
-    return found[0]
-
-
-def evidence_ids(output: Path) -> set[str] | None:
-    found = [m for where in (".", "registers") for m in sorted((output / where).glob("*_Evidence.json"))]
-    if len(found) != 1:
-        return None
-    try:
-        items = json.loads(found[0].read_text(encoding="utf-8-sig")).get("items") or []
-    except (OSError, json.JSONDecodeError):
-        return None
-    return {str(i["id"]) for i in items if isinstance(i, dict) and i.get("id")}
-
-
-def errata_ids(output: Path) -> set[str]:
-    found = [m for where in (".", "registers") for m in sorted((output / where).glob("*_Errata.json"))]
-    if len(found) != 1:
-        return set()
-    try:
-        entries = json.loads(found[0].read_text(encoding="utf-8-sig")).get("entries") or []
-    except (OSError, json.JSONDecodeError):
-        return set()
-    return {str(e["id"]) for e in entries if isinstance(e, dict) and e.get("id")}
-
-
-def phase_documents(output: Path) -> dict[int, Path]:
-    """One document per phase, the EN one when there are several."""
-    chosen: dict[int, Path] = {}
-    for path in sorted(output.glob("*.md")):
-        match = PHASE_FILE.search(path.name)
-        if not match:
-            continue
-        phase = int(match.group(1))
-        suffix = LANGUAGE_SUFFIX.search(path.name)
-        if phase not in chosen or (suffix and suffix.group(1) == "EN"):
-            chosen[phase] = path
-    return chosen
-
-
-def closed_markers() -> tuple[str, ...]:
-    try:
-        import yaml
-
-        spec = yaml.safe_load((PACKAGE / "specifications" / "language-support.yaml")
-                              .read_text(encoding="utf-8")) or {}
-        langs = spec["human_languages"]["conformance_signals"]["closed_item"]
-    except Exception:
-        return ()
-    return tuple(p for phrases in langs.values() for p in phrases)
-
-
-def read_text(path: Path) -> str:
-    return path.read_text(encoding="utf-8-sig")
-
-
-def rows_by_id(text: str, wanted: set[str]) -> dict[str, tuple[list[str], int]]:
-    """The first decision-table row for each wanted identifier: (cells, header width)."""
-    found: dict[str, tuple[list[str], int]] = {}
-    for table in dq.tables(text):
-        for row in table.rows:
-            if row.identifier in wanted and row.identifier not in found and row.wellformed \
-                    and len(table.header) >= 4:
-                found[row.identifier] = (row.cells, len(table.header))
-    return found
+Problem = dr.RegisterProblem
 
 
 def yaml_value(value: Any) -> str:
@@ -135,20 +64,6 @@ def open_asks(entries: list[dict[str, Any]]) -> list[dict[str, Any]]:
             and not isinstance(e.get("needs"), dict)]
 
 
-def own_rows(output: Path, entries: list[dict[str, Any]],
-             wanted: set[str]) -> dict[str, tuple[list[str], int]]:
-    """Each wanted identifier's decision-table row, read from the document of the phase
-    that allocated it. A later phase's carried-forward table mentions it too, in a shape
-    that is not this one."""
-    phases = {str(e["id"]): e.get("phase") for e in entries}
-    rows: dict[str, tuple[list[str], int]] = {}
-    for phase, path in sorted(phase_documents(output).items()):
-        for identifier, found in rows_by_id(read_text(path), wanted).items():
-            if phases.get(identifier) == phase:
-                rows.setdefault(identifier, found)
-    return rows
-
-
 def party_cell_of(entry: dict[str, Any], cells: list[str]) -> str:
     index = 3 if entry["namespace"] == "Q" else 4
     return cells[index] if len(cells) > index else ""
@@ -156,9 +71,9 @@ def party_cell_of(entry: dict[str, Any], cells: list[str]) -> str:
 
 def draft_parties(output: Path, entries: list[dict[str, Any]]) -> str:
     """One entry per spelling found, because merging spellings is a decision."""
-    markers = closed_markers()
+    markers = dr.closed_markers()
     asks = open_asks(entries)
-    rows = own_rows(output, entries, {str(e["id"]) for e in asks})
+    rows = dr.own_rows(output, entries, {str(e["id"]) for e in asks})
     spellings: Counter[str] = Counter()
     for entry in asks:
         cells, _width = rows.get(str(entry["id"]), ([], 0))
@@ -194,14 +109,14 @@ def draft_parties(output: Path, entries: list[dict[str, Any]]) -> str:
 
 def propose(space: workspace_contract.Workspace) -> tuple[str, dict[str, int]]:
     output = space.output_dir()
-    register = json.loads(register_path(output).read_text(encoding="utf-8-sig"))
+    register = dr.read_register(dr.register_path(output))
     entries = register["entries"]
     parties = dq.load_parties(space.input_dir("decisions") / "parties.yaml")
     if parties is None:
         raise Problem("no parties.yaml")
-    markers = closed_markers()
+    markers = dr.closed_markers()
     asks = open_asks(entries)
-    rows = own_rows(output, entries, {str(e["id"]) for e in asks})
+    rows = dr.own_rows(output, entries, {str(e["id"]) for e in asks})
 
     counts = {"derived": 0, "party_todo": 0, "blocks_todo": 0, "to_close": 0}
     needs_lines: list[str] = []
@@ -276,23 +191,16 @@ def contains_todo(node: Any, path: str = "") -> list[str]:
     return where
 
 
-def atomic_write(path: Path, text: str) -> None:
-    temporary = path.with_name(path.name + ".tmp")
-    with open(temporary, "w", encoding="utf-8", newline="\n") as handle:
-        handle.write(text)
-    os.replace(temporary, path)
-
-
 def apply(space: workspace_contract.Workspace, proposal_path: Path, dry_run: bool) -> int:
     import yaml
 
     output = space.output_dir()
-    path = register_path(output)
-    register = json.loads(path.read_text(encoding="utf-8-sig"))
+    path = dr.register_path(output)
+    register = dr.read_register(path)
     entries = copy.deepcopy(register["entries"])
     by_id = {str(e["id"]): e for e in entries}
     parties = dq.load_parties(space.input_dir("decisions") / "parties.yaml")
-    proposal = yaml.safe_load(read_text(proposal_path)) or {}
+    proposal = yaml.safe_load(dr.read_text(proposal_path)) or {}
     problems: list[str] = []
 
     pending = contains_todo(proposal)
@@ -309,8 +217,8 @@ def apply(space: workspace_contract.Workspace, proposal_path: Path, dry_run: boo
         else:
             entry["needs"] = block
 
-    known_evidence = evidence_ids(output)
-    known_errata = errata_ids(output)
+    known_evidence = dr.evidence_index(output)
+    known_errata = dr.errata_ids(output)
     closed = 0
     for eid, evidence in (proposal.get("close") or {}).items():
         entry = by_id.get(str(eid))
@@ -339,18 +247,12 @@ def apply(space: workspace_contract.Workspace, proposal_path: Path, dry_run: boo
             print(f"  {problem}")
         return 1
     register["entries"] = entries
-    text = json.dumps(register, indent=1, sort_keys=True, ensure_ascii=False) + "\n"
     added = len(proposal.get("needs") or {}) - skipped
     print(f"{added} needs block(s) to write, {closed} item(s) to close, {skipped} already had one")
     if dry_run:
         print("dry run: nothing written")
         return 0
-    backups = space.owned("backups")
-    backups.mkdir(parents=True, exist_ok=True)
-    stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
-    backup = backups / f"{path.stem}.{stamp}.json"
-    backup.write_bytes(path.read_bytes())
-    atomic_write(path, text)
+    backup = dr.write_register(space, path, register)
     print(f"wrote {path}; the previous file is {backup}")
     applied = proposal_path.with_name(APPLIED)
     os.replace(proposal_path, applied)
@@ -382,7 +284,7 @@ def main() -> int:
         output = space.output_dir()
         parties_path = decisions / "parties.yaml"
         if not parties_path.is_file():
-            register = json.loads(register_path(output).read_text(encoding="utf-8-sig"))
+            register = dr.read_register(dr.register_path(output))
             draft = draft_parties(output, register["entries"])
             if args.dry_run:
                 print(draft)

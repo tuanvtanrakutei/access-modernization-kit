@@ -172,6 +172,20 @@ def parse_args() -> argparse.Namespace:
     )
     meanings.add_argument("--dry-run", action="store_true")
 
+    decisions = commands.add_parser(
+        "decisions",
+        help="Build the question list and the decision queue from the identifier register: "
+             "one agenda per party, dependencies first, what is already with the customer.",
+    )
+    decisions.add_argument("--app-root", required=True)
+    decisions.add_argument("--language", help="Phase document language the question text is read from.")
+    decisions.add_argument("--party", help="Print only this party's agenda and write nothing.")
+    decisions.add_argument("--link", action="append", default=[], metavar="ITEM=ID[,ID]",
+                           help="Record that an item was posted as these Q&A register ids.")
+    decisions.add_argument("--dry-run", action="store_true")
+    decisions.add_argument("--replace-handwritten", action="store_true",
+                           help="Overwrite a QuestionList.md this command did not write.")
+
     backfill = commands.add_parser(
         "backfill-needs",
         help="Give a workspace's open questions the `needs` block the decision queue "
@@ -690,6 +704,19 @@ def main() -> int:
         if args.dry_run:
             meaning_args.append("--dry-run")
         return run("build_meanings.py", *meaning_args)
+
+    if args.command == "decisions":
+        decision_args = ["--app-root", args.app_root]
+        for flag, value in (("--language", args.language), ("--party", args.party)):
+            if value:
+                decision_args += [flag, value]
+        for link in args.link:
+            decision_args += ["--link", link]
+        for flag, wanted in (("--dry-run", args.dry_run),
+                             ("--replace-handwritten", args.replace_handwritten)):
+            if wanted:
+                decision_args.append(flag)
+        return run("build_decisions.py", *decision_args)
 
     if args.command == "backfill-needs":
         backfill_args = ["--app-root", args.app_root]
