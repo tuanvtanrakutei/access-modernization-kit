@@ -321,6 +321,22 @@ def contains_todo(node: Any, path: str = "") -> list[str]:
     return where
 
 
+def applied_path(proposal_path: Path) -> Path:
+    """Where a reviewed proposal is kept once written: never over an earlier one.
+
+    A06 was backfilled twice - the questions in slice 1, the risks in slice 3 - and the second
+    rename replaced the first reviewed proposal, which is the only record of what was read
+    and what a person decided.
+    """
+    first = proposal_path.with_name(APPLIED)
+    if not first.exists():
+        return first
+    counter = 2
+    while (candidate := first.with_name(f"needs-proposal.applied.{counter}.yaml")).exists():
+        counter += 1
+    return candidate
+
+
 def apply(space: workspace_contract.Workspace, proposal_path: Path, dry_run: bool) -> int:
     import yaml
 
@@ -384,7 +400,7 @@ def apply(space: workspace_contract.Workspace, proposal_path: Path, dry_run: boo
         return 0
     backup = dr.write_register(space, path, register)
     print(f"wrote {path}; the previous file is {backup}")
-    applied = proposal_path.with_name(APPLIED)
+    applied = applied_path(proposal_path)
     os.replace(proposal_path, applied)
     print(f"proposal kept as {applied}")
     return 0

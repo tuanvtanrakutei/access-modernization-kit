@@ -640,6 +640,24 @@ def test_a_reviewed_risk_proposal_applies_and_the_register_passes_its_checks(
                                 dq.load_parties(root / "input" / "decisions" / "parties.yaml")) == []
 
 
+def test_a_second_applied_proposal_does_not_replace_the_first(
+        tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """A06 is backfilled twice, the questions in slice 1 and the risks in slice 3. The second
+    apply renamed its proposal over the first reviewed one, the only record of that review."""
+    root = make_workspace(tmp_path, with_needs=False)
+    decisions = root / "input" / "decisions"
+    earlier = "needs:\n  Q1: reviewed in slice 1\n"
+    (decisions / "needs-proposal.applied.yaml").write_text(earlier, encoding="utf-8")
+    run_backfill(monkeypatch, root)
+    path = decisions / "needs-proposal.yaml"
+    path.write_text(path.read_text(encoding="utf-8").replace("class: UNDECIDED", "class: behaviour")
+                    .replace("blocks: UNDECIDED", 'blocks: ["WF-001"]'), encoding="utf-8")
+    assert run_backfill(monkeypatch, root, "--apply") == 0
+    assert (decisions / "needs-proposal.applied.yaml").read_text(encoding="utf-8") == earlier
+    assert "class: behaviour" in (decisions / "needs-proposal.applied.2.yaml").read_text(encoding="utf-8")
+    assert not path.exists()
+
+
 def test_an_unknown_a_question_already_asks_about_is_not_proposed_again() -> None:
     """Re-running the backfill on A06 after slice 1 proposed 14 unknowns again, every one of
     them already asked by a question's `gap`, for a reviewer to delete a second time."""
