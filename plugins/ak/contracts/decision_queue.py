@@ -23,7 +23,8 @@ This module holds the contract that replaces that, and nothing else. An entry in
       "gap": "UK-W01",            the unknown this question asks about (a Q only)
       "depends_on": [],           items to settle first
       "class": "behaviour",       risks only: the key into standing policy
-      "options": null             DISPOSITION and SCOPE: the choices
+      "options": null,            DISPOSITION and SCOPE: the choices
+      "qa": [5]                   the customer's Q&A register ids this was posted as
     }
 
 No new identifier family: `Q`, `UK-`, the risk namespaces and `AS-` keep their
@@ -72,7 +73,7 @@ MITIGATION = "mitigation"
 OBJECT_PREFIX = "object:"
 
 NEEDS_KEYS = ("kind", "party", "also", "named", "blocks", "default", "gap",
-              "depends_on", "class", "options")
+              "depends_on", "class", "options", "qa")
 PARTY_KEYS = ("aliases", "people", "source", "note")
 
 SPEC = Path(__file__).resolve().parents[1] / "specifications" / "identifier-scheme.yaml"
@@ -399,6 +400,12 @@ def validate_needs(entry: dict[str, Any], ids: set[str],
         elif (not isinstance(options, list) or len(options) < 2 or len(set(map(str, options))) != len(options)
               or any(not isinstance(o, str) or not o.strip() for o in options)):
             problems.append(f"{eid}: `options` needs at least two distinct choices")
+
+    qa = needs.get("qa")
+    if qa is not None and (
+            not isinstance(qa, list) or len(set(map(str, qa))) != len(qa)
+            or any(isinstance(q, bool) or not isinstance(q, int) or q < 1 for q in qa)):
+        problems.append(f"{eid}: `qa` must be a list of distinct Q&A register ids (positive integers)")
     return problems
 
 

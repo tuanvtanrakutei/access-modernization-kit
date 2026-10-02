@@ -25,7 +25,8 @@
       "items": {"type": "string", "minLength": 1},
       "minItems": 2,
       "uniqueItems": true
-    }
+    },
+    "qa": {"type": ["array", "null"], "items": {"type": "integer", "minimum": 1}, "uniqueItems": true}
   },
   "if": {"properties": {"kind": {"not": {"const": "POLICY"}}}},
   "then": {"properties": {"blocks": {"minItems": 1}}}

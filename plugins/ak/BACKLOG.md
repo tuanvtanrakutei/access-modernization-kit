@@ -21,7 +21,7 @@ be. One open item lived in a `Questions` table, again in an `Unknowns` table tha
 asked it twice, in an `Assumptions` table naming what the pipeline proceeded on meanwhile,
 and in a risk's Mitigation column - while the register beside them carried an id and a
 title. Design: `docs/superpowers/specs/2026-10-01-decision-queue-design.md`, four slices.
-This entry records slice 1 and what running it found.
+This entry records slices 1 and 2 and what running them found.
 
 **Measured on A06's phase 1 to 4 documents with a script that wrote nothing.**
 
@@ -67,10 +67,44 @@ header's width, but A06 does not show that defect and no A06 evidence is claimed
   `UNDECIDED`, and `--apply` refuses a proposal that still has one. All or nothing, in the
   register's own format, with the previous file kept under `.ak/backups/`.
 
+**Landed (slice 2).** `$ak decisions` turns the register into the list a person works from.
+
+- `{APP}_QuestionList.md` for the person, `{APP}_DecisionQueue.json` for agents, written beside
+  the registers. One agenda per party, the decider's last. Dependencies first; among the free
+  items, blocking before proceeding on a default, then what unblocks others, then the severity of
+  the risks they name, then how many things they name. No date in either output, so the same
+  register gives the same bytes.
+- The first run on A06 ranked by how many things an item blocked, and the item that blocked six
+  workflows came first because that is how its author had written the block list. Severity now
+  comes before the count.
+- Status is read from the customer's Q&A register fresh each run, not from the record `$ak
+  interviews` stored, which held five rows when the CSV beside it held six. A new optional
+  `needs.qa` links an item to the Q&A page it was posted as; the item is then `with_customer`
+  while the page is open, `answered_unrecorded` when the page holds a dated answer the register
+  does not know, and `answer_missing` when the register says answered and the page holds none (A47).
+  `--link Q5=5` records the link, with the previous register kept under `.ak/backups/`.
+- The machine's work is counted: of A06's eleven closed Q and UK entries, three were closed by a
+  person, six by the bundle answering on its own, one by a decision, one superseded. Q&A 5 and 8
+  are open with the customer and in no item, so the list cannot say what they block; it names
+  them instead of staying quiet.
+- `--party NAME` prints one agenda to paste, which is the customer-facing sheet of the design's
+  fourth decision: rendered, posted by a person. It will not overwrite a QuestionList.md it did
+  not write (A05's was written by hand and numbered its own questions, which is how A12 happened).
+- `decision_register.py` holds what `$ak backfill-needs` and this share: finding the register, the
+  evidence and the phase documents, and writing the register back in its own format.
+
 **Not done, and where the checks are weaker than they look.**
 
-- Slices 2 to 4: `$ak decisions` and the generated `QuestionList.md`, policy and
-  DISPOSITION items from risks, and the consumers (modernize pre-flight, Stage 1 removal).
+- Slice 3: `policy.yaml`, `class` on risks, DISPOSITION items from risks, and with them the
+  developer batch (`ok` accepts every default, each answer written as a TARGET_INTENT record).
+  The list renders a DISPOSITION and its choices; nothing yet lets a person answer one from the
+  terminal.
+- Slice 4: the A58 pre-check, the modernize consumers, and the removal of Stage 1.
+- The list's text comes from the phase document's row, so it is as good as the row: a question the
+  phase wrote as a fragment is printed as one. Labels are English whatever `--language` says; that
+  flag chooses which document the question text is read from, and a customer-facing sheet in
+  Japanese needs a translation this kit does not produce.
+- `$ak decisions` is run by hand after a phase gate. Nothing runs it for you.
 - A document published before the contract keeps prose in its Blocks and Default cells. The
   agreement check counts those cells and reports the count in its result; it does not fail
   them, so a pre-contract document reads as PASS with a number beside it.
