@@ -63,7 +63,10 @@ def atomic_write(path: Path, text: str) -> None:
 
 
 def write_register(space: Any, path: Path, register: dict[str, Any]) -> Path:
-    """Write the register, keeping the previous file. Returns where the previous one went."""
+    """Write the register, keeping the previous file. Returns where the previous one went.
+
+    The evidence register goes through here too: A06's round-trips in the same format.
+    """
     backups = space.owned("backups")
     backups.mkdir(parents=True, exist_ok=True)
     stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S%fZ")
@@ -71,6 +74,13 @@ def write_register(space: Any, path: Path, register: dict[str, Any]) -> Path:
     backup.write_bytes(path.read_bytes())
     atomic_write(path, format_register(register))
     return backup
+
+
+def evidence_path(output: Path) -> Path:
+    found = _find(output, "*_Evidence.json")
+    if len(found) != 1:
+        raise RegisterProblem(f"expected one *_Evidence.json under {output}, found {len(found)}")
+    return found[0]
 
 
 def evidence_index(output: Path) -> dict[str, dict[str, Any]] | None:
@@ -164,7 +174,7 @@ def closed_markers() -> tuple[str, ...]:
 
 def item_texts(output: Path, entries: list[dict[str, Any]], language: str | None = None,
                markers: tuple[str, ...] = ()) -> dict[str, dict[str, str]]:
-    """What each open Q and UK says in its phase document, for the list that asks it.
+    """What each open Q, UK and risk says in its phase document, for the list that asks it.
 
     The register holds a title; the person being asked needs the sentence, why it matters
     and what would settle it, and those are in the document's row. A row that opens by
@@ -172,9 +182,17 @@ def item_texts(output: Path, entries: list[dict[str, Any]], language: str | None
     the question any more.
     """
     by_id = {str(e["id"]): e for e in entries if e.get("id")}
-    wanted = {i for i, e in by_id.items() if e.get("namespace") in ("Q", "UK-") and dq.is_open(e)}
+    wanted = {i for i, e in by_id.items()
+              if e.get("namespace") in ("Q", "UK-", *dq.RISK_NAMESPACES) and dq.is_open(e)}
     texts: dict[str, dict[str, str]] = {}
     for identifier, (cells, _width) in own_rows(output, entries, wanted, language).items():
+        if by_id[identifier]["namespace"] in dq.RISK_NAMESPACES:
+            # A risk's row says why it matters and what it recommends; the recommendation is
+            # the default its disposition proceeds on, so the decider is shown it verbatim.
+            risk = dq.risk_cells(cells, identifier)
+            if risk is not None:
+                texts[identifier] = {"why": risk["detail"], "mitigation": risk["mitigation"]}
+            continue
         if markers and dq.starts_closed(cells[1], markers):
             continue
         if by_id[identifier]["namespace"] == "Q":

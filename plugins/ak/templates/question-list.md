@@ -42,10 +42,15 @@ closed it - a person, a decision, or the bundle answering on its own.
    only the objects it names.
 4. **Dependencies first.** An answer that settles another item is asked before it. Among
    items free to go: blocking before proceeding, then what unblocks others, then the
-   severity of the risks they name, then how many things they name.
+   severity of the risk an item is or the risks it names, then how many things it names.
 5. **Do not ask what has been asked.** An item linked to a Q&A row (`--link Q5=5`) is read from
    the customer's register, fresh each time, not from the snapshot `$ak interviews` stored.
 6. **Names, not numbers.** Every identifier in a block list carries its title, and an `F-`
    always carries its whole name (ID-06).
 7. **The decider's list is the same list.** A DISPOSITION, SCOPE or POLICY belongs to the
-   `decider` and is rendered in its own section, last.
+   `decider` and is rendered in its own section, last. Every open risk is one of them: its
+   Mitigation is the default, and `$ak decisions --decide` is where the decider answers them.
+8. **Policy before instance, and nothing disappears.** A risk whose class a decided rule in
+   `policy.yaml` covers is settled by it and is not asked - and it is still listed, under
+   "Settled by standing policy", with the rule that settled it. A proposed rule settles
+   nothing; the list says which items it would take off the agenda.
