@@ -45,10 +45,14 @@ def needs(**over: object) -> dict:
     return base
 
 
+RISK_NEEDS = {"kind": "DISPOSITION", "party": "decider", "blocks": [], "default": "mitigation",
+              "class": "behaviour"}
+
+
 def register(*extra: dict) -> list[dict]:
     return [
         entry("WF-001", "WF-"), entry("BR-ORD-10", "BR-", 3), entry("AS-32", "AS-"),
-        entry("UK-W01", "UK-"), entry("RW-02", "RW-", severity="HIGH"),
+        entry("UK-W01", "UK-"), entry("RW-02", "RW-", severity="HIGH", needs=dict(RISK_NEEDS)),
         *extra,
     ]
 
@@ -164,8 +168,7 @@ def test_a_default_is_an_assumption_that_exists() -> None:
 
 
 def test_mitigation_is_a_default_only_for_a_risk_disposition() -> None:
-    risk = needs(kind="DISPOSITION", party="decider", default="mitigation", class_="x")
-    risk.pop("class_")
+    risk = needs(kind="DISPOSITION", party="decider", default="mitigation", **{"class": "behaviour"})
     assert problems(risk, namespace="RW-", eid="RW-02", with_parties=True) == []
     assert any("belongs on a DISPOSITION anchored" in p
                for p in problems(needs(default="mitigation")))
@@ -486,7 +489,7 @@ def test_a_phase_with_no_questions_is_not_accused() -> None:
     result = next(r for r in checker.apparatus_checks(
         2, "# X", {"identifier_entries": [entry("F-001", "F-", 2)], "parties": parties()})
         if r["check"] == "decision_fields_present")
-    assert result["status"] == "PASS" and "no question or unknown" in result["detail"]
+    assert result["status"] == "PASS" and "no question, unknown or risk" in result["detail"]
 
 
 def test_prose_cells_are_visible_in_the_result() -> None:

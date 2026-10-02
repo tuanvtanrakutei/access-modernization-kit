@@ -20,6 +20,14 @@ It also lists the items a document already calls answered while the register sti
 them open - A06's Q106, UK-S03 and Q120 - under `close:`, each waiting for the evidence
 id that answers it. Closing an item is the same kind of act and gets the same review.
 
+Risks join in slice 3. Each open risk is proposed as a DISPOSITION for the decider,
+proceeding on its own Mitigation, waiting on the open questions that Mitigation names
+(a superseded one followed to the item that replaced it), and with its `class` left
+`UNDECIDED`: whether a defect is technical or a behaviour somebody relies on is the
+judgement standing policy settles by, and a reading of a title is not that judgement. The
+first run also drafts `policy.yaml` beside `parties.yaml`, every rule in it proposed and
+none in force until the decider names themself and a date.
+
 The register is rewritten in the format it was written in (indent 1, sorted keys, final
 newline), so a backfill is a diff of the `needs` blocks and nothing else. The previous
 file is kept under `.ak/backups/`.
@@ -60,8 +68,98 @@ def yaml_value(value: Any) -> str:
 
 
 def open_asks(entries: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Open Q and UK entries that still need a block. An unknown a question already asks about
+    (`gap`) needs none: proposing one again on every later run is noise a reviewer deletes."""
+    asked = {str(e["needs"]["gap"]) for e in entries
+             if isinstance(e.get("needs"), dict) and e["needs"].get("gap")}
     return [e for e in entries if e.get("namespace") in ("Q", "UK-") and dq.is_open(e)
+            and not isinstance(e.get("needs"), dict)
+            and not (e.get("namespace") == "UK-" and str(e["id"]) in asked)]
+
+
+def open_risks(entries: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    return [e for e in entries if e.get("namespace") in dq.RISK_NAMESPACES and dq.is_open(e)
             and not isinstance(e.get("needs"), dict)]
+
+
+def waits_on(text: str, own: str, entries: list[dict[str, Any]]) -> tuple[list[str], list[str]]:
+    """(open items the text names, notes on the ones it names that are closed).
+
+    A06's RA-02 names Q108 and UK-S04. Q108 was superseded by Q103 and UK-S04 was answered,
+    so what RA-02 waits on is Q103 and nothing else. An unknown a question asks about is
+    reached through that question, which is the one a person is asked.
+    """
+    by_id = {str(e["id"]): e for e in entries if e.get("id")}
+    asked_by = {str(e["needs"]["gap"]): str(e["id"]) for e in entries
+                if isinstance(e.get("needs"), dict) and e["needs"].get("gap") and dq.is_open(e)}
+    found: list[str] = []
+    notes: list[str] = []
+    for named in dq.find_identifiers(text):
+        current, seen = named, set()
+        entry = by_id.get(current)
+        if entry is None or entry.get("namespace") not in ("Q", "UK-") or current == own:
+            continue
+        while entry is not None and entry.get("superseded_by") and current not in seen:
+            seen.add(current)
+            current = str(entry["superseded_by"])
+            entry = by_id.get(current)
+        if entry is None:
+            notes.append(f"{named} leads to {current}, which is not in the register")
+            continue
+        if not dq.is_open(entry):
+            notes.append(f"{named} is closed by {entry.get('resolved_by')}")
+            continue
+        if current != named:
+            notes.append(f"{named} is superseded by {current}")
+        current = asked_by.get(current, current)
+        if current not in found:
+            found.append(current)
+    return found, notes
+
+
+POLICY = "policy.yaml"
+
+
+def draft_policy() -> str:
+    """The four rules of the design's section 5, every one proposed and none in force."""
+    return "\n".join([
+        "# Standing policy: a rule asked once that settles a class of risks (decision queue, design section 5).",
+        "# Written by `$ak backfill-needs` as a PROPOSAL, for the decider to edit.",
+        "#",
+        "# A rule settles nothing until it names who decided it and when (`decided_by`, `decided_on`), for the",
+        "# reason every record in input/target-intent/ names both: a decision nobody can be taken back to cannot",
+        "# be revisited when it turns out to cost something. Every risk a rule settles is still listed in the",
+        "# question list, as settled by it, so a rule never makes a decision disappear.",
+        "#",
+        "#   class        technical | data | retired | behaviour, matched against each risk's needs.class",
+        "#   disposition  fix (do what the risk's Mitigation says) | preserve | drop | defer",
+        "#                | ask (put each risk of the class to the decider, with its Mitigation as the default)",
+        "policy:",
+        "  - id: P-1",
+        "    class: technical",
+        "    disposition: fix",
+        "    decided_by: null",
+        "    decided_on: null",
+        "    note: \"A defect with no business behaviour behind it: missing keys, no transaction, a silent failure.\"",
+        "  - id: P-2",
+        "    class: retired",
+        "    disposition: drop",
+        "    decided_by: null",
+        "    decided_on: null",
+        "    note: \"Something nobody uses any more, such as a path to a device that no longer exists.\"",
+        "  - id: P-3",
+        "    class: data",
+        "    disposition: fix",
+        "    decided_by: null",
+        "    decided_on: null",
+        "    note: \"A defect in the data itself; its Mitigation says what is not migrated as data.\"",
+        "  - id: P-4",
+        "    class: behaviour",
+        "    disposition: ask",
+        "    decided_by: null",
+        "    decided_on: null",
+        "    note: \"Something an operator relies on, even when it is a defect. Asked one at a time (2026-10-01).\"",
+    ]) + "\n"
 
 
 def party_cell_of(entry: dict[str, Any], cells: list[str]) -> str:
@@ -118,7 +216,8 @@ def propose(space: workspace_contract.Workspace) -> tuple[str, dict[str, int]]:
     asks = open_asks(entries)
     rows = dr.own_rows(output, entries, {str(e["id"]) for e in asks})
 
-    counts = {"derived": 0, "party_todo": 0, "blocks_todo": 0, "to_close": 0}
+    counts = {"derived": 0, "party_todo": 0, "blocks_todo": 0, "to_close": 0,
+              "risks": 0, "class_todo": 0}
     needs_lines: list[str] = []
     close_lines: list[str] = []
     for entry in asks:
@@ -161,6 +260,33 @@ def propose(space: workspace_contract.Workspace) -> tuple[str, dict[str, int]]:
         else:
             counts["blocks_todo"] += 1
             needs_lines.append(f"    blocks: {UNDECIDED}   # an unknown nobody asks about needs its own; delete this entry if a Q's `gap` names it")
+
+    risks = open_risks(entries)
+    risk_rows = dr.own_rows(output, entries, {str(e["id"]) for e in risks})
+    for entry in risks:
+        eid = str(entry["id"])
+        cells, _width = risk_rows.get(eid, ([], 0))
+        row = dq.risk_cells(cells, eid) if cells else None
+        mitigation = (row or {}).get("mitigation", "")
+        counts["risks"] += 1
+        counts["class_todo"] += 1
+        severity = f" [{entry['severity']}]" if entry.get("severity") else ""
+        needs_lines.append(f"  {eid}:   # {str(entry.get('title') or '')[:90]}{severity}")
+        needs_lines.append("    kind: DISPOSITION")
+        needs_lines.append(f"    party: {yaml_value(dq.DECIDER)}")
+        if dq.has_mitigation(mitigation):
+            needs_lines.append("    blocks: []   # a risk's disposition decides its own Mitigation")
+            needs_lines.append(f"    default: {yaml_value(dq.MITIGATION)}   # "
+                               f"{json.dumps(mitigation[:100], ensure_ascii=False)}")
+        else:
+            counts["blocks_todo"] += 1
+            said = json.dumps(mitigation[:60], ensure_ascii=False) if row else "no row found"
+            needs_lines.append(f"    blocks: {UNDECIDED}   # with no Mitigation to proceed on, name what waits on it")
+            needs_lines.append(f"    default: null   # the row has no Mitigation ({said}), so it blocks")
+        needs_lines.append(f"    class: {UNDECIDED}   # {' | '.join(dq.RISK_CLASSES)}: the key policy settles by")
+        found, notes = waits_on(mitigation, eid, entries)
+        note = f"   # {'; '.join(notes)}" if notes else ("   # named in its Mitigation" if found else "")
+        needs_lines.append(f"    depends_on: {yaml_value(found)}{note}")
     header = [
         f"# Proposed `needs` blocks for {register.get('app_id', '?')}. Written by `$ak backfill-needs`; nothing has been applied.",
         "#",
@@ -171,6 +297,10 @@ def propose(space: workspace_contract.Workspace) -> tuple[str, dict[str, int]]:
         "# `gap` links a question to the unknown it asks about. Both are kept on purpose (the unknown is the",
         "# gap in the document, the question is the action). A UK named by a `gap` needs no block of its own;",
         "# delete its entry below.",
+        "#",
+        "# A risk is a DISPOSITION for the decider, proceeding on its own Mitigation. Its `class` decides which",
+        "# rule of policy.yaml settles it: technical (no business behaviour behind it), data (the data itself),",
+        "# retired (nobody uses it), behaviour (an operator relies on it, even when it is a defect).",
         "needs:",
     ]
     body = header + (needs_lines or ["  {}"]) + ["", "# Items a document already calls closed while the register has them open.",
@@ -296,9 +426,17 @@ def main() -> int:
             return 0
         if proposal_path.exists() and not args.force and not args.dry_run:
             raise Problem(f"{proposal_path} exists and may hold edits; use --force to replace it, or --apply")
+        policy_path = decisions / POLICY
+        if not policy_path.is_file():
+            if args.dry_run:
+                print(f"would draft {policy_path}")
+            else:
+                policy_path.write_text(draft_policy(), encoding="utf-8", newline="\n")
+                print(f"wrote a DRAFT {policy_path}: every rule proposed, none in force")
         text, counts = propose(space)
         print(f"{counts['derived']} party(ies) derived, {counts['party_todo']} to decide, "
-              f"{counts['blocks_todo']} blocks to name, {counts['to_close']} item(s) the documents call closed")
+              f"{counts['blocks_todo']} blocks to name, {counts['to_close']} item(s) the documents call closed, "
+              f"{counts['risks']} risk(s) proposed with {counts['class_todo']} class(es) to decide")
         if args.dry_run:
             print(text)
             return 0

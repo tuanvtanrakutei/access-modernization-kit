@@ -297,6 +297,14 @@ flowchart TD
 | ID | Risk | Severity | Consequence at migration | Mitigation | Evidence |
 |---|---|---|---|---|---|
 
+<!-- In the register each risk carries a `needs` block (ID-11): kind DISPOSITION, party
+     `decider`, default `mitigation`, and a `class` - technical, data, retired or
+     behaviour - which is the key input/decisions/policy.yaml settles by. The Mitigation in
+     this row is the recommended answer, carried until the decider says otherwise, so write
+     it as an action the replacement takes. When it waits on an open question, name the Q
+     in it and put the Q in `depends_on`. Write "none proposed" when there is none: the risk
+     then has no default, and it blocks. -->
+
 ## 7. Assumptions, Unknowns, and Questions
 
 ### Scope

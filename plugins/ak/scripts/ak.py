@@ -182,6 +182,13 @@ def parse_args() -> argparse.Namespace:
     decisions.add_argument("--party", help="Print only this party's agenda and write nothing.")
     decisions.add_argument("--link", action="append", default=[], metavar="ITEM=ID[,ID]",
                            help="Record that an item was posted as these Q&A register ids.")
+    decisions.add_argument("--decide", action="store_true",
+                           help="Put the decider's open dispositions to them and record the answers "
+                                "as target-intent evidence.")
+    decisions.add_argument("--by", help="With --decide: who is deciding. Required.")
+    decisions.add_argument("--on", help="With --decide: the date decided, YYYY-MM-DD. Default today.")
+    decisions.add_argument("--answers", help="With --decide: the answers (`ok 3=preserve`), instead "
+                                             "of reading them from the terminal.")
     decisions.add_argument("--dry-run", action="store_true")
     decisions.add_argument("--replace-handwritten", action="store_true",
                            help="Overwrite a QuestionList.md this command did not write.")
@@ -707,12 +714,13 @@ def main() -> int:
 
     if args.command == "decisions":
         decision_args = ["--app-root", args.app_root]
-        for flag, value in (("--language", args.language), ("--party", args.party)):
-            if value:
+        for flag, value in (("--language", args.language), ("--party", args.party),
+                            ("--by", args.by), ("--on", args.on), ("--answers", args.answers)):
+            if value is not None:
                 decision_args += [flag, value]
         for link in args.link:
             decision_args += ["--link", link]
-        for flag, wanted in (("--dry-run", args.dry_run),
+        for flag, wanted in (("--decide", args.decide), ("--dry-run", args.dry_run),
                              ("--replace-handwritten", args.replace_handwritten)):
             if wanted:
                 decision_args.append(flag)

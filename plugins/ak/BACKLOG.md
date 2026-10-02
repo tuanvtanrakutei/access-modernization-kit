@@ -21,7 +21,7 @@ be. One open item lived in a `Questions` table, again in an `Unknowns` table tha
 asked it twice, in an `Assumptions` table naming what the pipeline proceeded on meanwhile,
 and in a risk's Mitigation column - while the register beside them carried an id and a
 title. Design: `docs/superpowers/specs/2026-10-01-decision-queue-design.md`, four slices.
-This entry records slices 1 and 2 and what running them found.
+This entry records slices 1 to 3 and what running them found.
 
 **Measured on A06's phase 1 to 4 documents with a script that wrote nothing.**
 
@@ -93,13 +93,69 @@ header's width, but A06 does not show that defect and no A06 evidence is claimed
 - `decision_register.py` holds what `$ak backfill-needs` and this share: finding the register, the
   evidence and the phase documents, and writing the register back in its own format.
 
+**Landed (slice 3).** Risks join the queue, standing policy settles them by class, and the
+decider answers what is left in one batch at the terminal.
+
+- ID-11: every open risk carries a `needs` block of kind DISPOSITION, owned by the decider,
+  with a `class` (technical, data, retired, behaviour). It proceeds on `mitigation`, the risk's
+  own Mitigation, and `depends_on` the open questions that Mitigation names. A risk on its own
+  Mitigation may block nothing else: A06's 25 risk rows name no object between them, and asking
+  a reviewer to invent one per risk would fill `blocks` with guesses. A row that says "none
+  proposed" has no default, and has to name what it blocks.
+- `input/decisions/policy.yaml`: one rule per class, `fix` | `preserve` | `drop` | `defer` |
+  `ask`. A rule settles nothing until it names `decided_by` and `decided_on`, as every
+  target-intent record does; a file with any problem settles nothing at all. A settled risk
+  leaves every agenda and is listed under "Settled by standing policy" with the rule, so a
+  policy never makes a decision disappear. `counts` gains `settled_by_policy` and
+  `settled_once_policy_decided`.
+- `$ak backfill-needs` proposes each open risk as a disposition with its `class` UNDECIDED, and
+  drafts `policy.yaml` from the design's four rules, every one proposed. What a Mitigation
+  waits on follows supersession: A06's RA-02 names Q108 (superseded by Q103) and UK-S04
+  (answered), so it waits on Q103 and nothing else, and the comment says why.
+- `$ak decisions --decide --by NAME`: the decider's open dispositions, numbered, each with its
+  Mitigation; `ok` accepts every default, `3=preserve` overrides one, `RW-04=drop` reaches an
+  item by id that policy settled or that waits behind another. An item with no default is
+  passed over by `ok`. Each answer is a row of `input/target-intent/{APP}_Decisions_<date>.md`
+  (Decided by, Decided on, Source) and one TARGET_INTENT evidence item citing that row, with
+  the file's SHA-256, numbered on from the class's last serial (A06's next is TARGET-003); the
+  item is then closed against it. Nothing is written unless every answer parses and every new
+  item validates against the evidence schema; both registers are backed up first.
+
+**Measured on a scratch copy of A06** (the live workspace was not written). The classes below
+are a provisional reading made for the rehearsal, not a reviewed one.
+
+- 25 risks proposed, 5 of them waiting on an open question (RA-02 on Q103, RA-03 on Q107,
+  RA-07 on Q112, RW-02 on Q119, RW-06 on Q110). The register goes from 22 open items to 47.
+- With `policy.yaml` as drafted, nothing is settled and 14 would be once P-1 to P-3 are decided:
+  10 technical, 3 data, 1 retired. The 11 behaviour risks are asked, with their Mitigation as the
+  default, which is the maintainer's first decision.
+- One line of answers in the rehearsal (`ok 2=preserve RA-07=fix`) closed 21 dispositions and
+  wrote 21 evidence items that validate; UK-D05, which has no default, was passed over. The batch now says, before it asks, how many of the listed items a proposed policy
+  would settle, because answering them one by one first makes the policy moot.
+
+**Found by running it.** The cleaner that strips "Raised by E-11" from a question also stripped
+"E-05: confirmed - do not carry it forward" from RA-10's Mitigation, which is the half that says
+what to do; a Mitigation now keeps it. Re-running the backfill on A06 after slice 1 proposed 14
+unknowns again, each already asked by a question's `gap`; it no longer does. A mutation check
+(break one rule, see a test fail) first passed for the wrong reason: a slice 1 test was already
+failing on a changed message, so every mutation was "caught" by it. Re-run against a green
+baseline, one rule survived - nothing tested that a malformed evidence item is refused before
+anything is written - and has a test now.
+
 **Not done, and where the checks are weaker than they look.**
 
-- Slice 3: `policy.yaml`, `class` on risks, DISPOSITION items from risks, and with them the
-  developer batch (`ok` accepts every default, each answer written as a TARGET_INTENT record).
-  The list renders a DISPOSITION and its choices; nothing yet lets a person answer one from the
-  terminal.
-- Slice 4: the A58 pre-check, the modernize consumers, and the removal of Stage 1.
+- A06's 25 classes are not decided, and neither is any rule of its `policy.yaml`. Both are the
+  decider's; the live register has not been written.
+- Contradiction to errata (design 4.4) is not built, by the maintainer's choice on 2026-10-02:
+  it is its own slice. It needs a decision first - read a default's refresh set from the
+  document's 3-column Assumptions table, or move "If wrong" into the register - and assumptions
+  join `decision_fields_present` with it.
+- A policy settles a risk by derivation: the register keeps it open, and the queue says
+  `settled_by` and `disposition`. A consumer that reads the register alone sees it open.
+- A `defer` closes the item like any other decision. Whether a deferred disposition should
+  reopen at a later phase is not decided.
+- Slice 4: the A58 pre-check, the modernize consumers (a DISPOSITION becoming a gap-matrix row),
+  and the removal of Stage 1.
 - The list's text comes from the phase document's row, so it is as good as the row: a question the
   phase wrote as a fragment is printed as one. Labels are English whatever `--language` says; that
   flag chooses which document the question text is read from, and a customer-facing sheet in

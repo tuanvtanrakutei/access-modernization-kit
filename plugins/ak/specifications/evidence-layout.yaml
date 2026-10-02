@@ -179,10 +179,13 @@ workspace:
           when.
         decisions: >-
           The files the kit writes for a person to edit and reads back by name -
-          `glossary.yaml`, `meanings.yaml` and `parties.yaml` (who can be asked, under
-          one name each). `needs-proposal.yaml` is a transient fourth: a backfill's
-          proposal, kept as `.applied` once it has been written into the register.
-          Not a general decisions folder: a scope decision goes in `target-intent/`.
+          `glossary.yaml`, `meanings.yaml`, `parties.yaml` (who can be asked, under
+          one name each) and `policy.yaml` (rules that settle a class of risks once,
+          in force only when they name who decided them and when).
+          `needs-proposal.yaml` is a transient fifth: a backfill's proposal, kept as
+          `.applied` once it has been written into the register. Not a general
+          decisions folder: a scope decision goes in `target-intent/`, and so does the
+          record of a decider's batch (`{APP_ID}_Decisions_<date>.md`).
         <ARTIFACT_ID>: >-
           One imported export package per artifact, holding forms/, reports/, macros/,
           vba/, queries/, schema/ plus its import-source-manifest.yaml. Placed by

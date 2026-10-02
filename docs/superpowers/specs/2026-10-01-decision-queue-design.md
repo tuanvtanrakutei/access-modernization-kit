@@ -1,6 +1,6 @@
 # Decision Queue Design
 
-**Status:** Approved by the maintainer on 2026-10-01 (section 10). Slice 1 is built on `feat/decision-queue-register` and slice 2 on `feat/decision-queue-agenda` (backlog A75). Slices 3 and 4 are not.
+**Status:** Approved by the maintainer on 2026-10-01 (section 10). Slice 1 is built on `feat/decision-queue-register`, slice 2 on `feat/decision-queue-agenda` and slice 3 on `feat/decision-queue-policy` (backlog A75), except contradiction to errata (4.4), which the maintainer made its own slice on 2026-10-02. Slice 4 is not.
 **Canonical language:** English
 **Reader:** the maintainer deciding whether to build it, then the agent implementing it. This is not a phase document.
 **Related:** backlog A19 (collection step), A58 (a question the bundle already answered), A60 (carry the unknowns); `specifications/identifier-scheme.yaml`; `specifications/errata-contract.yaml`; `plugins/ak/templates/target-intent.README.md`; `plugins/ak/modernize/templates/Business_flows_README.md`.
@@ -105,6 +105,8 @@ No new identifier family. `Q`, `UK-`, `RD-`/`RA-`/`RW-`/`RS-`, `AS-` and `F-` ke
 | `class` (risks only) | technical, data, retired or behaviour, the key into policy (section 5) | not recorded |
 | `qa` | the customer's Q&A register ids this item was posted as, once a person has posted it (`$ak decisions --link`). Added in slice 2: without it the queue cannot tell what is already with the customer | not recorded |
 
+A risk's DISPOSITION proceeding on its own Mitigation may leave `blocks` empty (slice 3, rule ID-11): what waits on it is that Mitigation, and A06's 25 risk rows name no object between them.
+
 Status is **derived, never stored**: `open` until `resolved_by` or `superseded_by` is set, as the register contract already says. No new status is added. An item the bundle turns out to answer is closed by `resolved_by` naming the CODE, UI or SCHEMA evidence, which is what happened to Q109.
 
 ### 4.2 Four kinds
@@ -165,13 +167,13 @@ The classes above are examples read from A06 risk titles, for the maintainer to 
    - does a catalogue enumerate the object and the property the question names (A58's `Offers` column);
    - is there a `meanings.yaml` entry or an interview answer;
    - is it a declared twin of another open item.
-3. **Derive status** (slice 2) from `resolved_by`, `superseded_by` and the Q&A register, which is read fresh on every run instead of from the record `$ak interviews` stored, because that record is a snapshot (A06's held five rows when the CSV beside it held six). An item linked to a Q&A page is `with_customer` while the page is open, `answered_unrecorded` when it holds a dated answer the register does not know, and `answer_missing` when the register says answered and the page holds none (A47). **Apply policy** is slice 3.
+3. **Derive status** (slice 2) from `resolved_by`, `superseded_by` and the Q&A register, which is read fresh on every run instead of from the record `$ak interviews` stored, because that record is a snapshot (A06's held five rows when the CSV beside it held six). An item linked to a Q&A page is `with_customer` while the page is open, `answered_unrecorded` when it holds a dated answer the register does not know, and `answer_missing` when the register says answered and the page holds none (A47). **Apply policy** (slice 3): a risk whose class a decided rule covers is `settled`, leaves every agenda, and is listed under the rule. A rule that names no `decided_by` and `decided_on` is a proposal and settles nothing.
 4. **Render** (slice 2).
    - `{APP_ID}_DecisionQueue.json`, read by agents, written beside the other registers.
    - `{APP_ID}_QuestionList.md`, generated instead of written by hand at the end of a run, and refused over a hand-written one without `--replace-handwritten`. One agenda per party, the decider's last. Within an agenda, items that wait behind another come after it; among the free ones, blocking before proceeding, then what unblocks others, then the severity of the risks they name, then how many things they name. Each item shows the ask, what it blocks (titles, and an `F-` always by its whole name), the default in use, what would settle it, and the evidence already read. Neither output carries a date, so the same register gives the same bytes.
    - `--party NAME` prints one agenda to paste. This is the customer-facing sheet of decision 4: rendered, and posted by a person.
-   - The developer batch in the terminal (`ok` accepts every default, `N=<option>` overrides one, each answer written as a TARGET_INTENT record) is slice 3. Its subject is DISPOSITION items, and slice 3 is where they come from.
-5. **Report the counts** (slice 2): open, blocking, proceeding on a default, with the customer, answered and not recorded, and closed by who closed them. `settled_by_policy` joins in slice 3.
+   - The developer batch in the terminal (slice 3): `$ak decisions --decide --by NAME`. `ok` accepts every default, `N=<option>` overrides one, `ITEM=<option>` reaches an item policy settled or one waiting behind another. Its subject is the decider's DISPOSITION items. Each answer is a row of a TARGET_INTENT record in `input/target-intent/` and one evidence item citing it, and the item is closed against that evidence.
+5. **Report the counts** (slice 2): open, blocking, proceeding on a default, with the customer, answered and not recorded, and closed by who closed them. `settled_by_policy` and `settled_once_policy_decided` joined in slice 3.
 
 ## 7. What it replaces
 
@@ -202,19 +204,20 @@ A06 baseline today, before any of this: 39 open Q and UK entries, about 24 disti
 |---|---|---|
 | 1. Register (built) | `needs` block in the register contract and schema; `parties.yaml`; the phase templates gain Party, Default and Asked as columns; the `decision_fields_present` and `decision_tables_agree` apparatus checks; `$ak backfill-needs` and a reviewed backfill of A06 | a document row marked answered while the register has it open (Q120); a party cell holding an evidence id (Q120's overwritten Owner); `Warehouse operations` and `常温庫` resolve to one party; a risk ID inside the first cell (Phase 1); a declared UK/Q twin; a row whose width differs from its header, which makes positional parsing unsafe |
 | 2. Render (built) | `$ak decisions`, status derivation from the Q&A register, generated `QuestionList.md` and `DecisionQueue.json`, `--party`, `--link`, the `qa` field | agenda order puts a dependency before its dependants; severity outranks a longer block list; an item with a default never waits; the same register gives the same bytes; a hand-written list is not overwritten |
-| 3. Policy | `policy.yaml`, `class` on risks, DISPOSITION items from risks, defaults, contradiction to errata | a policy-settled item still appears; a contradicted default produces the refresh list from "If wrong" |
+| 3. Policy (built, but for errata) | `policy.yaml`, `class` on risks, DISPOSITION items from risks, defaults, the decider's batch. Contradiction to errata moved to its own slice | a policy-settled item still appears; a proposed rule settles nothing; `ok` passes over an item with no default; a wrong answer writes nothing. Still to hold: a contradicted default produces the refresh list from "If wrong" |
 | 4. Consumers | the A58 pre-check; modernize pre-flight reads the queue; Stage 1 removed; gap matrix cites ids | a question whose answer a catalogue holds is flagged before it is asked |
 
 Acceptance for the whole: run it on A06 and state the numbers in section 8. Each slice is its own branch and merge.
 
 ## 10. Decisions
 
-All four were put to the maintainer with a recommendation on 2026-10-01 and accepted as recommended.
+The first four were put to the maintainer with a recommendation on 2026-10-01 and accepted as recommended. The fifth was put on 2026-10-02 and accepted as recommended.
 
 1. **Policy for behaviour defects:** ask, with the Mitigation as the default. Technical defects with no business behaviour behind them are settled by policy (slice 3). The alternatives were preserve-parity (safe, reproduces data loss such as RW-01) and fix-first.
 2. **UK and Q:** keep both, linked by `gap`. The unknown is the gap in the document and the question is the action. The alternative was one table per phase.
 3. **One `decider` role** for DISPOSITION, SCOPE and POLICY, instead of the PM and tech-lead split in modernize `DOCS_README.md` §6.
 4. **Customer-facing sheet:** render it, and a person posts it. Posting to the customer's Q&A tool automatically is outward-facing and is a separate decision.
+5. **Contradiction to errata is its own slice** (2026-10-02, when slice 3 began). It waits on one decision: whether an assumption's refresh set is read from the document's 3-column Assumptions table or moved into the register as a field.
 
 Open, found while building slice 1: A06 treats the customer's "Product owner" as the `decider` (UK-D05 says a decision by the new system's owner, and names the Product owner). If those are two different people on a project, `parties.yaml` splits them and the DISPOSITION items need a rule for which one settles what.
 
