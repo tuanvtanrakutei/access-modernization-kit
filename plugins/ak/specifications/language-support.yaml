@@ -32,6 +32,17 @@ human_languages:
       EN: ["**corrected**", "this phase corrects", "supersedes the published"]
       JA: ["**訂正**", "本フェーズで訂正", "既刊の記述を訂正"]
       VI: ["**đã sửa**", "phase này sửa lại", "thay thế phát biểu đã publish"]
+    # A75. How a question or unknown row announces that it is closed, matched at the START
+    # of its text cell (unlike the phrases above, which are found anywhere). A06's Q120
+    # opens "**Answered - E-11, and it should never have been asked.**" and the register
+    # still listed it as open: the document knew and the register did not. A row that says
+    # it is closed has to be closed in the register too, with `resolved_by` or
+    # `superseded_by`. "Raised by" and "Built from" are where an item came from, not where
+    # it ended, and are deliberately absent.
+    closed_item:
+      EN: ["answered", "resolved", "superseded", "withdrawn"]
+      JA: ["回答済", "解決済", "置換済", "取り下げ"]
+      VI: ["đã trả lời", "đã giải quyết", "đã thay thế", "đã rút", "rút lại"]
 source_languages:
   full_evidence_trace:
     - "ACCESS_VBA"

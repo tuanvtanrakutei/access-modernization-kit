@@ -349,13 +349,34 @@ flowchart TD
      class that would close it, so the operator is told what to fetch rather than
      that something is missing. -->
 
-| ID | Unknown | Why it matters | What would settle it | Who can settle it |
-|---|---|---|---|---|
+<!-- Columns are read by position, in any language - keep the order.
+     Party     a name from input/decisions/parties.yaml, never a spelling of your own.
+     Asked as  the Q that asks about this unknown. The unknown is the gap in this
+               document and the question is the action, so a pair is one decision
+               recorded twice on purpose and links through the question's `gap`. An
+               unknown nobody is asked about carries its own `needs` in the register
+               and says a dash here. -->
+
+| ID | Unknown | Why it matters | What would settle it | Party | Asked as |
+|---|---|---|---|---|---|
 
 ### Questions
 
-| ID | Question | Blocks | Owner |
-|---|---|---|---|
+<!-- Columns are read by position, in any language - keep the order.
+     Blocks   identifiers only, comma separated (F-, WF-, BR-, RW- ...), or
+              `object:<production name>`. It repeats the register's needs.blocks.
+     Party    a name from input/decisions/parties.yaml, never a spelling of your own.
+     Default  the AS- this phase proceeds on while the question is open, or a dash
+              when there is none; the question then blocks what it names.
+     Write \| for a pipe inside a cell. A cell that is prose is not wrong, but nothing
+     can read it, and the checker counts it instead of comparing it.
+     To close a question, set resolved_by in the register AND begin the row with
+     **Answered - <evidence id>**. Leave Blocks and Party as they were: A06's Q120 was
+     rewritten in place when it was answered, so its Blocks column now holds the original
+     question, its owner column an evidence id, and its real owner is gone. -->
+
+| ID | Question | Blocks | Party | Default |
+|---|---|---|---|---|
 
 ---
 

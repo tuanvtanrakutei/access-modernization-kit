@@ -67,7 +67,9 @@ def offered(space: Workspace) -> dict[str, dict]:
 def test_the_cited_session_survives_a_newer_uncited_one(space: Workspace) -> None:
     old = write(space.root / ".ak/staging/FRONTEND/fresh-01/forms/menu.txt", "definition")
     new = write(space.root / ".ak/staging/FRONTEND/acquire-ff/schema/tables.txt", "names")
-    new.parent.parent.touch()  # newer by mtime than the cited session
+    # Explicit times, not `touch()`: see test_with_nothing_cited_the_newest_session_is_kept.
+    os.utime(old.parent.parent, (1_700_000_000, 1_700_000_000))
+    os.utime(new.parent.parent, (1_700_000_600, 1_700_000_600))  # newer than the cited session
 
     found = offered(space)
     assert ".ak/staging/FRONTEND/acquire-ff" in found
@@ -169,7 +171,10 @@ def test_a_same_day_variant_is_the_same_artifact(space: Workspace) -> None:
     for name in ("FRONTEND-2026-09-10", "FRONTEND-2026-09-10_new",
                  "FRONTEND-2026-09-14", "FRONTEND-2026-09-14b"):
         write(space.root / "input/exports" / name / "forms" / "menu.txt")
-    (space.root / "input/exports/FRONTEND-2026-09-14b").touch()
+        # Explicit times, not `touch()`: the newest export has to be newer than the rest by
+        # more than the clock can blur (see test_with_nothing_cited_the_newest_session_is_kept).
+        when = 1_700_000_600 if name == "FRONTEND-2026-09-14b" else 1_700_000_000
+        os.utime(space.root / "input/exports" / name, (when, when))
     write(space.root / "manifest.yaml", MANIFEST + """- id: FRONTEND_EXPORT
   source_ref:
     type: local_path
@@ -230,7 +235,11 @@ def test_a_bundle_nothing_cites_goes_and_a_cited_one_stays(space: Workspace) -> 
     superseded = bundle(space.root, "2026-09-10-aaaaaaaa")
     cited = bundle(space.root, "2026-09-10-bbbbbbbb")
     newest = bundle(space.root, "2026-09-14-cccccccc")
-    (newest / "bundle.json").touch()
+    # Explicit times, not `touch()`. On Windows CI the three files arrived with equal mtimes
+    # and `max()` kept the first of the tie, so the clock decided this test instead of the
+    # rule (see test_with_nothing_cited_the_newest_session_is_kept, which fixed the same thing).
+    for path, when in ((superseded, 1_700_000_000), (cited, 1_700_000_000), (newest, 1_700_000_600)):
+        os.utime(path / "bundle.json", (when, when))
     write(space.root / "output/A06_Phase1.md",
           "| Supersedes | `.ak/bundles/2026-09-10-bbbbbbbb`, before the table removal |")
 

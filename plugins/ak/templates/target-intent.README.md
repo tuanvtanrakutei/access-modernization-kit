@@ -49,7 +49,7 @@ is.
 
 ## Why this is not in `decisions/`
 
-`decisions/` holds `glossary.yaml` and `meanings.yaml`: two files the kit writes for you
-to edit, and reads back by name. Dropping a free-form scope record beside them would
+`decisions/` holds `glossary.yaml`, `meanings.yaml` and `parties.yaml`: the files the kit
+writes for you to edit, and reads back by name. Dropping a free-form scope record beside them would
 make one directory mean two things, which is exactly the confusion that left A06's first
 two scope records sitting in the workspace, read by nothing.

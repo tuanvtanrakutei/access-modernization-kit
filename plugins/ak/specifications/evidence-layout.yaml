@@ -178,9 +178,11 @@ workspace:
           application (rule EC-07). Any format, and every file names who decided and
           when.
         decisions: >-
-          The two files the kit writes for a person to edit - `glossary.yaml` and
-          `meanings.yaml` - and reads back by name. Not a general decisions folder:
-          a scope decision goes in `target-intent/`.
+          The files the kit writes for a person to edit and reads back by name -
+          `glossary.yaml`, `meanings.yaml` and `parties.yaml` (who can be asked, under
+          one name each). `needs-proposal.yaml` is a transient fourth: a backfill's
+          proposal, kept as `.applied` once it has been written into the register.
+          Not a general decisions folder: a scope decision goes in `target-intent/`.
         <ARTIFACT_ID>: >-
           One imported export package per artifact, holding forms/, reports/, macros/,
           vba/, queries/, schema/ plus its import-source-manifest.yaml. Placed by

@@ -172,6 +172,21 @@ def parse_args() -> argparse.Namespace:
     )
     meanings.add_argument("--dry-run", action="store_true")
 
+    backfill = commands.add_parser(
+        "backfill-needs",
+        help="Give a workspace's open questions the `needs` block the decision queue "
+             "reads: propose from the documents, then write the reviewed proposal.",
+    )
+    backfill.add_argument("--app-root", required=True)
+    backfill.add_argument(
+        "--apply", action="store_true",
+        help="Validate the reviewed proposal and write it into the register. "
+             "Without it the command only proposes.",
+    )
+    backfill.add_argument("--dry-run", action="store_true")
+    backfill.add_argument("--force", action="store_true",
+                          help="Replace an existing proposal, which may hold a reviewer's edits.")
+
     completeness = commands.add_parser(
         "completeness",
         help="Record each object's definition-text shape and compare it with the last "
@@ -675,6 +690,14 @@ def main() -> int:
         if args.dry_run:
             meaning_args.append("--dry-run")
         return run("build_meanings.py", *meaning_args)
+
+    if args.command == "backfill-needs":
+        backfill_args = ["--app-root", args.app_root]
+        for flag, wanted in (("--apply", args.apply), ("--dry-run", args.dry_run),
+                             ("--force", args.force)):
+            if wanted:
+                backfill_args.append(flag)
+        return run("backfill_needs.py", *backfill_args)
 
     if args.command == "completeness":
         completeness_args = ["--app-root", args.app_root]

@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://sms.local/schemas/decision-needs.schema.json",
+  "title": "Decision queue item: the `needs` block of an identifier register entry",
+  "description": "Structure only. That an identifier resolves, that a party exists in parties.yaml, that depends_on has no cycle, and that a gap belongs to a Q are checked by contracts/decision_queue.py, which a test holds to this file.",
+  "type": "object",
+  "required": ["kind", "party", "blocks"],
+  "additionalProperties": false,
+  "properties": {
+    "kind": {"enum": ["FACT", "DISPOSITION", "SCOPE", "POLICY"]},
+    "party": {"type": "string", "minLength": 1},
+    "also": {"type": "array", "items": {"type": "string", "minLength": 1}, "uniqueItems": true},
+    "named": {"type": "array", "items": {"type": "string", "minLength": 1}, "uniqueItems": true},
+    "blocks": {
+      "type": "array",
+      "items": {"type": "string", "pattern": "^(object:\\s*\\S.*|[A-Za-z]{1,5}-?[A-Za-z0-9-]{1,12})$"},
+      "uniqueItems": true
+    },
+    "default": {"type": ["string", "null"], "pattern": "^(mitigation|AS-[0-9]{2})$"},
+    "gap": {"type": ["string", "null"], "pattern": "^UK-[A-Z][0-9]{2}$"},
+    "depends_on": {"type": "array", "items": {"type": "string", "minLength": 1}, "uniqueItems": true},
+    "class": {"enum": ["technical", "data", "retired", "behaviour", null]},
+    "options": {
+      "type": ["array", "null"],
+      "items": {"type": "string", "minLength": 1},
+      "minItems": 2,
+      "uniqueItems": true
+    }
+  },
+  "if": {"properties": {"kind": {"not": {"const": "POLICY"}}}},
+  "then": {"properties": {"blocks": {"minItems": 1}}}
+}
