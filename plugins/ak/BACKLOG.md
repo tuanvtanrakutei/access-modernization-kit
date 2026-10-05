@@ -142,14 +142,43 @@ failing on a changed message, so every mutation was "caught" by it. Re-run again
 baseline, one rule survived - nothing tested that a malformed evidence item is refused before
 anything is written - and has a test now.
 
+**Errata slice (2026-10-05).** An answer to a question that had a default either held the
+assumption it proceeded on or broke it, and the register recorded the answer and left the
+assumption standing: A06's E-01 and E-02 were corrected from three documents by a person, with
+no list of what to refresh. The maintainer chose to put "If wrong" in the register (a field of
+the `AS-` entry, `if_wrong`, not of a `needs` block: an assumption is not a queue item) rather
+than read it from the Assumptions table by position, because a column read by position breaks
+silently when the table changes and the sentence is the only place the refresh set lived.
+Two rules, both held by `decision_fields_present`:
+
+- ID-12: every open `AS-` carries `if_wrong`. `$ak backfill-needs` copies it from the table of the
+  phase that allocated the assumption (a new `if_wrong:` section of the proposal; a missing row is
+  `UNDECIDED`, never invented; a person's own `if_wrong` is never overwritten).
+- ID-13: once every item that proceeded on an assumption is closed and one was answered, the
+  assumption is `resolved_by` (confirmed) or `superseded_by` an `E-` entry (contradicted), and that
+  entry's `affected` names every identifier in `if_wrong`. An item closed only by `superseded_by`
+  was a duplicate and settles nothing. `$ak decisions` prints the sentence and the refresh set under
+  each item that proceeds on the assumption.
+
+What it does not do: write the errata entry. That stays with the phase that found the error (A67),
+because `corrected` and `cause` are a judgement. The check refuses a correction that leaves out
+something the assumption said would stop holding; it cannot tell that the correction is right.
+Section numbers in `if_wrong` are not identifiers and are not checked, and that is most of what A06
+wrote: of its 14 assumptions, 14 copied cleanly into `if_wrong` and only 4 (AS-02, AS-22, AS-32, AS-33)
+name an identifier, so ten have an empty refresh set today and the correction check passes them
+vacuously. The templates now ask a phase to name the identifiers an assumption feeds; the existing 10 are
+the maintainer's to rewrite, and none is the default of a closed item, so nothing is flagged. Rehearsed
+on a scratch copy of A06 (the live register is untouched): the proposal gave all 14, `--apply` wrote
+them, and `$ak decisions` printed the sentence under the 5 items that proceed on an assumption. Tests: `test_decision_errata.py`,
+each rule broken once against a green baseline.
+
 **Not done, and where the checks are weaker than they look.**
 
 - A06's 25 classes are not decided, and neither is any rule of its `policy.yaml`. Both are the
   decider's; the live register has not been written.
-- Contradiction to errata (design 4.4) is not built, by the maintainer's choice on 2026-10-02:
-  it is its own slice. It needs a decision first - read a default's refresh set from the
-  document's 3-column Assumptions table, or move "If wrong" into the register - and assumptions
-  join `decision_fields_present` with it.
+- Contradiction to errata (design 4.4) is built in its own slice (below, "Errata slice"), after
+  the maintainer chose on 2026-10-05 to move "If wrong" into the register rather than read it
+  from a 3-column table by position.
 - A policy settles a risk by derivation: the register keeps it open, and the queue says
   `settled_by` and `disposition`. A consumer that reads the register alone sees it open.
 - A `defer` closes the item like any other decision. Whether a deferred disposition should

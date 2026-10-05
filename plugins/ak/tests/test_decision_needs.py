@@ -51,7 +51,8 @@ RISK_NEEDS = {"kind": "DISPOSITION", "party": "decider", "blocks": [], "default"
 
 def register(*extra: dict) -> list[dict]:
     return [
-        entry("WF-001", "WF-"), entry("BR-ORD-10", "BR-", 3), entry("AS-32", "AS-"),
+        entry("WF-001", "WF-"), entry("BR-ORD-10", "BR-", 3),
+        entry("AS-32", "AS-", if_wrong="the overwrite lands elsewhere and RW-02 would not follow"),
         entry("UK-W01", "UK-"), entry("RW-02", "RW-", severity="HIGH", needs=dict(RISK_NEEDS)),
         *extra,
     ]
@@ -489,7 +490,7 @@ def test_a_phase_with_no_questions_is_not_accused() -> None:
     result = next(r for r in checker.apparatus_checks(
         2, "# X", {"identifier_entries": [entry("F-001", "F-", 2)], "parties": parties()})
         if r["check"] == "decision_fields_present")
-    assert result["status"] == "PASS" and "no question, unknown or risk" in result["detail"]
+    assert result["status"] == "PASS" and "no question, unknown, risk or assumption" in result["detail"]
 
 
 def test_prose_cells_are_visible_in_the_result() -> None:
@@ -731,10 +732,12 @@ def test_a_reviewed_proposal_is_written_in_the_registers_own_format(
     new = {e["id"]: e for e in after["entries"]}
     assert set(old) == set(new)
     assert new["Q117"]["needs"]["gap"] == "UK-W01" and new["Q120"]["resolved_by"] == "A99-P4-CODE-003"
-    # Nothing but the needs blocks and the closure changed.
+    # Nothing but the needs blocks, the closure and the assumption's `if_wrong` changed.
+    changed = ("needs", "resolved_by", "if_wrong")
     for eid in old:
-        stripped = {k: v for k, v in new[eid].items() if k not in ("needs", "resolved_by")}
-        assert stripped == {k: v for k, v in old[eid].items() if k not in ("needs", "resolved_by")}
+        stripped = {k: v for k, v in new[eid].items() if k not in changed}
+        assert stripped == {k: v for k, v in old[eid].items() if k not in changed}
+    assert new["AS-32"]["if_wrong"] == "the overwrite lands elsewhere"
     assert list((root / ".ak" / "backups").glob("A99_Identifiers.*.json"))
     assert (root / "input" / "decisions" / "needs-proposal.applied.yaml").is_file()
     assert not (root / "input" / "decisions" / "needs-proposal.yaml").exists()

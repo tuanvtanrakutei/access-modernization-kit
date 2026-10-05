@@ -468,14 +468,95 @@ def _cycles(entries: Iterable[dict[str, Any]]) -> list[list[str]]:
     return found
 
 
+# --- assumptions: what the pipeline proceeds on, and what an answer does to it ------------
+
+IF_WRONG = "if_wrong"
+
+
+def refresh_set(entry: dict[str, Any]) -> list[str]:
+    """What stops holding if this assumption is wrong: the identifiers its `if_wrong` names.
+
+    A phase wrote that column as a sentence ("§6.2 overstates the reach ..., and RW-02 would
+    not follow"), so the identifiers in it are the part a program can follow. A section number
+    is not one and is left to the sentence. The assumption itself and any errata entry are not
+    part of what is refreshed.
+    """
+    own = str(entry.get("id") or "")
+    found = find_identifiers(str(entry.get(IF_WRONG) or ""))
+    return [t for t in found if t != own and is_identifier(t) and not t.startswith("E-")]
+
+
+def validate_assumptions(entries: list[dict[str, Any]], errata: list[dict[str, Any]] | None = None,
+                         phase: int | None = None) -> list[str]:
+    """ID-12 and ID-13: every assumption says what breaks if it is wrong, and an answer settles it.
+
+    An answer to a question that proceeded on an assumption either held it or did not. The
+    register used to record the answer and leave the assumption standing as though nothing
+    had been asked, so a published claim built on it stayed in force after the evidence that
+    ended it. A contradicted assumption is `superseded_by` the errata entry that corrects it,
+    and that entry has to name everything the assumption's `if_wrong` named: the refresh set.
+    `errata` is None when the project has no errata register, which is not the same as one
+    that is empty, so the entry is not looked for.
+    """
+    by_id = {str(e["id"]): e for e in entries if e.get("id")}
+    mine = {str(e["id"]) for e in entries if e.get("id") and (phase is None or e.get("phase") == phase)}
+    errata_by_id = {str(e["id"]): e for e in errata or [] if isinstance(e, dict) and e.get("id")}
+    answered: dict[str, list[str]] = {}
+    for entry in entries:
+        needs = entry.get("needs")
+        if isinstance(needs, dict) and is_assumption(str(needs.get("default") or "")):
+            answered.setdefault(str(needs["default"]), []).append(str(entry.get("id")))
+
+    problems: list[str] = []
+    for aid, entry in sorted(by_id.items()):
+        if str(entry.get("namespace") or "") != "AS-":
+            continue
+        asked_here = mine.intersection([aid, *answered.get(aid, [])])
+        text = entry.get(IF_WRONG)
+        if aid in mine:
+            if text is None:
+                if is_open(entry):
+                    problems.append(
+                        f"{aid}: an open assumption with no `if_wrong`; the register must say what "
+                        "stops holding if it is wrong, or an answer cannot say what to refresh")
+            elif not isinstance(text, str) or not text.strip():
+                problems.append(f"{aid}: `if_wrong` must be text saying what breaks if the assumption is wrong")
+
+        superseded = str(entry.get("superseded_by") or "").strip()
+        if superseded.startswith("E-") and asked_here and errata is not None:
+            correction = errata_by_id.get(superseded)
+            if correction is None:
+                problems.append(f"{aid}: superseded by {superseded}, which is not in the errata register")
+            else:
+                said = correction.get("affected")
+                affected = find_identifiers(" ".join(map(str, said if isinstance(said, list) else [said or ""])))
+                missing = [t for t in refresh_set(entry) if t not in affected]
+                if missing:
+                    problems.append(
+                        f"{aid}: {superseded} corrects it but its `affected` leaves out {missing}, "
+                        f"which the assumption's `if_wrong` says stop holding")
+
+        users = answered.get(aid, [])
+        if (users and is_open(entry) and asked_here
+                and all(not is_open(by_id[u]) for u in users)
+                and any(str(by_id[u].get("resolved_by") or "").strip() for u in users)):
+            problems.append(
+                f"{aid}: {', '.join(users)} proceeded on it and is answered, and nothing says whether "
+                "the answer held it. Set `resolved_by` to the evidence that confirms it, or "
+                "`superseded_by` to the E- entry that corrects it")
+    return problems
+
+
 def validate_register(entries: list[dict[str, Any]], parties: Parties | None,
-                      phase: int | None = None) -> list[str]:
-    """ID-07 to ID-09 and ID-11 over one phase's allocations, or the whole register when phase is None."""
+                      phase: int | None = None,
+                      errata: list[dict[str, Any]] | None = None) -> list[str]:
+    """ID-07 to ID-09 and ID-11 to ID-13 over one phase's allocations, or the whole register when phase is None."""
     ids = {str(e.get("id")) for e in entries if e.get("id")}
     mine = [e for e in entries if phase is None or e.get("phase") == phase]
     problems: list[str] = []
     for entry in mine:
         problems += validate_needs(entry, ids, parties)
+    problems += validate_assumptions(entries, errata, phase)
 
     asked = {str(e["needs"]["gap"]) for e in entries
              if isinstance(e.get("needs"), dict) and e["needs"].get("gap")}

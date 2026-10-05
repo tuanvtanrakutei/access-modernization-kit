@@ -217,7 +217,7 @@ def propose(space: workspace_contract.Workspace) -> tuple[str, dict[str, int]]:
     rows = dr.own_rows(output, entries, {str(e["id"]) for e in asks})
 
     counts = {"derived": 0, "party_todo": 0, "blocks_todo": 0, "to_close": 0,
-              "risks": 0, "class_todo": 0}
+              "risks": 0, "class_todo": 0, "assumptions": 0, "assumptions_todo": 0}
     needs_lines: list[str] = []
     close_lines: list[str] = []
     for entry in asks:
@@ -287,6 +287,18 @@ def propose(space: workspace_contract.Workspace) -> tuple[str, dict[str, int]]:
         found, notes = waits_on(mitigation, eid, entries)
         note = f"   # {'; '.join(notes)}" if notes else ("   # named in its Mitigation" if found else "")
         needs_lines.append(f"    depends_on: {yaml_value(found)}{note}")
+    wrong_lines: list[str] = []
+    bare = {str(e["id"]) for e in entries if e.get("namespace") == "AS-" and dq.is_open(e)
+            and dq.IF_WRONG not in e}
+    said = dr.assumption_rows(output, entries, bare)
+    for eid in sorted(bare):
+        counts["assumptions"] += 1
+        if eid in said:
+            sentence = " ".join(said[eid][1].split())
+            wrong_lines.append(f"  {eid}: {yaml_value(sentence)}")
+        else:
+            counts["assumptions_todo"] += 1
+            wrong_lines.append(f"  {eid}: {UNDECIDED}   # no row in the Assumptions table of the phase that allocated it")
     header = [
         f"# Proposed `needs` blocks for {register.get('app_id', '?')}. Written by `$ak backfill-needs`; nothing has been applied.",
         "#",
@@ -304,7 +316,10 @@ def propose(space: workspace_contract.Workspace) -> tuple[str, dict[str, int]]:
         "needs:",
     ]
     body = header + (needs_lines or ["  {}"]) + ["", "# Items a document already calls closed while the register has them open.",
-                                                  "close:"] + (close_lines or ["  {}"])
+                                                  "close:"] + (close_lines or ["  {}"]) + [
+        "", "# What each assumption's own row says stops holding if it is wrong, copied as written. An answer",
+        "# that contradicts the assumption is corrected by an errata entry that names what this sentence names.",
+        "if_wrong:"] + (wrong_lines or ["  {}"])
     return "\n".join(body) + "\n", counts
 
 
@@ -363,6 +378,19 @@ def apply(space: workspace_contract.Workspace, proposal_path: Path, dry_run: boo
         else:
             entry["needs"] = block
 
+    written = 0
+    for eid, text in (proposal.get("if_wrong") or {}).items():
+        entry = by_id.get(str(eid))
+        if entry is None or entry.get("namespace") != "AS-":
+            problems.append(f"{eid}: `if_wrong` is for an assumption in the register")
+        elif dq.IF_WRONG in entry:
+            continue
+        elif not isinstance(text, str) or not text.strip():
+            problems.append(f"{eid}: `if_wrong` is the sentence saying what breaks if it is wrong")
+        else:
+            entry[dq.IF_WRONG] = text.strip()
+            written += 1
+
     known_evidence = dr.evidence_index(output)
     known_errata = dr.errata_ids(output)
     closed = 0
@@ -381,7 +409,7 @@ def apply(space: workspace_contract.Workspace, proposal_path: Path, dry_run: boo
             entry["resolved_by"] = evidence
             closed += 1
 
-    problems += dq.validate_register(entries, parties)
+    problems += dq.validate_register(entries, parties, errata=dr.errata_entries(output))
     if parties is None:
         problems.append("there is no input/decisions/parties.yaml")
     elif parties.problems:
@@ -394,7 +422,8 @@ def apply(space: workspace_contract.Workspace, proposal_path: Path, dry_run: boo
         return 1
     register["entries"] = entries
     added = len(proposal.get("needs") or {}) - skipped
-    print(f"{added} needs block(s) to write, {closed} item(s) to close, {skipped} already had one")
+    print(f"{added} needs block(s) to write, {closed} item(s) to close, {skipped} already had one, "
+          f"{written} assumption(s) to give an `if_wrong`")
     if dry_run:
         print("dry run: nothing written")
         return 0
@@ -452,7 +481,8 @@ def main() -> int:
         text, counts = propose(space)
         print(f"{counts['derived']} party(ies) derived, {counts['party_todo']} to decide, "
               f"{counts['blocks_todo']} blocks to name, {counts['to_close']} item(s) the documents call closed, "
-              f"{counts['risks']} risk(s) proposed with {counts['class_todo']} class(es) to decide")
+              f"{counts['risks']} risk(s) proposed with {counts['class_todo']} class(es) to decide, "
+              f"{counts['assumptions']} assumption(s) lacking `if_wrong` ({counts['assumptions_todo']} with no row to copy it from)")
         if args.dry_run:
             print(text)
             return 0

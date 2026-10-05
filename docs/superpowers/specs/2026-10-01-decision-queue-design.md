@@ -129,7 +129,7 @@ Status is **derived, never stored**: `open` until `resolved_by` or `superseded_b
 ### 4.4 Answer and contradiction
 
 1. The answer is recorded as evidence (`interviews/` or `target-intent/`) and `resolved_by` is set.
-2. If the item had a default assumption, the answer confirms it, or contradicts it. A contradiction is an errata entry under the existing contract. Its `affected` list is the assumption's "If wrong" column, and that list is the refresh set.
+2. If the item had a default assumption, the answer confirms it, or contradicts it. A contradiction is an errata entry under the existing contract. Its `affected` list names what the assumption's `if_wrong` named, and that list is the refresh set. `if_wrong` is a register field of the `AS-` entry, copied from the phase's "If wrong" cell (ID-12, ID-13).
 3. A DISPOSITION answer becomes a row in the screen plan gap matrix: `planned` for preserve, `accepted-difference` for fix or drop, each citing the item id.
 
 ### 4.5 Parties
@@ -217,7 +217,7 @@ The first four were put to the maintainer with a recommendation on 2026-10-01 an
 2. **UK and Q:** keep both, linked by `gap`. The unknown is the gap in the document and the question is the action. The alternative was one table per phase.
 3. **One `decider` role** for DISPOSITION, SCOPE and POLICY, instead of the PM and tech-lead split in modernize `DOCS_README.md` §6.
 4. **Customer-facing sheet:** render it, and a person posts it. Posting to the customer's Q&A tool automatically is outward-facing and is a separate decision.
-5. **Contradiction to errata is its own slice** (2026-10-02, when slice 3 began). It waits on one decision: whether an assumption's refresh set is read from the document's 3-column Assumptions table or moved into the register as a field.
+5. **Contradiction to errata is its own slice** (2026-10-02, when slice 3 began), built 2026-10-05 after the maintainer chose to move "If wrong" into the register as `if_wrong` rather than read the 3-column Assumptions table by position.
 
 Open, found while building slice 1: A06 treats the customer's "Product owner" as the `decider` (UK-D05 says a decision by the new system's owner, and names the Product owner). If those are two different people on a project, `parties.yaml` splits them and the DISPOSITION items need a rule for which one settles what.
 

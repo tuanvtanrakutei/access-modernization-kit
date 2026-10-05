@@ -106,6 +106,18 @@ def errata_ids(output: Path) -> set[str]:
     return {str(e["id"]) for e in entries if isinstance(e, dict) and e.get("id")}
 
 
+def errata_entries(output: Path) -> list[dict[str, Any]] | None:
+    """The errata register's entries, or None when the project has no errata register."""
+    found = _find(output, "*_Errata.json")
+    if len(found) != 1:
+        return None
+    try:
+        entries = read_register(found[0]).get("entries") or []
+    except (OSError, json.JSONDecodeError):
+        return None
+    return [e for e in entries if isinstance(e, dict)]
+
+
 def phase_documents(output: Path, language: str | None = None) -> dict[int, Path]:
     """One document per phase: the requested language, else EN, else whichever there is.
 
@@ -203,3 +215,24 @@ def item_texts(output: Path, entries: list[dict[str, Any]], language: str | None
             texts[identifier] = {"ask": cells[1], "why": cells[2] if len(cells) > 2 else "",
                                  "settle": cells[3] if len(cells) > 3 else ""}
     return texts
+
+
+def assumption_rows(output: Path, entries: list[dict[str, Any]], wanted: set[str],
+                    language: str | None = None) -> dict[str, tuple[str, str]]:
+    """Each wanted assumption's (text, "If wrong") cells, from the phase that allocated it.
+
+    The Assumptions table has three columns where the decision tables have four or more, so
+    `rows_by_id` does not see it. A later phase's carried-forward table names the same ids in
+    a shape of its own and is not read.
+    """
+    phases = {str(e["id"]): e.get("phase") for e in entries}
+    found: dict[str, tuple[str, str]] = {}
+    for phase, path in sorted(phase_documents(output, language).items()):
+        for table in dq.tables(read_text(path)):
+            if len(table.header) != 3:
+                continue
+            for row in table.rows:
+                if (row.identifier in wanted and row.wellformed and phases.get(row.identifier) == phase
+                        and row.identifier not in found):
+                    found[row.identifier] = (row.cells[1], row.cells[2])
+    return found
