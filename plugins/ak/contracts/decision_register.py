@@ -51,6 +51,31 @@ def read_register(path: Path) -> dict[str, Any]:
     return json.loads(read_text(path))
 
 
+def read_identifiers(path: Path) -> dict[str, Any]:
+    """The identifier register, with its rows under `entries` whatever the file calls them.
+
+    A register written before the rename keeps its rows under `items`, the key the
+    evidence register still uses. `backfill-needs` read `register["entries"]` and stopped
+    on such a register with a KeyError, while the conformance gate and the catalogues
+    already read both keys. Writing it back moves the rows to `entries`, and the old file
+    is kept under `.ak/backups/`.
+    """
+    register = read_register(path)
+    if "entries" not in register and isinstance(register.get("items"), list):
+        register["entries"] = register.pop("items")
+    # The same older format writes a namespace without its dash: `UK` for `UK-L01`, `RA`
+    # for `RA-02`. The queue matches `UK-` and `RA-`, so every unknown and every risk fell
+    # out of the proposal without a word. `Q` has no dash in either spelling.
+    for entry in register.get("entries") or []:
+        if not isinstance(entry, dict):
+            continue
+        namespace = str(entry.get("namespace") or "")
+        if (re.fullmatch(r"[A-Z]{1,4}", namespace)
+                and str(entry.get("id") or "").startswith(namespace + "-")):
+            entry["namespace"] = namespace + "-"
+    return register
+
+
 def format_register(register: dict[str, Any]) -> str:
     return json.dumps(register, indent=1, sort_keys=True, ensure_ascii=False) + "\n"
 
