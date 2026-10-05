@@ -1035,8 +1035,12 @@ def _interactive_controls(bundle: Path, forms: list, reports: list,
         "exactly the objects these values name, and nothing else. A `DefaultValue` "
         "beginning `=` is an Access expression and is printed as the definition writes it.",
         "",
-        "`On click` is the handler named in the definition. `—` means the control names "
-        "none, which is how a button whose handler was removed still looks like a button.",
+        "`On click` is the handler named in the definition (its `OnClick` property). `—` means "
+        "that property is empty, so nothing runs when the control is clicked. It does not say "
+        "whether a procedure of the right name sits in the form's module: one can, and never "
+        "have been connected, so an empty cell is neither evidence that a handler exists nor "
+        "that one was removed. Search the module for `<control>_Click` before concluding "
+        "either.",
         "",
         "| Object | Control | Type | Caption | Offers | On click | Visible |",
         "|---|---|---|---|---|---|---|",
