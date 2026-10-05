@@ -71,6 +71,13 @@ def write_register(space: Any, path: Path, register: dict[str, Any]) -> Path:
     backups.mkdir(parents=True, exist_ok=True)
     stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S%fZ")
     backup = backups / f"{path.stem}.{stamp}.json"
+    # A clock that ticks in milliseconds (Windows) gives two writes in one tick the same
+    # name, and the second would replace the first's backup: the one thing this function
+    # promises is that no previous file is lost.
+    counter = 1
+    while backup.exists():
+        counter += 1
+        backup = backups / f"{path.stem}.{stamp}-{counter}.json"
     backup.write_bytes(path.read_bytes())
     atomic_write(path, format_register(register))
     return backup
