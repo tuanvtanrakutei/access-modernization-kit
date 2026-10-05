@@ -227,6 +227,8 @@ LANGUAGE_SUFFIX = re.compile(r"_([A-Z]{2})(?:\.[^.]+)?$")
 # backticks (`` `d31` ``, `` `合計数量 = d1+d2+...+d31` ``) - the same collision, already
 # distinguished by the gold standard's own typography. So code spans are not scanned.
 CODE_SPAN = re.compile(r"```.*?```|`[^`\n]*`", re.DOTALL)
+FENCED = re.compile(r"```.*?```", re.DOTALL)
+WHOLE_SPAN = re.compile(r"`([^`\n]+)`")
 
 
 def prose(text: str) -> str:
@@ -472,9 +474,16 @@ def apparatus_checks(phase: int, text: str, registers: dict[str, Any],
                    and not str(e.get("resolved_by") or "").strip()
                    and not str(e.get("superseded_by") or "").strip()]
         scanned = prose(text)
+        # A table or a sentence that cites an item writes it in backticks as often as not,
+        # and an item cited only that way was reported as never mentioned. A span holding
+        # one identifier and nothing else is a
+        # citation; a column such as `d31` is still a column, because only carried open
+        # items are looked up here (A52 is about allocation, not about this).
+        cited = {match.group(1).strip() for match in WHOLE_SPAN.finditer(FENCED.sub("", text))}
         unaccounted = sorted(str(e.get("id")) for e in carried
-                             if not re.search(rf"\b{re.escape(str(e.get('id')))}\b",
-                                              scanned))
+                             if str(e.get("id")) not in cited
+                             and not re.search(rf"\b{re.escape(str(e.get('id')))}\b",
+                                               scanned))
         results.append(check(
             "prior_unknowns_accounted", "apparatus", not unaccounted,
             f"{len(unaccounted)} open item(s) from an earlier phase are never mentioned: "

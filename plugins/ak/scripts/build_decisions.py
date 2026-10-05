@@ -230,7 +230,7 @@ def main() -> int:
     try:
         output = space.output_dir()
         register_file = dr.register_path(output)
-        register = dr.read_register(register_file)
+        register = dr.read_identifiers(register_file)
         entries = register["entries"]
         app = str(register.get("app_id") or "")
         parties = dq.load_parties(space.input_dir("decisions") / "parties.yaml")
