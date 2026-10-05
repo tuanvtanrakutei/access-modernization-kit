@@ -178,7 +178,8 @@ def _order(items: dict[str, dict[str, Any]], problems: list[str]) -> list[str]:
 def build_queue(entries: list[dict[str, Any]], parties: dq.Parties | None = None, *,
                 evidence: dict[str, dict[str, Any]] | None = None,
                 interviews: dict[str, Any] | None = None,
-                app_id: str = "", policy: dq.Policy | None = None) -> dict[str, Any]:
+                app_id: str = "", policy: dq.Policy | None = None,
+                prechecks: dict[str, list[dict[str, str]]] | None = None) -> dict[str, Any]:
     by_id = {str(e["id"]): e for e in entries if e.get("id")}
     problems: list[str] = []
     if policy is not None and policy.problems:
@@ -240,6 +241,8 @@ def build_queue(entries: list[dict[str, Any]], parties: dq.Parties | None = None
             "disposition": rule["disposition"] if identifier in settled else None,
             "would_settle": rule["id"] if rule is not None and identifier not in settled else None,
         }
+        if prechecks and prechecks.get(identifier):
+            item["precheck"] = prechecks[identifier]       # A58: found before it is asked, never a verdict
         item["posture"] = "BLOCKING" if item["default"] is None else "PROCEEDS_ON_DEFAULT"
         item["customer"] = _customer(identifier, item["qa"], interviews, problems)
         item["bucket"] = _bucket(item)
@@ -327,6 +330,8 @@ def build_queue(entries: list[dict[str, Any]], parties: dq.Parties | None = None
                          "blocking": len(agendas[p]["blocking"]),
                          "settled": len(agendas[p]["settled"])} for p in party_order},
     }
+    if any(i.get("precheck") for i in items.values()):
+        counts["prechecked"] = sum(1 for i in undecided if i.get("precheck"))
     return {
         "app_id": app_id, "counts": counts, "party_order": party_order,
         "agendas": agendas, "also_for": also_for,
@@ -461,6 +466,8 @@ def _item_block(number: int, item: dict[str, Any], texts: dict[str, dict[str, st
             refresh = default.get("refresh") or []
             lines.append(f"- **If that is wrong:** {_clean(default['if_wrong'])}"
                          + (f" (refresh: {', '.join(refresh)})" if refresh else ""))
+    for flag in item.get("precheck") or []:
+        lines.append(f"- **Check before asking:** {_clean(flag['text'])} ({flag['source']})")
     if item["gap"]:
         lines.append(f"- **About the unknown:** {_label(item['gap'])}")
     if settle:
