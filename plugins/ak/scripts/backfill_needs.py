@@ -89,9 +89,9 @@ def named_in(text: str) -> list[str]:
     """Identifiers a Mitigation names, in prose or as a whole code span, each once.
 
     `find_identifiers` skips code spans, because `d31` in backticks is a column (A52). A
-    Mitigation writes an identifier the same way: A05's RA-01 says "Establish whether the
-    button is used (`Q12`)", and RA-05 and RA-08 do the same, so all three were proposed
-    with nothing to wait on. A span that is one identifier and nothing else is a citation.
+    Mitigation often cites an identifier the same way, "Establish whether the button is
+    used (`Q12`)", and such a risk was proposed with nothing to wait on. A span that is
+    one identifier and nothing else is a citation.
     The caller keeps only open Q and UK- entries in the register, so a column that merely
     looks like an identifier still names nothing.
     """

@@ -631,8 +631,7 @@ def test_a_middle_phase_errata_entry_is_not_a_namespace_trespass() -> None:
 
 
 def test_an_item_cited_in_backticks_is_accounted_for() -> None:
-    """A05's Phase 3 names `Q2`, `Q6`, `Q11` and `Q12` only in backticks, and the check
-    reported all four as never mentioned."""
+    """An item cited only in backticks was reported as never mentioned."""
     registers = {"identifier_entries": [{"id": "Q6", "namespace": "Q", "phase": 1},
                                         {"id": "UK-D05", "namespace": "UK-", "phase": 1}]}
     results = checker.apparatus_checks(

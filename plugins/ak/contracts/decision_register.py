@@ -54,18 +54,18 @@ def read_register(path: Path) -> dict[str, Any]:
 def read_identifiers(path: Path) -> dict[str, Any]:
     """The identifier register, with its rows under `entries` whatever the file calls them.
 
-    A05's register predates the rename and keeps its rows under `items`, the key the
+    A register written before the rename keeps its rows under `items`, the key the
     evidence register still uses. `backfill-needs` read `register["entries"]` and stopped
-    on A05 with a KeyError, while the conformance gate and the catalogues already read
-    both keys. Writing it back moves the rows to `entries`, and the old file is kept
-    under `.ak/backups/`.
+    on such a register with a KeyError, while the conformance gate and the catalogues
+    already read both keys. Writing it back moves the rows to `entries`, and the old file
+    is kept under `.ak/backups/`.
     """
     register = read_register(path)
     if "entries" not in register and isinstance(register.get("items"), list):
         register["entries"] = register.pop("items")
-    # The same register writes a namespace without its dash: `UK` for `UK-L01`, `RA` for
-    # `RA-02`. The queue matches `UK-` and `RA-`, so on A05 every unknown and every risk
-    # fell out of the proposal without a word. `Q` has no dash in either spelling.
+    # The same older format writes a namespace without its dash: `UK` for `UK-L01`, `RA`
+    # for `RA-02`. The queue matches `UK-` and `RA-`, so every unknown and every risk fell
+    # out of the proposal without a word. `Q` has no dash in either spelling.
     for entry in register.get("entries") or []:
         if not isinstance(entry, dict):
             continue
@@ -97,8 +97,8 @@ def write_register(space: Any, path: Path, register: dict[str, Any]) -> Path:
     stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S%fZ")
     backup = backups / f"{path.stem}.{stamp}.json"
     # Windows' clock can return one microsecond stamp for two writes in a row, and the
-    # second backup then replaced the first: CI lost a previous file this way. A stamp
-    # already taken gets a counter rather than an overwrite.
+    # second backup then replaced the first. A stamp already taken gets a counter rather
+    # than an overwrite.
     counter = 1
     while backup.exists():
         backup = backups / f"{path.stem}.{stamp}-{counter}.json"
