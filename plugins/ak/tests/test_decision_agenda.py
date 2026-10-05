@@ -734,3 +734,30 @@ def test_the_output_contract_lists_the_queue_and_the_template_states_its_reader(
     assert "Who reads it" in template and "$ak decisions" in template
     readme = (PACKAGE / "templates" / "readme.md").read_text(encoding="utf-8")
     assert "_QuestionList.md" in readme and "_DecisionQueue.json" in readme
+
+
+def test_two_writes_in_one_clock_tick_keep_both_previous_files(
+        tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """The test above failed on Windows CI: two writes got the same backup name.
+
+    A clock that moves in milliseconds returns one time for both, the name is built from it,
+    and the second backup replaced the first - losing a previous file, which is the one thing
+    `write_register` promises not to do. The clock is fixed here so the tie happens everywhere,
+    not on the platforms that happen to tick coarsely.
+    """
+    import datetime as real
+
+    class Frozen(real.datetime):
+        @classmethod
+        def now(cls, tz=None):  # type: ignore[override]
+            return real.datetime(2026, 10, 5, 3, 0, 0, 123456, tzinfo=tz)
+
+    monkeypatch.setattr(dr, "datetime", Frozen)
+    space = workspace_contract.Workspace(tmp_path)
+    (tmp_path / "input").mkdir()
+    path = tmp_path / "A99_Identifiers.json"
+    path.write_text(dr.format_register({"entries": []}), encoding="utf-8")
+    backups = [dr.write_register(space, path, {"entries": [{"id": f"Q{n}"}]}) for n in (1, 2, 3)]
+    assert len({b.name for b in backups}) == 3 and all(b.is_file() for b in backups)
+    assert [json.loads(b.read_text(encoding="utf-8")) for b in backups] == [
+        {"entries": []}, {"entries": [{"id": "Q1"}]}, {"entries": [{"id": "Q2"}]}]

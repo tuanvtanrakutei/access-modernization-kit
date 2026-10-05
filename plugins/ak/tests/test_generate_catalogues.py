@@ -663,3 +663,36 @@ def test_every_generated_row_has_as_many_cells_as_its_header(workspace: Path) ->
                 f"{name}: table at line {line} has rows of {sorted(set(widths))} "
                 f"cells; a header and its rows must agree"
             )
+
+
+def test_an_empty_on_click_is_not_read_as_a_removed_handler(tmp_path: Path) -> None:
+    """The legend said an empty `On click` is how a button whose handler was removed looks.
+
+    A06's `発注点更新ボタン` showed the other case. Its definition has no `OnClick`, so the
+    cell is empty, and the form's module still holds `発注点更新ボタン_Click`, which opens
+    `発注点更新画面`: the handler was never connected, not removed. Phase 2 took the legend's
+    one reading as fact and asked a customer what a deleted function used to do (E-13).
+
+    The legend now says what an empty cell is - an empty property, so nothing runs - and
+    that it neither shows a handler exists nor that one was removed.
+    """
+    bundle = tmp_path / "bundle"
+    write(bundle / "ui" / "controls.json", [
+        {"object": "メイン", "controls": [
+            {"name": "未接続ボタン", "type": 104, "caption": "更新", "on_click": "", "visible": False},
+            {"name": "接続済みボタン", "type": 104, "caption": "取込", "on_click": "[Event Procedure]",
+             "visible": True},
+        ]},
+    ])
+    form = {"database_id": FE, "name": "メイン", "kind": "form", "text": ""}
+    lines = catalogues._interactive_controls(bundle, [form], [], None)
+    text = "\n".join(lines)
+
+    assert "handler was removed still looks like a button" not in text
+    assert "that property is empty, so nothing runs when the control is clicked" in text
+    assert "neither evidence that a handler exists nor that one was removed" in text
+    # The cell itself is unchanged: a dash for the empty property, the name for the wired one.
+    unwired = next(line for line in lines if "未接続ボタン" in line)
+    wired = next(line for line in lines if "接続済みボタン" in line)
+    assert unwired.split(" | ")[5] == "—"
+    assert "[Event Procedure]" in wired
