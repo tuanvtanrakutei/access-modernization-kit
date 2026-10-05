@@ -207,7 +207,7 @@ def draft_parties(output: Path, entries: list[dict[str, Any]]) -> str:
 
 def propose(space: workspace_contract.Workspace) -> tuple[str, dict[str, int]]:
     output = space.output_dir()
-    register = dr.read_register(dr.register_path(output))
+    register = dr.read_identifiers(dr.register_path(output))
     entries = register["entries"]
     parties = dq.load_parties(space.input_dir("decisions") / "parties.yaml")
     if parties is None:
@@ -357,7 +357,7 @@ def apply(space: workspace_contract.Workspace, proposal_path: Path, dry_run: boo
 
     output = space.output_dir()
     path = dr.register_path(output)
-    register = dr.read_register(path)
+    register = dr.read_identifiers(path)
     entries = copy.deepcopy(register["entries"])
     by_id = {str(e["id"]): e for e in entries}
     parties = dq.load_parties(space.input_dir("decisions") / "parties.yaml")
@@ -459,7 +459,7 @@ def main() -> int:
         output = space.output_dir()
         parties_path = decisions / "parties.yaml"
         if not parties_path.is_file():
-            register = dr.read_register(dr.register_path(output))
+            register = dr.read_identifiers(dr.register_path(output))
             draft = draft_parties(output, register["entries"])
             if args.dry_run:
                 print(draft)

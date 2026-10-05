@@ -810,3 +810,38 @@ def test_the_backfilled_register_passes_the_conformance_checks(
     # Blocks cell is the prose "The trace", which is counted rather than compared.
     detail = after["decision_tables_agree"]["detail"]
     assert detail.startswith("2 row(s) compared") and "1 cell(s) are prose" in detail
+
+
+# --- the register's own key ----------------------------------------------------
+
+def test_a_register_that_keeps_its_rows_under_items_is_read_as_entries(tmp_path: Path) -> None:
+    """A05's register predates the rename. `backfill-needs` stopped on it with KeyError."""
+    import decision_register as dr
+
+    path = tmp_path / "A05_Identifiers.json"
+    path.write_text(json.dumps({"app_id": "A05", "items": [{"id": "Q1", "namespace": "Q"}]}),
+                    encoding="utf-8")
+    register = dr.read_identifiers(path)
+    assert register["entries"] == [{"id": "Q1", "namespace": "Q"}]
+    assert "items" not in register
+
+
+def test_a_register_under_entries_is_read_unchanged(tmp_path: Path) -> None:
+    import decision_register as dr
+
+    path = tmp_path / "A06_Identifiers.json"
+    body = {"app_id": "A06", "entries": [{"id": "Q1", "namespace": "Q"}]}
+    path.write_text(json.dumps(body), encoding="utf-8")
+    assert dr.read_identifiers(path) == body
+
+
+def test_a_namespace_written_without_its_dash_is_read_with_it(tmp_path: Path) -> None:
+    """A05 writes `UK` for `UK-L01`. Every unknown and risk fell out of the proposal."""
+    import decision_register as dr
+
+    path = tmp_path / "A05_Identifiers.json"
+    rows = [{"id": "UK-L01", "namespace": "UK"}, {"id": "RA-02", "namespace": "RA"},
+            {"id": "Q1", "namespace": "Q"}, {"id": "A05-P3-FORMAT-015", "namespace": "A05-P3-FORMAT"}]
+    path.write_text(json.dumps({"app_id": "A05", "items": rows}), encoding="utf-8")
+    spaces = [e["namespace"] for e in dr.read_identifiers(path)["entries"]]
+    assert spaces == ["UK-", "RA-", "Q", "A05-P3-FORMAT"]
