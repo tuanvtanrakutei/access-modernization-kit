@@ -232,7 +232,10 @@ flowchart TD
 
 <!-- `AS-nn`. A belief the phase relies on that the evidence does not
      establish. `If wrong` says what in this document stops holding, which is
-     what makes it worth writing down rather than a disclaimer. -->
+     what makes it worth writing down rather than a disclaimer.
+     Name the identifiers it feeds (`RW-02`, `WF-001`) in that cell, not only the
+     section numbers: they are the refresh set when an answer contradicts it, and the
+     register's `if_wrong` for this `AS-nn` is that same sentence (ID-12, ID-13). -->
 
 | ID | Assumption | If wrong |
 |---|---|---|

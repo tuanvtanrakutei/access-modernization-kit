@@ -492,7 +492,9 @@ def apparatus_checks(phase: int, text: str, registers: dict[str, Any],
         mine = [e for e in entries if e.get("phase") == phase]
         asks = [e for e in mine if e.get("namespace") in ("Q", "UK-")]
         risks = [e for e in mine if e.get("namespace") in decision_queue.RISK_NAMESPACES]
-        problems = decision_queue.validate_register(entries, parties, phase)
+        assumptions = [e for e in mine if e.get("namespace") == "AS-"]
+        problems = decision_queue.validate_register(entries, parties, phase,
+                                                    registers.get("errata_entries"))
         if parties is None and (asks or risks or any(isinstance(e.get("needs"), dict) for e in mine)):
             problems.append(
                 "there is no input/decisions/parties.yaml, so no party can be checked and "
@@ -502,9 +504,9 @@ def apparatus_checks(phase: int, text: str, registers: dict[str, Any],
         results.append(check(
             "decision_fields_present", "apparatus", not problems,
             f"{len(problems)} problem(s), first: {problems[:3]}" if problems
-            else f"{len(asks)} question(s) and unknown(s) and {len(risks)} risk(s) allocated here, "
-                 "each routable"
-            if asks or risks else "no question, unknown or risk allocated in this phase",
+            else f"{len(asks)} question(s) and unknown(s), {len(risks)} risk(s) and "
+                 f"{len(assumptions)} assumption(s) allocated here, each routable"
+            if asks or risks or assumptions else "no question, unknown, risk or assumption allocated in this phase",
         ))
 
         comparison = decision_queue.compare_document(
@@ -592,6 +594,7 @@ def load_registers(outputs: Path) -> dict[str, Any]:
     ids_from("*_Identifiers.json", "identifier_ids", "id")
     ids_from("*_Errata.json", "errata_ids", "id")
     entries_from("*_Identifiers.json", "identifier_entries")
+    entries_from("*_Errata.json", "errata_entries")
     # Next to glossary.yaml and meanings.yaml, which `outputs.parent` already reaches for
     # the same reason (annotate_bilingual). None when the file is absent, which the check
     # reports; a project that predates the file is not the same as one that wrote it wrong.

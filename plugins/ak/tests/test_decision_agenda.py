@@ -54,7 +54,8 @@ def base() -> list[dict]:
         entry("F-006", "F-", 2, "入荷実績入力"),
         entry("RW-02", "RW-", severity="HIGH", title="The seed is not what was prepared"),
         entry("RW-07", "RW-", severity="MEDIUM", title="Eight actions have no owner"),
-        entry("AS-31", "AS-"), entry("AS-32", "AS-"),
+        entry("AS-31", "AS-", if_wrong="the memo no longer describes practice; WF-001 loses its evidence"),
+        entry("AS-32", "AS-", if_wrong="the overwrite lands elsewhere and RW-02 would not follow"),
     ]
 
 
@@ -505,7 +506,8 @@ def make_workspace(tmp_path: Path, *, registers_dir: bool = False, unrouted: boo
     where = out / "registers" if registers_dir else out
     where.mkdir(parents=True)
     entries = [
-        entry("WF-001", "WF-", title="受注データ取込"), entry("AS-32", "AS-"),
+        entry("WF-001", "WF-", title="受注データ取込"),
+        entry("AS-32", "AS-", if_wrong="the overwrite lands elsewhere and RW-02 would not follow"),
         entry("UK-W01", "UK-"),
         q("Q117", default="AS-32", gap="UK-W01"),
         q("Q118", depends_on=["Q117"]),

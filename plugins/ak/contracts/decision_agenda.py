@@ -190,6 +190,10 @@ def build_queue(entries: list[dict[str, Any]], parties: dq.Parties | None = None
         found: dict[str, Any] = {"id": identifier, "title": str(entry.get("title") or "")}
         if entry.get("severity"):
             found["severity"] = str(entry["severity"])
+        if entry.get(dq.IF_WRONG):
+            # What an answer that contradicts this assumption has to refresh (design 4.4).
+            found["if_wrong"] = str(entry[dq.IF_WRONG])
+            found["refresh"] = dq.refresh_set(entry)
         return found
 
     raw: dict[str, tuple[dict[str, Any], dict[str, Any]]] = {}
@@ -453,6 +457,10 @@ def _item_block(number: int, item: dict[str, Any], texts: dict[str, dict[str, st
                      + (mitigation or "the mitigation its risk already carries"))
     elif default:
         lines.append(f"- **Proceeding on:** {_label(default)}")
+        if default.get("if_wrong"):
+            refresh = default.get("refresh") or []
+            lines.append(f"- **If that is wrong:** {_clean(default['if_wrong'])}"
+                         + (f" (refresh: {', '.join(refresh)})" if refresh else ""))
     if item["gap"]:
         lines.append(f"- **About the unknown:** {_label(item['gap'])}")
     if settle:

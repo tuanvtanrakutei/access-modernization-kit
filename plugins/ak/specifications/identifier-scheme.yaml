@@ -196,7 +196,7 @@ namespaces:
     owned_by: [phase1, phase2, phase3, phase4, phase5, phase6]
     requires_evidence: false
     requires:
-      - "what breaks if it is wrong"
+      - "what breaks if it is wrong, in the register's `if_wrong` as well as the phase's table (ID-12)"
 
   E:
     name: "Errata entry"
@@ -321,13 +321,34 @@ rules:
       `ask`, and every item it settles is still listed, as settled by it.
     on_violation: "A recommendation nobody is asked to accept, and that no standing policy can reach."
 
+  # A75, errata slice. A question with a default proceeds on an assumption; its answer either
+  # held that assumption or broke it, and the register used to record the answer and leave the
+  # assumption standing. "If wrong" was a prose column, so the list of what to refresh was
+  # assembled by a person reading three documents (A06's E-01 and E-02).
+  - id: ID-12
+    rule: >
+      Every open `AS-` carries `if_wrong` in the register: the sentence its phase wrote in the
+      Assumptions table's "If wrong" column, saying what stops holding if the assumption is
+      wrong. The identifiers it names are the assumption's refresh set.
+    on_violation: "An answer that contradicts the assumption cannot say what to refresh."
+
+  - id: ID-13
+    rule: >
+      When every item whose `needs.default` is an assumption is closed and at least one was
+      answered, the assumption is settled: `resolved_by` names the evidence that confirms it,
+      or `superseded_by` names the `E-` entry that corrects it. That entry's `affected` names
+      every identifier in the assumption's `if_wrong`. An item closed only by `superseded_by`
+      was a duplicate and answers nothing.
+    on_violation: "A published claim stays in force after the evidence that ended it, and the correction does not reach everything built on it."
+    checked_by: "validate_phase_conformance.py, check `decision_fields_present`"
+
 # ---------------------------------------------------------------------------
 # Where allocations live.
 # ---------------------------------------------------------------------------
 register:
   path: "runs/{RUN_ID}/outputs/{APP_ID}_Identifiers.json"
   written_by: "the phase that allocates, appended never rewritten"
-  fields: ["id", "namespace", "phase", "title", "evidence_ids", "severity", "superseded_by", "resolved_by", "created_at", "needs"]
+  fields: ["id", "namespace", "phase", "title", "evidence_ids", "severity", "superseded_by", "resolved_by", "created_at", "needs", "if_wrong"]
   closing: >
     An open `UK-` or `Q` is carried by every later phase until one of two fields is
     set. `resolved_by` names the evidence id that answers it - the question is done,
@@ -371,6 +392,18 @@ register:
       class: "Risks only: technical, data, retired or behaviour, the key into standing policy."
       options: "DISPOSITION and SCOPE: the choices, at least two."
       qa: "The customer's Q&A register ids this item was posted as, once a person has posted it (`$ak decisions --link`). Read by `$ak decisions` to tell what is already with the customer. Optional."
+    if_wrong:
+      what: >
+        A field of the entry, not of its `needs` block: an assumption is not a queue item, it is
+        what an item proceeds on. The text is copied from the "If wrong" cell of the phase that
+        allocated the assumption (`$ak backfill-needs` proposes it; a phase writes it directly
+        from then on). `$ak decisions` prints it under each item that proceeds on the
+        assumption, with the identifiers it names as the refresh set.
+      contradiction: >
+        A contradicting answer is an errata entry (`errata-contract.yaml`). The assumption is
+        `superseded_by` that entry, and the entry's `affected` names the refresh set. Writing
+        the entry stays with the phase that found the error (A67); the check refuses a
+        correction that leaves out something the assumption said would stop holding.
     answered_by: >
       A DISPOSITION is answered by the decider, in a batch (`$ak decisions --decide`): each
       answer is a row of a TARGET_INTENT record in `input/target-intent/` naming who decided
