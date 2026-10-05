@@ -25,7 +25,7 @@ PACKAGE = Path(__file__).resolve().parents[1]
 SCRIPT = PACKAGE / "modernize" / "scripts" / "screen_scope.py"
 
 SCREEN = "受注データ取込画面"
-OTHER = "受注数調整リスト印刷画面"
+OTHER = "出荷数確認リスト印刷画面"
 
 
 def entry(eid: str, namespace: str, evidence: list[str], **extra: object) -> dict:
@@ -158,7 +158,7 @@ def test_without_a_queue_the_dispositions_say_so_and_nothing_fails(tmp_path: Pat
 
 def test_the_report_says_how_many_screens_an_item_is_linked_to(tmp_path: Path) -> None:
     """A risk linked to most screens is a cross-cutting one the evidence cannot place on this
-    screen in particular; on A06 six risks reach 7 of 13 screens through one shared screenshot set."""
+    screen in particular; on one application six risks reached 7 of 13 screens through one shared screenshot set."""
     shared = entry("RA-01", "RA-", ["A99-P3-CODE-001", "A99-P2-UI-001"], severity="HIGH")
     out = workspace(tmp_path, register=[*REGISTER, shared])
     _, data = report(out)

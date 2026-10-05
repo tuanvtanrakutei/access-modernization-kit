@@ -51,7 +51,7 @@ When the runtime extractor cannot run — no Access on the host, activation bloc
 4. **Run it from the Immediate window (`Ctrl+G`),** replacing the path with a per-database folder under the app `sources`:
 
    ```text
-   ExportAccessObjects "D:\Anrakutei\<APP>\input\exports\<DATABASE_ID>-<YYYY-MM-DD>"
+   ExportAccessObjects "<WORKSPACE_ROOT>\<APP>\input\exports\<DATABASE_ID>-<YYYY-MM-DD>"
    ```
 
 5. For a **split database, export each `.mdb` separately** (Access opens one database at a time): run the exporter once per file into its own folder, e.g. `sources\<APP>_FRONTEND` and `sources\<APP>_DATA`.
@@ -78,7 +78,7 @@ The result is export-mode input. Run `scripts/preflight.py` afterward to confirm
 ## Reading the links, without deleting them
 
 That last rule is the kit's position and it has not changed: **nothing needs to be
-deleted for the analysis to be right.** A06's frontend carried 188 table objects for 35
+deleted for the analysis to be right.** One frontend carried 188 table objects for 35
 tables, and since A39 the catalogue reconciles the two itself — it names the 153
 auto-numbered duplicates, keeps the three ODBC links, keeps the one source table that
 genuinely ends in digits, and reports both bounds where two paths name one table.
@@ -104,10 +104,10 @@ Each link is classified:
 | `UNREACHABLE_DISTINCT` | a real table this database can no longer reach — reported, never deleted |
 | `HELD_BACK` | matched the name rule and failed a safety condition |
 
-**Delete the module when you are done.** A51: it was left in A06's frontend under
+**Delete the module when you are done.** A51: it was left in one application's frontend under
 Access's default name `Module1`, and the next export reported eight modules where the
-application has seven — with this kit's comments, which name A06's own tables, landing
-in the corpus that describes A06. The exporter now recognises its own tools by content
+application has seven — with this kit's comments, which name that application's own tables, landing
+in the corpus that describes it. The exporter now recognises its own tools by content
 and excludes them, naming what it excluded in the manifest, so leaving it behind no
 longer corrupts a count. It is still this kit's code sitting in someone's production
 database, and removing it is the tidier default.
@@ -126,15 +126,15 @@ broken removes the last route to the table.
 
 Two things the tool deliberately will not do. It will not treat an unequal source name
 as a duplicate — SQL Server answers `dbo.商品マスタ` for a link named `商品マスタ`, and on
-A06 that comparison would have removed three tables carrying 16, 43 and 68 fields. And
+one frontend that comparison would have removed three tables carrying 16, 43 and 68 fields. And
 it will not judge by the suffix: `商品情報20121115` is a real table named for a date, and
 it is reported as `UNREACHABLE_DISTINCT`, never as a duplicate.
 
 Forms, reports and modules are **not** searched — a macro cannot read their definitions
 without exporting them. Run `ExportAccessObjects` first and search the export package;
-on A06 that covered 87 definitions and found none of the 153 candidates referenced.
+on one frontend that covered 87 definitions and found none of the 153 candidates referenced.
 
 To delete, set `DELETE_CONFIRMED = True` in the module, save, and run
 `DeleteStaleLinks`. **Back the file up first** — Access has no undo for a deleted
-object. On A06 the classification is 153 duplicates, 26 live, 1 unreachable-distinct,
+object. On that frontend the classification is 153 duplicates, 26 live, 1 unreachable-distinct,
 0 held back.

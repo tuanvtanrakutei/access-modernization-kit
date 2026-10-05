@@ -11,7 +11,7 @@ produced weaker evidence about a table than the manual path the same package
 documents - and `dao-field-types.yaml` recorded that honestly, under `not_extracted`,
 which is why this went years without being a bug report.
 
-It cost a real screen. A06's `保管場所マスタ` has two columns and no code behind the
+It cost a real screen. One `保管場所マスタ` has two columns and no code behind the
 form that maintains it, so every rule about it has to come from the table definition
 or from a picture. The blank row on the screenshot shows `0` under the code column;
 whether that is a `DefaultValue` or just how Access renders an empty Byte could not be

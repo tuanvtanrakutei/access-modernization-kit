@@ -1,6 +1,6 @@
 """Reading relationships out of SQL when the database declares none.
 
-The A05 databases declare zero relationships, so this is the only thing that can fill
+Access databases often declare zero relationships, so this is the only thing that can fill
 a catalogue's FK column. It has to be honest about three limits: an alias it cannot
 bind, a table that does not exist, and the fact that a join proves use rather than
 uniqueness.
@@ -169,7 +169,7 @@ def test_a_vba_statement_separator_is_not_part_of_the_table_name() -> None:
 
 
 def test_a_table_nothing_writes_says_not_attributable_not_never_written() -> None:
-    """129 of 152 A05 recordset opens take a built string. Silence is not proof."""
+    """Most recordset opens in a real corpus take a built string. Silence is not proof."""
     profile = sql.write_profile({"query q": "SELECT * FROM 商品マスタ"}, TABLES)
     assert profile.summary("商品マスタ") == "no writer attributable"
 

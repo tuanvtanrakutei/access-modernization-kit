@@ -140,7 +140,7 @@ def main() -> int:
                                                    item.table)):
         where = f"{feed.table} ({feed.file_name or 'no file named'})"
         if feed.declared_in:
-            # Three of A06's calls import `Ｓ仕商品` from three different screens. Named
+            # One application had three calls importing one table from three different screens. Named
             # only by table and file, they print as three identical lines and no reader
             # can tell which one a finding is about.
             where = f"{feed.declared_in} -> {where}"

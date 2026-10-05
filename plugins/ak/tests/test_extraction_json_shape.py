@@ -14,10 +14,10 @@ So `schema/relations.json` was absent from every database that declares zero
 relationships - and absent is indistinguishable from what an older extractor that never
 wrote the file leaves behind.
 
-That ambiguity cost a real decision. A06's bundle has no `relations.json`, which was read
+That ambiguity cost a real decision. One application's bundle has no `relations.json`, which was read
 as "this export predates the feature", so whether the Jet engine declared referential
 integrity between `商品情報.保管場所` and `保管場所マスタ` was recorded as unknowable
-(A06 Known_Issues #5) and a screen could not say whether its refusal to delete a
+(in its Known_Issues) and a screen could not say whether its refusal to delete a
 referenced row restored legacy behaviour or invented it. Re-running the fixed extractor
 answered it in one line: `[]`. The database declares none.
 

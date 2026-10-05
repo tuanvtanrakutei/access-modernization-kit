@@ -11,6 +11,7 @@ subject is absent is worse than no test.
 """
 from __future__ import annotations
 
+import os
 import sys
 from pathlib import Path
 
@@ -21,7 +22,11 @@ sys.path.insert(0, str(PACKAGE / "scripts"))
 
 import validate_phase_conformance as checker  # noqa: E402
 
-REFERENCE = Path("D:/Anrakutei/a01_docs")
+# The reference set the kit is calibrated on is not in the repository. Point
+# AK_REFERENCE_SET at its directory to run the regressions below; unset, they skip.
+_REFERENCE_ENV = os.environ.get("AK_REFERENCE_SET", "").strip()
+REFERENCE = Path(_REFERENCE_ENV) if _REFERENCE_ENV else None
+HAS_REFERENCE = REFERENCE is not None and REFERENCE.is_dir()
 
 
 def write(root: Path, name: str, body: str) -> Path:
@@ -136,7 +141,7 @@ def test_a_directory_with_no_phase_documents_is_an_error(tmp_path: Path) -> None
 
 # --- the regression the contract is judged by -------------------------------
 
-@pytest.mark.skipif(not REFERENCE.is_dir(), reason="reference document set not on this machine")
+@pytest.mark.skipif(not HAS_REFERENCE, reason="AK_REFERENCE_SET is not set to the reference set")
 def test_the_reference_set_passes_every_content_check() -> None:
     """If this fails, the contract is wrong - not the reference.
 
@@ -147,7 +152,7 @@ def test_the_reference_set_passes_every_content_check() -> None:
     assert run(REFERENCE, "--group", "content") == 0
 
 
-@pytest.mark.skipif(not REFERENCE.is_dir(), reason="reference document set not on this machine")
+@pytest.mark.skipif(not HAS_REFERENCE, reason="AK_REFERENCE_SET is not set to the reference set")
 def test_the_reference_set_fails_apparatus_and_that_is_the_point() -> None:
     """It cites its sources in prose and has no machine-checkable trail.
 
@@ -256,7 +261,7 @@ def test_evidence_register_must_conform_to_its_schema(tmp_path: Path) -> None:
 def test_ec01_is_evaluated(tmp_path: Path) -> None:
     """Rule EC-01 was prose against two fields no register populated.
 
-    So the rule had never been evaluated once. Its first run over A05 found three
+    So the rule had never been evaluated once. Its first real run found three
     violations: two BEHAVIOUR statements labelled INTENT, and a BEHAVIOUR conclusion
     drawn from a screenshot.
     """
@@ -321,7 +326,7 @@ def test_a_conformant_document_passes_in_every_output_language(language, tmp_pat
     """A49. `NAMING_SIGNALS` was four English substrings and `source_coverage` tested
     `"source coverage" in lower`, while `$ak init --languages EN,JA,VI` offers three.
 
-    A06's Vietnamese Phase 1 failed both with sections `## Quy ước đặt tên` and
+    A Vietnamese Phase 1 failed both with sections `## Quy ước đặt tên` and
     `## Mức độ bao phủ nguồn` present, and the failure text said the document held no
     such statement - which a reader would act on by adding a section already there.
     """
@@ -363,7 +368,7 @@ def test_every_output_language_the_kit_offers_has_signals() -> None:
 # --- A52: a column name shaped like an identifier -----------------------------------
 
 def test_a_column_name_in_backticks_is_not_an_identifier(tmp_path: Path) -> None:
-    """A06's Phase 1 names the SQL Server table 受注年月商品, whose columns are `d1` …
+    """A Phase 1 once named the SQL Server table 受注年月商品, whose columns are `d1` …
     `d31` - and `d31` is exactly the shape of the `d-` namespace. The checker reported a
     dangling identifier against a document that had allocated everything it cited.
 
@@ -403,7 +408,7 @@ def test_a_namespace_prefix_with_the_wrong_shape_is_reported() -> None:
     """`identifiers_wellformed` judges what the finder found, and for most namespaces the
     finder *is* the scheme - `OB-` is the same pattern on both sides. So `OB-S01` was not
     a malformed OB identifier, it was not an identifier at all, and eight of them passed
-    unreported in A06's Phase 2.
+    unreported in one Phase 2.
 
     The module's own comment says deriving the finder from the scheme "means a malformed
     identifier becomes invisible rather than reported". That was fixed for `BR-` and left
@@ -425,7 +430,7 @@ def test_a_word_that_merely_starts_with_a_prefix_is_not_an_identifier() -> None:
 def test_the_gold_standard_allocates_nothing_off_scheme() -> None:
     """Calibration, the same way the content checks are calibrated: if the reference set
     trips this, the scheme is written wrong and the documents are not."""
-    if not REFERENCE.is_dir():
+    if not HAS_REFERENCE:
         pytest.skip(f"reference set not on this machine: {REFERENCE}")
     offenders = {}
     for path in sorted(REFERENCE.glob("*.md")):
@@ -445,7 +450,7 @@ def test_code_spans_are_excluded_here_too(tmp_path: Path) -> None:
 # --- the two scheme fields nothing read until A56 ----------------------------
 #
 # `owned_by` and `requires_severity` were declared on every risk namespace and opened
-# by no code. A06's Phase 2 allocated five findings into RS - Phase 5's namespace,
+# by no code. A Phase 2 allocated five findings into RS - Phase 5's namespace,
 # named "security and compliance", one of them about line and rectangle controls -
 # and eight into OB, and published them twice with nothing objecting.
 
@@ -498,8 +503,8 @@ def test_every_risk_namespace_is_owned_by_some_phase() -> None:
 
 # --- carrying the earlier phases' unknowns ----------------------------------
 #
-# Requested by the operator before Phase 3. Measured at that moment, A06's Phase 2
-# mentioned none of Phase 1's fifteen open UK-/Q items, and the cost was already in the
+# Requested by the operator before Phase 3. Measured at that moment, a Phase 2
+# mentioned none of Phase 1's open UK-/Q items, and the cost was already in the
 # register: Q108 asks what Q103 already asked of the same owner about the same file.
 
 
@@ -552,7 +557,7 @@ def test_an_identifier_from_the_same_phase_is_not_carried() -> None:
 
 # --- A67: a correction announced in the prose and registered nowhere ----------
 #
-# A06's Phase 3 corrected two published Phase 1 risks - the actor behind the `99`
+# A Phase 3 corrected two published Phase 1 risks - the actor behind the `99`
 # placeholders, and what destroys 準備数 - wrote `**corrected**` in its carried-forward
 # table, and registered neither. Errata was checked in Phase 6 only, and `E-` was owned
 # by Phase 6 alone, so the remedy could not be carried out at the phase that found it.

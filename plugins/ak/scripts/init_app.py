@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Create or safely adopt an isolated workspace for one legacy SMS app without analyzing it."""
+"""Create or safely adopt an isolated workspace for one legacy app without analyzing it."""
 
 from __future__ import annotations
 
@@ -301,10 +301,10 @@ sources:
   sample_files: ["input/samples"]
   app_documents: ["input/documents"]
   japanese_documents:
-    operational_functions_xlsx: "input/shared-docs/Operational functions and report data list.xlsx"
-    training_manual_xlsx: "input/shared-docs/SMS Basic Training Manual (From the Perspective of the Order Processing Department).xlsx"
-    business_flow_pdf: "input/shared-docs/diagram sms_system_business_diagram.pdf"
-    architecture_pdf: "input/shared-docs/SMS System Replacement Project Overview Attached Diagram.pdf"
+    operational_functions_xlsx: "input/shared-docs/operational-functions.xlsx"
+    training_manual_xlsx: "input/shared-docs/training-manual.xlsx"
+    business_flow_pdf: "input/shared-docs/business-flows.pdf"
+    architecture_pdf: "input/shared-docs/replacement-overview.pdf"
 analysis:
   source_policy:
     ignore_file: ".investigationignore"
@@ -358,7 +358,7 @@ def parse_args() -> argparse.Namespace:
     location = parser.add_mutually_exclusive_group(required=True)
     location.add_argument("--root", help="Parent directory for a new app workspace")
     location.add_argument("--app-root", help="Existing or new app workspace directory")
-    parser.add_argument("--app-id", required=True, help="App identifier such as A03")
+    parser.add_argument("--app-id", required=True, help="App identifier such as A99")
     parser.add_argument("--name-en", required=True, help="English business name")
     parser.add_argument(
         "--languages",

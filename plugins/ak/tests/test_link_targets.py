@@ -1,8 +1,8 @@
 """A39, A40, A41, A42 - link objects, duplicated inventories, connections, and `DSN=`.
 
-Every case here is a row that existed in A06's sealed bundle. The figures in the names
-are that bundle's: 188 table objects for 35 tables, 360 rows for 180 links, 4 rows for
-2 specifications, `[]` for two SQL Server databases, and three ODBC links read as
+Every case here is a row shape that existed in one application's sealed bundle: several
+times more table objects than tables, every link listed twice, every specification
+listed twice, `[]` for two SQL Server databases, and three ODBC links read as
 delimited files.
 
 The point of the file is the pair of tests that would have failed the *obvious* fix:
@@ -26,10 +26,10 @@ import bundle_assembly  # noqa: E402
 import feed_samples  # noqa: E402
 import link_targets  # noqa: E402
 
-ODBC = ("ODBC;DSN=SMSIIS_TargetNeo;UID=<REDACTED>;APP=Microsoft (R) Access;"
-        "WSID=SYSTEM01;DATABASE=TargetNeo;Trusted_Connection=Yes")
-JET = r";DATABASE=L:\a06\常温品物流支援2003data2003.mdb"
-DEAD = r";DATABASE=L:\新物流支援\常温\常温品物流支援data.mdb"
+ODBC = ("ODBC;DSN=SALESIIS_Target;UID=<REDACTED>;APP=Microsoft (R) Access;"
+        "WSID=SYSTEM01;DATABASE=SalesTarget;Trusted_Connection=Yes")
+JET = r";DATABASE=L:\app\業務システム2003data2003.mdb"
+DEAD = r";DATABASE=L:\新業務システム\常温\業務システムdata.mdb"
 
 
 def flat(name, source, connect, read_error=""):
@@ -78,7 +78,7 @@ def test_a_prefix_followed_by_anything_but_digits_is_not_a_duplicate():
 
 # ------------------------------------------------------- A39, objects to tables
 
-def test_an_application_of_thirty_five_tables_is_not_reported_as_one_hundred_and_eighty_eight():
+def test_an_application_is_counted_in_tables_and_not_in_link_objects():
     rows = [flat(f"商品情報{n}" if n else "商品情報", "商品情報", DEAD if n else JET)
             for n in range(0, 8)]
     rows += [flat("商品マスタ", "商品マスタ", JET), flat("仕入商品マスタ", "dbo.仕入商品マスタ", ODBC)]
@@ -152,8 +152,8 @@ def test_connections_are_derived_where_nothing_ever_wrote_them():
     connections = link_targets.connections(rows)
     assert len(connections) == 3
     odbc, = [c for c in connections if c["kind"] == "odbc"]
-    assert odbc["dsn"] == "SMSIIS_TargetNeo"
-    assert odbc["database"] == "TargetNeo"
+    assert odbc["dsn"] == "SALESIIS_Target"
+    assert odbc["database"] == "SalesTarget"
     assert odbc["link_count"] == 2
     assert sorted(odbc["source_tables"]) == ["dbo.仕入商品マスタ", "dbo.食材入荷予定データ"]
     dead, = [c for c in connections if c["unreadable_link_count"]]
@@ -205,8 +205,8 @@ def test_a_text_link_still_names_its_specification():
 # --------------------------------------------------------------------- parsing
 
 @pytest.mark.parametrize("connect,kind,database", [
-    (JET, "file", r"L:\a06\常温品物流支援2003data2003.mdb"),
-    (ODBC, "odbc", "TargetNeo"),
+    (JET, "file", r"L:\app\業務システム2003data2003.mdb"),
+    (ODBC, "odbc", "SalesTarget"),
     (r"Text;DSN=spec;DATABASE=C:\feeds", "file", r"C:\feeds"),
     ("", "local", ""),
     ("something unparseable", "other", ""),
@@ -218,13 +218,13 @@ def test_a_connect_string_is_read_by_its_driver(connect, kind, database):
 
 
 def test_the_same_file_by_two_letter_cases_is_one_target():
-    lower = link_targets.parse_connect(r";DATABASE=L:\a06\X.mdb")["target"]
-    upper = link_targets.parse_connect(r";DATABASE=l:\A06\x.MDB")["target"]
+    lower = link_targets.parse_connect(r";DATABASE=L:\app\X.mdb")["target"]
+    upper = link_targets.parse_connect(r";DATABASE=l:\APP\x.MDB")["target"]
     assert lower == upper
 
 
 def test_a_unc_path_and_a_mapped_drive_stay_two_targets():
     """The kit reports them separately; resolving them is a question about the estate."""
-    unc = link_targets.parse_connect(r";DATABASE=\\10.10.10.101\sms\常温\x.mdb")["target"]
+    unc = link_targets.parse_connect(r";DATABASE=\\server\share\常温\x.mdb")["target"]
     drive = link_targets.parse_connect(r";DATABASE=L:\常温\x.mdb")["target"]
     assert unc != drive

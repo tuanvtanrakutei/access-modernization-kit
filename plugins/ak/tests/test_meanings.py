@@ -88,7 +88,7 @@ tables:
 def test_a_column_meaning_can_be_scoped_to_one_table_or_to_the_name(
     tmp_path: Path,
 ) -> None:
-    """53 A05 column names appear in several tables, so both forms are needed."""
+    """Many column names appear in several tables, so both forms are needed."""
     path = write(tmp_path / "meanings.yaml", """
 columns:
   出荷数量:
@@ -137,9 +137,9 @@ tables:
 
 
 def test_a_blank_entry_is_counted_not_refused(tmp_path: Path) -> None:
-    """`$ak meanings` writes 1,176 of these on its first run over A05.
+    """`$ak meanings` wrote over a thousand of these on its first real run.
 
-    A refusal printed 1,176 times is not a refusal anybody reads, so a blank entry is
+    A refusal printed a thousand times is not a refusal anybody reads, so a blank entry is
     counted as work outstanding rather than reported as a defect. The cell still reads
     `_needs DOCUMENT_` either way - what changes is whether the real refusals below are
     visible among them.

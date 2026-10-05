@@ -54,7 +54,7 @@ function Format-FieldShape($Fields) {
 }
 
 # The three field names Access gives an ImportErrors table, in the UI language that
-# created it. Measured on A05's backend, where both spellings exist: its two genuine
+# created it. Measured on one backend where both spellings exist: its two genuine
 # error tables read `エラー / フィールド / 行` and its two business masters caught by
 # the same shape read `集計分類コード / 集計分類名 / 配送分類コード`.
 #
@@ -71,7 +71,7 @@ function Format-FieldShape($Fields) {
 # `-join` on each, not `+` between code points: `[char] + [char], [char]` binds the
 # comma tighter and PowerShell then renders `string + array` as one space-separated
 # string, which turned this list into a single element that matched nothing. The run
-# on A05's backend is what found it.
+# on a real backend is what found it.
 $importErrorsFieldNames = @(
     @('Error', 'Field', 'Row'),
     @(
@@ -97,7 +97,7 @@ function Test-ImportErrorsShape($Fields) {
 }
 
 function Test-ImportErrorsNaming($Fields) {
-    # The second condition. Shape alone dropped two business masters out of A05's
+    # The second condition. Shape alone dropped two business masters out of one
     # backend and recorded nothing but their names, so nobody could see it had.
     $three = @($Fields)
     if ($three.Count -ne 3) { return $false }
@@ -266,7 +266,7 @@ $warnings = [System.Collections.ArrayList]::new()
 $notes = [System.Collections.ArrayList]::new()
 $tables = [System.Collections.ArrayList]::new()
 # Every import/export specification this database has saved. Not only the ones a text
-# link points at: a specification can be named by code, and A06 names four from VBA with
+# link points at: a specification can be named by code, and one application named four from VBA with
 # no text link anywhere (A44). Empty when the database saved none.
 $imexSpecs = [System.Collections.ArrayList]::new()
 $relations = [System.Collections.ArrayList]::new()
@@ -308,7 +308,7 @@ $projectContext = [ordered]@{
 
 # The two tables that define a text link's columns, read only when a link needs them.
 #
-# A05 links six delimited text files, every one declaring `FMT=Delimited;HDR=NO;IMEX=2`
+# One application links six delimited text files, every one declaring `FMT=Delimited;HDR=NO;IMEX=2`
 # and `DSN=<spec name>`. With `HDR=NO` there is no header row, so a column's meaning is
 # positional, and the `DSN=` says where the positions are defined: `MSysIMEXSpecs` and
 # `MSysIMEXColumns`, inside the database. Both are ordinary Jet tables and readable
@@ -426,8 +426,8 @@ function Read-JetLayer($Database) {
                 $indexes += [ordered]@{ name = [string]$index.Name; primary = [bool]$index.Primary; unique = [bool]$index.Unique; fields = $indexFields }
             }
             # Access creates an ImportErrors table for every failed import, and a
-            # long-lived application accumulates hundreds of them: A05's July frontend
-            # carried 208 against 22 real tables, which would have inflated the
+            # long-lived application accumulates hundreds of them: one older frontend
+            # carried some two hundred against 22 real tables, which would have inflated the
             # bundle's own table inventory tenfold. They are identified by shape -
             # exactly Error(Text)/Field(Text)/Row(Long) - and never by table name,
             # because that name is localized and one legitimate table here also
@@ -437,7 +437,7 @@ function Read-JetLayer($Database) {
             # measured 2026-09-08. That is what makes the second condition safe: it
             # keeps every one of those exclusions and returns the two masters.
             #
-            # Shape alone is not enough either, and A05's backend proves it: two
+            # Shape alone is not enough either, and a real backend proved it: two
             # business masters have exactly that shape and were dropped, leaving no
             # record but their names, so the exclusion could only be trusted. The
             # field names decide it, and both routes carry the same list. Backlog A22.
@@ -477,13 +477,13 @@ function Read-JetLayer($Database) {
     # that is the wrong question twice over.
     #
     # A saved specification declares the column layout of a headerless feed, and it can
-    # be named by CODE as easily as by a link: A06 has NO text links and six saved
+    # be named by CODE as easily as by a link: one application had NO text links and six saved
     # specifications, four of them called by name from VBA -
     # `TransferText acImportDelim, "受注データ定義", ...` and three more - declaring the
     # layout of four inbound CSV feeds. The DAO tier cannot see a TransferText call at
     # all when `skip_object_export` is set, so the condition was never answerable here.
     #
-    # And the old gate collected A06's six only by accident, because an ODBC connect
+    # And the old gate collected that application's six only by accident, because an ODBC connect
     # carries `DSN=` as well, where it names an ODBC data source rather than a
     # specification (A42). Fixing that accident without fixing the gate would have
     # dropped four inbound formats - measured, not supposed.
@@ -584,7 +584,7 @@ function Write-Extraction {
     # Piping an EMPTY collection into ConvertTo-Json sends it no objects, so it emits
     # nothing and Set-Content writes no file at all. `schema/relations.json` was therefore
     # absent from every database that declares zero relationships - and absent is exactly
-    # what an older extractor that never wrote the file looks like. A06's bundle was read
+    # what an older extractor that never wrote the file looks like. One bundle was read
     # as the second when it was the first, which turned "this application declares no
     # relationships" into "we cannot know whether it does", and left a screen unable to
     # say whether the legacy engine already refused a delete.

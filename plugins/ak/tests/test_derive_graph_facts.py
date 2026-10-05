@@ -3,7 +3,7 @@
 An acquisition that takes its definition text from an operator's export writes that
 text into the bundle and leaves the previous staging files untouched. A deriver
 reading staging alone therefore re-derives from the older text and reports no
-difference - which is how A05's reachability figures came to be computed from a main
+difference - which is how one application's reachability figures came to be computed from a main
 menu missing 24 of its 45 procedures, and published as findings about dead code
 (`E-17`, `E-18`).
 """

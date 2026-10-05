@@ -1,6 +1,6 @@
 ---
 name: investigate
-description: "Analyze Microsoft Access VBA applications and MDB/ACCDB/ADP projects connected to SQL Server through a mandatory six-phase, evidence-backed legacy-system investigation with Access extraction, deterministic module planning, and provider-neutral multi-agent orchestration. Use when an agent must package, initialize, analyze, review, or continue investigation of an SMS A-series satellite app and produce Phase documents, E2E traces, boundary maps, question lists, QA, or presentation inputs. Examples: \"$ak help\", \"$ak init A03\", \"$ak assess A03\", \"$ak run A03\", \"initialize a workspace for A03\"."
+description: "Analyze Microsoft Access VBA applications and MDB/ACCDB/ADP projects connected to SQL Server through a mandatory six-phase, evidence-backed legacy-system investigation with Access extraction, deterministic module planning, and provider-neutral multi-agent orchestration. Use when an agent must package, initialize, analyze, review, or continue investigation of an Access-family satellite app and produce Phase documents, E2E traces, boundary maps, question lists, QA, or presentation inputs. Examples: \"$ak help\", \"$ak init A99\", \"$ak assess A99\", \"$ak run A99\", \"initialize a workspace for A99\"."
 ---
 
 # Access Modernization Kit V2.11.0
@@ -59,7 +59,7 @@ Accept the equivalent Vietnamese or plain-language request. If an app ID is omit
 
 ## Select the operating mode
 
-1. Use **package mode** when asked to create, install, validate, or modify this kit. Do not analyze A01 or another app unless the user separately authorizes a trial.
+1. Use **package mode** when asked to create, install, validate, or modify this kit. Do not analyze the reference set or another app unless the user separately authorizes a trial.
 2. Use **app initialization mode** when asked to scaffold a new app workspace. For a non-empty existing project, require explicit --app-root and --adopt-existing; never overwrite files, then stop unless analysis is also requested.
 3. Use **investigation mode** only when asked to run one or more phases for a named app.
 4. Use **rendering mode** only after Phase 6 and traceability validation are complete.
@@ -85,8 +85,8 @@ For multi-agent work, also read `references/orchestration-guide.md`, `orchestrat
 
 - Treat legacy Access/VBA and SQL Server behavior as the investigation subject.
 - Keep current replacement implementation outside analysis unless the manifest and user explicitly include comparison.
-- Never copy A01 facts, counts, paths, table names, business rules, or decisions into another app.
-- Reuse shared SMS infrastructure nodes such as NAS, shared databases, and system documents through references; do not duplicate them as app-local facts.
+- Never copy the reference set's facts, counts, paths, table names, business rules, or decisions into another app.
+- Reuse shared system-family infrastructure nodes such as NAS, shared databases, and system documents through references; do not duplicate them as app-local facts.
 - Treat old Phase files as outputs to reconcile, never as the sole source of truth.
 
 ## Prepare source context safely
@@ -243,4 +243,4 @@ python scripts/merge_evidence.py --run <RUN_DIRECTORY> --dry-run
 python scripts/advance_run.py --package . --run <RUN_DIRECTORY> --wave <WAVE_ID>
 ```
 
-This sequence validates package behavior without analyzing A01 or another real app.
+This sequence validates package behavior without analyzing the reference set or another real app.

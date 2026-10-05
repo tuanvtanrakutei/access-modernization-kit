@@ -2,8 +2,8 @@
 
 A17 predicted this check and did not build it. A21 made it possible by proving both
 acquisition routes read the two specification tables, and A23 found something on the
-first application it saw: `Dpshohin.csv` carries 29 fields where `DPSHOHIN ﾘﾝｸの定義`
-declares 28.
+first application it saw: a product file carrying one field more than its saved
+specification declares.
 
 The tests are as much about the limits as the catch. A count check alone would have
 found that file and would not find a sender who renames a column without changing the
@@ -32,9 +32,9 @@ import check_feed_samples as checker  # noqa: E402
 
 DB = "DATA_4A6C58E8"
 SPEC = "DPSHOHIN ﾘﾝｸの定義"
-CONNECT = f"Text;DSN={SPEC};FMT=Delimited;HDR=NO;IMEX=2;DATABASE=L:\\品揃支援"
+CONNECT = f"Text;DSN={SPEC};FMT=Delimited;HDR=NO;IMEX=2;DATABASE=L:\\業務システム"
 
-# dbLong and dbText, the two types every one of A05's 176 declared columns uses.
+# dbLong and dbText, the two types every declared column of the first application used.
 LONG = 4
 TEXT = 10
 
@@ -58,7 +58,7 @@ def records(specs: list[dict], columns: list[dict], status: str = "read") -> lis
 
 
 def three_columns(start_row: int = 0) -> feeds.Specification:
-    """A specification shaped like A05's: an id, a name, a quantity."""
+    """A specification shaped like a typical feed's: an id, a name, a quantity."""
     return feeds.specifications(records(
         [spec_row(start_row=start_row)],
         [column_row("店舗名", start=8, data_type=TEXT),
@@ -70,11 +70,10 @@ def three_columns(start_row: int = 0) -> feeds.Specification:
 # --- the join, and the order the columns come back in ------------------------
 
 def test_columns_are_ordered_by_start_and_not_by_row_order() -> None:
-    """The fact three of A05's six files independently confirm.
+    """The fact every file with a header independently confirms.
 
-    `MSysIMEXColumns` rows arrive in no useful order - A05's first row is column 20 of
-    26 - and three of the six files carry a header whose names are the declared names
-    *in order*, 26, 29 and 26 of them. That agreement is only reachable by sorting on
+    `MSysIMEXColumns` rows arrive in no useful order - one bundle's first row was column
+    20 of 26 - and the files that carry a header carry the declared names *in order*. That agreement is only reachable by sorting on
     `Start`, and it is what makes the header comparison possible at all.
     """
     assert three_columns().names == ["伝票番号", "店舗名", "数量"]
@@ -103,7 +102,7 @@ def test_a_specification_with_no_columns_still_appears() -> None:
 # --- which file a link points at --------------------------------------------
 
 def test_a_link_is_read_in_either_shape_the_bundle_stores_it_in() -> None:
-    """Both shapes sit in one file in A05's bundle.
+    """Both shapes have been seen side by side in one bundle file.
 
     The managed route writes linked tables flat; the derived graph nests them under
     `metadata`. A reader of one shape sees half the boundary.
@@ -123,7 +122,7 @@ def test_a_link_that_names_no_specification_is_not_a_feed() -> None:
 
 
 def test_the_file_name_loses_any_directory_it_arrived_with() -> None:
-    assert feeds.base_name("L:\\品揃支援\\order.txt") == "order.txt"
+    assert feeds.base_name("L:\\業務システム\\order.txt") == "order.txt"
     assert feeds.base_name("in/order.txt") == "order.txt"
     assert feeds.base_name("") == ""
 
@@ -145,8 +144,8 @@ def test_code_imports_are_found_in_definition_text() -> None:
         "受注データ定義", "受注", "inbound_path")
     assert (text.origin, text.declared_format, text.header_declared) == (
         "code", "Delimited", "YES")
-    # Which screen declares it. Three A06 screens import the same table from three
-    # places, and without this they are one row printed three times.
+    # Which screen declares it. Applications have had three screens import the same
+    # table from three places, and without this they are one row printed three times.
     assert text.declared_in == "受注取込"
     assert (spreadsheet.operation, spreadsheet.file_name, spreadsheet.spec_name) == (
         "TransferSpreadsheet acImport", "商品.xls", "")
@@ -155,8 +154,8 @@ def test_code_imports_are_found_in_definition_text() -> None:
 def test_a_file_the_code_writes_is_a_boundary_too() -> None:
     """The section that prints these says *inbound and outbound*.
 
-    The first version of A46 filtered to `acImport`, so A06's three `acExportDelim`
-    calls stayed invisible under a heading claiming completeness - and the bundle holds
+    The first version of A46 filtered to `acImport`, so an application's
+    `acExportDelim` calls stayed invisible under a heading claiming completeness - and the bundle holds
     a saved specification named `商品マスタ ｴｸｽﾎﾟｰﾄ定義`, which is the database itself
     saying an export exists.
     """
@@ -206,9 +205,9 @@ def test_one_reader_serves_the_catalogue_and_the_sample_check(tmp_path) -> None:
 
 # --- reading the bytes -------------------------------------------------------
 
-def test_both_encodings_a05_actually_receives_are_read() -> None:
-    """Three of the six files are CP932 and three are UTF-8, from senders who never
-    agreed with each other."""
+def test_both_encodings_one_application_receives_are_read() -> None:
+    """One application has received both CP932 and UTF-8 files, from senders who
+    never agreed with each other."""
     text, codec, bom = feeds.decode("店舗名".encode("cp932"))
     assert (text, codec, bom) == ("店舗名", "cp932", False)
     text, codec, bom = feeds.decode("店舗名".encode("utf-8"))
@@ -229,12 +228,12 @@ def test_a_file_no_encoding_in_the_ladder_reads_is_reported_not_raised() -> None
 
 
 def test_a_separator_inside_a_quoted_field_is_not_a_field_boundary() -> None:
-    sample = feeds.sample_of('1,"安楽亭, 蕨芝店",3\n'.encode("cp932"), three_columns())
+    sample = feeds.sample_of('1,"本社, 中央店",3\n'.encode("cp932"), three_columns())
     assert sample.fields == 3
 
 
 def test_the_records_are_streamed_rather_than_collected() -> None:
-    """A05's largest sample is 3.5 MB, and a sample is whatever was copied off a share.
+    """A real sample runs to megabytes, and a sample is whatever was copied off a share.
 
     Asserted on the shape rather than on a big file, because the regression to guard
     against is somebody folding this back into a list comprehension - which reads
@@ -246,15 +245,15 @@ def test_the_records_are_streamed_rather_than_collected() -> None:
 def test_the_field_count_comes_from_records_and_not_from_lines() -> None:
     """A quoted newline turns one record into two for anything splitting on lines,
     which is the difference between a field count and a guess."""
-    sample = feeds.sample_of('1,"蕨芝店\n2号",3\n'.encode("cp932"), three_columns())
+    sample = feeds.sample_of('1,"中央店\n2号",3\n'.encode("cp932"), three_columns())
     assert sample.records == 1 and sample.fields == 3
 
 
 # --- what the first record is ------------------------------------------------
 
 def test_a_header_of_the_declared_names_in_order_is_recognised() -> None:
-    """A05's `２１商品.CSV`, at 29 columns; the same reading at three."""
-    sample = feeds.sample_of("伝票番号,店舗名,数量\n1,蕨芝店,3\n".encode("utf-8"),
+    """A sender's headed product file, at 29 columns; the same reading at three."""
+    sample = feeds.sample_of("伝票番号,店舗名,数量\n1,中央店,3\n".encode("utf-8"),
                             three_columns(start_row=1))
     assert sample.header.verdict == feeds.DECLARED
     assert sample.header.detail == "the declared names, in order"
@@ -268,7 +267,7 @@ def test_a_header_whose_names_were_all_changed_is_still_a_header() -> None:
     numeric cannot hold `伝票No` - and this is the whole reason the header comparison
     is part of the check rather than a refinement of it.
     """
-    sample = feeds.sample_of("伝票No,店名,個数\n1,蕨芝店,3\n".encode("utf-8"),
+    sample = feeds.sample_of("伝票No,店名,個数\n1,中央店,3\n".encode("utf-8"),
                             three_columns(start_row=1))
     assert sample.header.verdict == feeds.RENAMED
     finding = feeds.disagreements(three_columns(start_row=1), sample)
@@ -278,7 +277,7 @@ def test_a_header_whose_names_were_all_changed_is_still_a_header() -> None:
 
 def test_the_declared_names_in_a_different_order_are_reported() -> None:
     """Which is a layout change, not a naming difference: the positions moved."""
-    sample = feeds.sample_of("数量,店舗名,伝票番号\n3,蕨芝店,1\n".encode("utf-8"),
+    sample = feeds.sample_of("数量,店舗名,伝票番号\n3,中央店,1\n".encode("utf-8"),
                             three_columns(start_row=1))
     assert sample.header.verdict == feeds.REORDERED
     assert [item.tag for item in feeds.disagreements(three_columns(start_row=1),
@@ -286,8 +285,8 @@ def test_the_declared_names_in_a_different_order_are_reported() -> None:
 
 
 def test_a_headerless_file_reads_as_data() -> None:
-    """A05's `order.txt`, `Dptenpo.csv` and `Dpshohin.csv`, all `StartRow=0`."""
-    sample = feeds.sample_of("1,蕨芝店,3\n2,美女木店,4\n".encode("cp932"),
+    """Several headerless feeds, all `StartRow=0`."""
+    sample = feeds.sample_of("1,中央店,3\n2,駅前西店,4\n".encode("cp932"),
                              three_columns())
     assert sample.header.verdict == feeds.DATA
     assert feeds.disagreements(three_columns(), sample) == []
@@ -302,7 +301,7 @@ def test_a_first_record_that_cannot_be_told_apart_claims_nothing() -> None:
     spec = feeds.specifications(records(
         [spec_row(start_row=1)],
         [column_row("店舗名", 0, TEXT), column_row("略称", 8, TEXT)]))[SPEC]
-    sample = feeds.sample_of("蕨芝店,蕨\n美女木店,美女木\n".encode("cp932"), spec)
+    sample = feeds.sample_of("中央店,中央\n駅前西店,駅前西\n".encode("cp932"), spec)
     assert sample.header.verdict == feeds.UNKNOWN
     assert feeds.disagreements(spec, sample) == []
 
@@ -310,8 +309,8 @@ def test_a_first_record_that_cannot_be_told_apart_claims_nothing() -> None:
 # --- the three reports -------------------------------------------------------
 
 def test_an_extra_column_in_the_file_is_reported() -> None:
-    """`Dpshohin.csv`: spec 28, file 29. The first thing this ever found."""
-    sample = feeds.sample_of("1,蕨芝店,3,酒\n2,美女木店,4,酒\n".encode("cp932"),
+    """Spec 28, file 29: the first thing this ever found."""
+    sample = feeds.sample_of("1,中央店,3,酒\n2,駅前西店,4,酒\n".encode("cp932"),
                              three_columns())
     finding = feeds.disagreements(three_columns(), sample)
     assert [item.tag for item in finding] == ["FIELDS"]
@@ -319,7 +318,7 @@ def test_an_extra_column_in_the_file_is_reported() -> None:
 
 
 def test_startrow_0_against_a_header_imports_the_names_as_a_record() -> None:
-    sample = feeds.sample_of("伝票番号,店舗名,数量\n1,蕨芝店,3\n".encode("utf-8"),
+    sample = feeds.sample_of("伝票番号,店舗名,数量\n1,中央店,3\n".encode("utf-8"),
                             three_columns(start_row=0))
     tags = [item.tag for item in feeds.disagreements(three_columns(), sample)]
     assert tags == ["STARTROW"]
@@ -330,21 +329,21 @@ def test_startrow_1_against_a_headerless_file_drops_a_record() -> None:
     `StartRow` differs *within* this one application, so a rule assuming one answer
     would be wrong half the time."""
     spec = three_columns(start_row=1)
-    sample = feeds.sample_of("1,蕨芝店,3\n2,美女木店,4\n".encode("cp932"), spec)
+    sample = feeds.sample_of("1,中央店,3\n2,駅前西店,4\n".encode("cp932"), spec)
     finding = feeds.disagreements(spec, sample)
     assert [item.tag for item in finding] == ["STARTROW"]
     assert "1 record(s) of data are dropped" in finding[0].says
 
 
 def test_a_header_and_a_startrow_that_agree_report_nothing() -> None:
-    """A05's `２１受注.CSV`, `２１商品.CSV` and `幸松受注.CSV`."""
+    """Every headed feed whose specification says so."""
     spec = three_columns(start_row=1)
-    sample = feeds.sample_of("伝票番号,店舗名,数量\n1,蕨芝店,3\n".encode("utf-8"), spec)
+    sample = feeds.sample_of("伝票番号,店舗名,数量\n1,中央店,3\n".encode("utf-8"), spec)
     assert feeds.disagreements(spec, sample) == []
 
 
 def test_records_that_disagree_about_field_count_are_reported() -> None:
-    sample = feeds.sample_of("1,蕨芝店,3\n2,美女木店,4,酒\n1,蕨,3\n".encode("cp932"),
+    sample = feeds.sample_of("1,中央店,3\n2,駅前西店,4,酒\n1,中,3\n".encode("cp932"),
                              three_columns())
     tags = [item.tag for item in feeds.disagreements(three_columns(), sample)]
     assert "RAGGED" in tags
@@ -376,9 +375,9 @@ def test_a_separator_that_is_not_one_character_is_reported_not_guessed(
     assert feeds.disagreements(spec, sample)[0].tag == "UNREADABLE"
 
 
-# --- the shapes A05 does not have -------------------------------------------
+# --- the shapes the first application did not have -------------------------
 #
-# Every declaration that matters here has exactly one value across A05's six feeds, so
+# Every declaration that matters here had exactly one value across its feeds, so
 # these are the cases a check calibrated on this one application would get wrong. They
 # are tests rather than a note because the failure mode is a false finding on somebody
 # else's application, which is worse than no check.
@@ -392,14 +391,14 @@ def test_a_fixed_width_link_is_reported_and_not_read_as_delimited() -> None:
     feed = feeds.feeds([{"name": "元受注データ", "connect":
                          f"Text;DSN={SPEC};FMT=Fixed;HDR=NO;IMEX=2"}])[0]
     assert not feed.is_delimited
-    sample = feeds.sample_of("1  蕨芝店   3\n".encode("cp932"), three_columns())
+    sample = feeds.sample_of("1  中央店   3\n".encode("cp932"), three_columns())
     finding = feeds.disagreements(three_columns(), sample, feed)
     assert [item.tag for item in finding] == ["FORMAT"]
     assert "Start and Width" in finding[0].says
 
 
 def test_a_delimited_link_and_a_link_declaring_no_format_are_both_read() -> None:
-    """A05 declares `FMT=Delimited`; refusing to read a link that declares nothing
+    """The first application declared `FMT=Delimited`; refusing to read a link that declares nothing
     would turn the common case into silence."""
     for connect in (f"Text;DSN={SPEC};FMT=Delimited;HDR=NO", f"Text;DSN={SPEC};HDR=NO"):
         feed = feeds.feeds([{"name": "元商品マスタ", "connect": connect}])[0]
@@ -409,13 +408,13 @@ def test_a_delimited_link_and_a_link_declaring_no_format_are_both_read() -> None
 def test_hdr_yes_makes_a_header_expected_rather_than_a_finding() -> None:
     """With `HDR=YES` Access reads the header itself.
 
-    A05's six all declare `HDR=NO`, so the `StartRow=0` finding is right there and
+    The first application's feeds all declared `HDR=NO`, so the `StartRow=0` finding is right there and
     would be a false claim about any application declaring the other value.
     """
     feed = feeds.feeds([{"name": "元商品マスタ", "connect":
                          f"Text;DSN={SPEC};FMT=Delimited;HDR=YES"}])[0]
     assert feed.expects_header
-    sample = feeds.sample_of("伝票番号,店舗名,数量\n1,蕨芝店,3\n".encode("utf-8"),
+    sample = feeds.sample_of("伝票番号,店舗名,数量\n1,中央店,3\n".encode("utf-8"),
                              three_columns(start_row=0))
     assert feeds.disagreements(three_columns(start_row=0), sample, feed) == []
 
@@ -423,7 +422,7 @@ def test_hdr_yes_makes_a_header_expected_rather_than_a_finding() -> None:
 def test_hdr_yes_against_a_file_with_no_header_is_the_finding() -> None:
     feed = feeds.feeds([{"name": "元商品マスタ", "connect":
                          f"Text;DSN={SPEC};FMT=Delimited;HDR=YES"}])[0]
-    sample = feeds.sample_of("1,蕨芝店,3\n2,美女木店,4\n".encode("cp932"),
+    sample = feeds.sample_of("1,中央店,3\n2,駅前西店,4\n".encode("cp932"),
                              three_columns())
     finding = feeds.disagreements(three_columns(), sample, feed)
     assert [item.tag for item in finding] == ["HEADER"]
@@ -441,7 +440,7 @@ def test_a_specification_that_states_no_order_is_compared_as_a_set() -> None:
         [{"SpecID": "28", "FieldName": name, "DataType": str(kind)}
          for name, kind in (("伝票番号", LONG), ("店舗名", TEXT), ("数量", LONG))]))[SPEC]
     assert not spec.order_known
-    sample = feeds.sample_of("伝票番号,店舗名,数量\n1,蕨芝店,3\n".encode("utf-8"), spec)
+    sample = feeds.sample_of("伝票番号,店舗名,数量\n1,中央店,3\n".encode("utf-8"), spec)
     assert sample.header.verdict == feeds.DECLARED
     assert "does not state what order" in sample.header.detail
     assert feeds.disagreements(spec, sample) == []
@@ -453,7 +452,7 @@ def test_an_unordered_specification_names_no_positions() -> None:
         [spec_row(start_row=1)],
         [{"SpecID": "28", "FieldName": name, "DataType": str(kind)}
          for name, kind in (("伝票番号", LONG), ("店舗名", TEXT), ("数量", LONG))]))[SPEC]
-    sample = feeds.sample_of("伝票No,店名,個数\n1,蕨芝店,3\n".encode("utf-8"), spec)
+    sample = feeds.sample_of("伝票No,店名,個数\n1,中央店,3\n".encode("utf-8"), spec)
     assert sample.header.verdict == feeds.RENAMED
     assert sample.header.differences == ()
     assert "position" not in feeds.disagreements(spec, sample)[0].says
@@ -462,11 +461,11 @@ def test_an_unordered_specification_names_no_positions() -> None:
 # --- the encoding the specification does not declare -------------------------
 
 def test_feeds_that_disagree_about_encoding_are_reported_once() -> None:
-    """A05's do: three CP932 and three UTF-8, every specification declaring
-    `FileType=0`. An importer written against either half breaks the other."""
+    """One application's did: some CP932 and some UTF-8, every specification
+    declaring `FileType=0`. An importer written against either half breaks the other."""
     spec = three_columns()
-    cp932 = feeds.sample_of("1,蕨芝店,3\n".encode("cp932"), spec)
-    utf8 = feeds.sample_of("1,美女木店,4\n".encode("utf-8"), spec)
+    cp932 = feeds.sample_of("1,中央店,3\n".encode("cp932"), spec)
+    utf8 = feeds.sample_of("1,駅前西店,4\n".encode("utf-8"), spec)
     note = feeds.encoding_spread([(spec, cp932), (spec, utf8)])
     assert "cp932 (1)" in note and "utf-8 (1)" in note
     assert "FileType=0" in note and "not established" in note
@@ -474,7 +473,7 @@ def test_feeds_that_disagree_about_encoding_are_reported_once() -> None:
 
 def test_feeds_that_share_an_encoding_say_nothing() -> None:
     spec = three_columns()
-    sample = feeds.sample_of("1,蕨芝店,3\n".encode("cp932"), spec)
+    sample = feeds.sample_of("1,中央店,3\n".encode("cp932"), spec)
     assert feeds.encoding_spread([(spec, sample), (spec, sample)]) == ""
 
 
@@ -500,7 +499,7 @@ def test_the_numeric_types_are_the_ones_the_kit_documents() -> None:
 def workspace(tmp_path: Path, *, files: dict[str, bytes],
               links: list[dict] | None = None,
               specs: list[dict] | None = None) -> Path:
-    root = tmp_path / "A05"
+    root = tmp_path / "A99"
     # `input/` is what tells `Workspace` this is the post-2.10.0 layout.
     samples = root / "input" / "samples"
     samples.mkdir(parents=True)
@@ -533,14 +532,14 @@ def run(root: Path) -> tuple[int, str]:
 def test_the_command_names_the_file_the_declaration_disagrees_with(
     tmp_path: Path,
 ) -> None:
-    """The A05 run, at test scale: an extra column in the file nobody declared."""
+    """The first real run, at test scale: an extra column in the file nobody declared."""
     root = workspace(tmp_path, files={
-        "Dpshohin.csv": "1,蕨芝店,3,酒\n2,美女木店,4,酒\n".encode("cp932")})
+        "Dpshohin.csv": "1,中央店,3,酒\n2,駅前西店,4,酒\n".encode("cp932")})
     code, output = run(root)
     assert code == 1
     assert "FIELDS" in output and "元商品マスタ (dpshohin.csv)" in output
     # The name on the share is capitalised and the link is not. Matching case would
-    # report every one of A05's six feeds as a missing sample.
+    # report every feed of the first application as a missing sample.
     assert "NO SAMPLE" not in output
 
 
@@ -568,7 +567,7 @@ def test_the_command_reports_a_sample_no_link_names(tmp_path: Path) -> None:
     """An operator supplying a file nothing imports is worth one line: either the
     link is missing or the file is."""
     root = workspace(tmp_path, files={
-        "dpshohin.csv": "1,蕨芝店,3\n".encode("cp932"),
+        "dpshohin.csv": "1,中央店,3\n".encode("cp932"),
         "unknown.csv": b"1,2\n"})
     code, output = run(root)
     assert code == 1
@@ -584,10 +583,10 @@ def test_two_files_of_one_name_are_reported_rather_than_one_of_them_chosen(
     declaration against whichever one sorted first could report agreement about a file
     the application never reads.
     """
-    root = workspace(tmp_path, files={"dpshohin.csv": "1,蕨芝店,3\n".encode("cp932")})
+    root = workspace(tmp_path, files={"dpshohin.csv": "1,中央店,3\n".encode("cp932")})
     nested = root / "input" / "samples" / "sender-b"
     nested.mkdir()
-    (nested / "dpshohin.csv").write_bytes("9,美女木店,4,酒\n".encode("cp932"))
+    (nested / "dpshohin.csv").write_bytes("9,駅前西店,4,酒\n".encode("cp932"))
     code, output = run(root)
     assert code == 1
     assert "AMBIGUOUS" in output and "sender-b/dpshohin.csv" in output
@@ -598,11 +597,11 @@ def test_two_files_of_one_name_are_reported_rather_than_one_of_them_chosen(
 def test_a_bundle_whose_links_name_no_specification_is_not_a_failure(
     tmp_path: Path,
 ) -> None:
-    """A05's frontend is exactly this, and it is correct: its two linked tables both
-    point at the backend `.mdb` and neither declares a DSN."""
+    """A frontend can be exactly this, and correctly: its linked tables all point at
+    the backend `.mdb` and none declares a DSN."""
     root = workspace(tmp_path, files={}, links=[
-        {"name": "操作履歴", "database_id": "WINDOWS11_45D0FDDD",
-         "connect": ";DATABASE=L:\\新品揃支援\\XP\\品揃支援data.mdb"}])
+        {"name": "操作履歴", "database_id": "BACKEND_0000FFFF",
+         "connect": ";DATABASE=L:\\新業務システム\\XP\\業務システムdata.mdb"}])
     code, output = run(root)
     assert code == 0
     assert "nothing to compare" in output
@@ -610,7 +609,7 @@ def test_a_bundle_whose_links_name_no_specification_is_not_a_failure(
 
 def test_an_agreeing_feed_reports_nothing(tmp_path: Path) -> None:
     root = workspace(tmp_path, files={
-        "dpshohin.csv": "1,蕨芝店,3\n2,美女木店,4\n".encode("cp932")})
+        "dpshohin.csv": "1,中央店,3\n2,駅前西店,4\n".encode("cp932")})
     code, output = run(root)
     assert code == 0
     assert "every declared layout agrees" in output
@@ -619,17 +618,17 @@ def test_an_agreeing_feed_reports_nothing(tmp_path: Path) -> None:
 def test_no_bundle_is_a_second_exit_code_and_not_a_clean_report(
     tmp_path: Path,
 ) -> None:
-    (tmp_path / "A05" / "input").mkdir(parents=True)
-    code, output = run(tmp_path / "A05")
+    (tmp_path / "A99" / "input").mkdir(parents=True)
+    code, output = run(tmp_path / "A99")
     assert code == 2 and "run `$ak acquire` first" in output
 
 
 # --- A64: Access's third export verb ----------------------------------------
 #
-# `code_feeds` knew TransferText and TransferSpreadsheet. A06's `電算データ作成画面`
-# wrote an Excel file through `DoCmd.OutputTo` and appeared in no boundary list, and
-# `共通関数` held a generic exporter whose every argument is a variable. The published
-# count was 37 and is 39.
+# `code_feeds` knew TransferText and TransferSpreadsheet. A data-export screen wrote
+# an Excel file through `DoCmd.OutputTo` and appeared in no boundary list, and a
+# `共通関数` module held a generic exporter whose every argument is a variable. The
+# published boundary count was two short.
 
 
 def _record(text: str, name: str = "F"):
@@ -658,7 +657,7 @@ def test_output_to_without_a_destination_is_still_a_boundary() -> None:
 
 
 def test_a_commented_output_to_is_not_a_boundary() -> None:
-    """A06's switchboard carries one, commented out. A comment is not a call."""
+    """A switchboard has been seen carrying one, commented out. A comment is not a call."""
     assert feeds.code_feeds([_record(
         '\'    DoCmd.OutputTo acOutputQuery, "x", acFormatXLS, "C:\\y.xls", False')]) == []
 
@@ -677,12 +676,12 @@ def test_the_transfer_verbs_still_work_beside_it() -> None:
 
 # --- A65: a path built from constants declared in the same file --------------
 #
-# `$ak samples` called `SMS受注データパス & Format(Me.受注日, "yyyymmdd") & ".csv"`
-# unresolvable, twelve lines below `Const SMS受注データパス = "\\server6\user\物流部\"`,
+# `$ak samples` called `業務受注データパス & Format(Me.受注日, "yyyymmdd") & ".csv"`
+# unresolvable, twelve lines below `Const 業務受注データパス = "\\server\user\物流部\"`,
 # and said the same of four bare constant references that are complete literal paths.
 
 CONSTS = (
-    'Const SMS\u53d7\u6ce8\u30c7\u30fc\u30bf\u30d1\u30b9 = "' + chr(92) * 2 + 'server6' + chr(92) + 'user' + chr(92) + '"\n'
+    'Const \u696d\u52d9\u53d7\u6ce8\u30c7\u30fc\u30bf\u30d1\u30b9 = "' + chr(92) * 2 + 'server' + chr(92) + 'user' + chr(92) + '"\n'
     'Const LIQUOR = "C:' + chr(92) + '21.CSV"\n'
 )
 
@@ -701,15 +700,15 @@ def test_a_chain_holding_a_call_is_not_a_literal_path() -> None:
     file is not matched by name, and claiming otherwise would be the overclaim."""
     found = feeds.code_feeds([{"database_id": "DB", "name": "F", "text": CONSTS +
         'DoCmd.TransferText acImportDelim, "spec", "t", '
-        'SMS\u53d7\u6ce8\u30c7\u30fc\u30bf\u30d1\u30b9 & Format(Me.d, "yyyymmdd") & ".csv", True'}])
+        '\u696d\u52d9\u53d7\u6ce8\u30c7\u30fc\u30bf\u30d1\u30b9 & Format(Me.d, "yyyymmdd") & ".csv", True'}])
     assert len(found) == 1
     assert found[0].file_name == ""
-    assert chr(92) * 2 + "server6" in found[0].path_expression
+    assert chr(92) * 2 + "server" in found[0].path_expression
     assert "Format(Me.d" in found[0].path_expression
 
 
 def test_a_name_assigned_twice_resolves_to_nothing() -> None:
-    """A06's `受注調整データ出力画面` assigns `ObjectName` two different literals for two
+    """A data-output screen once assigned `ObjectName` two different literals for two
     different calls. Picking one would be right for one call and wrong for the other,
     which is why only a single-assignment constant resolves."""
     text = ('Const P = "C:' + chr(92) + 'a.csv"\n'
@@ -720,7 +719,7 @@ def test_a_name_assigned_twice_resolves_to_nothing() -> None:
 
 
 def test_a_commented_constant_does_not_resolve_anything() -> None:
-    """A06 declares each path twice - a live block and a commented test block. If the
+    """An application has declared each path twice - a live block and a commented test block. If the
     commented one counted, every path would resolve to `C:` and the whole boundary
     would move onto the local disk."""
     text = ('Const P = "C:' + chr(92) + 'real.csv"\n'

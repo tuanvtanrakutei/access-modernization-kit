@@ -11,14 +11,12 @@ Analyze a legacy system built with **Microsoft Access (VBA forms) connected to S
 - Microsoft Access database/project files (`.mdb`, `.accdb`, `.adp`) when available
 - VBA forms (exported code, screen captures, reports)
 - SQL Server database (tables, queries, stored procedures)
-- XLSX SMS System Operational functions and report data list (Japanese)
-  - `Operational functions and report data list.xlsx`
-- XLSX SMS BASIC Training Manual (Japanese)
-  - `SMS Basic Training Manual (From the Perspective of the Order Processing Department).xlsx`
-- PDF Current SMS system business flows (Japanese)
-  - `diagram sms_system_business_diagram.pdf`
-- PDF SMS System Replacement Project Overview Attached Diagram (Japanese)
-  - `SMS System Replacement Project Overview Attached Diagram.pdf`
+- The customer's documents, usually in Japanese. The file names differ per project; the
+  manifest lists them. The usual kinds are:
+  - XLSX: a list of operational functions and the data each report uses
+  - XLSX: a training manual for the system, written for one department
+  - PDF: the current business flows of the system
+  - PDF: an overview diagram of the replacement project
 
 ---
 

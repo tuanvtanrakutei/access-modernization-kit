@@ -5,8 +5,8 @@ register of its questions holds the most valuable evidence it has. What the kit 
 see before this was only that some files existed in `input/interviews/`.
 
 The finding that matters is a disagreement, and it was real on the first register this
-ran against: A06's ID 6 carries `Status: Answered`, a respondent and an answer date, and
-its page holds no answer at all. Nothing else in the workspace can say so.
+ran against: its ID 6 carried `Status: Answered`, a respondent and an answer date, and
+its page held no answer at all. Nothing else in the workspace can say so.
 """
 from __future__ import annotations
 
@@ -23,7 +23,7 @@ import workspace as workspace_contract  # noqa: E402
 BOM = "﻿"
 REGISTER = (
     BOM + "ID,詳細(Detail）,Status,Asker,Ask date,Respondent,Answer date,機能・画面(Funct/Scr)\n"
-    "1,Related to classification,Answered,Asker One,2026/08/17,Respondent One,2026/08/19,商品情報登録\n"
+    "1,Related to classification,Answered,Asker One,2026/08/17,Respondent One,2026/08/19,受注登録\n"
     "5,初期データや配置位置,In Progress,Asker One,2026/08/19,\"Respondent One, Respondent Two\",2026/08/20,\n"
     "6,商品情報画面の削除,Answered,Asker Two,2026/08/26,Respondent Three,2026/08/30,\n"
 )
@@ -53,7 +53,7 @@ def _workspace(tmp_path: Path, pages: dict, register: str | None = REGISTER):
 def test_a_question_recorded_as_answered_whose_page_holds_no_answer(tmp_path: Path) -> None:
     """The finding this exists for, and it was real on the first register read.
 
-    A06's ID 6: `Answered`, `Respondent: Respondent Three`, `Answer date: 2026/08/30`, and a page
+    One register's ID 6: `Answered`, `Respondent: Respondent Three`, `Answer date: 2026/08/30`, and a page
     carrying only the question and a screenshot. A closed question with no answer in it
     cannot be cited, and the register is the only thing claiming it is closed.
     """
@@ -74,7 +74,7 @@ def test_a_question_recorded_as_answered_whose_page_holds_no_answer(tmp_path: Pa
 def test_an_emphasis_bracket_is_not_an_answer(tmp_path: Path) -> None:
     """Japanese prose uses full-width brackets for headings, and a real register does.
 
-    A06's Q&A 5 opens its body with `【質問1：インポートファイルの文字コードについて】`.
+    One register's Q&A 5 opened its body with `【質問1：インポートファイルの文字コードについて】`.
     Counting that as an answer would report the one genuinely open question as closed -
     the exact error this check exists to catch, made by the check.
     """
@@ -104,18 +104,18 @@ def test_an_answer_is_read_with_its_person_and_date(tmp_path: Path) -> None:
 def test_the_columns_are_matched_by_name_not_position(tmp_path: Path) -> None:
     """The same Notion database exports twice with the columns in two orders.
 
-    A06's `X.csv` and `X_all.csv` differ, so a position-mapped reader would be right
+    One register's `X.csv` and `X_all.csv` differed, so a position-mapped reader would be right
     about one file and silently wrong about the other.
     """
     reordered = (
         BOM + "詳細(Detail）,Answer date,Ask date,Asker,ID,Respondent,Status,機能・画面(Funct/Scr)\n"
-        "a title,2026/08/19,2026/08/17,Asker One,1,Respondent One,Answered,商品情報登録\n"
+        "a title,2026/08/19,2026/08/17,Asker One,1,Respondent One,Answered,受注登録\n"
     )
     space = _workspace(tmp_path, {"q1.md": _page("1", "【2026/08/19: Respondent One】yes")}, reordered)
     assert checker.observe(space)["register"] == [{
         "id": "1", "title": "a title", "status": "Answered", "asker": "Asker One",
         "respondent": "Respondent One", "ask_date": "2026/08/17",
-        "answer_date": "2026/08/19", "screen": "商品情報登録",
+        "answer_date": "2026/08/19", "screen": "受注登録",
     }]
 
 
@@ -178,11 +178,11 @@ def test_a_cp932_register_is_read(tmp_path: Path) -> None:
     interviews = tmp_path / "input" / "interviews"
     interviews.mkdir(parents=True)
     (interviews / "reg.csv").write_bytes(
-        "ID,Status,詳細(Detail）\n1,Answered,商品情報登録について\n".encode("cp932")
+        "ID,Status,詳細(Detail）\n1,Answered,受注登録について\n".encode("cp932")
     )
     (interviews / "q1.md").write_text(_page("1", "【2026/08/19: Respondent One】yes"), encoding="utf-8")
     result = checker.observe(workspace_contract.Workspace(tmp_path))
-    assert result["register"][0]["title"] == "商品情報登録について"
+    assert result["register"][0]["title"] == "受注登録について"
 
 
 # --- A47: the answer lives in a Notion comment, which the export drops -------------
@@ -221,7 +221,7 @@ SIDECAR_WITHOUT_MARKER = "\n".join([
 def test_an_answer_pasted_beside_its_page_closes_the_question(tmp_path: Path) -> None:
     """A47. A Notion "Markdown & CSV" export does not export comments.
 
-    A06's ID 6 was answered in a comment - a full account of why deletion is never
+    One register's ID 6 was answered in a comment - a full account of why deletion is never
     used, what the `99` defaults mean, and that `担当者: 10` hides a discontinued
     product - and the export carried the question alone. The finding was right and
     there was nowhere to put the answer.

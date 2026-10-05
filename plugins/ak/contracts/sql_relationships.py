@@ -1,6 +1,6 @@
 """What the SQL says about how tables relate, when the database declares nothing.
 
-The A05 databases declare **zero** relationships. That is not a collection gap - DAO
+Access databases often declare **zero** relationships; one project's declared none. That is not a collection gap - DAO
 was asked and the answer was none - so the catalogue's `FK` column could never be
 filled from the schema, and a migration would have had to guess which columns were
 meant to match.
@@ -24,7 +24,7 @@ Three things are derived, and the limits of each are stated rather than smoothed
                   table having no key is normal, not a finding.
 
   dangling refs   SQL naming a table or query that exists nowhere and is created
-                  nowhere. Five A05 queries do this, which makes them unrunnable, and
+                  nowhere. Five queries in one project did this, which makes them unrunnable, and
                   nothing in the application distinguishes them from working ones.
 
 Alias resolution is the fiddly part and the reason this is a module rather than a
@@ -62,7 +62,7 @@ CREATES = re.compile(r"\b(?:INTO|CREATE\s+TABLE)\s+(\[[^\]]+\]|[^\s,();]+)", re.
 #
 # Missing this cost a wrong published claim (E-09): two working screens were reported
 # as unable to open because their record source named a table that "does not exist".
-# It also hid the mechanism - 35 of 51 A05 forms query a backend this way, 145 times,
+# It also hid the mechanism - 35 of 51 forms in one project queried a backend this way, 145 times,
 # naming four locations, one of them on a different drive letter than the stored links.
 IN_DATABASE = re.compile(r"\bIN\s+\\{0,2}\"([^\"]{2,200})", re.IGNORECASE)
 
@@ -71,7 +71,7 @@ NOT_A_NAME = {"select", "distinct", "distinctrow", "top"}
 
 # A word that follows a table name without being its alias. `FROM 元商品マスタC LEFT
 # JOIN ...` reads as alias `LEFT` otherwise, which then put the real table name into
-# the alias values and made every dangling reference in the A05 queries invisible -
+# the alias values and made every dangling reference in one project's queries invisible -
 # the check reported 0 where a plainer regex had found 5.
 NOT_AN_ALIAS = {
     "left", "right", "inner", "outer", "full", "cross", "join", "on", "where",
@@ -155,7 +155,7 @@ def analyse(
                 # A join onto a saved query is legitimate and is not a relationship
                 # between tables, so it is counted separately rather than reported as
                 # unresolved. What remains unresolved is a name that is neither table,
-                # nor query, nor a resolvable alias - which in A05 is exactly the two
+                # nor query, nor a resolvable alias - which in one project was exactly the two
                 # staging variants that do not exist.
                 for name in (left, right):
                     if name in table_names:
@@ -232,12 +232,12 @@ def is_work_table(name: str) -> bool:
 #
 # What *is* evidence is who writes the table. A table nothing writes behaves as
 # reference data; a table deleted and refilled by the form that prints a report is
-# scratch - which is how the A05 `WK*` tables turn out to be used, confirming an
+# scratch - which is how one project's `WK*` tables turned out to be used, confirming an
 # assumption Phase 1 could only state. That is a USAGE claim from CODE, and it lets a
 # reader classify without the analysis pretending to know meaning.
 #
 # The limit is stated rather than smoothed over: 129 of 152 `OpenRecordset` calls in
-# A05 take a built string, so a write through one of those cannot be attributed to a
+# one project took a built string, so a write through one of those cannot be attributed to a
 # named table without dataflow analysis. "No writer attributable" is therefore never
 # reported as "never written".
 

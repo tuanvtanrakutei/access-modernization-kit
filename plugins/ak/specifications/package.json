@@ -41,7 +41,7 @@
     "dependency": false,
     "vendored_code": false
   },
-  "execution_status": "packaged_smoke_tested_not_a01_regression_tested",
-  "regression_baseline": "A01",
+  "execution_status": "packaged_smoke_tested_not_reference_regression_tested",
+  "regression_baseline": "reference set",
   "regression_run_authorized": false
 }

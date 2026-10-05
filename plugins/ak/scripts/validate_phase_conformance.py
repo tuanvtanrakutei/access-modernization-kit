@@ -121,7 +121,7 @@ def load_scheme_rules() -> dict[str, dict[str, Any]]:
     """`owned_by` and `requires_severity`, which nothing read until A56.
 
     The scheme declared both for every risk namespace and no code opened either, so
-    A06's Phase 2 allocated five findings into `RS` - owned by Phase 5, and named
+    one Phase 2 allocated five findings into `RS` - owned by Phase 5, and named
     "security and compliance" - and published them twice without anything objecting.
     A stated rule with no reader is not a rule, which is the whole of A33.
 
@@ -217,7 +217,7 @@ CONFORMANCE_SIGNALS = load_conformance_signals()
 LANGUAGE_SUFFIX = re.compile(r"_([A-Z]{2})(?:\.[^.]+)?$")
 
 
-# An identifier is prose; a column name is code. A52: A06's Phase 1 names the SQL Server
+# An identifier is prose; a column name is code. A52: one Phase 1 named the SQL Server
 # table `受注年月商品`, whose columns are `d1` … `d31`, and `d31` is exactly the shape of
 # the `d-` namespace - so the checker reported a dangling identifier against a document
 # that had allocated everything it cited.
@@ -432,7 +432,7 @@ def apparatus_checks(phase: int, text: str, registers: dict[str, Any],
     if entries is not None and SCHEME_RULES:
         mine = [e for e in entries if e.get("phase") == phase]
 
-        # Allocated into a namespace this phase does not own. A06's Phase 2 took five
+        # Allocated into a namespace this phase does not own. One Phase 2 took five
         # numbers out of RS, which is Phase 5's and means security - so a screen-layout
         # finding was filed as a compliance one, and Phase 5's RS-01 was gone before
         # Phase 5 ran.
@@ -462,8 +462,8 @@ def apparatus_checks(phase: int, text: str, registers: dict[str, Any],
         ))
 
     # Every unknown and question an earlier phase left open has to be accounted for
-    # here, not silently carried to Phase 6. A06's Phase 2 named none of Phase 1's
-    # fifteen, and allocated `Q108` asking what `Q103` already asked of the same owner
+    # here, not silently carried to Phase 6. A Phase 2 once named none of Phase 1's
+    # open items, and allocated `Q108` asking what `Q103` already asked of the same owner
     # about the same file.
     if entries is not None and phase > 1:
         carried = [e for e in entries
@@ -521,7 +521,7 @@ def apparatus_checks(phase: int, text: str, registers: dict[str, Any],
         ))
 
     # A67. Errata was checked in Phase 6 only, and corrections do not wait for Phase 6.
-    # A06's Phase 3 corrected two published Phase 1 risks - the actor behind the `99`
+    # One Phase 3 corrected two published Phase 1 risks - the actor behind the `99`
     # placeholders, and what destroys `準備数` - wrote **corrected** in its
     # carried-forward table, and registered neither. The contract already allows this
     # (ER-06: an entry may correct a claim in any phase); nothing enforced it, and `E-`
