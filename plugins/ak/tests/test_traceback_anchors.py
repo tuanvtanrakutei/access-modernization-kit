@@ -93,7 +93,7 @@ def test_the_register_field_table_names_attribution(anchor_section: str) -> None
 def test_an_unrecorded_answer_is_named_as_uncitable(anchor_section: str) -> None:
     """The honest consequence has to be written down, or it reads as an oversight.
 
-    An answer nobody wrote down has no anchor and cannot pass G1. That is the intended
+    An answer nobody wrote down has no anchor and cannot pass the G2 evidence sub-check. That is the intended
     outcome of EC-01, not a hole in the anchor format, and the section now says so.
     """
     lowered = anchor_section.lower()

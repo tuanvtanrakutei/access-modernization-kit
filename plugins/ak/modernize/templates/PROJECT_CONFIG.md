@@ -166,7 +166,7 @@ Fixed names — these are not configurable, because the pipeline documents refer
 | Frontend coding rules | `{{DOCS_DIR}}/{{FRONTEND_RULES_DOC}}` |
 | Code style conventions | `{{DOCS_DIR}}/{{CONVENTIONS_DOC}}` |
 | Architecture constraints | `{{DOCS_DIR}}/{{ARCHITECTURE_DOC}}` |
-| Per-screen artifacts | `{{DOCS_DIR}}/{Business_flows,Screen_plans,Coding_Records,Test_Instruction,Code_Review}/` |
+| Per-screen artifacts | `{{DOCS_DIR}}/{Screen_plans,Coding_Records,Test_Instruction,Code_Review}/` |
 
 ## Validation Checklist
 

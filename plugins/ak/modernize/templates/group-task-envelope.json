@@ -37,7 +37,6 @@
   ],
 
   "write_paths": [
-    "{{DOCS_DIR}}/Business_flows/{{SCREEN_1}}.md",
     "{{DOCS_DIR}}/Screen_plans/{{SCREEN_1}}.md",
     "{{DOCS_DIR}}/Coding_Records/{{SCREEN_1}}.md",
     "{{DOCS_DIR}}/Test_Instruction/{{SCREEN_1}}.md",

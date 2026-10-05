@@ -57,7 +57,7 @@ verdict, not something to leave implicit.
   "screen": "...",
   "group": "...",
   "stages_completed": ["1", "2", "3a"],
-  "artifacts_written": ["Business_flows/....md", "..."],
+  "artifacts_written": ["Screen_plans/....md", "..."],
   "gate_verdicts": {"G1": "pass", "G2": "pass", "G3": "not_reached"},
   "commands_run": [{"command": "...", "result": "pass | fail", "detail": "..."}],
   "intended_registry_row": {"screen": "...", "status_be": "...", "status_fe": "..."},

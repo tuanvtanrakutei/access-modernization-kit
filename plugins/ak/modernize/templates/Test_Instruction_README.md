@@ -55,12 +55,12 @@ Output target: {{DOCS_DIR}}/Test_Instruction/{screen}.md
 Resolve project values from PROJECT_CONFIG.md first.
 
 Prerequisites:
-1. Business_flows/{screen}.md, Screen_plans/{screen}.md, and Coding_Records/{screen}.md must exist.
+1. Screen_plans/{screen}.md and Coding_Records/{screen}.md must exist.
    If any is missing, that is an upstream gap — resolve it before testing.
 2. For the frontend track: Stage 4a must be green and the backend must be running.
 
 Workflow — backend (4a):
-1. Build a coverage map: every business rule in the business flow, mapped to the test that proves it.
+1. Build a coverage map: every business rule in the screen plan's mapping section (its `BR-` id), mapped to the test that proves it.
    A rule with no test is a gap, and it belongs in section 6 rather than being quietly skipped.
 2. Check what regression coverage already exists before writing new tests.
 3. Where real parameters are needed, probe reference data read-only, copy the minimal comparable case
@@ -111,7 +111,7 @@ One paragraph on what was verified and what remains unverified.
 
 ## 2. Source Documents
 
-- Business flow, screen plan, coding record
+- Screen plan, coding record
 - Legacy output samples used as comparison baselines, with anchors
 
 ## 3. Backend Tests
@@ -120,7 +120,7 @@ One paragraph on what was verified and what remains unverified.
 
 Every business rule, mapped to the test that proves it. A rule with no test is recorded, not hidden.
 
-| Rule (BF §N) | Test | Role | Status |
+| Rule (BR- id) | Test | Role | Status |
 |---|---|---|---|
 
 ### 3.2 Regression Tests

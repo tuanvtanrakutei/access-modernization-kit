@@ -14,7 +14,7 @@ or downgraded here.
 If no screen was named in the request, stop and ask which screen before reading anything —
 do not guess a screen from recent conversation context.
 
-`Business_flows/{screen}.md`, `Screen_plans/{screen}.md`, `Coding_Records/{screen}.md`,
+the Stage 1 scope report (`screen_scope.py`), `Screen_plans/{screen}.md`, `Coding_Records/{screen}.md`,
 `Test_Instruction/{screen}.md`, the code files the coding record cites, every traceability row
 for the screen, and the open `Known_Issues.md` rows for the screen and module. These reads are
 independent — issue them together.

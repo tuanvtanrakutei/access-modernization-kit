@@ -1,6 +1,6 @@
 ---
 name: modernize-screen
-description: "Run the end-to-end legacy Access modernization pipeline for one screen or several in parallel — business flow, screen plan, backend coding, frontend coding, tests, and review. Trigger when the user wants to implement, refresh, test, or review a screen of a legacy Access application being rebuilt as Django REST plus React. Examples: \"/modernize-screen OrderInquiry\", \"implement screen X\", \"refresh the pipeline for screen Y\", \"implement the frontend for screen Z\", \"review screen W\", \"implement X and Y in parallel\"."
+description: "Run the end-to-end legacy Access modernization pipeline for one screen or several in parallel — computed scope, screen plan, backend coding, frontend coding, tests, and review. Trigger when the user wants to implement, refresh, test, or review a screen of a legacy Access application being rebuilt as Django REST plus React. Examples: \"/modernize-screen OrderInquiry\", \"implement screen X\", \"refresh the pipeline for screen Y\", \"implement the frontend for screen Z\", \"review screen W\", \"implement X and Y in parallel\"."
 ---
 
 # Modernize One Screen
@@ -41,7 +41,7 @@ Read `MASTER_WORKFLOW.md` in full. Do not skim. It defines:
 - Traceback Gates G1, G2, and G3 — summarized there, specified fully in `TRACEBACK_GATES.md`
 - Loop Handling, Abort and Cleanup, and the scope boundaries
 
-Also read `LEGACY_EVIDENCE.md` for the project's declared legacy variant. What counts as complete evidence for a `.adp` differs from a split `.accdb`, and gate G1 measures against that difference.
+Also read `LEGACY_EVIDENCE.md` for the project's declared legacy variant. What counts as complete evidence for a `.adp` differs from a split `.accdb`, and the G2 evidence sub-check measures against that difference.
 
 If these documents disagree with anything you believe about this project, the documents win.
 

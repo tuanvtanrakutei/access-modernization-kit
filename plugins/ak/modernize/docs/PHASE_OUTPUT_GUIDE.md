@@ -75,16 +75,19 @@ so on through Phase 6. See `LEGACY_EVIDENCE.md` §6.4 for what that guarantees a
 
 ## 4. How This Feeds Modernize
 
-Modernize's Stage 1 pre-flight reads three things mechanically, not all six documents in
+Modernize's pre-flight and Stage 1 read these mechanically, not all six documents in
 full: Phase 2 (screen inventory and per-screen detail), `TraceabilityMatrix.csv` (dependency
-map), and `run-state.json` → `phase_gates` (readiness signal for phase2/phase4/phase6). The
+map), `run-state.json` → `phase_gates` (readiness signal for phase2/phase4/phase6), and the
+registers `Identifiers.json`, `Evidence.json` and `DecisionQueue.json`, from which Stage 1
+computes a screen's scope (`screen_scope.py`). The
 `bootstrap-project` skill goes further and only ever touches Phase 2 — it seeds
 `Screens_Registry.md` from Phase 2 §1 alone, because that is the only phase document with a
 structured, per-object table; nothing else about a new project's registry needs Phase 4, 5,
 or 6's content. Full mapping, precedence rules, and known limits: `LEGACY_EVIDENCE.md` §6.1–6.4.
 
 Everything else in Phase 1, 3, 4, 5, and 6 remains valuable **reading**, for a human or an
-agent doing Stage 1's actual business-flow writing — it is just not parsed by any script.
+agent doing Stage 2's screen plan — it is just not parsed by any script. Stage 1 no longer
+writes a business-flow document: what it held is computed from the registers.
 
 ## 5. Suggested Reading Order For A Newly Investigated App
 

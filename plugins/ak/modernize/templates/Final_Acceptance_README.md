@@ -26,7 +26,6 @@ Only after all upstream artifacts exist and Stage 5 has approved:
 
 | Artifact | Required state |
 |---|---|
-| `Business_flows/{screen}.md` | Exists |
 | `Screen_plans/{screen}.md` | Exists, both contracts present |
 | `Coding_Records/{screen}.md` | Exists for the tracks under acceptance |
 | `Test_Instruction/{screen}.md` | Exists, results recorded |
@@ -43,7 +42,7 @@ Run Stage 6 (Final Acceptance) for this screen:
 
 Resolve project values from PROJECT_CONFIG.md, and screen_key plus module from Screens_Registry.md.
 
-Read: MASTER_WORKFLOW.md, this README, Code_Review/README.md, and the screen's five upstream
+Read: MASTER_WORKFLOW.md, this README, Code_Review/README.md, and the screen's four upstream
 artifacts.
 
 Prerequisite check — confirm each upstream artifact exists and that the Stage 5 verdict is
@@ -51,7 +50,7 @@ Prerequisite check — confirm each upstream artifact exists and that the Stage 
 
 Then act in two roles, separately:
 
-As product manager, review: business flow and user flow fidelity, legacy parity, accepted
+As product manager, review: business rule and user flow fidelity (the rules in the Stage 1 scope report, as the screen plan maps them), legacy parity, accepted
 differences, and any open business decision. Ask whether an operator doing this job daily would
 accept the screen.
 

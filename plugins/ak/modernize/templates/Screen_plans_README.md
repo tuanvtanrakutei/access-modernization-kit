@@ -18,7 +18,7 @@ Stage 3a codes against §3. Stage 3b codes against §4. Gate G2 checks that ever
 
 ## What Does Not Belong Here
 
-- Business-only narrative for non-technical reviewers — that is `Business_flows/{screen}.md`.
+- Business-only narrative for non-technical reviewers — the extraction's Phase 4 workflow document and its decision queue carry it; Stage 1 no longer writes a second copy.
 - Test execution steps and commands — that is `Test_Instruction/{screen}.md`.
 - A record of what was actually built — that is `Coding_Records/{screen}.md`.
 
@@ -42,7 +42,9 @@ Use available evidence:
 - {{TABLE_MAP_DOC}} for table and field names
 - the current backend sources under {{BACKEND_ROOT}}
 - the current frontend sources under {{FRONTEND_ROOT}}
-- Business_flows/{screen}.md
+- the Stage 1 scope report (`screen_scope.py --ak {{AK_RUN_DIR}} --screen {screen}`): the workflows through
+  this screen, the evidence they cite, the business rules in scope (`BR-` ids), the open risks with their
+  dispositions, and the decisions that name the screen
 - any open traceability rows from gate G1 for this screen
 
 If the target file exists, do not treat it as the source of truth. Preserve confirmed notes and open
@@ -53,6 +55,10 @@ Workflow:
 2. Trace current backend and frontend behavior from the sources, if any exists.
 3. Write the file using the structure in this README.
 4. Fill BOTH contracts. A screen plan with no frontend contract fails gate G2.
+   Map every `BR-` in the scope report to a row of §5, citing its id in the Rule column, and cite every open
+   decision that names the screen in §6. `screen_scope.py --plan Screen_plans/{screen}.md` computes both
+   checks, and a rule in scope that is not part of this screen is mapped as such, with the reason: the scope
+   is a superset by design.
 5. Populate the control inventory in §4.2 — one row per legacy control. Gate G3's UI sub-check reads it.
 6. Mark the backend contract status in §3.4 as draft or frozen. Only a frozen contract permits
    Stage 3a and 3b to run concurrently.
@@ -66,7 +72,7 @@ Rules:
   would be wrong.
 - If exported text looks like garbage, re-read it using {{SOURCE_ENCODING}} before concluding
   anything about field names or formulas.
-- Keep business narrative brief and link to Business_flows instead of restating it.
+- Keep business narrative brief. The business rules are the `BR-` ids in the register: cite them rather than restating them.
 ```
 
 ## File Naming
@@ -162,10 +168,12 @@ delivered, whether a preview exists, and which legacy sample the output is compa
 
 One row per business rule or legacy concept. **Gate G2 reads this table.**
 
-| # | Rule (BF §N) | Legacy anchor | Backend location | Frontend location | Status |
+| # | Rule (BR- id) | Legacy anchor | Backend location | Frontend location | Status |
 |---|---|---|---|---|---|
 
 Status is one of: implemented, planned, accepted-difference, open-decision.
+
+The Rule column holds the rule's `BR-` id, as the extraction's register allocates it. Gate G2 reads the ids in this section, so a rule cited only in prose elsewhere is not mapped.
 
 ## 6. Gap Matrix
 
@@ -199,9 +207,9 @@ each deferral, so gate G3 can distinguish a deliberate deferral from an omission
 
 ## Current Screen Plans
 
-| Screen | Screen plan | Business flow | Coding record | Test instruction | Code review |
-|---|---|---|---|---|---|
-| | | | | | |
+| Screen | Screen plan | Coding record | Test instruction | Code review |
+|---|---|---|---|---|
+| | | | | |
 
 ## Related Documents
 
@@ -210,6 +218,6 @@ each deferral, so gate G3 can distinguish a deliberate deferral from an omission
 | `MASTER_WORKFLOW.md` | Runs this stage; defines gates around it |
 | `TRACEBACK_GATES.md` | G2 reads §5; G3 reads §3.1 and §4.2; anchor format defined there |
 | `LEGACY_EVIDENCE.md` | What evidence exists to cite in §1.1 |
-| `Business_flows/{screen}.md` | Upstream: the business rules this plan maps |
+| `screen_scope.py` / `screen_decisions.py` | Upstream: the business rules, risks and open decisions this plan maps, computed from the extraction (Stage 1) |
 | `Coding_Records/{screen}.md` | Downstream: what was actually built against this contract |
 | `{{BACKEND_RULES_DOC}}` / `{{FRONTEND_RULES_DOC}}` | How the contracts get implemented |

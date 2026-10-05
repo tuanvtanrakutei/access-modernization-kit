@@ -41,7 +41,6 @@ import sys
 ISSUE_STATUSES = {"open", "in_progress", "resolved", "deferred", "wont_fix"}
 REGISTRY_STATUSES = {"not_started", "in_progress", "implemented", "verified", "deferred"}
 ARTIFACT_FOLDERS = [
-    "Business_flows",
     "Screen_plans",
     "Coding_Records",
     "Test_Instruction",

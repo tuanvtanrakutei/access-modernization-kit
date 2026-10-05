@@ -4,7 +4,7 @@
 
 This document answers one question: **where does business logic hide in a legacy Access application, and how do we prove we found all of it?**
 
-Coverage gate **G1** (see `TRACEBACK_GATES.md`) enforces that every applicable evidence object for a screen has been examined. This document defines what "applicable" means for each legacy variant.
+The evidence sub-check of coverage gate **G2** (see `TRACEBACK_GATES.md`) enforces that every applicable evidence object for a screen has been examined, by checking that the screen plan's evidence section cites it. This document defines what "applicable" means for each legacy variant.
 
 ## Contents
 
@@ -80,7 +80,7 @@ validation rules.
 
 ## 2. Evidence Objects And What They Hide
 
-Every row below is a place business rules live. G1 checks that the ones relevant to the screen were opened.
+Every row below is a place business rules live. The G2 evidence sub-check looks for the ones relevant to the screen in the plan's evidence section.
 
 | Evidence object | Applies to | Business logic it carries | Commonly missed because |
 |---|---|---|---|
@@ -178,7 +178,7 @@ Stage 0 (legacy analysis) is performed **outside this pipeline** — by tooling,
 **Optional — improves pre-flight quality when present:**
 
 5. A draft screen inventory (screen name, legacy object names, candidate module, dependencies) that seeds `Screens_Registry.md`.
-6. A dependency map showing which shared modules, queries, or procedures each screen touches — lets G1 scope "applicable evidence" precisely instead of by filename guessing.
+6. A dependency map showing which shared modules, queries, or procedures each screen touches — lets the G2 evidence sub-check scope "applicable evidence" precisely instead of by filename guessing.
 7. Extraction coverage report listing objects found versus exported, so a gap in extraction is distinguishable from a gap in review.
 
 **Not expected from Stage 0:** business interpretation, target design, or code. Those are Stages 1, 2, and 3.
@@ -313,8 +313,8 @@ can now legitimately never reach `PUBLISHED`, so a check that only accepts `PUBL
 stop a screen that has everything it needs.
 
 Separately: `phase4-workflow-reconstruction.md` and `phase6-synthesis.md`'s **content** is
-currently read by no script and cited by no Stage 1 instruction in this pipeline — only their
-*gate status* matters mechanically. An agent doing Stage 1 work may still find it useful
+currently read by no script and cited by no Stage 2 instruction in this pipeline — only their
+*gate status* matters mechanically. An agent doing Stage 2 work may still find it useful
 reading material (Phase 6 in particular synthesizes Business Rules, Workflows and Risks in
 one place), but that is a judgment call today, not a documented requirement. If that gap is
 worth closing, the concrete step would be adding "read `{{AK_RUN_DIR}}`'s Phase 6 document for
@@ -333,5 +333,5 @@ If none exists, the pipeline stops and asks. Implementing a screen with no evide
 ## Related Documents
 
 - `MASTER_WORKFLOW.md` — pipeline that consumes this evidence
-- `TRACEBACK_GATES.md` — G1 checks evidence coverage against this taxonomy
+- `TRACEBACK_GATES.md` — the G2 evidence sub-check measures coverage against this taxonomy
 - `PROJECT_CONFIG.md` — declares variant, paths, and encoding for the current project

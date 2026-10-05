@@ -2,7 +2,7 @@
 
 > **Layer 1 document.** Detailed specification of the three coverage gates referenced from `MASTER_WORKFLOW.md`. Project values appear as `{{PLACEHOLDER}}` and resolve from `PROJECT_CONFIG.md`.
 
-Sequential stages drift silently. Stage 1 may never open a sub-form's code. Stage 2 may omit a business rule. Stage 3 may skip a planned endpoint or a screen control. Discovering any of these at review costs three to five stages of rework.
+Sequential stages drift silently. Stage 1 may find a screen the extraction never traced. Stage 2 may omit a business rule or never open a sub-form's code. Stage 3 may skip a planned endpoint or a screen control. Discovering any of these at review costs three to five stages of rework.
 
 Traceback Gates catch **coverage** gaps between stages, while the context is still fresh.
 
@@ -27,8 +27,8 @@ Traceback Gates catch **coverage** gaps between stages, while the context is sti
 
 | Gate | Position | What the agent checks |
 |---|---|---|
-| **G1 — Evidence Coverage** | End of Stage 1 | Every evidence object applicable to this screen — per the variant row in `LEGACY_EVIDENCE.md` §1 and the object table in §2 — is referenced in the business flow's evidence section with an anchor where one applies |
-| **G2 — Rule Coverage** | End of Stage 2 | Every business rule in the business flow has a mapping row in the screen plan. Every open decision is acknowledged in the gap matrix. Both the backend contract and the frontend contract exist |
+| **G1 — Evidence Coverage** | End of Stage 1 | **Computed** by `screen_scope.py`: the screen has traceability rows, and every evidence item they cite is in `Evidence.json`. Stage 1 writes no document, so there is no artifact to anchor; whether the evidence objects *applicable* to the screen were actually opened is the evidence sub-check of G2, where the plan's evidence section cites them |
+| **G2 — Rule Coverage** | End of Stage 2 | **Computed** by `screen_scope.py --plan`: every `BR-` in the screen's scope has a row in the plan's Legacy-To-New Mapping section, and every open decision that names the screen is cited in its Gap Matrix. **Agent sub-check (evidence):** the plan's evidence section cites every evidence object applicable to this screen, per the variant row in `LEGACY_EVIDENCE.md` §1 and the object table in §2. Both the backend contract and the frontend contract exist |
 | **G3 — Implementation Coverage** | End of Stage 3b | **API sub-check:** every endpoint in the screen plan's backend contract has code. **UI sub-check:** every row in the screen plan's control inventory has a target component, and every planned interaction has a handler |
 
 G3 has two sub-checks because the pipeline now covers both tracks. Report them separately — a screen can be fully covered on API and badly covered on UI, and a single combined number hides that.
@@ -48,7 +48,7 @@ the conflict; re-deciding it as LOW discards that signal rather than acting on i
 If the enriched tier's `coverage.json` is present for this project, a non-zero `skipped`,
 `failed`, or `unsupported` count for an object type this screen depends on is a **G1 finding
 with no judgement required** — classify by what the missing object would have been (a form,
-a report, a table) using the table below.
+a report, a table) using the **G2 evidence** row of the table below.
 
 ### Classification Examples
 
@@ -56,7 +56,8 @@ Anchors for judgment. **When in doubt, classify one level higher** — a reviewe
 
 | Gate | HIGH | MEDIUM | LOW |
 |---|---|---|---|
-| **G1** | The screen's main form or report export was never opened. The primary legacy output sample was never compared. In a split design, the data file was never examined. For `accdb`, data macros on a written table were never inspected | A sub-form, helper module, or secondary output file was not opened. A sub-dialog screenshot was not compared. A QueryDef used by the form was not read | An optional variant of an output sample was not compared when the main one was. A shared utility module is referenced by other screens but not clearly tied to this one |
+| **G1** | No traceability row names the screen, so there is nothing to plan it from. The matrix cites an evidence item for the screen's main form or output that `Evidence.json` does not hold | The matrix cites a secondary item that `Evidence.json` does not hold | `Evidence.json` holds an item the screen's rows never cite, and the plan's evidence section does not need it |
+| **G2 evidence** | The screen's main form or report export was never opened. The primary legacy output sample was never compared. In a split design, the data file was never examined. For `accdb`, data macros on a written table were never inspected | A sub-form, helper module, or secondary output file was not opened. A sub-dialog screenshot was not compared. A QueryDef used by the form was not read | An optional variant of an output sample was not compared when the main one was. A shared utility module is referenced by other screens but not clearly tied to this one |
 | **G2** | A rule describing a calculation, total, lock, or destructive side effect has no mapping row. The frontend contract is missing entirely. The control inventory is absent | A rule describing a non-destructive side effect (refresh, redirect, focus) is unmapped. An accepted difference is not acknowledged in the gap matrix | An open business decision is unmapped because it is still open rather than forgotten. An out-of-slice nice-to-have is unmapped |
 | **G3 API** | A planned endpoint has no route registered. A planned write endpoint (create, update, delete) is entirely absent | An optional endpoint was deferred with no deferral note in the screen plan. A serializer field for a non-critical column is missing | An endpoint appears in narrative prose but not in the contract table, so it is unclear whether it was ever in scope |
 | **G3 UI** | A control that accepts input or triggers an action has no component. A planned validation is absent on both client and server. The screen's primary action (search, register, print, export) has no handler | A read-only display control is missing. A planned empty or error state is not implemented. Keyboard behavior recorded as preserved is not implemented | A cosmetic control (decorative label, spacer) is missing. A tooltip or help text is absent |
@@ -111,7 +112,6 @@ which the phase documents reference but do not embed, even on a project with `Ev
 | Recorded interview answer, no question id | `path::person, YYYY-MM-DD` | `{{EVIDENCE_INTERVIEW_DIR}}/notes.md::Horiuchi, 2026-09-07` |
 | Business document, paginated | `path page N` | `{{EVIDENCE_DOCUMENT_DIR}}/operation_manual.pdf page 12` |
 | Business document, a named section | `path::section:Name` | `{{EVIDENCE_DOCUMENT_DIR}}/data_dictionary.xlsx::section:商品マスタ` |
-| Business flow section | `BF §N.M` | `BF §6.1` |
 | Screen plan section or row | `SP §N` / `SP §N row M` | `SP §4.2 row 7` |
 | Backend or frontend code | `path:line` | `{{BACKEND_ROOT}}/purchase/views/inquiry.py:23` |
 
@@ -120,8 +120,8 @@ which the phase documents reference but do not embed, even on a project with `Ev
 **An interview has to be written down to be citable, and that is the point rather than a
 limitation.** `ak`'s rule EC-01 makes `DOCUMENT` and `INTERVIEW` the only classes that can
 carry a claim about meaning, usage or intent - no volume of schema, code or definition text
-substitutes - so these are the anchors the most consequential claims in a business flow rest
-on. An answer that exists only in somebody's memory has no anchor, cannot be checked at G1,
+substitutes - so these are the anchors the most consequential claims in a screen plan rest
+on. An answer that exists only in somebody's memory has no anchor, cannot be checked at G2,
 and reads identically to a guess. Record it in `{{EVIDENCE_INTERVIEW_DIR}}` with the person
 and the date, then cite the file.
 
@@ -152,7 +152,7 @@ In a multi-screen batch, subagents never prompt directly — they report to the 
 `examine` does **not** restart the stage. It performs a targeted repair:
 
 1. Open the specific item named in the finding.
-2. Update the upstream artifact — business flow evidence section, screen plan mapping or control inventory, or the code — using the anchor format.
+2. Update the upstream artifact — the screen plan's evidence section, mapping or control inventory, or the code — using the anchor format.
 3. Re-run only the failing sub-check for that item. New findings surfaced by the repair are filed separately and prompted on the next iteration.
 4. When the item is clear, mark any provisional issue row `resolved` with a close date and continue.
 
@@ -189,11 +189,11 @@ Upgrades are rare and require an explicit recorded reason.
 
 Every gate writes to `Known_Issues.md` with `type: traceability`. Later gates read those rows during their own pre-check, which the pre-flight issue-log grep already covers.
 
-- G2 reads G1 findings. If G1 deferred a sub-form as MEDIUM, G2 still attempts to map rules that file might hold — and upgrades to HIGH if a calculation rule turns up inside.
+- G2 reads G1 findings. If G1 deferred an evidence item as MEDIUM, G2 still attempts to map the rules that item might hold — and upgrades to HIGH if a calculation rule turns up inside.
 - G3 reads G1 and G2 findings to build a cumulative picture across both tracks.
 - The reviewer reads all of them; Stage 5 is the canonical confirmation point.
 
-A file missed at G1 therefore resurfaces at G2 as an unmapped-rule risk and at review as an implementation-risk question. It cannot quietly disappear.
+An item missed at G1 therefore resurfaces at G2 as an unmapped-rule risk and at review as an implementation-risk question. It cannot quietly disappear.
 
 ## What Gates Do Not Do
 
@@ -221,7 +221,7 @@ Stage 3b complete.
 ## Related Documents
 
 - `MASTER_WORKFLOW.md` — the pipeline these gates sit inside
-- `LEGACY_EVIDENCE.md` — defines what evidence is applicable, which is what G1 measures against
+- `LEGACY_EVIDENCE.md` — defines what evidence is applicable, which is what the G2 evidence sub-check measures against
 - `Known_Issues.md` — where findings are filed
 - `Screen_plans/README.md` — the backend contract and control inventory that G2 and G3 read
 - `Code_Review/README.md` — where the reviewer confirms findings and re-checks coverage independently

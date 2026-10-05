@@ -38,7 +38,7 @@ When the user asks to implement a screen, the agent reads this file, resolves pl
 
 ```mermaid
 flowchart LR
-    S0["Stage 0<br/>Legacy Analysis<br/>(external)"] --> S1["Stage 1<br/>Business flow"]
+    S0["Stage 0<br/>Legacy Analysis<br/>(external)"] --> S1["Stage 1<br/>Scope<br/>(computed)"]
     S1 --> G1{{"G1<br/>Evidence"}}
     G1 --> S2["Stage 2<br/>Screen plan<br/>BE + FE contract"]
     S2 --> G2{{"G2<br/>Rules"}}
@@ -58,7 +58,7 @@ flowchart LR
 | Stage | Owner folder | Output artifact | Closing gate |
 |---|---|---|---|
 | 0. Legacy analysis | evidence dirs | populated evidence, optional screen inventory | Evidence sufficiency rule (`LEGACY_EVIDENCE.md` §7) |
-| 1. Business flow | `Business_flows/` | `Business_flows/{screen}.md` | **G1 Evidence Coverage** + structure valid, reviewer-readable |
+| 1. Scope (computed) | — | none: `screen_scope.py` and `screen_decisions.py` report what the screen has to cover and what is undecided; nothing is written | **G1 Evidence Coverage**, computed |
 | 2. Screen plan | `Screen_plans/` | `Screen_plans/{screen}.md` (backend **and** frontend contract) | **G2 Rule Coverage** + both contracts defined, gap matrix populated |
 | 3a. Backend coding | `Coding_Records/` + `{{BACKEND_ROOT}}` | code + `Coding_Records/{screen}.md` §Backend | `{{LINT_CMD}}` passes |
 | 3b. Frontend coding | `Coding_Records/` + `{{FRONTEND_ROOT}}` | code + `Coding_Records/{screen}.md` §Frontend | `{{FE_LINT_CMD}}` passes |
@@ -74,6 +74,10 @@ flowchart LR
 **Review is separate from acceptance.** Stage 5 answers "is this correct?"; Stage 6 answers "do we take it?" Those questions have different owners, and merging them produces a reviewer who either rubber-stamps business risk or blocks sound code over a business preference. Stage 6 is a decision gate, not a second technical pass — see `Final_Acceptance/README.md`.
 
 **Coverage gates** catch drift between stages. Full specification in `TRACEBACK_GATES.md`.
+
+**Stage 1 is computed, not written.** It used to be a business-flow document an agent wrote per screen, and gate G1 measured that copy against the evidence. Everything it held already exists in the extraction: workflows are `TraceabilityMatrix.csv` rows, business rules are `BR-` entries in the identifier register, legacy defects are risks that each carry a Mitigation, and what is undecided is the decision queue. A second narrative could only drift from them. `screen_scope.py` computes the scope instead (a rule or risk belongs to a screen when it cites an evidence item one of the screen's traceability rows cites: exact, and a superset by design), and what the old "Legacy versus new system" section held is the screen's risks with their dispositions, decided by the decider rather than written by an agent. Nothing reads `Business_flows/`: a project that has files there keeps them as history, and a new project does not create the folder.
+
+Stage 1 needs the extraction's registers. A project whose Stage 0 was manual export (`{{AK_RUN_DIR}}` is `n/a`) has none to compute from, so pre-flight stops and reports it; run the extraction first.
 
 ## Stage 0 — Legacy Analysis (External To This Pipeline)
 
@@ -102,7 +106,7 @@ Status drives the mode directly, which is why the registry distinguishes `implem
 
 Three modes are resolved at pre-flight:
 
-- `doc_mode` — governs Stages 1 and 2. Derived from whether `Business_flows/{screen}.md` and `Screen_plans/{screen}.md` exist and are current.
+- `doc_mode` — governs Stage 2. Derived from whether `Screen_plans/{screen}.md` exists and is current.
 - `be_mode` — governs Stages 3a and 4a. Derived from `status_be` in `Screens_Registry.md` plus presence of `Coding_Records/{screen}.md` §Backend.
 - `fe_mode` — governs Stages 3b and 4b. Derived from `status_fe` plus presence of §Frontend.
 
@@ -132,7 +136,7 @@ Run once per screen, before Stage 1. These reads are independent — batch them 
    - Otherwise `PUBLISHED` → proceed. If the enriched artifacts (`Evidence.json`, `TraceabilityMatrix.csv`, `<bundle_id>/phase-readiness.json`, `<bundle_id>/coverage.json`) are present, prefer them per `LEGACY_EVIDENCE.md` §6.1; if only `phase_gates` is present, that alone satisfies this step.
    - State in the pre-flight announcement which tier was used — `phase_gates` only, or enriched. A screen that silently used the weaker signal must not read the same as one that used the stronger.
 
-   If `{{AK_RUN_DIR}}` is `n/a`, Stage 0 was manual export: verify per `LEGACY_EVIDENCE.md` for `{{LEGACY_VARIANT}}` — at minimum the sufficiency rule in §7.
+   If `{{AK_RUN_DIR}}` is `n/a`, Stage 0 was manual export: verify per `LEGACY_EVIDENCE.md` for `{{LEGACY_VARIANT}}` — at minimum the sufficiency rule in §7. Stage 1 is computed from the extraction's `*_Identifiers.json` and `*_TraceabilityMatrix.csv`, which a manual export does not have: **stop** and say so. `screen_scope.py` exits `2` for the same reason when either file is absent from a directory that is not `n/a`.
 6. **Verify the table mapping** at `{{TABLE_MAP_DOC}}` covers the tables and fields this screen needs. If not, stop and ask for it to be extended.
 7. **Re-read the coding rule documents** — `{{BACKEND_RULES_DOC}}`, `{{FRONTEND_RULES_DOC}}`, `{{CONVENTIONS_DOC}}` — before any coding stage.
 8. **Read what the extraction left undecided about this screen.** If `{{AK_RUN_DIR}}` is not `n/a` and holds a `*_DecisionQueue.json` (written by `$ak decisions`), run `python "${CLAUDE_PLUGIN_ROOT}/modernize/scripts/screen_decisions.py" --queue {{AK_RUN_DIR}} --screen "<the registry's screen value, verbatim>"`. The queue lists every open question, unknown and risk with what it blocks and what the pipeline proceeds on meanwhile; the script says which of them name this screen, directly or through a workflow in `TraceabilityMatrix.csv`, by exact name and never by a guess (`LEGACY_EVIDENCE.md` §6.3).
@@ -191,15 +195,15 @@ Stages are sequential because each consumes the previous artifact. Parallelism i
 | Stage | Batchable reads |
 |---|---|
 | Pre-flight | `PROJECT_CONFIG.md`; registry row; `Known_Issues.md` grep; evidence directory listings; table mapping; coding rule documents |
-| 1 | Legacy form/report exports, screenshots, output samples, prior business-flow artifact |
-| 2 | Prior screen plan, current backend sources, current frontend sources, table mapping, Stage 1 output |
+| 1 | `TraceabilityMatrix.csv`, `Evidence.json`, the identifier register, `DecisionQueue.json` (all from `{{AK_RUN_DIR}}`) |
+| 2 | Prior screen plan, current backend sources, current frontend sources, table mapping, the Stage 1 scope report, the legacy form/report exports, screenshots and output samples it cites |
 | 5 | All upstream artifacts plus the code files cited in the coding record |
 
 Writes are never batched. Any call depending on a prior result runs sequentially.
 
 ### Rule 2 — Do not parallelize across stages within one screen
 
-Stage 2 anchors on Stage 1's structure. Stage 3b codes against the contract Stage 2 froze. Stage 4a needs Stage 3a's code. Stage 4b needs a running backend, therefore Stage 4a first. Stage 5 needs test evidence. None of these pairs may overlap.
+Stage 2 plans against the scope Stage 1 computed. Stage 3b codes against the contract Stage 2 froze. Stage 4a needs Stage 3a's code. Stage 4b needs a running backend, therefore Stage 4a first. Stage 5 needs test evidence. None of these pairs may overlap.
 
 **Exception:** 3a and 3b may run concurrently **only** when the Stage 2 backend contract is explicitly marked frozen in the screen plan. The frontend then codes against the documented contract, not against a running server. If the backend implementation later deviates from the frozen contract, that deviation is a Stage 5 blocker, not a frontend defect.
 
@@ -238,8 +242,8 @@ Coverage gates G1/G2/G3 also write `traceability` rows — see `TRACEBACK_GATES.
 
 Three coverage gates sit between stages:
 
-- **G1** after Stage 1 — every applicable evidence object for the screen is referenced with an anchor in the business flow.
-- **G2** after Stage 2 — every business rule has a mapping row in the screen plan; every open decision is acknowledged.
+- **G1** after Stage 1 — the screen has traceability rows, and every evidence item they cite is in `Evidence.json`. Computed by `screen_scope.py`.
+- **G2** after Stage 2 — every business rule in the screen's scope has a mapping row in the screen plan; every open decision that names the screen is cited in its gap matrix. Computed by `screen_scope.py --plan`.
 - **G3** after Stage 3b — **API coverage** (every planned endpoint has code) and **UI coverage** (every planned screen element, interaction, and validation has a component or handler).
 
 Severity drives the action: **HIGH** blocks and prompts the user with `examine` / `defer` / `cancel`; **MEDIUM** and **LOW** file a `traceability` row in `Known_Issues.md` and continue, to be confirmed by the Stage 5 reviewer.
@@ -266,17 +270,21 @@ Pre-flight (batched, in order):
 6. Verify the table mapping covers this screen's tables and fields.
 7. Re-read the backend, frontend, and conventions rule documents.
 
-Stage 1 — Business flow:
-- Follow the agent prompt in Business_flows/README.md.
-- Cover both backend behavior and user-facing UI behavior; this artifact serves Stage 3a and 3b.
-- Closing gate: G1 Evidence Coverage + required structure present.
+Stage 1 — Scope (computed, nothing is written):
+- Run screen_scope.py for the screen (and screen_decisions.py, which pre-flight step 8 already ran).
+  Read what it reports: the workflows and steps, the evidence they cite, the business rules in scope,
+  the open risks with their dispositions, and the decisions that name the screen.
+- Closing gate: G1 Evidence Coverage, which the script computes. A finding is classified by
+  TRACEBACK_GATES.md and handled like any other gate finding.
 
 Stage 2 — Screen plan:
-- Follow the agent prompt in Screen_plans/README.md.
+- Follow the agent prompt in Screen_plans/README.md. Read the legacy objects the scope report cites,
+  for meaning and not only for structure: a legacy defect is a risk whose disposition is decided, not a
+  requirement the plan inherits by transcription.
 - Produce BOTH contracts: backend (endpoints, request/response, side effects) and frontend
   (route, screen elements, interactions, client validation, state, output rendering).
 - Mark the backend contract frozen if 3a and 3b will run concurrently.
-- Closing gate: G2 Rule Coverage + gap matrix populated.
+- Closing gate: G2 Rule Coverage + gap matrix populated, with `screen_scope.py --plan Screen_plans/{screen}.md` reporting no finding.
 
 Stage 3a — Backend coding:
 - Implement under {{BACKEND_ROOT}} following {{BACKEND_RULES_DOC}} and {{CONVENTIONS_DOC}}.
@@ -322,7 +330,7 @@ Stage 6 — Final acceptance:
 Loop rule:
 - A blocker returns to Stage 3a or 3b as appropriate, then re-runs the affected downstream stages.
 - A traceability row upgraded to HIGH at review is treated as a blocker.
-- A business-rule or design-level blocker stops the run; ask before editing Stage 1 or 2 artifacts.
+- A business-rule or design-level blocker stops the run; ask before editing the Stage 2 artifact.
 - A Stage 6 `fix required` returns to Stage 3; `test rerun required` returns to Stage 4; a business
   decision stops the run and goes to the user.
 
@@ -391,14 +399,14 @@ Step D — Aggregate:
 
 | Stage | Reads | Writes |
 |---|---|---|
-| 1 | Evidence directories, prior business flow if any | `Business_flows/{screen}.md`, registry index row |
-| 2 | Stage 1 output, current backend and frontend sources, `{{TABLE_MAP_DOC}}`, prior G1 traceability rows | `Screen_plans/{screen}.md` |
+| 1 | `{{AK_RUN_DIR}}`: `TraceabilityMatrix.csv`, `Evidence.json`, the identifier register, `DecisionQueue.json` | nothing; the scope report is printed, and a G1 finding is filed as a `traceability` row |
+| 2 | The Stage 1 scope report, current backend and frontend sources, `{{TABLE_MAP_DOC}}`, prior G1 traceability rows | `Screen_plans/{screen}.md` |
 | 3a | Stages 1–2, `{{BACKEND_RULES_DOC}}`, `{{CONVENTIONS_DOC}}`, `{{TABLE_MAP_DOC}}`, prior gate rows | Code under `{{BACKEND_ROOT}}`, `Coding_Records/{screen}.md` §Backend |
 | 3b | Stages 1–2, `{{FRONTEND_RULES_DOC}}`, `{{CONVENTIONS_DOC}}`, backend contract, prior gate rows | Code under `{{FRONTEND_ROOT}}`, `Coding_Records/{screen}.md` §Frontend |
 | 4a | Stages 1–3, reference data per `{{REFERENCE_DB_POLICY}}` | `Test_Instruction/{screen}.md` §Backend, test output, API collection artifacts |
 | 4b | Stages 1–3, running backend, legacy output samples | `Test_Instruction/{screen}.md` §Frontend, E2E results, visual comparison notes |
 | 5 | All upstream artifacts, code, test output, all traceability rows for the screen | `Code_Review/{screen}.md`, registry status, issue-row closures |
-| 6 | All five upstream artifacts, especially the Stage 5 verdict | `Final_Acceptance/{screen}.md` and its index row. **Not** the registry — `verified` is granted at Stage 5 |
+| 6 | All four upstream artifacts, especially the Stage 5 verdict | `Final_Acceptance/{screen}.md` and its index row. **Not** the registry — `verified` is granted at Stage 5 |
 
 ## Failure Handling
 
@@ -422,7 +430,7 @@ Step D — Aggregate:
 | Gate MEDIUM or LOW finding | Continue; file a `traceability` row; reviewer confirms at Stage 5 |
 | `examine` makes no progress after three rounds | Escalate; only `defer` or `cancel` remain |
 | Stage 5 blocker | Return to the appropriate coding stage; re-run affected downstream stages |
-| Stage 5 finding is a business-rule ambiguity | Stop. Refresh Stage 1 with the business owner, then re-run downstream |
+| Stage 5 finding is a business-rule ambiguity | Stop. File a `business` row in `Known_Issues.md`, get the owner's answer, then re-plan from Stage 2 and re-run downstream |
 
 ## Idempotency
 
@@ -444,7 +452,7 @@ When a run aborts mid-stage, clean up before telling the user it stopped.
 
 | Aborted in | Cleanup |
 |---|---|
-| Stage 1 or 2 | Delete a half-written artifact created in this run; restore from version control if it pre-existed. Write to the registry or issue log only if the cause is system-level |
+| Stage 2 | Delete a half-written artifact created in this run; restore from version control if it pre-existed. Write to the registry or issue log only if the cause is system-level |
 | Stage 3a or 3b, Greenfield | List changed and untracked files under the target root. Delete files created in this run; restore files that were edited. Delete or restore the coding record. Report exactly what was reverted |
 | Stage 3a or 3b, Backfill | Code changes should not exist. If they do, revert them and log a process issue recording the violation |
 | Stage 3a or 3b, Refresh | Restore the coding record from version control |
@@ -484,7 +492,6 @@ On detection: stop the stage, set the track status to `blocked`, open a `Known_I
 ├── LEGACY_EVIDENCE.md        ← L2: Access variant evidence taxonomy
 ├── Screens_Registry.md       ← screen ↔ key ↔ module ↔ status_be ↔ status_fe
 ├── Known_Issues.md           ← cross-screen issue and decision log
-├── Business_flows/           ← Stage 1 artifacts
 ├── Screen_plans/             ← Stage 2 artifacts
 ├── Coding_Records/           ← Stage 3a + 3b artifacts
 ├── Test_Instruction/         ← Stage 4a + 4b artifacts

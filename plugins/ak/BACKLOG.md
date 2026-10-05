@@ -211,6 +211,36 @@ risk), so no screen is shown its dispositions and Stage 1's "Legacy versus new s
 replacement yet. Linking a risk to a screen needs a source that is not a guess: the Where cell of its
 row, or a `blocks` the decider sets.
 
+**Slice 4c, Stage 1 is computed (2026-10-05).** The maintainer chose to link a rule or risk to a screen
+by the evidence it shares with the screen's traceability rows, and to change the kit only. Stage 1 was a
+business-flow document an agent wrote per screen, and gate G1 measured that copy; everything in it
+already exists in the extraction. `modernize/scripts/screen_scope.py` computes the scope instead: the
+workflows and steps from `TraceabilityMatrix.csv`, the evidence they cite, the `BR-` rules and open
+risks that cite any of that evidence (each with its disposition from the queue, and how many screens it
+reaches), and the decisions that name the screen. G1 is computed (the screen has rows, every evidence
+item they cite is in `Evidence.json`), and G2 is computed with `--plan`: every rule in scope is cited in
+the plan's Legacy-To-New Mapping section, every open decision that names the screen in its Gap Matrix.
+The old G1 judgement, whether the applicable evidence objects were opened, is now the evidence
+sub-check of G2, read off the plan's evidence section. `Business_flows_README.md` is deleted, stage
+numbers are kept (a renumber would touch every reference and every copy a project holds), `doc_mode`
+governs Stage 2 only, and 30 files changed (29 edited, one deleted). A project that already has `Business_flows/`
+keeps the files as history and nothing reads them; A06's copy of the docs is untouched until it is
+bootstrapped again.
+
+Measured on a scratch copy of A06, all 14 screens of its matrix: the import screen gets 8 of 17 rules and
+7 risks, and nine other screens get 1 rule and 6 risks. **That is the coarseness**: six risks and one
+rule reach 7 to 8 of 13 screens through one shared screenshot set, so a screen that only has UI evidence
+is shown them all. The scope is a superset by design (a rule missing from it costs a defect nobody
+planned for; one too many costs a plan row saying it does not apply), the report prints how many screens
+each item reaches so a cross-cutting one is visible, and a person can read "reaches 7 of 13" as "not this
+screen in particular". A tighter link needs a `screens` field on a rule or risk, which the maintainer did
+not choose; this is where to look first if the scope proves too noisy to plan from.
+
+Consequences to know. A project on manual export (`AK_RUN_DIR` is `n/a`) has no register or matrix to
+compute from, so pre-flight stops for it; it used to be able to write a business flow from raw exports.
+The 25 risks are now reachable from a screen, which closes the 4b gap, but only for screens the matrix
+traces. Nothing in `validate_docs.py` checks the mapping or gap-matrix rows; `screen_scope.py --plan` does.
+
 **Not done, and where the checks are weaker than they look.**
 
 - A06's 25 classes are not decided, and neither is any rule of its `policy.yaml`. Both are the

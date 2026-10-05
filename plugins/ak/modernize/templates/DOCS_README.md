@@ -27,7 +27,7 @@ the operational manual, not the introduction.
 | Look up DB table or field name | `{{TABLE_MAP_DOC}}` |
 | Find legacy evidence (form, screenshot, report) | `{{EVIDENCE_CODE_DIR}}`, `{{EVIDENCE_UI_DIR}}`, `{{EVIDENCE_OUTPUT_DIR}}` |
 | Find what somebody said a thing is for | `{{EVIDENCE_INTERVIEW_DIR}}`, `{{EVIDENCE_DOCUMENT_DIR}}` - the only two classes that can carry a claim about meaning, usage or intent |
-| Understand the PM-facing flow for one screen | `Business_flows/{screen}.md` |
+| See what one screen has to cover, and what is still undecided about it | `screen_scope.py` and `screen_decisions.py`: computed from the extraction's registers, nothing to open |
 | Understand the technical design for one screen | `Screen_plans/{screen}.md` |
 | See how a screen was actually implemented | `Coding_Records/{screen}.md` |
 | Run or check tests for one screen | `Test_Instruction/{screen}.md` |
@@ -40,14 +40,14 @@ If your question is not above, open `MASTER_WORKFLOW.md` — it is the catch-all
 ## 2. The Pipeline At A Glance
 
 Every screen passes through six stages with three Traceback Gates (G1, G2, G3) between them.
-Stages 1–5 produce the five per-screen implementation artifacts; Stage 6 records the final
+Stage 1 is computed from the extraction and writes nothing; Stages 2–5 produce the four per-screen implementation artifacts; Stage 6 records the final
 acceptance recommendation and user decision in `Final_Acceptance/{screen}.md`. Each gate
 verifies coverage and routes issues to `Known_Issues.md`. Stage 5 gives the review verdict;
 Stage 6 decides whether the screen can be recommended for merge.
 
 ```mermaid
 flowchart LR
-    A["1. Business_flow<br/>(what & why)"] --> G1{{"G1<br/>Evidence"}}
+    A["1. Scope<br/>(computed)"] --> G1{{"G1<br/>Evidence"}}
     G1 --> B["2. Screen_plan<br/>(BE + FE contract)"]
     B --> G2{{"G2<br/>Rules"}}
     G2 --> C3a["3a. Backend coding"] --> C3b["3b. Frontend coding"]
@@ -74,7 +74,7 @@ A screen has **two independent tracks**, each with its own mode:
 
 | Mode | Governs | Trigger |
 |---|---|---|
-| `doc_mode` | Stages 1–2 | Whether `Business_flows/{screen}.md` and `Screen_plans/{screen}.md` exist and are current |
+| `doc_mode` | Stage 2 | Whether `Screen_plans/{screen}.md` exists and is current |
 | `be_mode` | Stages 3a, 4a | `status_be` in `Screens_Registry.md` plus presence of `Coding_Records/{screen}.md` §Backend |
 | `fe_mode` | Stages 3b, 4b | `status_fe` plus presence of §Frontend |
 
@@ -104,7 +104,6 @@ fe_mode: Greenfield` — a normal state, not an error.
 
 | Folder | Stage | Audience | Per-screen file role |
 |---|---|---|---|
-| `Business_flows/` | 1 | PM / reviewer | What & why, business rules, open decisions |
 | `Screen_plans/` | 2 | Developer / reviewer | Legacy evidence, backend + frontend contract, gap matrix |
 | `Coding_Records/` | 3a/3b | Developer / reviewer | Files touched, decisions, deviations, Q&A |
 | `Test_Instruction/` | 4a/4b | QA / developer | Test commands, coverage, parity validation |
@@ -168,8 +167,8 @@ release planning — a human scope decision, not a per-invocation task.
 
 | Question type | Owner | Where it gets recorded |
 |---|---|---|
-| "What should this screen do for the business?" | PM | `Business_flows/{screen}.md` open decisions |
-| "Is the legacy behavior intentional or a bug?" | PM | `Business_flows/{screen}.md` legacy vs new notes |
+| "What should this screen do for the business?" | PM | A `business` row in `Known_Issues.md`, cited by the screen plan's gap matrix |
+| "Is the legacy behavior intentional or a bug?" | PM (the decider) | The risk's disposition in the extraction's decision queue (`$ak decisions --decide`); the screen plan's gap matrix cites it |
 | "Which model owns this table?" | Tech lead (cross-subsystem) | `Known_Issues.md` (type `data`) |
 | "Should this be ORM or raw SQL?" | Tech lead | `Screen_plans/{screen}.md` gap matrix |
 | "Is this change safe for final acceptance?" | Reviewer | `Code_Review/{screen}.md` verdict |

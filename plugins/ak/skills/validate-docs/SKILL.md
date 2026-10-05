@@ -83,7 +83,7 @@ presenting output as authoritative.
   Treat `dangling-doc-ref` as advisory and read the citing line before acting.
 - **A renamed file** looks identical to a deleted one. `stale-resolved-anchor` says the
   path is absent, not that the work was undone.
-- **No semantic checking.** It cannot tell whether a business flow is correct, only
+- **No semantic checking.** It cannot tell whether a screen plan is correct, only
   whether its references resolve. Coverage of legacy behaviour is the job of the
   traceback gates, not of this skill.
 - **It cannot see into a resolved instance's history.** Whether a `resolved` row is

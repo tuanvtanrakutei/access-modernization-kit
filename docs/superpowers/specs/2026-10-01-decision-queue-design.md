@@ -180,15 +180,15 @@ The classes above are examples read from A06 risk titles, for the maintainer to 
 | Consumer | Today | With the queue |
 |---|---|---|
 | modernize pre-flight | stops and asks for config, blocker rows, unmapped tables | also lists BLOCKING items naming the screen and the defaults it will use; announced in the pre-flight line |
-| Stage 1 Business flow | per-screen narrative, closed by G1 | removed. §7 is the screen's DISPOSITION items, §8 is generated from them. G1 is computed from `TraceabilityMatrix.csv` and `Evidence.json` |
+| Stage 1 Business flow | per-screen narrative, closed by G1 | computed, not written (slice 4c). The scope report lists the screen's workflows, rules and risks with their dispositions, and the decisions that name it; G1 is computed from `TraceabilityMatrix.csv` and `Evidence.json`. A rule or risk belongs to a screen when it cites evidence one of the screen's traceability rows cites: exact, coarse, a superset by design |
 | Stage 2 gap matrix | hand-written `open-decision` rows | rows cite item ids; status follows the item |
-| G2 | every rule in the business flow has a mapping row | every `BR-` touching the screen has a mapping row, from the identifier register |
+| G2 | every rule in the business flow has a mapping row | every `BR-` in the screen's scope has a row in the plan's mapping section, and every open decision naming the screen is cited in its gap matrix; computed by `screen_scope.py --plan`. The old G1 judgement (were the applicable evidence objects opened) is G2's evidence sub-check |
 | `Known_Issues.md` `legacy-bug`, `business` | free rows | pointers to item ids, no second copy |
 | Stage 6 | the user decision per screen | also shows the defaults the screen shipped on |
 | `target-intent/` | read by Phase 6 | read by the queue, if Phase 6 is removed as proposed in the phase reduction |
 | `question-list.md` template | hand-written at the end | generated |
 
-Nineteen files under `plugins/ak` reference `Business_flows`, including three skills (`plan-screen`, `bootstrap-project`, `review-screen`) and `validate_docs.py`, and G1 and G2 in `TRACEBACK_GATES.md` are defined against it. Removing Stage 1 is slice 4, and it is not started by this design.
+Nineteen files under `plugins/ak` referenced `Business_flows`, including three skills (`plan-screen`, `bootstrap-project`, `review-screen`) and `validate_docs.py`, and G1 and G2 in `TRACEBACK_GATES.md` were defined against it. Slice 4c changed them (the stage numbers are kept, so no other reference moved).
 
 ## 8. Measuring "95%"
 
@@ -205,7 +205,7 @@ A06 baseline today, before any of this: 39 open Q and UK entries, about 24 disti
 | 1. Register (built) | `needs` block in the register contract and schema; `parties.yaml`; the phase templates gain Party, Default and Asked as columns; the `decision_fields_present` and `decision_tables_agree` apparatus checks; `$ak backfill-needs` and a reviewed backfill of A06 | a document row marked answered while the register has it open (Q120); a party cell holding an evidence id (Q120's overwritten Owner); `Warehouse operations` and `常温庫` resolve to one party; a risk ID inside the first cell (Phase 1); a declared UK/Q twin; a row whose width differs from its header, which makes positional parsing unsafe |
 | 2. Render (built) | `$ak decisions`, status derivation from the Q&A register, generated `QuestionList.md` and `DecisionQueue.json`, `--party`, `--link`, the `qa` field | agenda order puts a dependency before its dependants; severity outranks a longer block list; an item with a default never waits; the same register gives the same bytes; a hand-written list is not overwritten |
 | 3. Policy (built, but for errata) | `policy.yaml`, `class` on risks, DISPOSITION items from risks, defaults, the decider's batch. Contradiction to errata moved to its own slice | a policy-settled item still appears; a proposed rule settles nothing; `ok` passes over an item with no default; a wrong answer writes nothing. Still to hold: a contradicted default produces the refresh list from "If wrong" |
-| 4. Consumers | 4a (built): the A58 pre-check. 4b (built): pre-flight step 8 reads the queue per screen (`screen_decisions.py`); gap-matrix rows cite item ids. 4c: Stage 1 removed | a question whose answer a catalogue holds is flagged before it is asked |
+| 4. Consumers | 4a (built): the A58 pre-check. 4b (built): pre-flight step 8 reads the queue per screen (`screen_decisions.py`); gap-matrix rows cite item ids. 4c (built): Stage 1 computed, not written (`screen_scope.py`); G1 and G2 read off it | a question whose answer a catalogue holds is flagged before it is asked |
 
 Acceptance for the whole: run it on A06 and state the numbers in section 8. Each slice is its own branch and merge.
 

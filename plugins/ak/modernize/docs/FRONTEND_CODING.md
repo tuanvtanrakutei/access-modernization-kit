@@ -4,7 +4,7 @@
 >
 > Backend rules are in `{{BACKEND_RULES_DOC}}`. Language-level style is in `{{CONVENTIONS_DOC}}`.
 
-Target shape: a React single-page application consuming the REST API this project's backend exposes. This document covers what the frontend code must look like; it does not cover business interpretation, which is Stage 1 and 2.
+Target shape: a React single-page application consuming the REST API this project's backend exposes. This document covers what the frontend code must look like; it does not cover business interpretation, which is the extraction's and Stage 2's.
 
 ## Contents
 

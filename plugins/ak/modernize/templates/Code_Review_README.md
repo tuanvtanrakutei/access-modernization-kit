@@ -16,11 +16,10 @@ A review answers five questions:
 
 ## Prerequisites
 
-Do not start a review until all five upstream artifacts exist and their own gates passed:
+Do not start a review until all four upstream artifacts exist and their own gates passed:
 
 | Artifact | Required state |
 |---|---|
-| `Business_flows/{screen}.md` | Exists, structured, reviewer-readable |
 | `Screen_plans/{screen}.md` | Exists; both contracts present; control inventory populated |
 | `Coding_Records/{screen}.md` | Exists; the tracks under review report `implemented`; lint passed |
 | `Test_Instruction/{screen}.md` | Exists; tests green, or an explicit blocker with a rerun command |
@@ -42,12 +41,12 @@ Output target: {{DOCS_DIR}}/Code_Review/{screen}.md
 
 Resolve project values from PROJECT_CONFIG.md first.
 
-Read: the business flow, the screen plan, the coding record, the test instruction, the coding rule
+Read: the Stage 1 scope report (`screen_scope.py`), the screen plan, the coding record, the test instruction, the coding rule
 documents ({{BACKEND_RULES_DOC}}, {{FRONTEND_RULES_DOC}}, {{CONVENTIONS_DOC}}), the code cited in the
 coding record, and every open traceability row for this screen in Known_Issues.md.
 
 Prerequisite check:
-1. Confirm all five upstream artifacts exist and pass their structure checks.
+1. Confirm all four upstream artifacts exist and pass their structure checks.
 2. Confirm the coding record reports the reviewed tracks as implemented with lint passing.
 3. Confirm tests ran. If they never ran, stop — return to Stage 4 rather than reviewing blind.
 
@@ -64,7 +63,7 @@ Workflow:
 Rules:
 - Read the code. Cite a file and line for every finding; a finding without a location cannot be acted on.
 - Distinguish "differs from the plan" (a deviation, possibly acceptable) from "wrong" (a defect).
-- A business-rule ambiguity is not a code defect. Route it to the business flow as an open decision.
+- A business-rule ambiguity is not a code defect. File it as a `business` row in `Known_Issues.md`, for the owner to answer.
 - Do not edit the implementation during review. Reviews produce findings, not patches. If a fix is
   trivial, record it as a finding for the implementer.
 - From the second iteration onward, scope the review to the files listed in the latest coding-record
@@ -147,7 +146,7 @@ Mark each item pass / fail / n-a with one line of evidence.
 - [ ] Column order, totals placement, and number and date formatting follow the legacy layout
 - [ ] Every divergence is recorded in the screen plan as an accepted difference — not merely present in code
 
-### 3.5 Business rule parity (vs business flow)
+### 3.5 Business rule parity (vs the scope's business rules)
 - [ ] Every rule is implemented, or recorded as an accepted difference in the screen plan
 - [ ] Soft-delete and status filters applied wherever the legacy queries applied them
 - [ ] Validations cover required inputs and locks on both client and server
@@ -193,8 +192,8 @@ Two parts. Confirm what the gates filed, then verify independently that they mis
 
 #### 3.9.2 Independent coverage re-check
 Gates can miss findings. Verify rather than trust.
-- [ ] Evidence versus business flow: list the evidence directories for this screen and confirm each applicable object appears in the business flow's evidence section. File a new row for anything missing
-- [ ] Business flow versus screen plan: every rule has a mapping row
+- [ ] Evidence versus screen plan: list the evidence directories for this screen and confirm each applicable object appears in the plan's evidence section. File a new row for anything missing
+- [ ] Scope versus screen plan: re-run `screen_scope.py --plan Screen_plans/{screen}.md`; every rule in scope has a mapping row and every open decision a gap-matrix row
 - [ ] Screen plan versus backend code: every planned endpoint has a route
 - [ ] Screen plan versus frontend code: every control-inventory row has a component
 Anything newly filed here is treated like a Stage 5 finding, and a HIGH one loops the pipeline.
@@ -202,7 +201,7 @@ Anything newly filed here is treated like a Stage 5 finding, and a HIGH one loop
 ### 3.10 Documentation honesty
 - [ ] Coding record statuses reflect reality; nothing reports implemented while tests are red
 - [ ] Screen plan gap matrix updated for every new fix or accepted difference
-- [ ] Business flow updated only where a business-relevant change occurred, not for style
+- [ ] The screen plan's mapping changed only where a business-relevant change occurred, not for style
 - [ ] Registry track statuses will be correct after this verdict is applied
 
 ## 4. Findings
