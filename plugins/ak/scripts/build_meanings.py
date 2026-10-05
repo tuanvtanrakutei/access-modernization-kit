@@ -86,7 +86,7 @@ HEADER = """# Business meaning, per table and per column. You own this file.
 #     role: master
 #     meaning: One row per sellable product; discontinued rows are kept, not deleted.
 #     evidence_class: INTERVIEW
-#     source: 業務課 (堀内), 2026-09-07, asked by Vo Ta Tuan
+#     source: 業務課 (Respondent One), 2026-09-07, asked by Asker One
 #
 # What you worked out from reading the code is NOT a meaning. Code is CODE, and rule
 # EC-01 says no volume of it establishes what a table is for - that is the finding this

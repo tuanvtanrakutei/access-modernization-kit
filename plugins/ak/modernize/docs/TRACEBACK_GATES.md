@@ -109,7 +109,7 @@ which the phase documents reference but do not embed, even on a project with `Ev
 | Screenshot, region matters | `path :: region description` | `{{EVIDENCE_UI_DIR}}/order_inquiry.png :: top toolbar` |
 | Screenshot, whole image | `path` | `{{EVIDENCE_UI_DIR}}/order_inquiry.png` |
 | Recorded interview answer, closing a numbered question | `path::Q-NNN` | `{{EVIDENCE_INTERVIEW_DIR}}/2026-09-07-operations.md::Q-19` |
-| Recorded interview answer, no question id | `path::person, YYYY-MM-DD` | `{{EVIDENCE_INTERVIEW_DIR}}/notes.md::Horiuchi, 2026-09-07` |
+| Recorded interview answer, no question id | `path::person, YYYY-MM-DD` | `{{EVIDENCE_INTERVIEW_DIR}}/notes.md::Respondent One, 2026-09-07` |
 | Business document, paginated | `path page N` | `{{EVIDENCE_DOCUMENT_DIR}}/operation_manual.pdf page 12` |
 | Business document, a named section | `path::section:Name` | `{{EVIDENCE_DOCUMENT_DIR}}/data_dictionary.xlsx::section:商品マスタ` |
 | Screen plan section or row | `SP §N` / `SP §N row M` | `SP §4.2 row 7` |

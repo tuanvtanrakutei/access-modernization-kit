@@ -285,7 +285,7 @@ def test_the_exclusion_is_by_name_and_ignores_case(tmp_path: Path) -> None:
     # A real answer is a file like any other. Nothing about the name of an interview
     # record is constrained, so the rule must not reach any further than the closed
     # set it declares.
-    (interviews / "notes.md").write_text("Horiuchi, 2026-09-09", encoding="utf-8")
+    (interviews / "notes.md").write_text("Respondent One, 2026-09-09", encoding="utf-8")
     assert "INTERVIEW" in evidence_classes.observe(set(), tmp_path)
 
 
@@ -301,7 +301,7 @@ def test_the_supplied_inventory_reads_the_same_map_observe_does(tmp_path: Path) 
     (tmp_path / "input" / "screenshots").mkdir(parents=True)
     (tmp_path / "input" / "interviews").mkdir(parents=True)
     (tmp_path / "input" / "screenshots" / "main.png").write_bytes(b"x")
-    (tmp_path / "input" / "interviews" / "notes.md").write_text("Horiuchi, 2026-09-09", encoding="utf-8")
+    (tmp_path / "input" / "interviews" / "notes.md").write_text("Respondent One, 2026-09-09", encoding="utf-8")
     # The guide `init` writes, and OS noise. Neither is evidence, and neither may make
     # a class look present - which is what A29 fixed for `observe`.
     (tmp_path / "input" / "interviews" / "README.md").write_text("guide", encoding="utf-8")

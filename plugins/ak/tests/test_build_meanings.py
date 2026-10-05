@@ -91,7 +91,7 @@ tables:
     role: transaction
     meaning: One row per ordered line.
     evidence_class: INTERVIEW
-    source: Vo Ta Tuan, 2026-09-07
+    source: Asker One, 2026-09-07
 """)
     text = run(workspace)
     assert "One row per ordered line." in text
@@ -118,7 +118,7 @@ tables:
   受注データ:
     meaning: One row per ordered line.
     evidence_class: OPERATOR_DECLARATION
-    source: Vo Ta Tuan, 2026-09-07
+    source: Asker One, 2026-09-07
 """
     target.write_text(declared, encoding="utf-8")
     refused = meanings_contract.load(target)

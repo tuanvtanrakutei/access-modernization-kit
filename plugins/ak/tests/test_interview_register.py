@@ -23,9 +23,9 @@ import workspace as workspace_contract  # noqa: E402
 BOM = "﻿"
 REGISTER = (
     BOM + "ID,詳細(Detail）,Status,Asker,Ask date,Respondent,Answer date,機能・画面(Funct/Scr)\n"
-    "1,Related to classification,Answered,Dung,2026/08/17,HideroTanaka,2026/08/19,商品情報登録\n"
-    "5,初期データや配置位置,In Progress,Dung,2026/08/19,\"HideroTanaka, 堀内\",2026/08/20,\n"
-    "6,商品情報画面の削除,Answered,hiepnq,2026/08/26,榎本 稔,2026/08/30,\n"
+    "1,Related to classification,Answered,Asker One,2026/08/17,Respondent One,2026/08/19,商品情報登録\n"
+    "5,初期データや配置位置,In Progress,Asker One,2026/08/19,\"Respondent One, Respondent Two\",2026/08/20,\n"
+    "6,商品情報画面の削除,Answered,Asker Two,2026/08/26,Respondent Three,2026/08/30,\n"
 )
 
 
@@ -34,7 +34,7 @@ def _page(identifier: str, body: str) -> str:
         "# Question " + identifier + "\n\n"
         "ID: " + identifier + "\n"
         "Ask date: 2026/08/17\n"
-        "Asker: Dung\n"
+        "Asker: Asker One\n"
         "Status: Answered\n"
         "\n" + body + "\n"
     )
@@ -53,12 +53,12 @@ def _workspace(tmp_path: Path, pages: dict, register: str | None = REGISTER):
 def test_a_question_recorded_as_answered_whose_page_holds_no_answer(tmp_path: Path) -> None:
     """The finding this exists for, and it was real on the first register read.
 
-    A06's ID 6: `Answered`, `Respondent: 榎本 稔`, `Answer date: 2026/08/30`, and a page
+    A06's ID 6: `Answered`, `Respondent: Respondent Three`, `Answer date: 2026/08/30`, and a page
     carrying only the question and a screenshot. A closed question with no answer in it
     cannot be cited, and the register is the only thing claiming it is closed.
     """
     space = _workspace(tmp_path, {
-        "q1.md": _page("1", "【2026/08/19: 田中】All 担当者 become 商品区分."),
+        "q1.md": _page("1", "【2026/08/19: Respondent One】All 担当者 become 商品区分."),
         "q5.md": _page("5", "No dated answer yet."),
         "q6.md": _page("6", "上記の画面では、削除および新規登録は可能でしょうか。"),
     })
@@ -81,7 +81,7 @@ def test_an_emphasis_bracket_is_not_an_answer(tmp_path: Path) -> None:
     space = _workspace(
         tmp_path,
         {"q6.md": _page("6", "【質問1：インポートファイルの文字コードについて】\n本文です。")},
-        register=BOM + "ID,Status,Respondent\n6,Answered,榎本 稔\n",
+        register=BOM + "ID,Status,Respondent\n6,Answered,Respondent Three\n",
     )
     result = checker.observe(space)
     assert result["pages"][0]["answers"] == []
@@ -92,12 +92,12 @@ def test_an_answer_is_read_with_its_person_and_date(tmp_path: Path) -> None:
     """Both forms the real register uses, including a single-digit month."""
     space = _workspace(
         tmp_path,
-        {"q1.md": _page("1", "【2026/08/19: 田中】one\n【2026/8/20: 堀内】two")},
+        {"q1.md": _page("1", "【2026/08/19: Respondent One】one\n【2026/8/20: Respondent Two】two")},
         register=BOM + "ID,Status\n1,Answered\n",
     )
     assert checker.observe(space)["pages"][0]["answers"] == [
-        {"recorded_on": "2026-08-19", "person": "田中"},
-        {"recorded_on": "2026-08-20", "person": "堀内"},
+        {"recorded_on": "2026-08-19", "person": "Respondent One"},
+        {"recorded_on": "2026-08-20", "person": "Respondent Two"},
     ]
 
 
@@ -109,12 +109,12 @@ def test_the_columns_are_matched_by_name_not_position(tmp_path: Path) -> None:
     """
     reordered = (
         BOM + "詳細(Detail）,Answer date,Ask date,Asker,ID,Respondent,Status,機能・画面(Funct/Scr)\n"
-        "a title,2026/08/19,2026/08/17,Dung,1,HideroTanaka,Answered,商品情報登録\n"
+        "a title,2026/08/19,2026/08/17,Asker One,1,Respondent One,Answered,商品情報登録\n"
     )
-    space = _workspace(tmp_path, {"q1.md": _page("1", "【2026/08/19: 田中】yes")}, reordered)
+    space = _workspace(tmp_path, {"q1.md": _page("1", "【2026/08/19: Respondent One】yes")}, reordered)
     assert checker.observe(space)["register"] == [{
-        "id": "1", "title": "a title", "status": "Answered", "asker": "Dung",
-        "respondent": "HideroTanaka", "ask_date": "2026/08/17",
+        "id": "1", "title": "a title", "status": "Answered", "asker": "Asker One",
+        "respondent": "Respondent One", "ask_date": "2026/08/17",
         "answer_date": "2026/08/19", "screen": "商品情報登録",
     }]
 
@@ -130,7 +130,7 @@ def test_the_guide_init_writes_is_not_read_as_a_question(tmp_path: Path) -> None
         tmp_path,
         {
             "README.md": "# The interviews guide\n\nSome guidance: with a colon in it.\n",
-            "q1.md": _page("1", "【2026/08/19: 田中】yes"),
+            "q1.md": _page("1", "【2026/08/19: Respondent One】yes"),
         },
         register=BOM + "ID,Status\n1,Answered\n",
     )
@@ -142,7 +142,7 @@ def test_a_page_the_register_does_not_list_is_reported_and_so_is_the_reverse(
 ) -> None:
     space = _workspace(
         tmp_path,
-        {"q9.md": _page("9", "【2026/08/19: 田中】yes")},
+        {"q9.md": _page("9", "【2026/08/19: Respondent One】yes")},
         register=BOM + "ID,Status\n1,Answered\n",
     )
     codes = {(f["id"], f["code"]) for f in checker.observe(space)["findings"]}
@@ -180,7 +180,7 @@ def test_a_cp932_register_is_read(tmp_path: Path) -> None:
     (interviews / "reg.csv").write_bytes(
         "ID,Status,詳細(Detail）\n1,Answered,商品情報登録について\n".encode("cp932")
     )
-    (interviews / "q1.md").write_text(_page("1", "【2026/08/19: 田中】yes"), encoding="utf-8")
+    (interviews / "q1.md").write_text(_page("1", "【2026/08/19: Respondent One】yes"), encoding="utf-8")
     result = checker.observe(workspace_contract.Workspace(tmp_path))
     assert result["register"][0]["title"] == "商品情報登録について"
 
@@ -204,7 +204,7 @@ ANSWER_SIDECAR = "\n".join([
     "",
     "Transcribed from the Notion comment thread.",
     "",
-    "## 【2026/08/30：榎本 稔】",
+    "## 【2026/08/30：Respondent Three】",
     "",
     "機能として可能ですが、使用したことはありません。",
     "",
@@ -229,7 +229,7 @@ def test_an_answer_pasted_beside_its_page_closes_the_question(tmp_path: Path) ->
     space = _in_directory(tmp_path, {
         "QA-06/page.md": _page("6", "上記の画面では、削除および新規登録は可能でしょうか。"),
         "QA-06/answers.md": ANSWER_SIDECAR,
-        "q1.md": _page("1", "【2026/08/19: 田中】yes"),
+        "q1.md": _page("1", "【2026/08/19: Respondent One】yes"),
         "q5.md": _page("5", "nothing yet"),
     })
     result = checker.observe(space)
@@ -239,7 +239,7 @@ def test_an_answer_pasted_beside_its_page_closes_the_question(tmp_path: Path) ->
     page, = [p for p in result["pages"] if p["id"] == "6"]
     answer, = page["answers"]
     assert answer["recorded_on"] == "2026-08-30"
-    assert answer["person"] == "榎本 稔"
+    assert answer["person"] == "Respondent Three"
     # Which file it came from, so a citation can name it rather than the page.
     assert answer["recorded_in"].endswith("QA-06/answers.md")
 

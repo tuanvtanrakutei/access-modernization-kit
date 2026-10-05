@@ -1375,7 +1375,7 @@ would compose into every name containing them. 1765 tests pass.
 **Observed 2026-09-10, when the operator said the answer had been supplied.** It had.
 
 A06's Q&A ID 6 - *"can `商品情報` be deleted and newly registered on this screen?"* -
-was answered on 2026/08/30 by 榎本 稔, at length. The kit reported
+was answered on 2026/08/30 by a named respondent, at length. The kit reported
 `ANSWERED_WITHOUT_AN_ANSWER` and the reason was not that nobody answered: **a Notion
 "Markdown & CSV" export does not export comments**, and a Notion Q&A is answered in the
 comments. The export carried the question, two screenshots and a `Status: Answered`, and
@@ -1411,7 +1411,7 @@ answer that is reported is cheaper than a present one that is wrong. And the fin
 names the likely cause and the remedy.
 
 Proven on A06: `input/interviews/QA-06_ShohinJoho_delete_and_new/answers.md` holds the
-comment verbatim under `【2026/08/30：榎本 稔】`, with its provenance stated and the
+comment verbatim under `【2026/08/30：<respondent>】`, with its provenance stated and the
 agent's reading kept in a separate section. The register now reports 4 of 5 pages
 answered, and the two findings left are real - ID 5 is genuinely open, and no question
 names a screen.
@@ -2713,7 +2713,7 @@ Closed entries name the commit that closed them and the run that proved it.
   block, then the conversation - matched on the `ID` both carry.
 
   **What it is for is the disagreement, and there was one on the first real register.**
-  A06's ID 6 carries `Status: Answered`, `Respondent: 榎本 稔` and
+  A06's ID 6 carries `Status: Answered`, `Respondent: <a named person>` and
   `Answer date: 2026/08/30`, and its page holds the question, a screenshot, and no
   answer. It is not a closed question, the register is the only thing saying it is, and
   nothing else in the workspace could have told anybody. ID 5 is `In Progress` with

@@ -224,8 +224,8 @@ The largest unit, because D1–D6 are settled here once for all phases.
   touchpoint inventory table; timeline stepper, per-step data-state table with
   `new`/`upd`/`del`/`unchanged` row marking.
 - **README deliverable** (D6) — added to `output-contract.yaml`.
-- **Interview/Q&A evidence shape** — A01 cites `Q&A ID-19 (Tanaka+Sekiya
-  2026-05-06)` as a first-class source. The kit has no shape for it; add one to the
+- **Interview/Q&A evidence shape** — A01 cites `Q&A ID-19 (two named
+  respondents, 2026-05-06)` as a first-class source. The kit has no shape for it; add one to the
   evidence schema so an answer from the customer is citable like a file.
 
 ### U1 — Phase 1 (Data Understanding)
