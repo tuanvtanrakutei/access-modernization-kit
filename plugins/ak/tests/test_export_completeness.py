@@ -1,6 +1,6 @@
 """Whether the exporter wrote the whole object - and the honest limits of asking.
 
-A05's export passed every gate the kit has while carrying 21 of a form's 45 procedures.
+One application's export passed every gate the kit has while carrying 21 of a form's 45 procedures.
 The tests here are as much about what this must NOT claim as about what it catches: the
 truncated `メインメニュー` balanced, its object count matched the other route's and its
 digest was correct, so a test that asserts "this catches an incomplete export" would be
@@ -73,21 +73,21 @@ def test_an_api_declaration_is_not_an_unclosed_function() -> None:
 
 
 def test_a_truncation_that_balances_is_not_caught_and_must_not_pretend_to_be() -> None:
-    """This is the A05 case, and it is why the module records rather than checks.
+    """This is that case, and it is why the module records rather than checks.
 
     `メインメニュー` lost 24 of its 45 procedures and still ended on a complete
     `End Sub`. Nothing about the file itself gives it away.
     """
     complete = FORM
     truncated = FORM[:FORM.index("\nPublic Function")] + "\n"
-    assert completeness.shape_of(truncated).balanced, "the A05 shape exactly"
+    assert completeness.shape_of(truncated).balanced, "the real shape exactly"
     # It is only visible against the other observation.
     assert completeness.disagreements(completeness.shape_of(complete),
                                       completeness.shape_of(truncated))
 
 
 def test_a_disagreement_is_reported_in_both_directions() -> None:
-    """A05's correction arrived as a rise: the first export was the short one.
+    """That correction arrived as a rise: the first export was the short one.
 
     A rule watching only for drops would have said nothing at the exact moment the
     evidence turned up.
@@ -138,7 +138,7 @@ def run(root: Path, *extra: str) -> tuple[int, str]:
 
 
 def test_the_two_routes_are_compared_against_each_other(tmp_path: Path) -> None:
-    """The comparison that was available on A05 all along and was never made.
+    """The comparison that was available on that workspace all along and was never made.
 
     The frontend was acquired managed for its schema and imported for its definition
     text, so both readings of `メインメニュー` sat in one workspace while the shorter of
@@ -223,7 +223,7 @@ def test_a_binary_print_settings_block_is_an_opener() -> None:
     """Access writes print settings as `PrtMip = Begin` / hex / `End`.
 
     Counting the closer and not the opener reports an excess of `End` on every object
-    that has ever been near a printer. On the first real run over A05 that called
+    that has ever been near a printer. On the first real run that called
     nearly every form truncated - a check that fires on everything is one nobody reads,
     and it would have buried the twenty-seven objects that are genuinely unbalanced.
     """

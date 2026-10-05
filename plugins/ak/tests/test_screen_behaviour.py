@@ -1,13 +1,13 @@
 """A55 - what a screen opens, writes and hides, for all of them rather than a chosen few.
 
 Enumeration belongs in the generated catalogue and claims belong in the phase document
-(A14). This is the enumeration half: it was in A06's Phase 2, written out by hand for
-twelve screens, with the other thirty-nine carrying none of it.
+(A14). This is the enumeration half: it was in one Phase 2, written out by hand for
+a dozen screens, with the rest carrying none of it.
 
 The control inventory that feeds the hidden column had a second defect. The exporter
-writes `ui/controls.json` - 1,924 controls for A06 - and `_route_record` had no branch
-for it, so it fell through to the `else` and landed in `databases/objects.json` as 423 KB
-of JSON inside one record. Nothing was lost and nothing could read it, which meant every
+writes `ui/controls.json` - thousands of controls for one application - and
+`_route_record` had no branch for it, so it fell through to the `else` and landed in
+`databases/objects.json` as hundreds of KB of JSON inside one record. Nothing was lost and nothing could read it, which meant every
 control figure in Phase 2 was quoted from the unsealed export folder rather than from the
 sealed bundle.
 """
@@ -25,24 +25,25 @@ TABLES = {"受注情報", "商品マスタ", "在庫データ"}
 
 
 def test_a_literal_open_is_an_edge() -> None:
-    text = 'DoCmd.OpenForm "商品情報登録"\nDoCmd.OpenReport "在庫表", acViewPreview\n'
-    assert behaviour.opens(text) == [("form", "商品情報登録"), ("report", "在庫表")]
+    text = 'DoCmd.OpenForm "受注登録"\nDoCmd.OpenReport "在庫表", acViewPreview\n'
+    assert behaviour.opens(text) == [("form", "受注登録"), ("report", "在庫表")]
 
 
 def test_a_commented_out_call_is_not_an_edge() -> None:
-    """A06 has two commented-out transfer calls; the same rule protects open calls."""
+    """Real code carries commented-out transfer calls; the same rule protects open calls."""
     assert behaviour.opens("'DoCmd.OpenForm \"死んだ画面\"\n") == []
 
 
 def test_a_built_name_is_reported_as_the_expression() -> None:
-    """The four reports A06 opens this way appear in `referenced by nothing` and are in
-    daily use. The set of names the call can produce depends on a control's value, so the
-    expression is the honest answer and enumerating it is a question for an operator."""
-    text = 'DoCmd.OpenReport "受注数調整リスト" & Me.fraレポート, Me.印刷区分.value\n'
+    """Reports one application opened this way appeared in `referenced by nothing` and
+    were in daily use. The set of names the call can produce depends on a control's value,
+    so the expression is the honest answer and enumerating it is a question for an
+    operator."""
+    text = 'DoCmd.OpenReport "出荷数確認リスト" & Me.fraレポート, Me.印刷区分.value\n'
     assert behaviour.opens(text) == [], "no literal name to find"
     kind, expression = behaviour.built_opens(text)[0]
     assert kind == "report"
-    assert expression.startswith('"受注数調整リスト" & Me.fra')
+    assert expression.startswith('"出荷数確認リスト" & Me.fra')
 
 
 def test_only_targets_the_bundle_knows_are_counted() -> None:
@@ -83,7 +84,7 @@ CAPTION_FORM = (
     'Version =20\n'
     'Begin Form\n'
     '    RecordSelectors = NotDefault\n'
-    '    Caption ="商品情報登録"\n'
+    '    Caption ="受注登録"\n'
     '    Begin Section\n'
     '        Begin CommandButton\n'
     '            Name ="商品情報設定ボタン"\n'
@@ -94,10 +95,10 @@ CAPTION_FORM = (
 
 
 def test_caption_is_the_forms_own_not_a_controls() -> None:
-    """The defect this exists for: A06 published a screen called `商品情報登録`, which is
-    the caption on `商品情報設定画面` and the label on the switchboard button that opens
+    """The defect this exists for: a phase published a screen called `受注登録`, which is
+    the caption on `受注入力画面` and the label on the switchboard button that opens
     it. Reading the first `Caption =` at any depth would have found a button's."""
-    assert behaviour.caption(CAPTION_FORM) == "商品情報登録"
+    assert behaviour.caption(CAPTION_FORM) == "受注登録"
 
 
 def test_an_object_declaring_no_caption_returns_empty() -> None:
@@ -112,7 +113,7 @@ def test_an_object_declaring_no_caption_returns_empty() -> None:
 # --- option groups: the enumeration that closed a question ------------------
 #
 # Phase 2 asked warehouse operations `What are the option-group values behind
-# 受注数調整リスト?` and routed it to a person, while `fraレポート` sat in the bundle
+# 出荷数確認リスト?` and routed it to a person, while `fraレポート` sat in the bundle
 # declaring both of them. A question spends the one kind of evidence this kit cannot
 # generate, so the enumeration has to come first.
 

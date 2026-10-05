@@ -2,7 +2,7 @@
 """Check that every evidence id a phase document cites actually exists.
 
 A phase document's authority rests on its citations. A reader who cannot follow
-`A05-P2-FLOW-020` back to a statement, a source file and a confidence has no way to
+`<APP>-P2-FLOW-020` back to a statement, a source file and a confidence has no way to
 tell a measured figure from a remembered one - and the document reads exactly the
 same either way. So an unresolvable citation is not a formatting slip; it is the
 failure this pipeline exists to prevent.
@@ -69,7 +69,7 @@ def cited_in_documents(paths: list[Path]) -> dict[str, list[str]]:
 
     A50. This used to regex the whole file - including the Evidence Register the same
     document prints at the bottom - so every item cited itself and the count was the
-    register's own length. A06's Phase 1 read `12 of 12 items cited`; seven were.
+    register's own length. One Phase 1 read `12 of 12 items cited`; seven were.
 
     That made the reverse-direction signal impossible to trip. Its purpose, stated in
     this module's own docstring, is that *"a phase whose items are mostly uncited is
@@ -252,7 +252,7 @@ def main() -> int:
         for phase in sorted(by_phase):
             counts = by_phase[phase]
             # Says what it counts. This line sits under a list of documents and read
-            # like a per-document figure for as long as it existed: A06's Phase 2
+            # like a per-document figure for as long as it existed: one Phase 2
             # reported `5 of 5` while citing nine ids, four of them Phase 1's. The
             # number was right about register coverage and was quoted as though it
             # described the document.

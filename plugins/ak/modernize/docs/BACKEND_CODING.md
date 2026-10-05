@@ -480,7 +480,7 @@ project — four wrong fixes in one working session, each wearing a different di
 | What the search said | What was concluded | What was true |
 |---|---|---|
 | a `head`-truncated grep showed only global usages | the per-screen constants are dead, delete them | they had 17 live call sites below the cut; deleting them broke 13 tests |
-| `A01FunctionCd.DcShipmentDataImport` does not resolve | the enum entry is missing, add it | the permission existed as `DcShipmentResultInquiry`; the decorator named the wrong class |
+| `AppFunctionCd.DcShipmentDataImport` does not resolve | the enum entry is missing, add it | the permission existed as `DcShipmentResultInquiry`; the decorator named the wrong class |
 | `OrderDataDeliveryDateExport.CSV_OUTPUT` resolves fine | this is the right symbol, fix its value | the correct class already existed two hundred lines up; editing this one created a duplicate |
 | `git diff --name-only` listed the changed files | format all of them | most belonged to other people's uncommitted work, and the reformat reached a shared branch |
 
@@ -491,7 +491,7 @@ different questions with different answers.
 
 Three cheap habits close it:
 
-- **Grep the intended value, not the name.** Searching `A01_003_008` would have surfaced the
+- **Grep the intended value, not the name.** Searching `APP_003_008` would have surfaced the
   correct class immediately; searching the class name could only ever confirm the wrong one.
 - **Read the file around the hit.** For a constants or enum module, read the whole block. The
   right entry is usually already there under a name you did not guess — legacy systems

@@ -18,8 +18,8 @@ def test_v22_artifacts_are_read_as_capability_needs(tmp_path: Path) -> None:
     manifest = _manifest(tmp_path, """
 version: '2.2'
 app:
-  id: A05
-  name_en: Product Assortment Support
+  id: A99
+  name_en: Order Support
 project:
   classification:
     topology: split_file
@@ -28,7 +28,7 @@ project:
     backend_kinds:
     - access_file
 artifacts:
-- id: A05_DATA
+- id: A99_DATA
   kind: access_database
   role: backend
   acquisition: managed
@@ -50,7 +50,7 @@ def test_v22_adp_and_server_artifacts_are_detected(tmp_path: Path) -> None:
     manifest = _manifest(tmp_path, """
 version: '2.2'
 app:
-  id: A09
+  id: A98
   name_en: Server App
 artifacts:
 - id: FRONTEND
@@ -83,7 +83,7 @@ def test_v21_manifests_are_still_read(tmp_path: Path) -> None:
     manifest = _manifest(tmp_path, """
 version: "2.1"
 app:
-  id: A01
+  id: X99
   name_en: Legacy
 sources:
   access_databases:
@@ -135,8 +135,8 @@ def test_access_report_states_whether_activation_was_attempted(monkeypatch) -> N
 _HYBRID = """
 version: '2.2'
 app:
-  id: A05
-  name_en: Product Assortment Support
+  id: A99
+  name_en: Order Support
 project:
   classification:
     topology: split_file
@@ -145,7 +145,7 @@ project:
     backend_kinds:
     - access_file
 artifacts:
-- id: A05_FRONTEND
+- id: A99_FRONTEND
   kind: access_database
   role: frontend
   acquisition: managed
@@ -154,7 +154,7 @@ artifacts:
   source_ref:
     type: local_path
     value: sources/access/app.mdb
-- id: A05_FRONTEND_EXPORT
+- id: A99_FRONTEND_EXPORT
   kind: source_export
   role: frontend
   acquisition: imported
@@ -162,7 +162,7 @@ artifacts:
   format: directory
   source_ref:
     type: local_path
-    value: sources/A05_FRONTEND
+    value: sources/A99_FRONTEND
 """
 
 
@@ -170,8 +170,8 @@ def _hybrid_workspace(tmp_path: Path) -> Path:
     manifest = _manifest(tmp_path, _HYBRID)
     (tmp_path / "sources" / "access").mkdir(parents=True)
     (tmp_path / "sources" / "access" / "app.mdb").write_bytes(b"stub")
-    (tmp_path / "sources" / "A05_FRONTEND" / "forms").mkdir(parents=True)
-    (tmp_path / "sources" / "A05_FRONTEND" / "forms" / "F受注入力.txt").write_text("Version =20\n", encoding="utf-8")
+    (tmp_path / "sources" / "A99_FRONTEND" / "forms").mkdir(parents=True)
+    (tmp_path / "sources" / "A99_FRONTEND" / "forms" / "F受注入力.txt").write_text("Version =20\n", encoding="utf-8")
     return manifest
 
 
@@ -182,7 +182,7 @@ def _hybrid_workspace(tmp_path: Path) -> Path:
 def test_directory_export_package_counts_as_an_exported_source(tmp_path: Path) -> None:
     manifest = _hybrid_workspace(tmp_path)
     declared = preflight.manifest_source_paths(manifest)
-    assert declared["source_packages"] == ["sources/A05_FRONTEND"]
+    assert declared["source_packages"] == ["sources/A99_FRONTEND"]
     block, _ = preflight.input_preconditions(manifest, {"access": True}, {})
     assert block["present"]["source_packages"] is True
     assert block["mode"] == "mixed"
@@ -226,7 +226,7 @@ def test_published_bundle_satisfies_extracted_access(tmp_path: Path) -> None:
 
 # An export-only project must not be pushed toward the Access runtime it does not need.
 def test_export_only_project_is_not_reported_as_extract(tmp_path: Path) -> None:
-    manifest = _manifest(tmp_path, _HYBRID.replace("""- id: A05_FRONTEND
+    manifest = _manifest(tmp_path, _HYBRID.replace("""- id: A99_FRONTEND
   kind: access_database
   role: frontend
   acquisition: managed
@@ -236,8 +236,8 @@ def test_export_only_project_is_not_reported_as_extract(tmp_path: Path) -> None:
     type: local_path
     value: sources/access/app.mdb
 """, ""))
-    (tmp_path / "sources" / "A05_FRONTEND" / "forms").mkdir(parents=True)
-    (tmp_path / "sources" / "A05_FRONTEND" / "forms" / "F.txt").write_text("x\n", encoding="utf-8")
+    (tmp_path / "sources" / "A99_FRONTEND" / "forms").mkdir(parents=True)
+    (tmp_path / "sources" / "A99_FRONTEND" / "forms" / "F.txt").write_text("x\n", encoding="utf-8")
     block, _ = preflight.input_preconditions(manifest, {"access": False}, {})
     assert block["mode"] == "export"
     assert block["needs_extraction"] is False

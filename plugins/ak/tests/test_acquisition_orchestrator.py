@@ -82,7 +82,7 @@ def test_import_only_run_reports_no_drift() -> None:
 # One entry per drifted database, not one per file: a 200-file export would otherwise
 # bury every other failure in the bundle under 200 copies of the same finding.
 def test_drift_is_reported_once_per_database_not_once_per_file() -> None:
-    managed = _drift_contribution("managed_access", {"producer": "ak-managed-access", "source_hashes": {"A05": "a" * 64}})
+    managed = _drift_contribution("managed_access", {"producer": "ak-managed-access", "source_hashes": {"A99": "a" * 64}})
     stale = {"sha256": "b" * 64}
     imported = _drift_contribution("imported_sources", {
         "producer": "declared_import",
@@ -123,11 +123,11 @@ def _with_tables(*database_ids: str) -> list[dict]:
 
 
 def test_a_required_database_that_yielded_no_rows_stops_the_run() -> None:
-    """Measured on A06: the run that lost the whole backend published anyway.
+    """Measured on a real workspace: the run that lost the whole backend published anyway.
 
-    188 tables and 730 fields where the complete bundle has 209 and 1,215 - and
-    `bundle validate` said VALID, `phase1` said READY, and `coverage.json` reported
-    730 as the figure. A Phase 1 against it would have described 60% of the schema as
+    It held about 60% of the fields the complete bundle has - and `bundle validate`
+    said VALID, `phase1` said READY, and `coverage.json` reported the short count as
+    the figure. A Phase 1 against it would have described 60% of the schema as
     all of it.
     """
     contributions = _with_tables("FE")

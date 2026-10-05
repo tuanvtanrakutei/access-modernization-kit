@@ -4,7 +4,7 @@ Every question this kit raises used to live in two or three places and none of t
 a place a program could read. A phase wrote a `Questions` table, an `Unknowns` table
 that mostly asked the same thing again, and an `Assumptions` table naming what the
 pipeline proceeded on meanwhile - and the register beside them carried an id and a
-title. Measured on A06 (backlog A75): 39 open entries were about two dozen distinct
+title. Measured on one project (backlog A75): some forty open entries were about two dozen distinct
 asks, twelve spellings stood for four parties, and Q120 shows what a prose table costs:
 when it was marked answered its row was rewritten in place, so the Blocks column holds
 the original question, the Owner column holds an evidence id, the real owner is gone,
@@ -47,7 +47,7 @@ Nothing here decides a party or a block. It records the ones a person or a phase
 author chose, and refuses the ones that cannot be followed.
 
 Risks join in slice 3. Every risk already carries a Mitigation, which for a legacy defect is
-a recommended answer nobody was asked to accept: A06 has 25 of them. An open risk is now a
+a recommended answer nobody was asked to accept, and a phase writes dozens of them. An open risk is now a
 DISPOSITION owned by the decider, proceeding on that Mitigation, with a `class` that standing
 policy (`input/decisions/policy.yaml`) settles by. A rule asked once beats the same question
 asked per risk, and every risk a rule settles is still listed, as settled by it.
@@ -186,7 +186,7 @@ def split_parties(raw: str) -> list[str]:
 class Parties:
     """Who can be asked, under one canonical name each.
 
-    Twelve spellings stood for four parties on A06: the same department was `常温庫`,
+    Twelve spellings stood for four parties on one project: the same department was `常温庫`,
     "Warehouse operations" and `常温庫 / システム課`, and an agenda keyed by the raw cell
     would have been twelve agendas. The file is written by the kit and edited by a person,
     like `glossary.yaml` beside it, and an alias is how a spelling already in a published
@@ -319,7 +319,7 @@ def validate_needs(entry: dict[str, Any], ids: set[str],
     namespace = str(entry.get("namespace") or "")
     is_risk = namespace in RISK_NAMESPACES
     # A risk's disposition decides what the risk's own Mitigation says to do, so the risk
-    # is the thing that waits on it. A06's 25 risks name no object in their rows; asking a
+    # is the thing that waits on it. Published risks name no object in their rows; asking a
     # reviewer to invent one per risk would fill `blocks` with guesses.
     own_mitigation = is_risk and kind == "DISPOSITION" and needs.get("default") == MITIGATION
 
@@ -779,7 +779,7 @@ _DELIMITER = re.compile(r"^\|?\s*:?-{1,}:?\s*(?:\|\s*:?-{1,}:?\s*)*\|?\s*$")
 def leading_identifier(cell: str) -> str | None:
     """The identifier a cell opens with: `Q117`, `**Q117**`, and `RD-01 — Missing keys`.
 
-    Phase 1 of A06 writes its risk rows as `| RD-01 — Missing primary keys | HIGH | ... |`:
+    One project's Phase 1 wrote its risk rows as `| RD-01 — Missing primary keys | HIGH | ... |`:
     no ID column, the identifier inside the first cell and every other column shifted
     one to the left of where the template puts it. A reader sees a risk table; a parser
     that wanted the ID in cell zero on its own sees seven rows with no identifier.
@@ -793,7 +793,7 @@ def risk_cells(cells: list[str], identifier: str) -> dict[str, str] | None:
     """A risk row's title, severity, detail and mitigation, read by position. None if not one.
 
     The templates give the identifier a column of its own (`ID | Risk | Severity | Detail |
-    Mitigation`, and Phase 2 adds `Evidence` after it). A06's Phase 1 has no ID column: the
+    Mitigation`, and Phase 2 adds `Evidence` after it). A Phase 1 has been written with no ID column: the
     identifier opens the first cell and every column after it sits one to the left. Both are
     read by where the identifier is, not by header text, because the Vietnamese table is the
     same table (`Rủi ro | Mức | Hậu quả khi migrate | Giảm thiểu`).
@@ -853,7 +853,7 @@ _SEPARATORS = re.compile(r"[\s,;、，；/／+＋&]+|\band\b", re.IGNORECASE)
 def _only_identifiers(text: str, found: Iterable[str]) -> bool:
     """True when nothing but the identifiers and their separators is in the text.
 
-    A cell that merely mentions an identifier is prose. A06's Q117 blocks cell reads
+    A cell that merely mentions an identifier is prose. One Q117 blocks cell read
     "Reproducing the day boundary - the `参考日` half of this is Q115", and treating Q115 as
     what it blocks would report a contradiction against a register that is right.
     """
@@ -868,7 +868,7 @@ def cell_blocks(cell: str) -> set[str] | None:
     """The identifiers and `object:` references a Blocks cell consists of; None when prose.
 
     A dash is a statement - it blocks nothing - and so is not prose. Prose is a cell with
-    anything else in it, which every published A06 phase has, and which is counted rather
+    anything else in it, which every published phase so far has, and which is counted rather
     than compared.
     """
     if is_blank_cell(cell):

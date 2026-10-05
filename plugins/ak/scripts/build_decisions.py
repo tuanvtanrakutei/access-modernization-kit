@@ -21,7 +21,7 @@ sits beside the other registers. Neither carries a date, so the same register gi
 same bytes and a change to either is a change to the register.
 
 Reads the Q&A register fresh rather than the record `$ak interviews` stored, because the
-record is a snapshot and the customer's register is not: A06's was five rows when the CSV
+record is a snapshot and the customer's register is not: one was five rows when the CSV
 beside it had six.
 
 Standing policy (`input/decisions/policy.yaml`, slice 3) is applied as the queue is built: a
@@ -34,7 +34,7 @@ evidence - an answer is evidence, never queue text.
 Writes nothing but its own two outputs - the register only for `--link` and `--decide`, and
 the evidence register and a target-intent record only for `--decide`, with every previous
 register kept under `.ak/backups/`. It will not overwrite a QuestionList.md it did not write:
-A05's was written by hand with its own question numbers, which is how A12 happened.
+one project's was written by hand with its own question numbers, which is how A12 happened.
 
 Exit 0 when the register is routable, 1 when it is not (an open question with no `needs`, a
 reference that points nowhere), 2 when the command cannot run.
@@ -174,7 +174,7 @@ def decide(space: workspace_contract.Workspace, output: Path, register_file: Pat
     made = batch.evidence_items(
         app, decisions, items, texts, existing, decided_by=decided_by, decided_on=decided_on,
         created_at=datetime.now().astimezone().isoformat(timespec="seconds"),
-        # Recorded after the newest phase published, as A06's later evidence was: TARGET-002
+        # Recorded after the newest phase published, as later evidence has been: a TARGET-002
         # is P4 because Phase 4 recorded it. The phase in an id says when, not what about.
         phase=max(phases) if phases else 1,
         run_id=str((existing[-1] if existing else {}).get("run_id") or "decisions"),

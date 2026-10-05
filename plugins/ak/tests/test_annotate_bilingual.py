@@ -174,10 +174,10 @@ def test_dry_run_changes_nothing(published: Path) -> None:
 
 
 def test_a_name_containing_a_dot_is_not_annotated_twice() -> None:
-    """`品揃支援DATA.MDB` -> `assortment_support_data.mdb`. The dot broke the check."""
+    """`在庫支援DATA.MDB` -> `stock_support_data.mdb`. The dot broke the check."""
     naming = Naming()
-    once, _ = annotator.annotate("Reads `品揃支援DATA.MDB` at startup.", naming)
-    assert "(assortment_support_data.mdb)" in once
+    once, _ = annotator.annotate("Reads `在庫支援DATA.MDB` at startup.", naming)
+    assert "(stock_support_data.mdb)" in once
     twice, added = annotator.annotate(once, Naming())
     assert twice == once
     assert added == 0
@@ -201,8 +201,8 @@ def test_no_annotation_is_ever_repeated_across_the_whole_term_dictionary() -> No
     import re
 
     naming = Naming()
-    names = ["受注データ", "品揃支援DATA.MDB", "青果集計商品マスタフッタ",
-             "雑貨Ⅱアイテム別確認表フッタ2", "配送コースマスタ20241231バックアップ",
+    names = ["受注データ", "在庫支援DATA.MDB", "青果集計商品マスタフッタ",
+             "日用品Ⅱアイテム別確認表フッタ2", "配送コースマスタ20241231バックアップ",
              "店舗ピッキングライン表示情報"]
     body = " ".join(f"`{n}`" for n in names)
     once, _ = annotator.annotate(body, naming)
@@ -232,9 +232,9 @@ def test_an_annotation_from_the_older_marked_form_is_still_recognised() -> None:
 
 # --- what is a name, and what only looks like one ---------------------------
 #
-# The composer answers whatever it is handed. Run against A06's Phase 2 and Phase 3
-# without this guard it produced 43 annotations per language that name nothing:
-# `\\server6\user\物流部\` (server6_user_logistics_dept), `inner join 商品マスタ`
+# The composer answers whatever it is handed. Run against one project's Phase 2 and Phase 3
+# without this guard it produced dozens of annotations per language that name nothing:
+# `\\server\user\物流部\` (server_user_logistics_dept), `inner join 商品マスタ`
 # (inner join_product_master), `店舗コード between 127000 and 127999`, and - worst -
 # `メイン画面 (main_screen)` annotated a second time as (main_screen_main_screen),
 # because the idempotency check only looks AFTER the closing backtick.
@@ -242,8 +242,8 @@ def test_an_annotation_from_the_older_marked_form_is_still_recognised() -> None:
 
 def test_a_path_is_not_a_name() -> None:
     for span in (r"forms/受注データ取込画面.txt",
-                 "\\\\smsdb\\data\\品揃支援\\２１受注.CSV",
-                 "C:\\２１受注.CSV"):
+                 "\\\\dbserver\\data\\業務支援\\０１受注.CSV",
+                 "C:\\０１受注.CSV"):
         assert not annotator.is_a_name(span), span
 
 
@@ -270,13 +270,13 @@ def test_a_span_that_already_carries_its_alias_is_not_annotated_again() -> None:
 def test_a_vba_procedure_keeps_its_empty_parentheses_and_is_still_a_name() -> None:
     """The first version of the guard refused every `(`, which silently dropped every
     function in the document - the opposite defect, and quieter."""
-    for span in ("SMS受注取込()", "酒受注取込()", "新規商品追加()"):
+    for span in ("EDI受注取込()", "酒受注取込()", "新規商品追加()"):
         assert annotator.is_a_name(span), span
 
 
 def test_an_ordinary_object_name_is_still_a_name() -> None:
-    for span in ("受注情報", "商品マスタ", "受注数調整リスト1", "常温物流支援商品マスタ.csv",
-                 "chkSMS受注", "取込開始ボタン_Click"):
+    for span in ("受注情報", "商品マスタ", "出荷数確認リスト1", "業務支援商品マスタ.csv",
+                 "chkEDI受注", "取込開始ボタン_Click"):
         assert annotator.is_a_name(span), span
 
 

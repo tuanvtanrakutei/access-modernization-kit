@@ -177,7 +177,7 @@ def test_linked_table_boundary_target_may_name_an_external_database(tmp_path: Pa
         "logical_id": "SYN:table:操作履歴", "name": "操作履歴", "database_id": "SYN",
         "metadata": {
             "linked": True,
-            "connect": r";DATABASE=L:\新品揃支援\XP\品揃支援data.mdb",
+            "connect": r";DATABASE=S:\新業務支援\XP\業務支援data.mdb",
             "source_table_name": "操作履歴",
         },
     })
@@ -215,13 +215,13 @@ def test_raw_binary_flag_is_still_rejected_inside_metadata(tmp_path: Path) -> No
 def test_two_routes_reading_one_schema_yield_one_table() -> None:
     """A table read by both the managed and the imported route is one table.
 
-    A05's frontend was acquired managed for its schema and imported for its
-    definition text, and the same 22 tables, 161 fields and 46 indexes entered the
+    One frontend was acquired managed for its schema and imported for its
+    definition text, and every one of its tables, fields and indexes entered the
     bundle twice. `_merge_records` cannot see it: the two routes describe a table in
     two shapes, only one carrying a `logical_id`, so both are filed as unkeyed. The
-    duplicates were then reported as coverage - 1,558 database records against a true
-    1,327 - and as a finding, 143 table objects of which 86 lacked a primary key
-    against a true 121 and 76.
+    duplicates were then reported as coverage - about a sixth more database records
+    than there were - and as a finding, with every table that lacked a primary key
+    counted twice.
     """
     from bundle_assembly import _dedupe_schema
 
@@ -396,7 +396,7 @@ def test_coverage_counts_a_recorded_fact_as_neither_failed_nor_excluded(
 def test_a_clean_run_reports_no_failures(tmp_path: Path) -> None:
     """The A25 regression, stated as the thing that has to stay true.
 
-    A managed acquisition of A05's backend that read everything it came for used to
+    A managed acquisition of a backend that read everything it came for used to
     report `failed=2`, because the two lines the extractor writes to say what it did -
     which optional tier it skipped, that it read the specification tables a link asked
     for - carried no marker and the router's default was "failure".

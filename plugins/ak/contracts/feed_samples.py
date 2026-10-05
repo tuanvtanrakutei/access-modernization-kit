@@ -1,6 +1,6 @@
 """What an import specification declares, against what the file actually contains.
 
-A05's backend links six delimited text files. Every one declares `HDR=NO`, so a
+One application's backend links six delimited text files. Every one declares `HDR=NO`, so a
 column's meaning is positional, and `DSN=<spec name>` names the specification that
 declares what those positions mean. A17 put those specifications in the bundle; A21
 proved the second acquisition route reads them too. A17 also named the check neither
@@ -13,8 +13,8 @@ Run by hand once, it found something on the first application it saw: `Dpshohin.
 carries 29 fields where `DPSHOHIN ﾘﾝｸの定義` declares 28.
 
 **Column order comes from `Start`, and the files prove it.** `MSysIMEXColumns` rows
-come back in no useful order - A05's first row is column 20 of 26 - so the positions
-are recovered by sorting on `Start`. Three of A05's six files carry a header row whose
+come back in no useful order - one application's first row was column 20 of 26 - so the positions
+are recovered by sorting on `Start`. Three of its six files carry a header row whose
 names are identical to the declared names *in order*, 26, 29 and 26 of them, which is
 independent confirmation that the sort reproduces the producer's real column order. It
 is also why the header comparison is worth having at all: where a header exists it is
@@ -31,7 +31,7 @@ the sender's own statement of layout, and it can be read against the receiver's.
   part of the check rather than a refinement of it.
 
   *StartRow.* Whether `StartRow` agrees with the file having a header. It matters
-  because `StartRow` differs *within* this one application - three of A05's feeds skip
+  because `StartRow` differs *within* this one application - three of one application's feeds skip
   a row and three do not - so a rule assuming one answer would be wrong half the time.
   Both directions are reported: `StartRow=0` against a header row imports the names as
   a record, and `StartRow=1` against a headerless file drops a real one.
@@ -39,13 +39,13 @@ the sender's own statement of layout, and it can be read against the receiver's.
 Deciding whether a first row is a header needs evidence, and two kinds are available.
 Its cells may equal the declared names, which settles it. Failing that, a column the
 specification declares numeric holding a non-numeric value cannot be data - which is
-how the three A05 headers would still be recognised had the sender renamed every
+how three such headers would still be recognised had the sender renamed every
 column. Where neither signal is present the reading is `UNKNOWN` and nothing is
 reported, because "no header" and "a header this cannot recognise" are then the same
 observation.
 
 **What is calibrated on one application, and what stops it being wrong elsewhere.**
-A05 has one value of every declaration that matters here, so three shapes it does not
+The calibrating application has one value of every declaration that matters here, so three shapes it does not
 have are guarded rather than assumed. A link declaring anything but `FMT=Delimited` is
 reported and not read: a fixed-width layout has no separators, and counting them would
 report one field per record on every feed of such an application. A link declaring
@@ -57,13 +57,13 @@ and no position is named. The encoding ladder is the kit's own, shared with seve
 readers here; a feed arriving in a Western code page would decode as CP932 rather than
 fail, which is why every line of the report names the codec it read the file with.
 
-**What this does not answer.** Not whether the import works. A05's product feed
+**What this does not answer.** Not whether the import works. One product feed
 disagrees three ways - 29 fields in the file, 28 in the specification, 30 columns in
 the destination table - and the third number is out of reach from here:
 `メインメニュー.取り込み_Click` builds the statement as
 `"INSERT INTO " & マスタ名 & " SELECT * FROM 元" & マスタ名`, so the destination never
 appears as a literal and no reader can resolve it. Nor does it answer encoding.
-`MSysIMEXSpecs.FileType` is 0 for all eight of A05's specifications, so the corpus
+`MSysIMEXSpecs.FileType` was 0 for all eight specifications of one application, so that corpus
 carries no evidence of what that field means, and this module reports the encoding
 that decoded each file rather than claiming the specification declared one.
 """
@@ -87,7 +87,7 @@ import link_targets
 # second question this does not need to answer to recognise a header.
 NUMERIC_TYPES = frozenset({2, 3, 4, 5, 6, 7, 16, 19, 20, 21})
 
-# The ladder A05's six files need, in this order. Three arrive CP932 and three UTF-8
+# The ladder one application's six files needed, in this order. Three arrive CP932 and three UTF-8
 # without a BOM, from senders who never agreed with each other. `utf-8-sig` only
 # *strips* a BOM - it decodes a BOM-less UTF-8 file just as happily - so the codec a
 # file is reported under is `utf-8` unless a BOM was actually there.
@@ -143,7 +143,7 @@ class Specification:
     def order_known(self) -> bool:
         """Whether `Start` actually establishes an order for these columns.
 
-        A05's do - 0, 8, 40, 82, 133 - and three of its files confirm it. A version
+        One application's do - 0, 8, 40, 82, 133 - and three of its files confirm it. A version
         that names the column something else, or a specification carrying one column,
         gives every column the same `Start`, and then a positional comparison would
         report every name as moved. Nothing is claimed about order in that case.
@@ -196,7 +196,7 @@ class Feed:
     """A declared import feed, and the file or expression it points at.
 
     The connect string's own declarations travel with it, because two of them decide
-    whether a comparison means anything and A05 has one value of each: `FMT=Delimited`
+    whether a comparison means anything and the calibrating application has one value of each: `FMT=Delimited`
     (a fixed-width link's fields are not separated at all, so counting separators would
     report one field per record on every one of them) and `HDR=NO` (with `HDR=YES`
     Access reads the header itself, and calling that "the names are imported as a
@@ -305,7 +305,7 @@ def specifications(records: Iterable[dict]) -> dict[str, Specification]:
 def declared(connect: str, key: str) -> str:
     """One `KEY=value` a connect string declares, if it declares it.
 
-    Values are taken to the next `;` and not split further: A05's specification names
+    Values are taken to the next `;` and not split further: specification names
     carry spaces and half-width katakana (`DSN=Order ﾘﾝｸの定義2`), so anything narrower
     would cut them.
     """
@@ -317,11 +317,11 @@ def specification_name(connect: str) -> str:
     """The specification a link's connect string names, if it names one.
 
     A42. An ODBC connect string also carries `DSN=`, and there it is an ODBC data
-    source, not an Access import/export specification. Reading it as one made A06's
+    source, not an Access import/export specification. Reading it as one made one project's
     three SQL Server links its only three "file feeds" - `dbo.仕入商品マスタ` reported as
     a file whose layout is declared nowhere, so a FORMAT claim about a database table
     was told to go find a sample of it (EC-02). It also filled the catalogue's
-    `Declared columns` cell with `SMSIIS_TargetNeo` **not in the database**, a finding
+    `Declared columns` cell with `SALESIIS_Target` **not in the database**, a finding
     about a specification nobody ever declared.
 
     A text or Excel link names its driver - `Text;DSN=spec;FMT=Delimited;...` - and an
@@ -346,8 +346,8 @@ def feeds(rows: Iterable[dict]) -> list[Feed]:
     """Every link that declares a `DSN=`, from bundle rows in either shape.
 
     A bundle carries linked tables both flat, as the managed route wrote them, and
-    nested under `metadata`, as the derived graph does. Both shapes sit in one file in
-    A05's bundle, so a reader of one shape sees half the boundary.
+    nested under `metadata`, as the derived graph does. Both shapes have sat in one file in
+    one bundle, so a reader of one shape sees half the boundary.
     """
     found: list[Feed] = []
     for row in rows:
@@ -433,7 +433,7 @@ def _output_to_feeds(records: Iterable[dict]) -> list[Feed]:
     """Every `DoCmd.OutputTo` call: Access's third way of writing a file.
 
     A64. The scan knew `TransferText` and `TransferSpreadsheet` and Access has three
-    verbs, so A06's `電算データ作成画面` wrote an Excel file that appeared in no boundary
+    verbs, so one project's `電算データ作成画面` wrote an Excel file that appeared in no boundary
     list, and `共通関数` held a generic exporter whose every argument is a variable.
 
     Always outbound - there is no direction argument, and that is the whole difference
@@ -488,7 +488,7 @@ _CONST = re.compile(r'(?i)^\s*(?:Public\s+|Private\s+)?Const\s+([^\s=]+)\s*=\s*"
 def _constants(text: str) -> dict[str, str]:
     """String constants a definition declares, keeping only names assigned once.
 
-    A06 declares each import path twice - a live block and a commented-out test block
+    A definition may declare each import path twice - a live block and a commented-out test block
     beneath it - and `_vba_code_lines` has already dropped the commented one. A name
     that is still assigned twice after that resolves to nothing: picking the last
     would be picking by file order.
@@ -558,12 +558,12 @@ def code_feeds(records: Iterable[dict]) -> list[Feed]:
     """Find every `TransferText` and `TransferSpreadsheet` call in definition text.
 
     A46. A feed the code declares is a feed, and until this existed the inventory began
-    at a link's connect string - so A06's four live CSV inputs, each named in a
+    at a link's connect string - so one project's four live CSV inputs, each named in a
     `TransferText` call and each with its layout saved in the database, appeared in no
     document at all.
 
     Both directions, because the section that prints these says *inbound and outbound*
-    and a heading that over-promises is the same defect one level up: A06 writes three
+    and a heading that over-promises is the same defect one level up: one project wrote three
     CSVs from code and holds a saved specification called `商品マスタ ｴｸｽﾎﾟｰﾄ定義`,
     none of which a caller filtering on `acImport` would ever see.
 
@@ -579,7 +579,7 @@ def code_feeds(records: Iterable[dict]) -> list[Feed]:
         text = str(record.get("text") or "")
         declared_in = str(record.get("name") or record.get("object_name") or "")
         # A65. A path assembled from constants declared in this same definition is a
-        # path, not an unknown. Five of A06's eleven sample findings were answerable
+        # path, not an unknown. Five of one run's eleven sample findings were answerable
         # from the file they were reported against.
         constants = _constants(text)
         for line in _vba_code_lines(text):
@@ -735,7 +735,7 @@ def records_of(text: str, delimiter: str, quote: str) -> Iterator[list[str]]:
     and a quoted newline would turn one record into two - which is the difference
     between a field count and a guess.
 
-    Yielded rather than collected. A05's largest sample is 3.5 MB and 15,305 records,
+    Yielded rather than collected. A typical sample is a few MB and some thousands of records,
     but a "sample" is whatever an operator copied off a share, and holding a list of
     lists for one of those is the multiplier that turns a large file into a failure
     instead of a slow answer.
@@ -866,8 +866,8 @@ def disagreements(spec: Specification, sample: Sample,
                   feed: Feed | None = None) -> list[Finding]:
     """Everything this pair says that does not agree, in the order to read it.
 
-    `feed` carries the link's own declarations and changes what may be concluded. A05
-    has one value of each - `FMT=Delimited` and `HDR=NO` - so it exercises neither
+    `feed` carries the link's own declarations and changes what may be concluded. The calibrating
+    application has one value of each - `FMT=Delimited` and `HDR=NO` - so it exercises neither
     branch, and an application with the other value would be reported wrongly by a
     check calibrated on this one.
     """
@@ -920,7 +920,7 @@ def disagreements(spec: Specification, sample: Sample,
 def encoding_spread(samples: Iterable[tuple[Specification, Sample]]) -> str:
     """One line when an application's feeds do not share an encoding.
 
-    A05's do not: three CP932 and three UTF-8, from senders who never agreed with each
+    One application's did not: three CP932 and three UTF-8, from senders who never agreed with each
     other, while all eight specifications declare the same `FileType`. An importer
     written against either half breaks the other, so this is worth saying once at the
     application level rather than per feed.

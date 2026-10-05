@@ -14,10 +14,10 @@ sys.path.insert(0, str(PACKAGE / "contracts"))
 from bundle import BundleError, compute_bundle_id, make_lock, verify_immutable  # noqa: E402
 
 BASE = {
-    "app_id": "A05",
+    "app_id": "A99",
     "classification": {"topology": "split_file", "frontend_format": "mdb", "source_availability": "full", "backend_kinds": ["access_file"]},
     "classification_rule_versions": {"frontend.mdb.dao": "1.0"},
-    "artifacts": [{"logical_id": "A05_FRONTEND", "content_sha256": "a" * 64}],
+    "artifacts": [{"logical_id": "A99_FRONTEND", "content_sha256": "a" * 64}],
     "adapters": [{"id": "managed_access", "version": "2.7.0"}],
     "bundle_schema_version": "1.0",
     "normalization_config": {"encoding": "utf-8", "line_endings": "LF"},
@@ -59,7 +59,7 @@ def test_an_undeclared_identity_term_is_refused_rather_than_dropped() -> None:
 
 
 def test_id_changes_when_content_changes() -> None:
-    changed = dict(BASE, artifacts=[{"logical_id": "A05_FRONTEND", "content_sha256": "b" * 64}])
+    changed = dict(BASE, artifacts=[{"logical_id": "A99_FRONTEND", "content_sha256": "b" * 64}])
     assert compute_bundle_id(changed) != compute_bundle_id(BASE)
 
 
@@ -79,7 +79,7 @@ def test_immutable_hash_verification(tmp_path: Path) -> None:
 
 
 def test_lock_has_external_approval_reference() -> None:
-    lock = make_lock("bundle-abc", "c" * 64, "1.0", {"topology": "split_file"}, "artifact_store://a05", "AP-1")
+    lock = make_lock("bundle-abc", "c" * 64, "1.0", {"topology": "split_file"}, "artifact_store://a99", "AP-1")
     assert lock["bundle_id"] == "bundle-abc"
     assert lock["approval_record_id"] == "AP-1"
 
@@ -94,7 +94,7 @@ def enriched_lock(**overrides) -> dict:
     values = {
         "lock_version": "1.1",
         "distribution_policy": "artifact_store",
-        "artifact_reference": "artifact_store://sms/A05/bundles/bundle-abc",
+        "artifact_reference": "artifact_store://legacy/A99/bundles/bundle-abc",
         "bundle_approval_checksum": "d" * 64,
         "profile_rule_versions": {"topology.split_file.backend_required": "1.0"},
         "normalization_config_checksum": "e" * 64,
@@ -105,7 +105,7 @@ def enriched_lock(**overrides) -> dict:
         "c" * 64,
         "1.0",
         {"topology": "split_file"},
-        values.pop("approved_location", "artifact_store://a05"),
+        values.pop("approved_location", "artifact_store://a99"),
         "AP-1",
         **values,
     )
@@ -117,7 +117,7 @@ def test_legacy_lock_remains_valid() -> None:
         "c" * 64,
         "1.0",
         {"topology": "split_file"},
-        "D:/legacy/bundles/a05",
+        "D:/legacy/bundles/a99",
         "AP-1",
     )
 
@@ -153,13 +153,13 @@ def test_enriched_lock_requires_complete_authority(field: str) -> None:
 @pytest.mark.parametrize(
     "overrides",
     [
-        {"artifact_reference": "D:/bundles/a05"},
-        {"approved_location": "D:/bundles/a05"},
-        {"artifact_reference": "artifact_store://user:secret@store/a05"},
-        {"artifact_reference": "artifact_store://store/a05?token=secret"},
+        {"artifact_reference": "D:/bundles/a99"},
+        {"approved_location": "D:/bundles/a99"},
+        {"artifact_reference": "artifact_store://user:secret@store/a99"},
+        {"artifact_reference": "artifact_store://store/a99?token=secret"},
         {
             "distribution_policy": "shared_path",
-            "artifact_reference": "artifact_store://sms/A05/bundle-abc",
+            "artifact_reference": "artifact_store://legacy/A99/bundle-abc",
         },
     ],
 )
@@ -171,7 +171,7 @@ def test_enriched_lock_rejects_nonportable_authority(overrides: dict) -> None:
 def test_bundle_schema_requires_normalized_evidence_sources() -> None:
     schema = json.loads((PACKAGE / "schemas/bundle.schema.json").read_text(encoding="utf-8"))
     bundle = {
-        "schema_version": "1.0", "bundle_id": "bundle-abc", "app_id": "A05",
+        "schema_version": "1.0", "bundle_id": "bundle-abc", "app_id": "A99",
         "classification": {"topology": "split_file", "frontend_format": "mdb",
                            "source_availability": "full", "backend_kinds": ["access_file"]},
         "rule_versions": {"frontend.mdb.dao": "1.0"},

@@ -1,6 +1,6 @@
 ---
 name: validate-docs
-description: "Check a bootstrapped modernization project's documentation set for defects a reader will not notice — unfilled config keys, unresolved placeholders, dangling document references, malformed or duplicated issue rows, issue numbers cited by code with no row, resolved rows citing files that no longer exist, an unparseable screen registry, and missing artifact folders. Trigger when the user wants to validate, check, audit or lint the docs, before or after bootstrapping a project, before a release, or when a document seems out of step with the code. Examples: \"/validate-docs\", \"check the a01_docs set\", \"is the registry still valid\", \"did we leave any placeholder unfilled\"."
+description: "Check a bootstrapped modernization project's documentation set for defects a reader will not notice — unfilled config keys, unresolved placeholders, dangling document references, malformed or duplicated issue rows, issue numbers cited by code with no row, resolved rows citing files that no longer exist, an unparseable screen registry, and missing artifact folders. Trigger when the user wants to validate, check, audit or lint the docs, before or after bootstrapping a project, before a release, or when a document seems out of step with the code. Examples: \"/validate-docs\", \"check the app_docs set\", \"is the registry still valid\", \"did we leave any placeholder unfilled\"."
 ---
 
 # Validate The Documentation Set
@@ -13,7 +13,7 @@ is a separate, explicitly requested action.
 
 | Root | What it is | How to find it |
 |---|---|---|
-| docs | the per-screen artifact directory | `DOCS_DIR` in `PROJECT_CONFIG.md`, e.g. `a01_docs` |
+| docs | the per-screen artifact directory | `DOCS_DIR` in `PROJECT_CONFIG.md`, e.g. `app_docs` |
 | plugin | this plugin's own tree | the directory containing `docs/` and `templates/` |
 | source | the code tree | `BACKEND_ROOT` and `FRONTEND_ROOT`'s common ancestor |
 

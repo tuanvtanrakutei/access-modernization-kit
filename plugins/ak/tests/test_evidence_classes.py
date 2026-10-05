@@ -1,6 +1,6 @@
 """Readiness must answer "can this phase say what it means", not only "can it count".
 
-Before this, A05 reported phase1/2/3 READY from two `.mdb` files. The documents it
+Before this, a real application reported phase1/2/3 READY from two `.mdb` files. The documents it
 then produced were inventories, and the run said so about itself: "purpose not
 established from schema alone". Nothing was wrong with the analysis - the gate had
 asked for four structural capabilities and got them.
@@ -72,7 +72,7 @@ def test_an_inventory_of_names_does_not_answer_for_the_definitions() -> None:
     `UI_DEFINITION` means "SaveAsText form and report definitions: record sources,
     bound fields, event procedures, embedded controls". Both `access_object_inventory`
     and `ui_object_inventory` fire when the bundle merely holds ui rows, and the DAO
-    tier produces those from object names. On A06 that was 38 form names, `$ak derive`
+    tier produces those from object names. On one application that was 38 form names, `$ak derive`
     distilled 0 UI objects from them, and phase2 reported READY.
 
     Worse, the gate hid its own remedy: `phase_evidence` emits the exporter's resolved
@@ -88,7 +88,7 @@ def test_an_inventory_of_names_does_not_answer_for_the_definitions() -> None:
 
 
 def test_phase2_is_blocked_by_names_alone_and_ready_with_definitions(tmp_path: Path) -> None:
-    """The two bundles A06 produced, an hour apart, as a test.
+    """The two bundles one application produced, an hour apart, as a test.
 
     Before the export: 38 form names, phase2 READY. After it: the same 38 forms with
     their SaveAsText definitions, and `$ak derive` distilling 51 UI objects where it

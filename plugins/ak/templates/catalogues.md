@@ -22,7 +22,7 @@ figures without recounting them.
 
 ## Why they exist
 
-A14 measured it: `A05_Phase1` named 20 of 118 tables, 4 of 328 distinct column names and
+A14 measured it: one run's Phase 1 named 20 of 118 tables, 4 of 328 distinct column names and
 5 of 77 queries. Every aggregate figure in it was correct and almost nothing that was
 counted was named. A narrative cannot carry 1,055 columns, and one carrying a sixth of
 them is worse than a citation, because it reads like the whole set.
@@ -58,18 +58,18 @@ to make a phase look finished.
 
 **Absence of a reference is unreachability, not disuse.** Every "referenced by nothing"
 list carries that sentence, because the objects on it may be opened from a navigation pane,
-from a database property, or under a name the code builds at run time — A06 has four
-reports opened as `"受注数調整リスト" & <option group>`, and no search can find a name that
+from a database property, or under a name the code builds at run time — one application has four
+reports opened as `"出荷数確認リスト" & <option group>`, and no search can find a name that
 is never written down.
 
 **Carry the name the operator uses, beside the name the code uses.** A catalogue keyed only
 on object names cannot be joined to any evidence a person produced. An interview, an
 operating procedure and a training manual all name the *caption* — the title bar — and a
-screen an operator calls by one name is filed under another. A06 published a screen called
-`商品情報登録` because nothing carried captions: no object has that name; it is the caption
-on `商品情報設定画面`. The column is cheap and it pays on its own — it showed that a hidden
+screen an operator calls by one name is filed under another. One run published a screen called
+`受注登録` because nothing carried captions: no object has that name; it is the caption
+on `受注入力画面`. The column is cheap and it pays on its own — it showed that a hidden
 screen carries the live daily import's caption character for character, and that
-`前日準備リスト` prints as `受注差分リスト`. A caption is a label and establishes no meaning
+`翌日準備リスト` prints as `出荷差分リスト`. A caption is a label and establishes no meaning
 (EC-01); what it establishes is the join.
 
 **Generated output is reproducible.** Re-running against an unchanged bundle produces an
@@ -101,7 +101,7 @@ Every production name carries a composed English alias, and its status is one of
 | Status | Means |
 |---|---|
 | accepted | a person recorded it in `input/decisions/glossary.yaml` |
-| A01 precedent | every term came from the A01 conversion table; binding on later projects |
+| reference precedent | every term came from the reference set's conversion table; binding on later projects |
 | composed | built from the term dictionary and nobody has accepted it |
 | `_partial_` | some of the name matched no term — the alias is incomplete |
 | `_no term matched_` | none of it did |
@@ -109,7 +109,7 @@ Every production name carries a composed English alias, and its status is one of
 A `_partial_` name is never printed inline in a phase document, only in an appendix: a
 half-finished name in a sentence reads like a finished one.
 
-**A vocabulary gap does not return nothing — it returns the nearest match.** A06 composed
+**A vocabulary gap does not return nothing — it returns the nearest match.** One run composed
 `合計金額` as `total_friday`, because `金` is a weekday term and nothing longer stood above
 it; `商品マスタサブメンテサブ` as `product_master_sample_sample`, because `サ` is a column
 prefix. Both were labelled `_partial_`, which a reader takes for *unfinished* rather than

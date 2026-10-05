@@ -40,7 +40,7 @@ with a Romaji alias where they are Japanese. Never translate.
      what they must not get wrong. Two habits follow:
 
      Open with what they must not get wrong. A short numbered list, each item pointing at
-     the section that proves it. A06's Phase 2 was correct and unusable before it had one:
+     the section that proves it. One Phase 2 was correct and unusable before it had one:
      the fact that re-running the morning import destroys the quantities staff typed the
      night before was in the document, four sections deep, in prose.
 
@@ -48,7 +48,7 @@ with a Romaji alias where they are Japanese. Never translate.
      One required diagram per phase is a floor, not a budget. Reach for one whenever the
      thing being described has a shape: an order of steps, a cycle, a lifecycle with a
      failure branch, a fan-out from one object to many, or three artefacts that should
-     agree and do not. A06's Phase 2 carries five and is shorter than the four-diagram
+     agree and do not. One Phase 2 carries five and is shorter than the four-diagram
      draft it replaced, because each one removed a paragraph that was describing a picture.
 
      Mermaid renders, or it is not evidence a reader can see. Check it - `mmdc -i x.mmd -o
@@ -58,7 +58,7 @@ with a Romaji alias where they are Japanese. Never translate.
 
      Keep the document's own revision history out of it. How many drafts a figure went
      through is a fact about the analysis, not about the application, and a developer
-     reading once does not need it: A06's Phase 2 carried a paragraph explaining that a
+     reading once does not need it: one Phase 2 carried a paragraph explaining that a
      count had been "wrong twice before it was right", naming all three numbers and both
      causes, and it was the hardest paragraph in the document to read.
 
@@ -216,7 +216,7 @@ flowchart TD
        duplicate  - it asks what another identifier already asks. Name that one and
                     stop carrying both.
 
-     A06's Phase 2 skipped this section and allocated `Q108`, which asks what Phase 1's
+     One Phase 2 skipped this section and allocated `Q108`, which asks what Phase 1's
      `Q103` already asked of the same owner about the same file. Two questions to one
      person about one thing is the cheapest kind of waste to avoid and the easiest to
      create.
@@ -268,7 +268,7 @@ flowchart TD
      Write \| for a pipe inside a cell. A cell that is prose is not wrong, but nothing
      can read it, and the checker counts it instead of comparing it.
      To close a question, set resolved_by in the register AND begin the row with
-     **Answered - <evidence id>**. Leave Blocks and Party as they were: A06's Q120 was
+     **Answered - <evidence id>**. Leave Blocks and Party as they were: one run's Q120 was
      rewritten in place when it was answered, so its Blocks column now holds the original
      question, its owner column an evidence id, and its real owner is gone. -->
 

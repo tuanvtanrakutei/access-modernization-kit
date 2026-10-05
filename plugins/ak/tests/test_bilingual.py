@@ -63,7 +63,7 @@ def test_the_longest_term_wins() -> None:
 
 
 def test_width_is_normalised_before_matching() -> None:
-    """A05's most-joined pair is `DPコード` against `ＤＰコード`. Both are the term."""
+    """One application's most-joined pair is `DPコード` against `ＤＰコード`. Both are the term."""
     assert compose("DPコード").english == "dp_cd"
 
 
@@ -84,8 +84,8 @@ def test_a_name_from_reference_precedent_alone_carries_no_question_mark() -> Non
     """`?` must mean "this analysis made this up", or it means nothing.
 
     `商品コード` composes from `商品` and `コード`, both decided in the reference conversion
-    table. That is precedent applied, not a proposal, and 149 of 649 A05 names are in
-    that position.
+    table. That is precedent applied, not a proposal, and on one real application
+    nearly a quarter of the names are in that position.
     """
     rendered = compose("商品コード")
     assert rendered.provenance == bl.REFERENCE
@@ -255,7 +255,7 @@ def test_a_project_term_composes_inside_a_longer_name(tmp_path: Path) -> None:
 def test_a_vocabulary_hole_returns_a_wrong_name_not_an_empty_one(tmp_path: Path) -> None:
     """Why the section above is worth more than coverage.
 
-    A06 has seven columns named for a weekday (`月出荷` … `土出荷`), so `月` and `金`
+    One application has seven columns named for a weekday (`月出荷` … `土出荷`), so `月` and `金`
     are single-character terms. Without a longer term above them the composer read
     `月初在庫` as `monday_stock` and `合計金額` as `total_friday` - and labelled both
     `_partial_`, which a reader takes for *unfinished* rather than *wrong*.

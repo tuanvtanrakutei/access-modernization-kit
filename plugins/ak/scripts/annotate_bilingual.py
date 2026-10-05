@@ -4,7 +4,7 @@
 The catalogues render `商品コード (product_cd?)` because they are generated. The phase
 documents are written, so they carried the Japanese alone - which is right for
 authority and wrong for a developer who has to build the replacement and cannot type
-`雑貨Ⅱアイテム別確認表フッタ` into anything.
+`日用品Ⅱアイテム別確認表フッタ` into anything.
 
 This annotates the published documents in place. Three rules keep it from doing harm:
 

@@ -2,7 +2,7 @@
 
 Every published name in this kit is the production name, unchanged - that rule does
 not move. What this adds is a second name beside it, for the people who have to build
-the replacement and cannot type `雑貨Ⅱアイテム別確認表フッタ` into a migration script.
+the replacement and cannot type `日用品Ⅱアイテム別確認表フッタ` into a migration script.
 
 Three things keep it honest:
 

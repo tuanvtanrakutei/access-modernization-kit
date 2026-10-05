@@ -274,7 +274,7 @@ def parse_args() -> argparse.Namespace:
     init_location = init.add_mutually_exclusive_group(required=True)
     init_location.add_argument("--root", help="Parent directory for a new app workspace.")
     init_location.add_argument("--app-root", help="Existing or new app workspace directory.")
-    init.add_argument("--app-id", required=True, help="App identifier, for example A03.")
+    init.add_argument("--app-id", required=True, help="App identifier, for example A99.")
     init.add_argument("--name-en", required=True, help="English app name.")
     init.add_argument("--adopt-existing", action="store_true", help="Safely add kit files to a non-empty --app-root.")
     init.add_argument("--source", help="Path to source directory or ZIP archive to auto-import and scan.")

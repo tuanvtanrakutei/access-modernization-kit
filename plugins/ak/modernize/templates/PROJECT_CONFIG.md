@@ -10,9 +10,9 @@ Copy this file to your project's documentation root. Keep it under version contr
 
 | Key | Value | Notes |
 |---|---|---|
-| `PROJECT_NAME` | `{{PROJECT_NAME}}` | Human-readable, e.g. "SMS Replacement — Order Receiving" |
-| `SUBSYSTEM_CODE` | `{{SUBSYSTEM_CODE}}` | Short code used in paths and identifiers, e.g. `A01` |
-| `DOCS_DIR` | `{{DOCS_DIR}}` | Where per-screen artifacts live, e.g. `a01_docs` |
+| `PROJECT_NAME` | `{{PROJECT_NAME}}` | Human-readable, e.g. "Legacy Replacement — Order Receiving" |
+| `SUBSYSTEM_CODE` | `{{SUBSYSTEM_CODE}}` | Short code used in paths and identifiers, e.g. `A99` |
+| `DOCS_DIR` | `{{DOCS_DIR}}` | Where per-screen artifacts live, e.g. `app_docs` |
 | `SCREEN_NAME_LANG` | `{{SCREEN_NAME_LANG}}` | Language of screen names used as filenames, e.g. `ja`, `en` |
 
 ## 2. Legacy Source
@@ -20,7 +20,7 @@ Copy this file to your project's documentation root. Keep it under version contr
 | Key | Value | Notes |
 |---|---|---|
 | `LEGACY_VARIANT` | `{{LEGACY_VARIANT}}` | One of: `adp`, `mdb`, `accdb`, `split-mdb`, `split-accdb`. Drives evidence taxonomy — see `LEGACY_EVIDENCE.md`. |
-| `LEGACY_FE_FILE` | `{{LEGACY_FE_FILE}}` | Front-end file name, e.g. `SMS_A01.adp` |
+| `LEGACY_FE_FILE` | `{{LEGACY_FE_FILE}}` | Front-end file name, e.g. `ORDERS_FE.adp` |
 | `LEGACY_DATA_FILE` | `{{LEGACY_DATA_FILE}}` | Data file for split designs; `n/a` for `adp` (data lives in SQL Server) |
 | `LEGACY_DB_ENGINE` | `{{LEGACY_DB_ENGINE}}` | `sqlserver`, `jet`, or `ace` |
 | `LEGACY_DB_SCRIPT` | `{{LEGACY_DB_SCRIPT}}` | Path to exported DDL, e.g. `{{DOCS_DIR}}/schema.sql`, or `n/a` |
@@ -43,8 +43,8 @@ Fixed stack: Django + Django REST Framework + PostgreSQL.
 
 | Key | Value | Notes |
 |---|---|---|
-| `BACKEND_ROOT` | `{{BACKEND_ROOT}}` | e.g. `backend/sms_a01` |
-| `API_PREFIX` | `{{API_PREFIX}}` | e.g. `/api/v1/a01/` — every endpoint mounts under this |
+| `BACKEND_ROOT` | `{{BACKEND_ROOT}}` | e.g. `backend/order_receiving` |
+| `API_PREFIX` | `{{API_PREFIX}}` | e.g. `/api/v1/a99/` — every endpoint mounts under this |
 | `TABLE_MAP_DOC` | `{{TABLE_MAP_DOC}}` | Legacy-to-new table/field mapping document |
 | `LINT_CMD` | `{{LINT_CMD}}` | Exact command, e.g. `./scripts/lint.sh` from `backend/` |
 | `TEST_CMD` | `{{TEST_CMD}}` | Exact command, e.g. `./scripts/test.sh <module_path>` |
@@ -74,7 +74,7 @@ One row per Django app that owns screens. The pipeline uses `module` for paralle
 | Key | Value | Notes |
 |---|---|---|
 | `FRONTEND_ROOT` | `{{FRONTEND_ROOT}}` | e.g. `frontend/src` |
-| `FE_ROUTE_BASE` | `{{FE_ROUTE_BASE}}` | e.g. `/a01` |
+| `FE_ROUTE_BASE` | `{{FE_ROUTE_BASE}}` | e.g. `/a99` |
 | `FE_PAGE_DIR` | `{{FE_PAGE_DIR}}` | Route-level components, e.g. `{{FRONTEND_ROOT}}/pages` |
 | `FE_API_DIR` | `{{FE_API_DIR}}` | Typed API client modules |
 | `FE_TYPES_DIR` | `{{FE_TYPES_DIR}}` | Shared TypeScript types |

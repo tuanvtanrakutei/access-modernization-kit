@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Create or safely adopt an isolated workspace for one legacy SMS app without analyzing it."""
+"""Create or safely adopt an isolated workspace for one legacy app without analyzing it."""
 
 from __future__ import annotations
 
@@ -358,7 +358,7 @@ def parse_args() -> argparse.Namespace:
     location = parser.add_mutually_exclusive_group(required=True)
     location.add_argument("--root", help="Parent directory for a new app workspace")
     location.add_argument("--app-root", help="Existing or new app workspace directory")
-    parser.add_argument("--app-id", required=True, help="App identifier such as A03")
+    parser.add_argument("--app-id", required=True, help="App identifier such as A99")
     parser.add_argument("--name-en", required=True, help="English business name")
     parser.add_argument(
         "--languages",

@@ -290,7 +290,7 @@ def _refuse_a_required_database_that_yielded_nothing(
 ) -> None:
     """Stop the run rather than seal a bundle missing a database it was told to read.
 
-    A34, measured on A06. One run's DAO tier failed on the declared authoritative
+    A34, measured on a real project. One run's DAO tier failed on the declared authoritative
     backend - `Not a valid password`, on a file the previous run had opened from the
     same local path with no password - and the run went on to publish a bundle with
     188 tables and 730 fields where the complete one has 209 and 1,215. The whole

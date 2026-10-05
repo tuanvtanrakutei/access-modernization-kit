@@ -17,7 +17,7 @@
 #                 bytes.
 #
 # `target_hint` is a hint and is labelled as one. Choosing the real target type is a
-# design decision a person makes - in the A01 reference set that decision is a
+# design decision a person makes - in the reference set that decision is a
 # separate document with an author and a version, not an output of the analysis - so
 # a catalogue must leave the column for a human and never fill it from this table.
 version: 1
@@ -160,7 +160,7 @@ not_extracted:
     why: "Requires Field.Precision and Field.Scale, meaningful only for dbNumeric/dbDecimal."
   - field: "Foreign key"
     why: >-
-      Requires a declared relationship. This is not a collection gap - the A05
+      Requires a declared relationship. This is not a collection gap - one application's
       databases declare zero relationships - so absence of an FK column in a catalogue
       is a finding about the application, not about the extraction.
 

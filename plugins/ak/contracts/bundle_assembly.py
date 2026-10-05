@@ -74,7 +74,7 @@ def _merge_records(target: list[dict[str, Any]], incoming: list[dict[str, Any]])
 # carrying `logical_id` and one not, so `_merge_records` files both as unkeyed and
 # keeps both.
 #
-# Observed on A05, where the frontend was acquired managed for its schema and
+# Observed on one project, where the frontend was acquired managed for its schema and
 # imported for its definition text: 22 tables, 161 fields and 46 index rows appeared
 # twice, and the duplicates were reported as coverage - 1,558 database records where
 # there were 1,327 - and as findings, 143 table objects of which 86 without a primary
@@ -90,7 +90,7 @@ SCHEMA_IDENTITY = {
 #
 # `linked_tables` is a subset of `tables`: every row in it is also a table row, put
 # there because a linked table is both schema and a boundary. `imex_specs` is appended
-# to by both adapters as well. Neither was covered, so on A06 - which declares an
+# to by both adapters as well. Neither was covered, so on a project that declares an
 # `access_file` and an `access_export` per database - the bundle sealed 360 rows for 180
 # links and 4 rows for 2 specs, while `databases/tables.json` beside it was correct at
 # 209 for 209.
@@ -106,9 +106,9 @@ INTERFACE_IDENTITY = {
 }
 
 # Computed from the links rather than read from a database, so it is not extraction
-# coverage. A05's lesson was duplicated rows "reported as coverage" - 1,558 database
+# coverage. The lesson above was duplicated rows "reported as coverage" - 1,558 database
 # records where there were 1,327 - and counting a derived summary the same way is that
-# error with the sign flipped: ten connections would raise A06's interface coverage by
+# error with the sign flipped: ten connections would raise a project's interface coverage by
 # ten objects nobody extracted.
 DERIVED_INTERFACE_KEYS = frozenset({"connections_redacted"})
 

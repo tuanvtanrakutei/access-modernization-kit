@@ -5,20 +5,20 @@ per object, and that the phase document had been carrying for a hand-picked twel
 the other thirty-nine had none. Enumeration belongs in the generated catalogue and claims
 belong in the phase document (A14); this is the enumeration half, for all of them.
 
-Each of the three exists because reading A06 without it produced a wrong document:
+Each of the three exists because reading a real application without it produced a wrong document:
 
   `opens`      the navigation, as the application states it rather than as a plausible
-               hierarchy. 39 edges in A06, and ten objects that open anything at all.
+               hierarchy. 39 edges in one application, and ten objects that open anything at all.
 
-  `built_opens` an open call whose target is CONCATENATED - `"受注数調整リスト" & Me.fraレポート`.
+  `built_opens` an open call whose target is CONCATENATED - `"出荷数確認リスト" & Me.fraレポート`.
                The name is never written down, so no reference search can find it, and
-               four of A06's nine "referenced by nothing" reports are opened this way and
+               four of one application's nine "referenced by nothing" reports are opened this way and
                in daily use. Without this column that list reads as a deletion list.
 
-  `writes`     which tables a screen writes. A06's `入荷実績入力` writes eleven - nearly
+  `writes`     which tables a screen writes. One `入荷実績入力` wrote eleven - nearly
                every transaction table - and the phase document had recorded its purpose
                as "not established beyond the name" because nobody had counted. The
-               hidden `新規事業部受注取込画面` writes the same four as the live daily
+               hidden `臨時受注取込画面` writes the same four as the live daily
                import, which is the difference between "what is this button" and "is this
                the import that was replaced".
 
@@ -32,16 +32,16 @@ from __future__ import annotations
 import re
 from typing import Iterable
 
-# `DoCmd.OpenForm "商品情報登録"` / `DoCmd.OpenReport "在庫表", acViewPreview`
+# `DoCmd.OpenForm "受注登録"` / `DoCmd.OpenReport "在庫表", acViewPreview`
 # The closing quote must END the name. The lookahead spans the whitespace on purpose:
 # written as `\s*(?![&\w])` the engine backtracks `\s*` to zero and the test passes on
 # the space. Without it this also matches the
 # literal half of a CONCATENATED call, inventing an edge to an object that does not
-# exist: A06 opens `"受注数調整リスト" & Me.fraレポート`, and the objects are
-# `受注数調整リスト1` and `2` - there is no `受注数調整リスト`.
+# exist: one application opens `"出荷数確認リスト" & Me.fraレポート`, and the objects are
+# `出荷数確認リスト1` and `2` - there is no `出荷数確認リスト`.
 OPEN_LITERAL = re.compile(
     r'(?i)DoCmd\.Open(Form|Report)\s+"([^"]+)"(?!\s*&)')
-# `DoCmd.OpenReport "受注数調整リスト" & Me.fraレポート` - the name continues past the quote.
+# `DoCmd.OpenReport "出荷数確認リスト" & Me.fraレポート` - the name continues past the quote.
 OPEN_BUILT = re.compile(r'(?i)DoCmd\.Open(Form|Report)\s+("?[^,\n]*?"?\s*&[^,\n]+)')
 # Access SQL written into a string. The target is whatever follows the verb.
 WRITE = re.compile(
@@ -79,9 +79,9 @@ TYPE_DECORATION = {TYPE_LABEL: "label", TYPE_RECTANGLE: "rectangle", TYPE_LINE: 
 def code_lines(text: str) -> list[str]:
     """The definition's lines with whole-line VBA comments dropped.
 
-    Only whole-line comments: a `'` inside a string literal is not a comment, and A06's
+    Only whole-line comments: a `'` inside a string literal is not a comment, and real
     connect strings and SQL contain plenty. Dropping them is what keeps a commented-out
-    `DoCmd.TransferText` from being read as a live call - A06 has two.
+    `DoCmd.TransferText` from being read as a live call - one application had two.
     """
     return [line for line in str(text or "").splitlines()
             if not line.strip().startswith("'")]
@@ -125,7 +125,7 @@ def hidden_controls(controls: Iterable[dict]) -> list[str]:
     """Controls the definition marks invisible, by name.
 
     Reachability evidence and not usage evidence: a developer can unhide a control, and
-    an operator may reach the function another way. A06's switchboard hides seven
+    an operator may reach the function another way. One switchboard hid seven
     buttons, one of which would reach a screen declaring two live inbound feeds - so
     what this column supports is a question, never a conclusion that a function is gone.
     """
@@ -142,12 +142,12 @@ NAME = re.compile(r'^\s*Name\s*=\s*"([^"]*)"\s*$')
 def option_choices(text: str, controls: Iterable[dict]) -> list[dict]:
     """Every option group, with the value and label of each choice it offers.
 
-    The sharpest thing a control inventory can settle. A06's Phase 2 asked an operator
-    `What are the option-group values behind 受注数調整リスト and 残数記入リスト?` and
+    The sharpest thing a control inventory can settle. One Phase 2 asked an operator
+    `What are the option-group values behind 出荷数確認リスト and 在庫数記入リスト?` and
     routed it to warehouse operations as Q109 - while `fraレポート` sat in the bundle
     offering exactly two choices, `バラのみ` at value 1 and `ケースとバラ` at value 2,
-    defaulting to 2. `DoCmd.OpenReport "受注数調整リスト" & Me.fraレポート` therefore opens
-    `受注数調整リスト1` or `受注数調整リスト2` and nothing else, and the four reports that
+    defaulting to 2. `DoCmd.OpenReport "出荷数確認リスト" & Me.fraレポート` therefore opens
+    `出荷数確認リスト1` or `出荷数確認リスト2` and nothing else, and the four reports that
     look referenced by nothing are named, bounded and explained.
 
     A question put to a person that the evidence already answers spends the one thing
@@ -208,18 +208,18 @@ def caption(text: str) -> str:
     """The title bar an operator reads, which is not the object's name.
 
     An object name is what code and the catalogue use; a caption is what the person at
-    the screen sees, and an interview or an operating procedure names the caption. A06
-    published a screen called `商品情報登録` for that reason - a name no object in the
-    application carries. It is the caption on `商品情報設定画面`.
+    the screen sees, and an interview or an operating procedure names the caption. One phase
+    published a screen called `受注登録` for that reason - a name no object in the
+    application carries. It is the caption on `受注入力画面`.
 
-    The three captions this recovered from A06 are each a finding on their own:
+    The three captions this recovered from one application are each a finding on their own:
 
       `メイン画面`               -> `メニュー`
-      `新規事業部受注取込画面`    -> `受注データ取込`, character for character the caption on
+      `臨時受注取込画面`          -> `受注データ取込`, character for character the caption on
                                  the live daily import `受注データ取込画面`. The hidden
                                  screen does not merely write the same four tables; it
                                  presents itself to the operator as the same screen.
-      `前日準備リスト`            -> `受注差分リスト`, so the report an operator would ask for
+      `翌日準備リスト`            -> `出荷差分リスト`, so the report an operator would ask for
                                  by name is filed under a different one.
 
     An object may declare none, and Access then shows the object name. Returns "" there
@@ -229,8 +229,8 @@ def caption(text: str) -> str:
     for line in str(text or "").splitlines():
         # Form-level properties sit at exactly four spaces; a section or control opens
         # its own `Begin` at that depth and carries its properties deeper. Matching on
-        # depth is what keeps a button's caption - A06's switchboard has one reading
-        # `商品情報登録` - from being read as the form's.
+        # depth is what keeps a button's caption - one switchboard had one reading
+        # `受注登録` - from being read as the form's.
         if line.startswith('    Caption =') and not line.startswith('     '):
             return line.split("=", 1)[1].strip().strip('"')
     return ""

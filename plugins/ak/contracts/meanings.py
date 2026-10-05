@@ -22,8 +22,8 @@ reading `_needs DOCUMENT_`.
 
 An entry nobody has touched yet is a different thing, and is counted rather than
 reported. `$ak meanings` writes a blank entry for every subject that needs one, so
-"no meaning; no source; no class" describes 1,176 A05 subjects on the first run - and
-a refusal printed 1,176 times is not a refusal anybody reads. The line is drawn at
+"no meaning; no source; no class" describes over a thousand subjects on a first run - and
+a refusal printed a thousand times is not a refusal anybody reads. The line is drawn at
 the first keystroke: an entry carrying *any* of the three fields is being worked on,
 and is held to all three.
 """
@@ -68,7 +68,7 @@ class Meanings:
     tables: dict[str, Meaning]
     columns: dict[str, Meaning]
     # Forms and reports, keyed `"{kind} {name}"`. A form and a report may share a name
-    # - A05 has two objects called the same thing - so the kind is part of the key, the
+    # - one application had two objects called the same thing - so the kind is part of the key, the
     # same reason `generate_catalogues.py` keys objects by kind.
     screens: dict[str, Meaning]
     # Files crossing the application's boundary, keyed by file name. Linked tables are
@@ -100,7 +100,7 @@ class Meanings:
         """A column meaning may be given for one table, or for the name everywhere.
 
         `受注データ.出荷数量` is that column in that table. `出荷数量` alone is the
-        column wherever it appears - which is the useful form here, because 53 A05
+        column wherever it appears - which is the useful form here, because dozens of
         column names appear in several tables and mostly mean the same thing in each.
         """
         for key in (f"{table}.{column}", column):
