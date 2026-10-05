@@ -15,9 +15,9 @@ and only names the run has not seen before are added. So the loop is:
     $ak catalogues          the catalogues render the accepted names, without the `?`
 
 Provenance is recorded per entry and matters more than it looks. A term already
-decided in the A01 conversion table is precedent binding on later projects; if A05
-spells `商品コード` differently from A01, the two systems cannot be integrated later
-without a mapping nobody wrote down. Those entries are marked `A01` and a reviewer
+decided in the reference conversion table is precedent binding on later projects; if a
+later project spells `商品コード` differently, the two systems cannot be integrated later
+without a mapping nobody wrote down. Those entries are marked `reference` and a reviewer
 should need a reason to override one.
 """
 from __future__ import annotations
@@ -44,7 +44,7 @@ HEADER = """# English names for this application's production names.
 #   en          the English name. Change it freely.
 #   status      `proposed` until you accept it. Set `accepted` and the catalogues
 #               stop marking it with a `?`.
-#   provenance  `A01` means this name is already decided in the A01 conversion table -
+#   provenance  `reference` means this name is already decided in the reference conversion table -
 #               overriding it makes the two systems disagree, so have a reason.
 #               `analysis` means the kit proposed it from the Japanese.
 #   covered     how much of the Japanese name matched a known term. Below 1.0 the
@@ -133,7 +133,7 @@ def main() -> int:
         if not names:
             continue
         lines.append(f"\n{section}:")
-        summary = {"total": 0, "kept": 0, "accepted": 0, "partial": 0, "a01": 0}
+        summary = {"total": 0, "kept": 0, "accepted": 0, "partial": 0, "reference": 0}
         for japanese in names:
             summary["total"] += 1
             if japanese in kept:
@@ -152,8 +152,9 @@ def main() -> int:
                 summary["accepted"] += 1
             if float(entry.get("covered", 1) or 0) < 0.999:
                 summary["partial"] += 1
-            if entry.get("provenance") in ("A01", "A01+analysis"):
-                summary["a01"] += 1
+            if bilingual_contract.normalize_provenance(entry.get("provenance")) in (
+                    bilingual_contract.REFERENCE, bilingual_contract.REFERENCE_MIX):
+                summary["reference"] += 1
             rendered_entry = ", ".join(
                 f"{key}: {quote(value) if isinstance(value, str) else value}"
                 for key, value in entry.items()
@@ -166,7 +167,7 @@ def main() -> int:
         for section, summary in counts.items():
             print(f"{section:9s} {summary['total']:4d} names, {summary['kept']:4d} kept, "
                   f"{summary['accepted']:4d} accepted, {summary['partial']:3d} partial, "
-                  f"{summary['a01']:4d} touching A01 precedent")
+                  f"{summary['reference']:4d} touching reference precedent")
         print(f"\n{added} name(s) would be added to {target}")
         return 0
 
@@ -174,7 +175,7 @@ def main() -> int:
     io.open(target, "w", encoding="utf-8", newline="\n").write(text)
     for section, summary in counts.items():
         print(f"{section:9s} {summary['total']:4d} names, {summary['accepted']:4d} accepted, "
-              f"{summary['partial']:3d} partial, {summary['a01']:4d} touching A01 precedent")
+              f"{summary['partial']:3d} partial, {summary['reference']:4d} touching reference precedent")
     print(f"\nwrote {target}")
     print(f"{added} name(s) newly proposed; {sum(c['kept'] for c in counts.values())} "
           "left exactly as you had them")

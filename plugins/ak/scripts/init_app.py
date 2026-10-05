@@ -301,10 +301,10 @@ sources:
   sample_files: ["input/samples"]
   app_documents: ["input/documents"]
   japanese_documents:
-    operational_functions_xlsx: "input/shared-docs/Operational functions and report data list.xlsx"
-    training_manual_xlsx: "input/shared-docs/SMS Basic Training Manual (From the Perspective of the Order Processing Department).xlsx"
-    business_flow_pdf: "input/shared-docs/diagram sms_system_business_diagram.pdf"
-    architecture_pdf: "input/shared-docs/SMS System Replacement Project Overview Attached Diagram.pdf"
+    operational_functions_xlsx: "input/shared-docs/operational-functions.xlsx"
+    training_manual_xlsx: "input/shared-docs/training-manual.xlsx"
+    business_flow_pdf: "input/shared-docs/business-flows.pdf"
+    architecture_pdf: "input/shared-docs/replacement-overview.pdf"
 analysis:
   source_policy:
     ignore_file: ".investigationignore"

@@ -11,6 +11,7 @@ subject is absent is worse than no test.
 """
 from __future__ import annotations
 
+import os
 import sys
 from pathlib import Path
 
@@ -21,7 +22,11 @@ sys.path.insert(0, str(PACKAGE / "scripts"))
 
 import validate_phase_conformance as checker  # noqa: E402
 
-REFERENCE = Path("D:/Anrakutei/a01_docs")
+# The reference set the kit is calibrated on is not in the repository. Point
+# AK_REFERENCE_SET at its directory to run the regressions below; unset, they skip.
+_REFERENCE_ENV = os.environ.get("AK_REFERENCE_SET", "").strip()
+REFERENCE = Path(_REFERENCE_ENV) if _REFERENCE_ENV else None
+HAS_REFERENCE = REFERENCE is not None and REFERENCE.is_dir()
 
 
 def write(root: Path, name: str, body: str) -> Path:
@@ -136,7 +141,7 @@ def test_a_directory_with_no_phase_documents_is_an_error(tmp_path: Path) -> None
 
 # --- the regression the contract is judged by -------------------------------
 
-@pytest.mark.skipif(not REFERENCE.is_dir(), reason="reference document set not on this machine")
+@pytest.mark.skipif(not HAS_REFERENCE, reason="AK_REFERENCE_SET is not set to the reference set")
 def test_the_reference_set_passes_every_content_check() -> None:
     """If this fails, the contract is wrong - not the reference.
 
@@ -147,7 +152,7 @@ def test_the_reference_set_passes_every_content_check() -> None:
     assert run(REFERENCE, "--group", "content") == 0
 
 
-@pytest.mark.skipif(not REFERENCE.is_dir(), reason="reference document set not on this machine")
+@pytest.mark.skipif(not HAS_REFERENCE, reason="AK_REFERENCE_SET is not set to the reference set")
 def test_the_reference_set_fails_apparatus_and_that_is_the_point() -> None:
     """It cites its sources in prose and has no machine-checkable trail.
 
@@ -425,7 +430,7 @@ def test_a_word_that_merely_starts_with_a_prefix_is_not_an_identifier() -> None:
 def test_the_gold_standard_allocates_nothing_off_scheme() -> None:
     """Calibration, the same way the content checks are calibrated: if the reference set
     trips this, the scheme is written wrong and the documents are not."""
-    if not REFERENCE.is_dir():
+    if not HAS_REFERENCE:
         pytest.skip(f"reference set not on this machine: {REFERENCE}")
     offenders = {}
     for path in sorted(REFERENCE.glob("*.md")):

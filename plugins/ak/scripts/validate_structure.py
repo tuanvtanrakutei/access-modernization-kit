@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import re
 from pathlib import Path
 
@@ -355,7 +356,10 @@ def main() -> int:
     for fixture_manifest in fixture_manifests:
         validate_manifest_yaml(fixture_manifest, root / "schemas/manifest-v22.schema.json", errors, warnings)
 
-    forbidden = ("D:\\Anrakutei\\a01_docs", "C:\\Users\\USER")
+    # A local path must not ship. The reference set lives outside the repository, so its
+    # path comes from the variable the regressions read.
+    reference = os.environ.get("AK_REFERENCE_SET", "").strip()
+    forbidden = tuple(p for p in ("C:\\Users\\USER", reference) if p)
     checked_suffixes = {".md", ".yaml", ".json", ".py", ".ps1", ".html", ".csv"}
     for path in root.rglob("*"):
         relative_parts = path.relative_to(root).parts

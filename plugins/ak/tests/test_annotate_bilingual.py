@@ -37,7 +37,7 @@ class Naming:
 
 def test_the_first_mention_is_annotated() -> None:
     text, added = annotator.annotate("The `受注データ` table.", Naming())
-    # No `?`: every term in `受注データ` was decided in the A01 conversion table.
+    # No `?`: every term in `受注データ` was decided in the reference conversion table.
     assert text == "The `受注データ` (order_data) table."
     assert added == 1
 
@@ -145,7 +145,7 @@ def test_the_narrative_gains_names_and_an_appendix(published: Path) -> None:
     assert "(order_data)" in narrative
     assert "(product_master)" in narrative
     assert annotator.APPENDIX_HEADING in narrative
-    assert "A01 precedent" in narrative, (
+    assert "reference precedent" in narrative, (
         "the appendix must distinguish precedent from a proposal"
     )
 
@@ -213,12 +213,12 @@ def test_no_annotation_is_ever_repeated_across_the_whole_term_dictionary() -> No
 
 
 def test_the_appendix_distinguishes_the_three_states() -> None:
-    """accepted / A01 precedent / proposed. A `?` on all three signals nothing."""
+    """accepted / reference precedent / proposed. A `?` on all three signals nothing."""
     naming = Naming({"店舗マスタ": "shop_master"})
     body = "`店舗マスタ` and `受注データ` and `ＤＰコード`."
     text = annotator.appendix(body, naming)
     assert "| `店舗マスタ` | `shop_master` | accepted |" in text
-    assert "| `受注データ` | `order_data` | A01 precedent |" in text
+    assert "| `受注データ` | `order_data` | reference precedent |" in text
     assert "| `ＤＰコード` | `dp_cd` | proposed |" in text
 
 
