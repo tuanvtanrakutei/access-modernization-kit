@@ -1,4 +1,4 @@
 interface:
   display_name: "Plan One Screen (Stages 1-2)"
-  short_description: "Run only the business-flow and screen-plan stages for one screen, no code"
-  default_prompt: "Run Stages 1 and 2 only for one screen: produce the business flow and screen plan documents, write no code."
+  short_description: "Run only the scope and screen-plan stages for one screen, no code"
+  default_prompt: "Run Stages 1 and 2 only for one screen: compute the screen's scope and produce the screen plan document, write no code."

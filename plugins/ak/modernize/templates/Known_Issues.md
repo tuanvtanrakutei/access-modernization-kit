@@ -9,7 +9,7 @@ The cross-screen log. Issues belonging to one screen live in that screen's own a
 | Issue | Home |
 |---|---|
 | Legacy defect affecting one screen | `Coding_Records/{screen}.md` §Discovered during coding |
-| Business rule unclear for one screen | `Business_flows/{screen}.md` §Legacy versus new system |
+| Business rule unclear for one screen | The extraction's decision queue when it raised it (a question, or a risk's disposition); otherwise a `business` row here. Either way the screen plan's gap matrix cites it |
 | Design ambiguity for one screen | `Screen_plans/{screen}.md` gap matrix |
 | Review finding on one screen | `Code_Review/{screen}.md` findings |
 | **Legacy defect pattern repeating across screens** | **here** |

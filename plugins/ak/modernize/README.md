@@ -81,7 +81,7 @@ What `modernize-screen` runs for one screen — the "At A Glance" diagram's `M` 
 
 ```mermaid
 flowchart LR
-    S0["Stage 0<br/>Legacy Analysis<br/>(external, optional)"] --> S1["Stage 1<br/>Business flow"]
+    S0["Stage 0<br/>Legacy Analysis<br/>(external, optional)"] --> S1["Stage 1<br/>Scope<br/>(computed)"]
     S1 --> G1{{"G1<br/>Evidence"}}
     G1 --> S2["Stage 2<br/>Screen plan<br/>(BE + FE contract)"]
     S2 --> G2{{"G2<br/>Rules"}}
@@ -266,7 +266,7 @@ plugins/ak/
     │   ├── Known_Issues.md
     │   ├── Known_Issues_Archive.md  ← starts empty; Known_Issues.md's Archive Policy fills it
     │   ├── DOCS_README.md           ← becomes the target repo's {{DOCS_DIR}}/README.md
-    │   ├── {Business_flows,Screen_plans,Coding_Records}_README.md
+    │   ├── {Screen_plans,Coding_Records}_README.md
     │   ├── {Test_Instruction,Code_Review,Final_Acceptance}_README.md
     │   ├── FRONTEND_API_PATTERNS_TEMPLATE.md   ← starting point for {{FE_PATTERN_DOCS}}, not auto-copied
     │   ├── FRONTEND_UI_PATTERNS_TEMPLATE.md    ← same; both fill-in-the-blank, generalized from a real project

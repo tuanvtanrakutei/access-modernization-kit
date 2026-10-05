@@ -47,7 +47,6 @@ directory:
 | `Known_Issues.md` | `{{DOCS_DIR}}/Known_Issues.md` |
 | `Known_Issues_Archive.md` | `{{DOCS_DIR}}/Known_Issues_Archive.md` (starts empty by design) |
 | `DOCS_README.md` | `{{DOCS_DIR}}/README.md` |
-| `Business_flows_README.md` | `{{DOCS_DIR}}/Business_flows/README.md` |
 | `Screen_plans_README.md` | `{{DOCS_DIR}}/Screen_plans/README.md` |
 | `Coding_Records_README.md` | `{{DOCS_DIR}}/Coding_Records/README.md` |
 | `Test_Instruction_README.md` | `{{DOCS_DIR}}/Test_Instruction/README.md` |

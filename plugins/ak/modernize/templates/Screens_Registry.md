@@ -87,6 +87,6 @@ Additional rules:
 |---|---|
 | `MASTER_WORKFLOW.md` | Pre-flight lookup; run-mode resolution; parallelism partitioning |
 | `TRACEBACK_GATES.md` | Mode-aware gate behavior per track |
-| `Business_flows/README.md`, `Screen_plans/README.md`, `Coding_Records/README.md`, `Test_Instruction/README.md`, `Code_Review/README.md` | Index tables and the `screen` join key |
+| `Screen_plans/README.md`, `Coding_Records/README.md`, `Test_Instruction/README.md`, `Code_Review/README.md` | Index tables and the `screen` join key |
 | `Known_Issues.md` | Screen and module identifiers used in issue rows |
 | `PROJECT_CONFIG.md` | Module list and naming conventions this file follows |

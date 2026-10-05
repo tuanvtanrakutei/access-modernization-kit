@@ -31,8 +31,8 @@ Resolve project values from PROJECT_CONFIG.md first.
 Prerequisites:
 1. Read {{BACKEND_RULES_DOC}} (for the backend track) and {{FRONTEND_RULES_DOC}} (for the frontend
    track), plus {{CONVENTIONS_DOC}}. These rules are non-negotiable.
-2. Confirm Business_flows/{screen}.md and Screen_plans/{screen}.md exist and are current. If either
-   is missing, that is an upstream gap — resolve it before coding.
+2. Confirm Screen_plans/{screen}.md exists and is current. If it is missing, that is an upstream gap —
+   resolve it before coding.
 3. Note the run mode for this track. In Backfill mode, do NOT write new code; document the code that
    already exists.
 
@@ -97,7 +97,6 @@ Append-only. Never delete a prior row.
 
 ## 2. Source Documents
 
-- Business flow: `{{DOCS_DIR}}/Business_flows/{screen}.md`
 - Screen plan: `{{DOCS_DIR}}/Screen_plans/{screen}.md`
 - Backend rules: `{{BACKEND_RULES_DOC}}` · Frontend rules: `{{FRONTEND_RULES_DOC}}` · Style: `{{CONVENTIONS_DOC}}`
 - Table mapping: `{{TABLE_MAP_DOC}}`

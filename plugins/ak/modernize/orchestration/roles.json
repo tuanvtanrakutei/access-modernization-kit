@@ -23,7 +23,6 @@
       "runs_in_parallel": true,
       "may_prompt_user": false,
       "allowed_writes": [
-        "Business_flows/{screen}.md",
         "Screen_plans/{screen}.md",
         "Coding_Records/{screen}.md",
         "Test_Instruction/{screen}.md",
