@@ -174,6 +174,8 @@ Status is one of: implemented, planned, accepted-difference, open-decision.
 
 Status is one of: matched, accepted-difference, fixed-deliberately, open.
 
+An `open` row that exists because the extraction left something undecided cites the decision queue's item id (`Q117`, `UK-W04`) in its Topic cell, and carries the default the plan proceeded on in its New behavior cell. The id is the row's link to the answer: when the item is answered, the row's status follows it (`matched` if the default held, `accepted-difference` or `fixed-deliberately` if it did not), and a row that cites no id is a decision nobody can find again. Pre-flight step 8 lists the items that name this screen.
+
 ## 7. Acceptance And Validation Scenarios
 
 What must be true for this screen to be considered aligned with the legacy system. Written so that

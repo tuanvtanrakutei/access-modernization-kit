@@ -197,12 +197,16 @@ optional items exist concretely, and become the **primary** Stage 1 input rather
 | 6. Dependency map | `TraceabilityMatrix.csv` (`traceability-row`: `screen`, `vba_event`, `processing`, `data_target`, `output`, `evidence_ids`) | schema-defined CSV |
 | 7. Extraction coverage report | `coverage.json` (`extracted` / `skipped` / `failed` / `unsupported` per object type), `failures/extraction-failures.json` | schema-defined JSON |
 
-Two more artifacts have no generic-contract equivalent above, because nothing in a manual or
+Three more artifacts have no generic-contract equivalent above, because nothing in a manual or
 tool-agnostic handoff produces them:
 
 - **`Evidence.json`** (`evidenceItem`, schema-defined) — a hash-anchored evidence register.
   `TRACEBACK_GATES.md` §Anchor Format cites its `id` in preference to a hand-built anchor
   whenever it is present.
+- **`*_DecisionQueue.json`** (written by `$ak decisions`) — every open question, unknown and risk
+  the phases raised: who can answer, what it blocks, and what the pipeline proceeds on meanwhile.
+  Pre-flight step 8 reads it per screen through `scripts/screen_decisions.py`. Absent when the
+  project never ran `$ak decisions`; the pre-flight line says so.
 - **`run-state.json` → `phase_gates`** — per-phase `PENDING | READY | PUBLISHED | REJECTED`.
   Pre-flight reads this before Stage 1 rather than judging evidence sufficiency by eye.
 

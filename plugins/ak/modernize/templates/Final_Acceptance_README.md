@@ -108,7 +108,7 @@ One paragraph stating the recommendation and the single most important reason fo
 |---|---|---|---|
 | Business rules and user flow | pass / business mismatch / decision required | | |
 | Legacy parity and accepted differences | | | |
-| Open business decisions | | | |
+| Open business decisions, including the defaults this screen shipped on (`screen_decisions.py`, pre-flight step 8) | | | |
 
 ## 4. Technical Lead Review
 

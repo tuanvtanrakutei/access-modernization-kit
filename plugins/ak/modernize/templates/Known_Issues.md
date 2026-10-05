@@ -24,9 +24,9 @@ If the same open item is being copied into two per-screen files, promote it here
 
 | Type | Meaning |
 |---|---|
-| `legacy-bug` | Defect in the legacy behavior. Decision needed: preserve or fix |
+| `legacy-bug` | Defect in the legacy behavior. Decision needed: preserve or fix. When the extraction already raised it as a risk (`RD-`, `RA-`, `RW-`), the row is a pointer to that id and the decision queue's item for it, not a second copy of the text |
 | `tech-stack` | Framework, database, library, tooling, build, or test-infrastructure issue |
-| `business` | Business-rule ambiguity or a decision needed at system level |
+| `business` | Business-rule ambiguity or a decision needed at system level. When the extraction already raised it as a question or unknown (`Q`, `UK-`), the row points at that id rather than restating it |
 | `data` | Reference data quality, encoding, missing seed, or a gap in the table mapping |
 | `environment` | Reference database unreachable, file share down, CI broken, secrets missing |
 | `process` | Workflow, documentation, or policy issue affecting how screens get built |
