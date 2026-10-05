@@ -135,6 +135,11 @@ Run once per screen, before Stage 1. These reads are independent — batch them 
    If `{{AK_RUN_DIR}}` is `n/a`, Stage 0 was manual export: verify per `LEGACY_EVIDENCE.md` for `{{LEGACY_VARIANT}}` — at minimum the sufficiency rule in §7.
 6. **Verify the table mapping** at `{{TABLE_MAP_DOC}}` covers the tables and fields this screen needs. If not, stop and ask for it to be extended.
 7. **Re-read the coding rule documents** — `{{BACKEND_RULES_DOC}}`, `{{FRONTEND_RULES_DOC}}`, `{{CONVENTIONS_DOC}}` — before any coding stage.
+8. **Read what the extraction left undecided about this screen.** If `{{AK_RUN_DIR}}` is not `n/a` and holds a `*_DecisionQueue.json` (written by `$ak decisions`), run `python "${CLAUDE_PLUGIN_ROOT}/modernize/scripts/screen_decisions.py" --queue {{AK_RUN_DIR}} --screen "<the registry's screen value, verbatim>"`. The queue lists every open question, unknown and risk with what it blocks and what the pipeline proceeds on meanwhile; the script says which of them name this screen, directly or through a workflow in `TraceabilityMatrix.csv`, by exact name and never by a guess (`LEGACY_EVIDENCE.md` §6.3).
+   - Exit `1` → **stop.** An item with no default names this very screen, so its plan cannot be finalised; report each item, who can answer it, and wait. This is the same stop as a blocker row in `Known_Issues.md` (step 4).
+   - Exit `0` → **proceed**, and say in the pre-flight line how many items proceed on a default and how many block a workflow this screen is a step of. Plan on those defaults and write each into the gap matrix as an `open` row that cites the item id (`Screen_plans_README.md` §6).
+   - The report's last line counts the open items that name no screen at all, a risk's disposition among them. Those are not shown to any screen from here; do not read an empty list as "nothing is open".
+   - No queue present → say so in the pre-flight line. A screen planned without it must not read the same as one planned with it, which is the rule step 5 already applies to the evidence tier.
 
 ### Concurrent Activity Soft-Lock
 
@@ -308,6 +313,9 @@ Stage 6 — Final acceptance:
 - Follow the agent prompt in Final_Acceptance/README.md.
 - Act in two separate roles — product manager on business fit, technical lead on risk. Quote the
   Stage 5 verdict rather than repeating the review.
+- Re-run `screen_decisions.py` for the screen and list every item that proceeded on a default, with
+  its `if_wrong`: the user is accepting those defaults along with the screen, and should see them
+  named rather than find them in a gap matrix.
 - Leave User decision as pending until the user actually answers. Never fill it in for them.
 - Closing gate: recommendation approve or approve with follow-ups, and User decision accepted.
 

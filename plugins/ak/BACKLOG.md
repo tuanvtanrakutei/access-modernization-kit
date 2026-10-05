@@ -187,6 +187,30 @@ of its shape, not by a live hit. Limits: a question that quotes no name in backt
 choice words are a short list in English, Vietnamese and Japanese, a declared twin of another open item is
 not checked, and an interview answer is not a source yet.
 
+**Slice 4b, modernize reads the queue (2026-10-05).** `modernize/scripts/screen_decisions.py` (stdlib
+only, reports and writes nothing) lists what is undecided about one screen from `DecisionQueue.json`.
+An item names a screen directly (its `blocks` lists the screen's `F-`, found as the identifier the queue
+titles with the screen's name, or `object:<name>`) or through a workflow that `TraceabilityMatrix.csv`
+passes through the screen. Both are exact matches: `LEGACY_EVIDENCE.md` 6.3 rules out a script deciding
+two strings mean one screen. Exit 1 when a BLOCKING item names the screen directly, which pre-flight
+step 8 treats like a blocker row; a BLOCKING item reaching it only through a workflow is listed and does
+not stop. The exit rule is my reading of "blocks only what it names" (design 4.3), not a measured one.
+The doc changes are pre-flight step 8, gap-matrix rows that cite the item id, `Known_Issues` rows that
+point at the id instead of copying it, Stage 6 naming the defaults the screen shipped on, and
+`LEGACY_EVIDENCE.md` 6.1 listing the queue. Nothing in them is enforced by `validate_docs.py`.
+
+Run on a scratch copy of A06 for `受注データ取込画面`: it resolves to F-002 and WF-001, stops on Q5 (blocks
+F-002, no default, open with the customer), lists UK-W04 as blocking through WF-001, shows 3 items
+proceeding on defaults with their `if_wrong`, and reports 17 open items elsewhere and 25 that name
+nothing. **A06's pre-flight would therefore stop on its main screen today**, on a question the customer
+has not answered yet; whether that is wanted is the maintainer's call, and `--screen-id` / the exit rule
+are the two places to change it.
+
+The gap this leaves for 4c: the 25 risks block nothing (slice 3 chose that over inventing a `blocks` per
+risk), so no screen is shown its dispositions and Stage 1's "Legacy versus new system" has no
+replacement yet. Linking a risk to a screen needs a source that is not a guess: the Where cell of its
+row, or a `blocks` the decider sets.
+
 **Not done, and where the checks are weaker than they look.**
 
 - A06's 25 classes are not decided, and neither is any rule of its `policy.yaml`. Both are the

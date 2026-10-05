@@ -55,6 +55,7 @@ Issue these reads in one message rather than one at a time:
 4. The evidence directories declared in the config, filtered for each screen
 5. The table mapping document
 6. The backend, frontend, and conventions rule documents
+7. `python "${CLAUDE_PLUGIN_ROOT}/modernize/scripts/screen_decisions.py" --queue <AK_RUN_DIR> --screen "<screen>"` for each screen, when a `*_DecisionQueue.json` exists. Exit `1` means an unanswered item with no default names the screen: stop and report it, as for a blocker row. Exit `0`: announce how many items proceed on a default, and plan on those defaults (`MASTER_WORKFLOW.md` Pre-Flight Check, step 8)
 
 Then, for each screen, resolve and announce the three run modes in one line, for example:
 
