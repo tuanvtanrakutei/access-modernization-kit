@@ -628,3 +628,22 @@ def test_a_middle_phase_errata_entry_is_not_a_namespace_trespass() -> None:
     results = checker.apparatus_checks(3, "# X", registers)
     result = next(r for r in results if r["check"] == "identifier_namespace_owned")
     assert result["status"] == "PASS", result["detail"]
+
+
+def test_an_item_cited_in_backticks_is_accounted_for() -> None:
+    """A05's Phase 3 names `Q2`, `Q6`, `Q11` and `Q12` only in backticks, and the check
+    reported all four as never mentioned."""
+    registers = {"identifier_entries": [{"id": "Q6", "namespace": "Q", "phase": 1},
+                                        {"id": "UK-D05", "namespace": "UK-", "phase": 1}]}
+    results = checker.apparatus_checks(
+        3, "Settle `Q6`.\n\n| `UK-D05` | carried | unchanged |\n", registers)
+    result = next(r for r in results if r["check"] == "prior_unknowns_accounted")
+    assert result["status"] == "PASS", result["detail"]
+
+
+def test_an_item_inside_a_longer_code_span_or_a_fence_is_not_a_citation() -> None:
+    registers = {"identifier_entries": [{"id": "Q6", "namespace": "Q", "phase": 1}]}
+    for text in ("Run `SELECT * FROM Q6` first.", "```\n`Q6`\n```\n"):
+        results = checker.apparatus_checks(3, text, registers)
+        result = next(r for r in results if r["check"] == "prior_unknowns_accounted")
+        assert result["status"] == "FAIL", text
