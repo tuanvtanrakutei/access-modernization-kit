@@ -236,11 +236,8 @@ terms:
   別: {en: by, provenance: analysis}
   用: {en: for, provenance: analysis}
 
-  # --- depot and place names. Proper nouns: romanised, never translated --------
-  三芳: {en: miyoshi, provenance: analysis, proper_noun: true}
-  五霞: {en: goka, provenance: analysis, proper_noun: true}
-  千葉: {en: chiba, provenance: analysis, proper_noun: true}
-  幸松: {en: saiwaimatsu, provenance: analysis, proper_noun: true}
+  # --- organisation names. A depot, a place or a partner is one project's, so it goes
+  # in that project's glossary under `terms:`, romanised and never translated --------
   物流部: {en: logistics_dept, provenance: analysis, proper_noun: true}
   受注課: {en: order_section, provenance: analysis, proper_noun: true}
 
