@@ -172,6 +172,21 @@ on a scratch copy of A06 (the live register is untouched): the proposal gave all
 them, and `$ak decisions` printed the sentence under the 5 items that proceed on an assumption. Tests: `test_decision_errata.py`,
 each rule broken once against a green baseline.
 
+**Slice 4a, the A58 pre-check (2026-10-05).** Slice 4 is three branches, because removing Stage 1
+touches nineteen files and the gates defined against it, and the consumers have to exist before it can
+go: 4a the pre-check, 4b modernize reads the queue, 4c Stage 1 removed. 4a: `$ak decisions` flags an
+open FACT item whose quoted names the kit already holds an answer for - a control the ScreenCatalogue's
+`Offers` column enumerates, or a table or column `meanings.yaml` explains - as `Check before asking`,
+with the source, in the list and as `precheck` in the queue (`contracts/decision_precheck.py`). It never
+withdraws anything. Measured on A06's 47 open items: the first version flagged 1 and it was wrong, a
+question about whether two screens are reachable matched an object whose short name sat inside a longer
+quoted one; an object is now flagged only when the question also asks about choices, and only when the
+question's name sits inside the object's. After that A06 flags nothing, which is the truth: Q109, the
+case that motivated it, was withdrawn by hand before this existed, so the matcher is held by a fixture
+of its shape, not by a live hit. Limits: a question that quotes no name in backticks is not checked, the
+choice words are a short list in English, Vietnamese and Japanese, a declared twin of another open item is
+not checked, and an interview answer is not a source yet.
+
 **Not done, and where the checks are weaker than they look.**
 
 - A06's 25 classes are not decided, and neither is any rule of its `policy.yaml`. Both are the

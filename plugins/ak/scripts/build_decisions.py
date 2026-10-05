@@ -57,6 +57,7 @@ for _path in (PACKAGE / "contracts", PACKAGE / "scripts"):
 import check_interview_register as interview_register  # noqa: E402
 import decision_agenda as da  # noqa: E402
 import decision_batch as batch  # noqa: E402
+import decision_precheck as dp  # noqa: E402
 import decision_queue as dq  # noqa: E402
 import decision_register as dr  # noqa: E402
 import workspace as workspace_contract  # noqa: E402
@@ -254,9 +255,11 @@ def main() -> int:
         elif parties is not None:
             problems += [f"parties.yaml: {p}" for p in parties.problems]
 
-        queue = da.build_queue(entries, parties, evidence=dr.evidence_index(output),
-                               interviews=interviews, app_id=app, policy=policy)
         texts = dr.item_texts(output, entries, args.language, dr.closed_markers())
+        offers, meanings = dp.load(output, space.input_dir("decisions"), app)
+        flags = dp.precheck(texts, entries, offers, meanings)
+        queue = da.build_queue(entries, parties, evidence=dr.evidence_index(output),
+                               interviews=interviews, app_id=app, policy=policy, prechecks=flags)
 
         if args.party:
             name = (parties.lookup(args.party) if parties else None) or args.party
@@ -290,6 +293,9 @@ def main() -> int:
             print(f"  {party}: {row['to_ask_now']} to ask ({row['blocking']} blocking), "
                   f"{row['open'] - row['to_ask_now']} already moving"
                   + (f", {row['settled']} settled by policy" if row.get("settled") else ""))
+        if c.get("prechecked"):
+            print(f"{c['prechecked']} open item(s) name something the kit already holds "
+                  "(ScreenCatalogue Offers, meanings.yaml): read before asking")
         if queue["untracked_qa"]:
             print(f"{len(queue['untracked_qa'])} Q&A open with the customer in no item: "
                   + ", ".join(q["id"] for q in queue["untracked_qa"]))
