@@ -26,8 +26,12 @@ Two groups, and the split is the honest part:
               is expected to fail this group, and that gap is exactly what the kit
               exists to close.
 
+A third group, READABILITY, measures what `references/technical-writing.md` asks of
+the prose: diagrams before paragraphs, short sentences, no hedges. It warns and never
+fails, because the reference set is its calibration and does not pass it either.
+
 Exit 0 when every content check passes, 1 otherwise. `--strict` also fails on
-apparatus.
+apparatus. `--render` adds a content check that every Mermaid block renders.
 """
 from __future__ import annotations
 
@@ -322,6 +326,149 @@ def content_checks(phase: int, text: str, path: Path | None = None) -> list[dict
         if instructions else "none",
     ))
     return results
+
+
+# --- readability ------------------------------------------------------------
+#
+# What `references/technical-writing.md` asks of the prose, measured. A phase document
+# is read once by a developer under time pressure, and the two habits that cost that
+# reader most are a paragraph describing a picture nobody drew and a sentence too long to
+# hold in one read.
+#
+# These WARN and never FAIL. The calibration is the reference set, and it does not pass
+# them: SMS Phase 6 runs 890 words of prose against two diagrams in its roadmap section,
+# and carries 14 sentences over the limit. A check the gold standard fails is a contract
+# written wrong if it gates, and a question worth asking if it only reports.
+#
+# EN only. A word count is whitespace, which Japanese does not have, and a Vietnamese
+# word is a syllable, so one threshold would mean three different things. The VI and JA
+# documents translate the EN one and share its structure, so measuring EN measures them.
+
+FENCE = re.compile(r"```.*?```", re.DOTALL)
+COMMENT = re.compile(r"<!--.*?-->", re.DOTALL)
+INLINE_CODE = re.compile(r"`[^`\n]*`")
+LIST_MARKER = re.compile(r"^(?:[-*+]|\d+[.)])\s+")
+SENTENCE_END = re.compile(r"(?<=[.!?])\s+(?=[A-Z`(\"'*])")
+# Lowercase `may` only: `May 2025` is a month. These are the modals SimpleEnglish bans
+# because a reader cannot tell whether the system does the thing.
+HEDGE = re.compile(r"\b(?:[Ss]hould|may|[Mm]ight|[Ww]ould)\b")
+
+PROSE_WORDS_PER_DIAGRAM = 300
+SENTENCE_WORD_LIMIT = 30          # the guidance says 25; this reports the clear cases
+LONG_SENTENCES_PER_DOCUMENT = 10
+
+
+def document_language(path: Path | None) -> str:
+    match = LANGUAGE_SUFFIX.search(path.name) if path is not None else None
+    return match.group(1) if match else "EN"
+
+
+def prose_sentences(body: str) -> list[str]:
+    """The running prose of a section: no fences, comments, tables, headings, quotes."""
+    body = FENCE.sub("", COMMENT.sub("", body))
+    # A paragraph wraps over lines; a blank line or a list item starts a new one. Joining
+    # everything instead turned a table of contents into one 80-word sentence.
+    units: list[list[str]] = [[]]
+    for line in body.splitlines():
+        stripped = line.strip()
+        if not stripped or stripped[0] in "|#>" or stripped == "---":
+            units.append([])
+            continue
+        if LIST_MARKER.match(stripped):
+            units.append([])
+        units[-1].append(LIST_MARKER.sub("", stripped))
+    sentences: list[str] = []
+    for unit in units:
+        # A code span is one token to the reader, however long the identifier inside it.
+        joined = INLINE_CODE.sub("CODE", " ".join(unit))
+        sentences += [s for s in SENTENCE_END.split(joined) if s.strip()]
+    return sentences
+
+
+def h2_sections(text: str) -> list[tuple[str, str]]:
+    parts = re.split(r"(?m)^## ", text)
+    return [(head.strip(), body) for head, _, body in
+            (part.partition("\n") for part in parts[1:])]
+
+
+def readability_checks(phase: int, text: str, path: Path | None = None) -> list[dict[str, Any]]:
+    def result(name: str, warn: bool, detail: str) -> dict[str, Any]:
+        return {"check": name, "group": "readability",
+                "status": "WARN" if warn else "PASS", "detail": detail}
+
+    if document_language(path) != "EN":
+        return [{"check": "readability", "group": "readability", "status": "SKIP",
+                 "detail": "measured on the EN document only"}]
+
+    results: list[dict[str, Any]] = []
+    dense: list[str] = []
+    sentences: list[str] = []
+    for head, body in h2_sections(text):
+        section = prose_sentences(body)
+        sentences += section
+        words = sum(len(s.split()) for s in section)
+        diagrams = len(MERMAID.findall(body))
+        if words / max(diagrams, 1) > PROSE_WORDS_PER_DIAGRAM:
+            dense.append(f"{head[:50]} ({words} words, {diagrams} diagram(s))")
+    results.append(result(
+        "prose_per_diagram", bool(dense),
+        f"over {PROSE_WORDS_PER_DIAGRAM} words of prose per diagram: {dense[:5]}" if dense
+        else "every section within the limit",
+    ))
+
+    long = [s for s in sentences if len(s.split()) > SENTENCE_WORD_LIMIT]
+    results.append(result(
+        "long_sentences", len(long) >= LONG_SENTENCES_PER_DOCUMENT,
+        f"{len(long)} of {len(sentences)} sentence(s) over {SENTENCE_WORD_LIMIT} words"
+        + (f"; first: {long[0][:90]!r}" if long else ""),
+    ))
+
+    hedges = [m.group(0) for s in sentences for m in HEDGE.finditer(s)]
+    examples = [s[:90] for s in sentences if HEDGE.search(s)][:2]
+    results.append(result(
+        "hedges", bool(hedges),
+        f"{len(hedges)} hedge(s) about the system; state the fact or give it a UK- "
+        f"identifier: {examples}" if hedges else "none",
+    ))
+    return results
+
+
+def render_check(path: Path) -> dict[str, Any]:
+    """Whether every Mermaid block in the document renders, by mermaid-cli.
+
+    The templates have said since A06's Phase 2 that a diagram which does not render is
+    not evidence a reader can see, and nothing checked it. One `mmdc` call renders the
+    whole document; only when it fails is each block rendered alone, to say which.
+    """
+    import shutil
+    import subprocess
+    import tempfile
+
+    mmdc = shutil.which("mmdc")
+    if mmdc is None:
+        return {"check": "diagrams_render", "group": "content", "status": "SKIP",
+                "detail": "mmdc not on PATH (npm install -g @mermaid-js/mermaid-cli)"}
+
+    def renders(source: Path, out: Path) -> bool:
+        return subprocess.run([mmdc, "-q", "-i", str(source), "-o", str(out)],
+                              capture_output=True, timeout=300).returncode == 0
+
+    text = read(path)
+    with tempfile.TemporaryDirectory() as scratch:
+        work = Path(scratch)
+        document = work / "document.md"
+        document.write_bytes(text.encode("utf-8"))
+        if renders(document, work / "out.md"):
+            return check("diagrams_render", "content", True,
+                         f"{len(MERMAID.findall(text))} diagram(s) render")
+        broken = []
+        for index, match in enumerate(re.finditer(r"(?ms)^```mermaid\n(.*?)^```", text)):
+            block = work / f"block{index}.mmd"
+            block.write_bytes(match.group(1).encode("utf-8"))
+            if not renders(block, work / f"block{index}.svg"):
+                broken.append(f"line {text.count(chr(10), 0, match.start()) + 1}")
+        return check("diagrams_render", "content", False,
+                     f"diagram(s) that do not render: {broken or ['unknown']}")
 
 
 # --- apparatus --------------------------------------------------------------
@@ -704,7 +851,10 @@ def parse_args() -> argparse.Namespace:
                         help="Directory holding the published phase documents")
     parser.add_argument("--strict", action="store_true",
                         help="Fail on apparatus checks as well as content")
-    parser.add_argument("--group", choices=("content", "apparatus", "all"), default="all")
+    parser.add_argument("--group", choices=("content", "apparatus", "readability", "all"),
+                        default="all")
+    parser.add_argument("--render", action="store_true",
+                        help="Render every Mermaid block with mmdc; a broken one fails content")
     parser.add_argument("--json", action="store_true")
     return parser.parse_args()
 
@@ -735,33 +885,43 @@ def main() -> int:
         return 2
 
     report: dict[str, Any] = {"outputs": str(outputs), "phases": []}
-    content_failed = apparatus_failed = 0
+    content_failed = apparatus_failed = readability_warned = 0
 
     for phase, path in documents:
         text = read(path)
         results = []
         if args.group in ("content", "all"):
             results += content_checks(phase, text, path)
+            if args.render:
+                results.append(render_check(path))
         if args.group in ("apparatus", "all"):
             results += apparatus_checks(phase, text, registers, path)
+        if args.group in ("readability", "all"):
+            results += readability_checks(phase, text, path)
         content_failed += sum(1 for r in results if r["group"] == "content" and r["status"] == "FAIL")
         apparatus_failed += sum(1 for r in results if r["group"] == "apparatus" and r["status"] == "FAIL")
+        readability_warned += sum(1 for r in results if r["status"] == "WARN")
         report["phases"].append({"phase": phase, "document": path.name, "checks": results})
 
     report["content_failures"] = content_failed
     report["apparatus_failures"] = apparatus_failed
+    report["readability_warnings"] = readability_warned
     report["status"] = "FAIL" if content_failed or (args.strict and apparatus_failed) else "PASS"
 
     if args.json:
         print(json.dumps(report, ensure_ascii=False, indent=2))
     else:
         print(f"{report['status']}: {len(documents)} phase document(s); "
-              f"{content_failed} content failure(s), {apparatus_failed} apparatus failure(s)")
+              f"{content_failed} content failure(s), {apparatus_failed} apparatus failure(s), "
+              f"{readability_warned} readability warning(s)")
         for entry in report["phases"]:
             failures = [r for r in entry["checks"] if r["status"] == "FAIL"]
+            warnings = [r for r in entry["checks"] if r["status"] == "WARN"]
             marker = "ok" if not failures else f"{len(failures)} failure(s)"
+            if warnings:
+                marker += f", {len(warnings)} warning(s)"
             print(f"  Phase {entry['phase']} — {entry['document']}: {marker}")
-            for result in failures:
+            for result in failures + warnings:
                 print(f"      [{result['group']}] {result['check']}: {result['detail']}")
 
     return 1 if report["status"] == "FAIL" else 0

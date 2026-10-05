@@ -8,6 +8,8 @@ The V2.1 component-index, hierarchical decomposition, leaf-first ordering, sessi
 
 CodeWiki is not installed, imported, executed, or included as a runtime dependency. This acknowledgement does not imply endorsement or sponsorship.
 
+The prose rules in `plugins/ak/references/technical-writing.md` and the `readability` group of `validate_phase_conformance.py` are adapted from `AminBlg/SimpleEnglish` (MIT License, Copyright (c) 2026 AminBlg), which applies ASD-STE100 Simplified Technical English to software documents. The rules were reworded for this kit's phase documents. No SimpleEnglish file is vendored, installed, or executed.
+
 ## Managed and optional external capabilities
 
 Graphify and its declared PDF/Office normalization dependencies are installed on demand into an isolated managed environment when a six-phase investigation is requested. They are not vendored in this repository and remain subject to their own licenses and terms.

@@ -628,3 +628,101 @@ def test_a_middle_phase_errata_entry_is_not_a_namespace_trespass() -> None:
     results = checker.apparatus_checks(3, "# X", registers)
     result = next(r for r in results if r["check"] == "identifier_namespace_owned")
     assert result["status"] == "PASS", result["detail"]
+
+
+# --- readability ------------------------------------------------------------
+#
+# `references/technical-writing.md` asks for diagrams before paragraphs, short sentences
+# and no hedges. The checks warn and never fail, because the reference set does not
+# pass them either, so what these tests pin is that they report and that they stay out
+# of the exit status.
+
+def readability(body: str, name: str = "X_Phase1_DataUnderstanding_EN.md") -> dict[str, dict]:
+    return {r["check"]: r for r in checker.readability_checks(1, body, Path(name))}
+
+
+def test_a_section_of_prose_with_no_diagram_warns() -> None:
+    body = "## 1. Overview\n\n" + "The import writes the order table. " * 70 + "\n"
+    result = readability(body)["prose_per_diagram"]
+    assert result["status"] == "WARN" and "1. Overview" in result["detail"]
+
+
+def test_a_diagram_pays_for_its_section() -> None:
+    body = ("## 1. Overview\n\n" + "The import writes the order table. " * 70
+            + "\n\n```mermaid\nflowchart LR\n```\n\n```mermaid\nsequenceDiagram\n```\n")
+    assert readability(body)["prose_per_diagram"]["status"] == "PASS"
+
+
+def test_tables_code_and_comments_are_not_prose() -> None:
+    row = "| a | b | c | d | e | f | g | h | i | j |\n"
+    body = ("## 1. Overview\n\n" + row * 40 + "```sql\n" + "SELECT x FROM y\n" * 80
+            + "```\n<!-- " + "word " * 400 + "-->\n")
+    assert readability(body)["prose_per_diagram"]["status"] == "PASS"
+
+
+def test_list_items_are_separate_sentences() -> None:
+    """A table of contents joined into one sentence read as an 80-word run-on."""
+    body = "## Contents\n\n" + "".join(f"{i}. [Section {i} title here](#s{i})\n"
+                                         for i in range(1, 30))
+    sentences = checker.prose_sentences(body)
+    assert len(sentences) == 29 and max(len(s.split()) for s in sentences) == 4
+
+
+def test_many_long_sentences_warn() -> None:
+    long = " ".join(["Word"] * 35) + ". "
+    result = readability("## A\n\n" + long * 12 + "\n")["long_sentences"]
+    assert result["status"] == "WARN" and "12 of 12" in result["detail"]
+
+
+def test_a_hedge_warns_and_the_month_of_may_does_not() -> None:
+    assert readability("## A\n\nThe screen should reject a blank date.\n")["hedges"]["status"] == "WARN"
+    assert readability("## A\n\nThe client confirmed it in May 2025.\n")["hedges"]["status"] == "PASS"
+
+
+def test_a_hedge_inside_code_is_not_prose() -> None:
+    assert readability("## A\n\nThe flag is `may_skip`.\n")["hedges"]["status"] == "PASS"
+
+
+@pytest.mark.parametrize("suffix", ["VI", "JA"])
+def test_readability_is_measured_on_the_en_document_only(suffix: str) -> None:
+    results = checker.readability_checks(1, "## A\n\nshould " * 50,
+                                         Path(f"X_Phase1_DataUnderstanding_{suffix}.md"))
+    assert [r["status"] for r in results] == ["SKIP"]
+
+
+def test_readability_warnings_do_not_fail_the_run(tmp_path: Path) -> None:
+    body = (
+        "## Naming Convention\n\nProduction names, never translate. Romaji alias.\n\n"
+        "```mermaid\nerDiagram\n```\n\n| OB-01 | something | evidence |\n\n"
+        "## 2. Notes\n\n" + "The import should write the order table. " * 70 + "\n"
+    )
+    write(tmp_path, "X_Phase1_DataUnderstanding.md", body)
+    assert run(tmp_path, "--group", "readability") == 0
+    assert run(tmp_path, "--group", "content") == 0
+
+
+def test_render_is_skipped_rather_than_faked_without_mmdc(tmp_path: Path, monkeypatch) -> None:
+    import shutil
+    monkeypatch.setattr(shutil, "which", lambda name: None)
+    path = write(tmp_path, "X_Phase1_DataUnderstanding.md", "```mermaid\nflowchart LR\n```\n")
+    assert checker.render_check(path)["status"] == "SKIP"
+
+
+def _has_mmdc() -> bool:
+    import shutil
+    return shutil.which("mmdc") is not None
+
+
+@pytest.mark.skipif(not _has_mmdc(), reason="mermaid-cli not installed")
+def test_a_diagram_that_does_not_render_fails_and_is_located(tmp_path: Path) -> None:
+    body = ("# X\n\n```mermaid\nflowchart LR\n  A --> B\n```\n\n"
+            "```mermaid\nflowchart LR\n  A[x] -->\n```\n")
+    result = checker.render_check(write(tmp_path, "X_Phase1_DataUnderstanding.md", body))
+    assert result["status"] == "FAIL" and "line 8" in result["detail"], result["detail"]
+
+
+@pytest.mark.skipif(not _has_mmdc(), reason="mermaid-cli not installed")
+def test_a_diagram_that_renders_passes(tmp_path: Path) -> None:
+    body = "# X\n\n```mermaid\nflowchart LR\n  受注 --> 出荷\n```\n"
+    result = checker.render_check(write(tmp_path, "X_Phase1_DataUnderstanding.md", body))
+    assert result["status"] == "PASS", result["detail"]
