@@ -15,7 +15,7 @@ The specific reason it mattered when it did: table and field names cannot contai
 newline, so `schema/tables.json` was fine in practice for years. Access *captions*
 can - a two-line button label is stored as one string containing CRLF - so the control
 inventory added in 2.10 would have produced invalid JSON on the first form with a
-multi-line label, and the A05 main menu has several.
+multi-line label, and one real main menu has several.
 """
 from __future__ import annotations
 
@@ -110,10 +110,10 @@ def exporter_text() -> str:
 def test_every_kit_tool_carries_the_marker() -> None:
     """A module the kit tells an operator to import is not application code.
 
-    `ListStaleLinks` was imported into A06's frontend to delete 153 dead links, landed
+    `ListStaleLinks` was imported into one application's frontend to delete 153 dead links, landed
     under Access's default name `Module1`, and was exported on 2026-09-14 as the
-    application's eighth module - carrying this kit's prose about A06's own tables into
-    the corpus that describes A06.
+    application's eighth module - carrying this kit's prose about that application's own tables into
+    the corpus that describes it.
     """
     for path in BAS_FILES:
         assert "@ak-tool" in path.read_text(encoding="utf-8"), path.name
@@ -130,7 +130,7 @@ def test_the_guard_reads_content_rather_than_a_name() -> None:
     assert "IsKitToolModule(modulePath)" in text
     assert "KIT_TOOL_MARKER" in text and "KIT_TOOL_ENTRY_POINTS" in text
     # Every tool's entry point is listed, so a copy imported before the marker existed
-    # is still recognised - which is the copy sitting in A06 right now.
+    # is still recognised - which is the copy sitting in a real frontend right now.
     for entry in ("Sub ListStaleLinks(", "Sub DeleteStaleLinks(", "Sub ExportAccessObjects("):
         assert entry in text, entry
 
@@ -144,7 +144,7 @@ def test_an_excluded_tool_is_named_in_the_manifest() -> None:
 
 
 def test_the_manifest_says_which_exporter_wrote_it() -> None:
-    """A06's backend has been exporting with a pre-A44 copy since 2026-09-10, printing
+    """One backend has been exporting with a pre-A44 copy since 2026-09-10, printing
     `imex_specification_rows=no link declares DSN=` on a kit where that gate no longer
     exists - and nothing in the output said so. A45 solved this for the PowerShell
     route by hashing its bytes into the bundle id; this route had no equivalent."""

@@ -118,7 +118,7 @@ BLANK = {"meaning": "", "evidence_class": "", "source": ""}
 BLANK_TABLE = {"role": "", **BLANK}
 
 # The sections this tool writes. Anything else in the file is carried through as text
-# by `unmanaged()` - a real A05 file had a sourced `system:` section that a rewrite
+# by `unmanaged()` - a real workspace's file had a sourced `system:` section that a rewrite
 # from the parsed sections would have deleted.
 MANAGED_SECTIONS = ("tables", "columns", "screens", "boundaries")
 
@@ -158,7 +158,7 @@ TOP_LEVEL_KEY = re.compile(r"^([A-Za-z_][A-Za-z0-9_-]*):")
 def unmanaged(path: Path) -> str:
     """The raw text of every top-level section this tool does not manage.
 
-    Found by running the first version of this script against the real A05 workspace,
+    Found by running the first version of this script against a real workspace,
     where `meanings.yaml` carried a third section - `system:` - holding a sourced,
     DOCUMENT-class statement of what the whole application is for, and a note saying
     why the per-table meanings below it were still empty. Rewriting the file from its
@@ -180,7 +180,7 @@ def unmanaged(path: Path) -> str:
         # Walk back over the comment block attached to the section, so the note that
         # explains it travels with it. Blank lines are crossed, because a note is
         # usually separated from its section by one and the first version of this
-        # stopped there - which lost the A05 note saying why the tables below were
+        # stopped there - which lost a real note saying why the tables below were
         # empty, on the very run it was written to protect. Only a comment starting at
         # column 0 counts: an indented `# note` belongs to the entry above it.
         first = index
@@ -211,7 +211,7 @@ def table_subjects(bundle: Path, writes: Any,
     # Grouped by name, not by (database, name). `contracts/meanings.py` resolves a
     # table meaning by name alone, so two same-named tables are one question - and
     # emitting one key per database put a duplicate key in the YAML, where the last
-    # silently wins. On A05 that lost three tables' notes, `商品情報` among them, which
+    # silently wins. On one project that lost three tables' notes, `商品情報` among them, which
     # is a table the evidence request has an open question about precisely *because*
     # it exists in both databases.
     grouped: dict[str, list[dict[str, Any]]] = defaultdict(list)
@@ -244,7 +244,7 @@ def screen_subjects(bundle: Path, facts_dir: Path,
                     ) -> list[tuple[str, str, tuple]]:
     """Every form and report, with what the definition already says about it.
 
-    Keyed `"{kind} {name}"`. A form and a report may share a name - A05 has two objects
+    Keyed `"{kind} {name}"`. A form and a report may share a name - one application had two objects
     called the same thing - so keying by name alone would make them one question and
     silently drop one, which is the duplicate-key defect the table section already had
     to be fixed for.

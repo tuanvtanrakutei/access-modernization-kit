@@ -2,7 +2,7 @@
 
 Every published name in this kit is the production name, unchanged - that rule does
 not move. What this adds is a second name beside it, for the people who have to build
-the replacement and cannot type `雑貨Ⅱアイテム別確認表フッタ` into a migration script.
+the replacement and cannot type `日用品Ⅱアイテム別確認表フッタ` into a migration script.
 
 Three things keep it honest:
 
@@ -10,13 +10,13 @@ Three things keep it honest:
   its characters is a *partial* proposal and says so. A fully covered name is still a
   proposal - composition is mechanical, and mechanical is not the same as correct.
 
-  Provenance travels with the name. A term decided in the A01 conversion table is
+  Provenance travels with the name. A term decided in the reference conversion table is
   precedent, binding on later projects; a term this analysis proposed is a suggestion
   a person has not yet accepted. A rendered name that mixes them is only as settled
   as its weakest term, and `provenance` returns that.
 
   A trailing index is a position, not a word. `店舗コード1` … `店舗コード21` are one
-  term twenty-one times, which is why 328 A05 columns collapse to 137 base names -
+  term twenty-one times, which is why a few hundred columns collapse to far fewer base names -
   and why the index is stripped before matching and re-attached afterwards.
 
 Nothing here decides anything. `input/decisions/glossary.yaml` is where a person
@@ -29,6 +29,19 @@ import unicodedata
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
+
+# A term whose English name a reference conversion table already decided, and a name that
+# mixes such terms with proposed ones. Glossaries written before the rename say `A01` and
+# `A01+analysis`, and are read as these.
+REFERENCE = "reference"
+REFERENCE_MIX = "reference+analysis"
+LEGACY_PROVENANCE = {"A01": REFERENCE, "A01+analysis": REFERENCE_MIX}
+
+
+def normalize_provenance(value: Any) -> str:
+    """The current label for a provenance, whatever spelling the file used."""
+    text = str(value if value is not None else "")
+    return LEGACY_PROVENANCE.get(text, text)
 
 SPEC_NAME = "ja-en-terms.yaml"
 
@@ -56,14 +69,14 @@ class Rendered:
 
     @property
     def is_settled(self) -> bool:
-        """No `?` needed: either a person accepted it, or A01 already decided it.
+        """No `?` needed: either a person accepted it, or the reference table decided it.
 
-        A name composed only from terms the A01 conversion table decided is not a new
+        A name composed only from terms the reference conversion table decided is not a new
         proposal - it is precedent applied. Marking those with a `?` put a question
-        mark on 149 of 649 A05 names that nobody needs to re-decide, and diluted the
+        mark on about a quarter of one application's names that nobody needs to re-decide, and diluted the
         one signal that matters: `?` should mean "this analysis made this up".
         """
-        return self.accepted or (self.provenance == "A01" and self.is_complete)
+        return self.accepted or (self.provenance == REFERENCE and self.is_complete)
 
     def bilingual(self) -> str:
         """`商品コード (product_cd)`, the form a reader sees. No marker.
@@ -73,7 +86,7 @@ class Rendered:
         harder to read for a developer, who is the person the second name exists for.
 
         Status did not go away; it moved to where it can be acted on. Every document's
-        appendix records, per name, whether it is accepted, A01 precedent, a proposal
+        appendix records, per name, whether it is accepted, reference precedent, a proposal
         or partial, and `input/decisions/glossary.yaml` is where a correction is made.
         A partial name is still never printed inline: it appears only in the appendix,
         because a half-finished name in a sentence reads like a finished one.
@@ -93,8 +106,8 @@ def load_terms(package_root: Path, glossary_path: Path | None = None) -> dict[st
     and could not do the job it is named after.
 
     It matters beyond coverage, because a vocabulary with a hole in it does not return
-    nothing - it returns the best match it has. A06 has seven columns named for a
-    weekday (`月出荷` … `土出荷`), so `月` and `金` are single-character terms, and
+    nothing - it returns the best match it has. An application with seven columns named for a
+    weekday (`月出荷` … `土出荷`) needs `月` and `金` as single-character terms, and
     without `月初` and `金額` above them the composer read `月初在庫` as `monday_stock`
     and `合計金額` as `total_friday`. Both were labelled `_partial_`, which a reader
     takes for *unfinished* rather than *wrong*.
@@ -147,7 +160,7 @@ def _is_separator(char: str) -> bool:
 def normalise(text: str) -> str:
     """NFKC, because `ＦＬＧ` and `FLG` are the same term written two ways.
 
-    Access names differ by width freely - the most-joined column pair in A05 is
+    Access names differ by width freely - a most-joined column pair can be
     `DPコード` against `ＤＰコード` - so matching without normalising would translate
     one and miss the other.
     """
@@ -222,14 +235,14 @@ def compose(
     covered = (sum(accounted) / len(accounted)) if accounted else 0.0
     used = [p[2] for p in pieces]
     provenances = {
-        str(terms[t].get("provenance", "analysis")) for t in used if t in terms
+        normalize_provenance(terms[t].get("provenance", "analysis")) for t in used if t in terms
     }
     if not provenances:
         provenance = "none"
-    elif provenances == {"A01"}:
-        provenance = "A01"
-    elif "analysis" in provenances and "A01" in provenances:
-        provenance = "A01+analysis"
+    elif provenances == {REFERENCE}:
+        provenance = REFERENCE
+    elif "analysis" in provenances and REFERENCE in provenances:
+        provenance = REFERENCE_MIX
     else:
         provenance = sorted(provenances)[0]
     return Rendered(name, english, used, covered, provenance)

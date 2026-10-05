@@ -5,7 +5,7 @@ answer confirms that assumption or contradicts it, and a contradiction is an err
 `affected` list is what the assumption said would stop holding. Before this slice "If wrong"
 was a prose column in four tables: the register recorded the answer and left the assumption
 standing as though nothing had been asked, and nothing could produce the list of what to
-refresh. A06's E-01 and E-02 are the case: a published claim stayed in force after the evidence
+refresh. A real register's E-01 and E-02 are the case: a published claim stayed in force after the evidence
 that ended it, and the refresh list was assembled by a person reading three documents.
 
 Each test is one way that goes wrong.

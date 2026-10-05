@@ -6,7 +6,7 @@
 # alone can only make structural statements, so it reports counts where the
 # reference document reports business meaning - and reports READY while doing it.
 #
-# One real sentence from a real run states the problem exactly. A05 Phase 1 §2,
+# One real sentence from a real run states the problem exactly. One run's Phase 1 §2,
 # on seven identically shaped tables:
 #
 #   "Seven copies of one shape; purpose not established from schema alone."
@@ -41,7 +41,7 @@ claim_kinds:
     example: "Confirm-before-print is deliberate; operators need to print against absent data."
   SCOPE:
     means: "What the replacement will and will not include, and on whose authority."
-    example: "A06 drops the six 累積 screens; 常温品在庫問合 is out of scope (customer, 2026-09-08)."
+    example: "The replacement drops the six 月次集計 screens; 在庫問合画面 is out of scope (customer, 2026-09-08)."
     note: >
       The only claim kind about the system being built rather than the one being
       replaced. Every other kind above is a statement about the legacy application,
@@ -83,8 +83,8 @@ evidence_classes:
     corroborates: [BEHAVIOUR, USAGE]
     cannot_support: [MEANING, INTENT, FORMAT]
     note: >
-      Added because three A05 findings had no class to sit in. Code can quote a path
-      but not say whether it resolves; only the environment can, and A05's four
+      Added because three findings in one run had no class to sit in. Code can quote a path
+      but not say whether it resolves; only the environment can, and that run's four
       hard-coded backend spellings turned out to be three that resolve to nothing
       plus one that resolves to the wrong database (E-23). Two cautions. It goes
       stale faster than any other class - a share is remapped and the evidence is
@@ -104,7 +104,7 @@ evidence_classes:
     corroborates: [BEHAVIOUR, USAGE]
     cannot_support: [MEANING, INTENT, FORMAT]
     note: >
-      Added for the same reason ENVIRONMENT was: a finding had no class to sit in. A06
+      Added for the same reason ENVIRONMENT was: a finding had no class to sit in. One run
       measured 保管場所マスタ and found every one of 5,020 product rows on a single code,
       with the second code used by nothing - which answered two open questions and fitted
       nowhere. SAMPLE_DATA is a file the application reads, not the database it owns;
@@ -160,7 +160,7 @@ evidence_classes:
     cannot_support: [MEANING, USAGE, INTENT]
     note: >
       The only class that settles an inbound format. The strongest finding in the
-      A01 reference - that the red/black flag column is ignored and the sign of the
+      reference set - that the red/black flag column is ignored and the sign of the
       quantity routes the row - came from ~4,000 sample rows, and no amount of code
       reading would have established it.
 
@@ -197,7 +197,7 @@ evidence_classes:
     requires_attribution: true
     note: >
       Must name who and when, so a later contradiction can be taken back to them.
-      The A01 reference cites these directly - "Q&A ID-19 (two named
+      The reference set cites these directly - "Q&A ID-19 (two named
       respondents, 2026-05-06)" - and they carry findings nothing else in the corpus could.
 
   OPERATOR_DECLARATION:
@@ -226,7 +226,7 @@ evidence_classes:
       Added 2026-09-10 after the same hole appeared twice: a change request carries
       intent about the *new* system, and so does a scope decision, and no class here
       covered either - `OPERATOR_DECLARATION` is a statement in the manifest about
-      the inputs, and says so. A06's two records sat in the directory the
+      the inputs, and says so. One project's two records sat in the directory the
       documentation named and were read by nothing, so Phase 1 could cite them only
       by path and `$ak citations` could not check the citation (backlog A38).
 

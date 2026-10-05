@@ -37,7 +37,7 @@ SCHEMA = PACKAGE / "schemas" / "access-extraction.schema.json"
 # enough to be unambiguous, so moving one back to `$warnings` fails this file.
 NOTES = (
     # A44 replaced "N linked table(s) declare a DSN" - the gate that phrase reported on
-    # asked whether a link named a specification, and code names four of A06's six with
+    # asked whether a link named a specification, and code names four of one application's six with
     # no text link anywhere. The line is still a note: it says what the run did.
     "saved import/export specification row(s) read",
     "Object definition export was skipped; the inventory carries names only",

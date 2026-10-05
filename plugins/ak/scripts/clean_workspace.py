@@ -5,8 +5,8 @@ Every command here writes into a new directory rather than over the last one, wh
 is correct - an acquisition that overwrote the session a published finding cites
 would destroy the evidence for it - and it means that running the kit repeatedly
 leaves a workspace holding one live copy of each thing and a pile of superseded
-ones. Measured on 2026-09-14 on the two real workspaces this kit has: A05 held 2.4 GB
-across fourteen directories, and A06 held 1.9 GB across eighty-three - sixty-six
+ones. Measured on two real workspaces: one held 2.4 GB
+across fourteen directories, and the other 1.9 GB across eighty-three - sixty-six
 extraction sessions, twenty-six snapshots, seven bundles, eight export packages and
 two folders of database copies, for two databases and one published run.
 
@@ -32,7 +32,7 @@ What it will never offer, whatever is asked, in either layout:
   output/                        the published documents.
   .ak/staging/ (acquired/…)      the sessions something cites. This is the evidence.
   .ak/bundles/ (acquired/…)      the newest bundle, and every bundle something cites.
-                                 A05's register cites a superseded bundle 26 times,
+                                 One register cited a superseded bundle 26 times,
                                  three weeks after a newer one replaced it.
   .ak/runs/ (runs/)              run state and evidence registers.
 """
@@ -108,7 +108,7 @@ CITING_GLOBS: tuple[str, ...] = (
 )
 
 # A cited path is recognised by the workspace-relative root it starts from, so an
-# absolute citation (`D:\Anrakutei\fresh\A05\.ak\staging\…`) and a relative one
+# absolute citation (`D:\work\<APP>\.ak\staging\…`) and a relative one
 # reduce to the same key.
 TOP_SEGMENTS: tuple[str, ...] = (
     ".ak/", "input/", "output/", "sources/", "acquired/",
@@ -117,10 +117,10 @@ TOP_SEGMENTS: tuple[str, ...] = (
 
 # Everything a path can be made of, stopping at the characters that end one in prose,
 # in JSON, in a Markdown link and in a Markdown table cell. The backtick is in that
-# list because A06's Phase 1 cites the bundle it supersedes as `.ak/bundles/…` inside
+# list because a real Phase 1 cited the bundle it supersedes as `.ak/bundles/…` inside
 # a table, and a key carrying a trailing backtick matches nothing. Full-width brackets
 # are deliberately absent: they are inside real filenames here
-# (`品揃支援（windows11専用）.mdb`).
+# (`<アプリ名>（windows11専用）.mdb`).
 _PATH_TOKEN = re.compile("[^\\s\"'`<>|*?,;)\\]}]+")
 
 # Access leaves these beside a database it opened. Never cited, never input.
@@ -201,9 +201,9 @@ def stray_kit_dirs(space: Workspace, cited: set[str]) -> list[dict[str, Any]]:
 
     In the current layout the kit writes under `.ak/`, and `Workspace.owned()` is the
     only thing that resolves those names - so a `staging/` at the top level is not a
-    second copy the code might read, it is a copy the code cannot reach. A06 acquired
+    second copy the code might read, it is a copy the code cannot reach. One workspace acquired
     into one when `--output-root` was given the workspace root instead of `.ak/`; on
-    A05 it is 587 MB. Offered only when the `.ak/` counterpart exists and holds
+    another it was 587 MB. Offered only when the `.ak/` counterpart exists and holds
     something, so a half-migrated workspace - where the top-level directory is still
     the live one - is left alone.
     """
@@ -232,7 +232,7 @@ def superseded_sessions(space: Workspace, cited: set[str]) -> list[dict[str, Any
 
     A session is named for the acquisition that wrote it, so re-running acquisition
     adds one rather than replacing the last - which is right, and is why they pile
-    up. Recency does not decide which is live: A05's newest frontend session holds
+    up. Recency does not decide which is live: one workspace's newest frontend session held
     four files because that run declared `skip_object_export`, while `fresh-01`, three
     weeks older, holds the 170 definition texts the register cites 30 times. A
     database's last remaining session is kept whatever the answer, so this can never
@@ -275,7 +275,7 @@ def package_artifact(name: str) -> str:
     """`WINDOWS11_45D0FDDD-2026-09-08` -> `WINDOWS11_45D0FDDD`.
 
     The trailing variant an operator adds when the same day is exported twice comes
-    off with the date. A06 holds `-2026-09-10`, `-2026-09-10_new`, `-2026-09-14` and
+    off with the date. One workspace held `-2026-09-10`, `-2026-09-10_new`, `-2026-09-14` and
     `-2026-09-14b` for each of two artifacts, and reading those as eight artifacts
     rather than two makes every one of them the newest of its own family, which is
     the guard below refusing to fire at all.
@@ -297,7 +297,7 @@ def superseded_packages(space: Workspace, cited: set[str]) -> list[dict[str, Any
     """An export package under `input/exports/` that nothing reads.
 
     `ExportAccessObjects` writes `<artifact>-<date>`, so an operator re-exporting a
-    frontend leaves the previous package behind; A05 holds three for two artifacts.
+    frontend leaves the previous package behind; one workspace held three for two artifacts.
     Two guards, because this is a person's directory: the newest package for an
     artifact is never offered - it is the one they have just made for the next run -
     and nothing is offered unless some package here is cited, so a workspace that has
@@ -335,7 +335,7 @@ def unreferenced_supplied(space: Workspace, cited: set[str]) -> list[dict[str, A
 
     Acquisition never writes here - it snapshots into `.ak/snapshots/` - so what
     accumulates is what a person copied in: a lock file Access left behind, and the
-    keep-a-copy-before-I-break-it folder. A06 holds `precleanup/` and
+    keep-a-copy-before-I-break-it folder. One workspace held `precleanup/` and
     `pretabledelete/`, 135 MB of three `.mdb` copies no artifact names, beside the
     48 MB of databases that two artifacts do. Directories count, which is why this
     reads entries rather than files.
@@ -374,10 +374,10 @@ def superseded_bundles(space: Workspace, cited: set[str]) -> list[dict[str, Any]
 
     Every reader here takes the newest bundle by `bundle.json` mtime, so an earlier
     one is read by nobody - but "read by nobody" is not "referenced by nobody", and
-    the difference is the whole reason this asks. A05's `A05_Evidence.json` cites the
+    the difference is the whole reason this asks. One `<APP>_Evidence.json` cited the
     superseded `bundle-fcf525…` 26 times, three weeks after a newer bundle replaced
     it; deleting it on age would leave a register whose citations resolve to nothing.
-    A06's seven bundles divide the other way: `2026-09-14-0164ac59` is cited 28 times
+    Another workspace's seven bundles divided the other way: `2026-09-14-0164ac59` is cited 28 times
     and `2026-09-10-50cfe32e` twice, and the remaining five are named nowhere at all,
     by directory, by bundle id or by digest.
 

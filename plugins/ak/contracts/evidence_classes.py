@@ -44,7 +44,7 @@ CLASS_FROM_CAPABILITY: dict[str, str] = {
     # UI_DEFINITION, and both fire when the bundle merely holds ui *rows* - which the
     # DAO tier produces from object names, with no definition anywhere. The class says
     # what it needs in its own words: "SaveAsText form and report definitions: record
-    # sources, bound fields, event procedures, embedded controls". A06 held 38 form
+    # sources, bound fields, event procedures, embedded controls". One bundle held dozens of form
     # names, `$ak derive` distilled 0 UI objects from them, and phase2 read READY.
     #
     # Those two capabilities still exist and the profile rules still require them -

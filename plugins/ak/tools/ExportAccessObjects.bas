@@ -12,7 +12,7 @@ Private Const MODULE_NAME As String = "modExportAccess"
 
 ' Printed into the manifest so a stale copy sitting in a database is visible. A45
 ' solved this for the PowerShell extractor by hashing its bytes into the bundle id;
-' nothing did it for this route, and A06's backend proved why - it has been exporting
+' nothing did it for this route, and one project's backend proved why - it has been exporting
 ' with a pre-A44 copy since 2026-09-10, printing `imex_specification_rows=no link
 ' declares DSN=` on a kit where that gate no longer exists. A manifest carrying no
 ' `exporter_version=` line was written by a copy older than 2.12.
@@ -20,13 +20,13 @@ Private Const EXPORTER_VERSION As String = "2.12.0"
 
 ' A module the kit told the operator to import is not application code. The guard
 ' above is a single hard-coded name, which protected this file and nothing else -
-' and the kit's other tool, `ListStaleLinks`, was imported into A06's frontend to
+' and the kit's other tool, `ListStaleLinks`, was imported into one project's frontend to
 ' delete 153 dead links, landed under Access's default name `Module1`, and was
 ' exported on 2026-09-14 as the application's eighth module.
 '
 ' So the test is what the module *is*, not what it is called. `@ak-tool` marks the
 ' kit's own files; the entry-point names below catch a copy imported before that
-' marker existed, which is exactly the copy sitting in A06 now.
+' marker existed, which is exactly the copy one frontend was found carrying.
 Private Const KIT_TOOL_MARKER As String = "@ak-tool"
 Private Const KIT_TOOL_ENTRY_POINTS As String = "Sub ListStaleLinks(|Sub DeleteStaleLinks(|Sub ExportAccessObjects("
 
@@ -50,7 +50,7 @@ Private Const KIT_TOOL_ENTRY_POINTS As String = "Sub ListStaleLinks(|Sub DeleteS
 '      Alternatively: Insert > Module, then paste this whole file.
 '   4. Press Ctrl+G for the Immediate window and run, replacing the path:
 '
-'          ExportAccessObjects "D:\Anrakutei\<APP>\input\exports\<DATABASE_ID>-<YYYY-MM-DD>"
+'          ExportAccessObjects "<WORKSPACE_ROOT>\<APP>\input\exports\<DATABASE_ID>-<YYYY-MM-DD>"
 '
 '      A NEW dated folder each time, beside the last one rather than over it.
 '      `$ak completeness` compares an export with the previous reading of the
@@ -122,7 +122,7 @@ Public Sub ExportAccessObjects(ByVal OutRoot As String)
         If TrySaveAsText(acMacro, ao.Name, UniquePath(OutRoot & "\macros", ao.Name, "txt"), "macro") Then nMacro = nMacro + 1
     Next
     ' This module is imported into the database to run the export, so without the
-    ' guard it exports itself: A05's 2026-09-08 frontend export carried seven
+    ' guard it exports itself: one frontend export carried seven
     ' modules against the previous six, the extra one being this file. Small as
     ' contamination goes, but it is then measured as if it were the application's
     ' - `$ak completeness` records its shape and `$ak meanings` asks what it is
@@ -191,7 +191,7 @@ Public Sub ExportAccessObjects(ByVal OutRoot As String)
     ' the upstream file to be reachable. A17 for why, A21 for why here.
     '
     ' The gate used to be "some link declares DSN=", which is the wrong question.
-    ' A06 has NO text links and six saved specifications, four of them called from VBA
+    ' One application had NO text links and six saved specifications, four of them called from VBA
     ' by name - `TransferText acImportDelim, "受注データ定義", ...` and three more.
     ' Those four declare the layout of four inbound CSV feeds. The old gate collected
     ' them only by accident, because an ODBC link also carries DSN=; remove the
@@ -300,7 +300,7 @@ Private Function IsSystemOrJunkTable(ByVal td As Object) As Boolean
     '  - ~*     : temporary/work tables
     '  - Access auto-generated ImportErrors tables: the shape below AND the field
     '    names Access gives them. Shape alone dropped two business masters out of
-    '    A05's backend - 集計分類コード / 集計分類名 / 配送分類コード is Text/Text/Long
+    '    one backend - 集計分類コード / 集計分類名 / 配送分類コード is Text/Text/Long
     '    too - and recorded nothing but their names, so the exclusion could only be
     '    trusted, never reviewed. Backlog A22.
     Dim n As String
@@ -323,7 +323,7 @@ End Function
 
 Private Function HasImportErrorsFieldNames(ByVal td As Object) As Boolean
     ' Access names these three fields for Error/Field/Row in the UI language that
-    ' created the table. Both spellings A05 carries are here, and the identical list
+    ' created the table. Both spellings seen in real backends are here, and the identical list
     ' is in scripts/extract_access.ps1: tests/test_import_errors_rule.py holds the two
     ' against each other, because the two routes drifting apart is what A21 was.
     '
@@ -424,7 +424,7 @@ Private Function TableSchemaJson(ByVal td As Object) As String
     ' error has to be captured HERE rather than after the loops. With On Error Resume
     ' Next in force a For Each that cannot initialise still reaches its Next, and the
     ' Next raises Err 92 "For loop not initialized" - which overwrites the real message
-    ' before anything reads it. A06's first export recorded that 154 times, once per
+    ' before anything reads it. One project's first export recorded that 154 times, once per
     ' stale link, where every one should have read that the linked path is not valid.
     ' The substituted message reads as a fault in this exporter; the real one reads as
     ' a finding about the application, which is what it is.
@@ -657,7 +657,7 @@ End Sub
 '
 '   Visible. A control the designer hid is still in the definition text, with
 '   nothing to distinguish it from one an operator uses every morning. In the
-'   A05 frontend 21 buttons are hidden, 14 of them on the main menu alone -
+'   one frontend 21 buttons were hidden, 14 of them on the main menu alone -
 '   including one this analysis had reported as a live hazard.
 '
 ' Each object is opened in DESIGN view, hidden, read, and closed with acSaveNo.
@@ -789,7 +789,7 @@ End Function
 
 Private Function IsKitToolModule(ByVal path As String) As Boolean
     ' Reads the module the export just wrote. Content, not name: `ListStaleLinks`
-    ' arrived in A06 as `Module1`, which is what Access calls a module somebody
+    ' arrived in one frontend as `Module1`, which is what Access calls a module somebody
     ' pasted code into, and no name test could ever have caught it.
     On Error GoTo Fail
     Dim handle As Integer, textLine As String, scanned As Long

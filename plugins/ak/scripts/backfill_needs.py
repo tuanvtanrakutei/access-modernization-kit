@@ -17,7 +17,7 @@ proceeds on is a link nobody wrote. So the proposal marks every field it could n
 validates is a field that does nothing while looking like one that works.
 
 It also lists the items a document already calls answered while the register still has
-them open - A06's Q106, UK-S03 and Q120 - under `close:`, each waiting for the evidence
+them open - say Q106, UK-S03 and Q120 - under `close:`, each waiting for the evidence
 id that answers it. Closing an item is the same kind of act and gets the same review.
 
 Risks join in slice 3. Each open risk is proposed as a DISPOSITION for the decider,
@@ -106,7 +106,7 @@ def named_in(text: str) -> list[str]:
 def waits_on(text: str, own: str, entries: list[dict[str, Any]]) -> tuple[list[str], list[str]]:
     """(open items the text names, notes on the ones it names that are closed).
 
-    A06's RA-02 names Q108 and UK-S04. Q108 was superseded by Q103 and UK-S04 was answered,
+    Say RA-02 names Q108 and UK-S04. Q108 was superseded by Q103 and UK-S04 was answered,
     so what RA-02 waits on is Q103 and nothing else. An unknown a question asks about is
     reached through that question, which is the one a person is asked.
     """
@@ -197,7 +197,7 @@ def draft_parties(output: Path, entries: list[dict[str, Any]]) -> str:
     for entry in asks:
         cells, _width = rows.get(str(entry["id"]), ([], 0))
         # A row the document calls closed was rewritten when it closed, and its party cell
-        # may hold an evidence id (A06's Q120). That is not a spelling of anybody.
+        # may hold an evidence id (a closed Q120 did). That is not a spelling of anybody.
         if not cells or (markers and dq.starts_closed(cells[1], markers)):
             continue
         cell = party_cell_of(entry, cells)
@@ -360,7 +360,7 @@ def contains_todo(node: Any, path: str = "") -> list[str]:
 def applied_path(proposal_path: Path) -> Path:
     """Where a reviewed proposal is kept once written: never over an earlier one.
 
-    A06 was backfilled twice - the questions in slice 1, the risks in slice 3 - and the second
+    One workspace was backfilled twice - the questions in slice 1, the risks in slice 3 - and the second
     rename replaced the first reviewed proposal, which is the only record of what was read
     and what a person decided.
     """

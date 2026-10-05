@@ -26,7 +26,7 @@ PACKAGE = Path(__file__).resolve().parents[1]
 SCRIPT = PACKAGE / "modernize" / "scripts" / "screen_decisions.py"
 
 SCREEN = "受注データ取込画面"
-OTHER = "受注数調整リスト印刷画面"
+OTHER = "出荷数確認リスト印刷画面"
 
 
 def block(identifier: str | None = None, title: str = "", obj: str | None = None) -> dict:

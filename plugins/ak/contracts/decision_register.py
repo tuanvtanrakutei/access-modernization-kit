@@ -8,7 +8,7 @@ copy inside the second would have drifted - the register's format in particular,
 the one thing a diff of it must not disturb.
 
 The register is written in the format it was written in: indent 1, sorted keys, a final
-newline. A06's round-trips byte for byte, so a change to it is a diff of the fields changed
+newline. An existing register round-trips byte for byte, so a change to it is a diff of the fields changed
 and nothing else, and the previous file is kept under `.ak/backups/` before every write.
 """
 from __future__ import annotations
@@ -90,7 +90,7 @@ def atomic_write(path: Path, text: str) -> None:
 def write_register(space: Any, path: Path, register: dict[str, Any]) -> Path:
     """Write the register, keeping the previous file. Returns where the previous one went.
 
-    The evidence register goes through here too: A06's round-trips in the same format.
+    The evidence register goes through here too: an existing one round-trips in the same format.
     """
     backups = space.owned("backups")
     backups.mkdir(parents=True, exist_ok=True)

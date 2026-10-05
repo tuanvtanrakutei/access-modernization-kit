@@ -20,17 +20,17 @@ because that is the shape the register on a real project actually has:
                         a dated marker in full-width brackets
     an answer beside it any other `.md` in the page's own directory, because the
                         export drops Notion comments and a Notion Q&A is answered in
-                        them - A06's ID 6 was closed for two weeks with the answer
+                        them - one register's ID 6 was closed for two weeks with the answer
                         visible to everyone except the kit (A47)
 
 Matched on the `ID` both carry. What the comparison is for is the disagreement: a
 register row marked `Answered` whose page holds no answer is not a closed question, and
-nothing else in the workspace can tell you so. Observed on A06 the first time this ran
+nothing else in the workspace can tell you so. Observed the first time this ran
 on a real register - ID 6, `Status: Answered`, `Respondent: <a named person>`,
 `Answer date: 2026/08/30`, and not one answer in the page.
 
 A record is written to `.ak/extracted/interview-register.json` rather than only printed,
-which is backlog A24's whole point: `$ak samples` found a real contradiction on A05 and
+which is backlog A24's whole point: `$ak samples` found a real contradiction on one project and
 put it where nothing could cite it. `ScreenCatalogue` reads this record, and says
 **not measured** where it is absent - because a screen with no recorded answer over an
 unmeasured register cannot be told from one over a measured register.
@@ -66,14 +66,14 @@ SCHEMA_VERSION = "1.0"
 ENCODINGS = ("utf-8-sig", "utf-8", "cp932")
 
 # An answer marker, and the reason this is not simply "text in full-width brackets":
-# Japanese prose uses them for emphasis, and a real register does - Q&A 5 on A06 opens
+# Japanese prose uses them for emphasis, and a real register does - one Q&A opened
 # its body with `【質問1：インポートファイルの文字コードについて】`, a heading, not an
 # answer. Requiring a date is what separates the two, and a date is also what makes the
 # marker citable: `path::person, YYYY-MM-DD` is one of the anchor forms the gates accept.
 ANSWER = re.compile(r"【\s*(\d{4})/(\d{1,2})/(\d{1,2})\s*[:：]\s*([^】]+?)\s*】")
 
 # Header names, not positions. The same Notion database exports twice with the columns
-# in two different orders (`X.csv` and `X_all.csv` on A06 differ), so a position-mapped
+# in two different orders (`X.csv` and `X_all.csv` from one export differed), so a position-mapped
 # reader would be right about one file and silently wrong about the other. Several names
 # carry a full-width parenthesis, which is why they are matched by prefix.
 FIELDS = {
@@ -150,7 +150,7 @@ def _merge_sidecar_answers(
     """An answer recorded beside its page counts as that page's answer.
 
     A47. **A Notion "Markdown & CSV" export does not export comments**, and a Notion
-    Q&A is answered in the comments. A06's ID 6 is the case: the register says
+    Q&A is answered in the comments. One register's ID 6 was the case: the register said
     `Status: Answered`, `Respondent: <a named person>`, `Answer date: 2026/08/30`, the exported
     page holds the question and nothing else, and the answer - a full account of why
     `商品情報` deletion is never used, what the `99` defaults mean, and that
@@ -260,7 +260,7 @@ def compare(register: list[dict[str, Any]], pages: list[dict[str, Any]]) -> list
                     "A closed question with no answer in it cannot be cited, and the "
                     "register is the only place saying it is closed. "
                     # A47. This line used to stop above, and it was read as "nobody
-                    # answered" - by an agent, about a named person, wrongly. On A06
+                    # answered" - by an agent, about a named person, wrongly. On that project
                     # the answer existed the whole time as a Notion comment, and a
                     # Markdown & CSV export does not export comments. Naming the likely
                     # cause is the difference between a finding and an accusation.

@@ -17,7 +17,7 @@ beside it and say that is what you did.
 ```markdown
 | Decided by | 山田 太郎 (customer) |
 | Decided on | 2026-09-08 |
-| Source | A06_Scope.drawio.pdf, screens marked X |
+| Source | Scope.drawio.pdf, screens marked X |
 ```
 
 Same requirement as `interviews/`, for the same reason: a scope decision that cannot be
@@ -42,7 +42,7 @@ uses it for, or why it was built that way. That is rule **EC-07**, and it is tot
 purpose: a customer deciding a screen is out of scope has said nothing about what that
 screen does.
 
-Most real records say both things at once. *"Drop the six 累積 screens, they are only
+Most real records say both things at once. *"Drop the six 月次集計 screens, they are only
 used at month end"* is a scope decision **and** a usage claim about the legacy system.
 The scope half belongs here. The usage half is an **INTERVIEW** — ask them, write it
 down in `interviews/`, name them and date it. Splitting the two is the point: the
@@ -60,5 +60,5 @@ is.
 
 `decisions/` holds `glossary.yaml`, `meanings.yaml` and `parties.yaml`: the files the kit
 writes for you to edit, and reads back by name. Dropping a free-form scope record beside them would
-make one directory mean two things, which is exactly the confusion that left A06's first
+make one directory mean two things, which is exactly the confusion that left one project's first
 two scope records sitting in the workspace, read by nothing.

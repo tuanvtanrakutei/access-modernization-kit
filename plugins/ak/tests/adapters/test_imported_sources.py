@@ -232,9 +232,9 @@ def test_directory_rejects_declared_symlink(tmp_path: Path) -> None:
 def test_imported_record_states_its_database(tmp_path: Path) -> None:
     """An imported record must name its database, because consumers key on it.
 
-    The A05 screen catalogue looks each object up by (database, kind, name). With
-    `database_id` absent from every imported record it missed all 51 forms and 63
-    reports and printed "Objects referenced by nothing (118)" - a headline that
+    The screen catalogue looks each object up by (database, kind, name). With
+    `database_id` absent from every imported record it missed every form and
+    report and printed "Objects referenced by nothing (N)" - a headline that
     reported a failed join as dead code.
     """
     raw = b"Option Explicit\n"
@@ -249,7 +249,7 @@ def test_imported_record_states_its_database(tmp_path: Path) -> None:
     result = adapter.acquire(adapter.plan(_request(tmp_path, _zip_artifact())))
     assert result.status == "VALID"
     assert result.records[0]["database_id"] == "FRONTEND_DB"
-    # And under the name the managed route uses, for the same reason: the A05 logic
+    # And under the name the managed route uses, for the same reason: the logic
     # catalogue reads `name` and every imported query and module carried only
-    # `object_name`, so 43 queries and 6 modules looked unreferenced.
+    # `object_name`, so every one of them looked unreferenced.
     assert result.records[0]["name"] == result.records[0]["object_name"]

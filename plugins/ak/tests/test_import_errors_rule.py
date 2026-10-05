@@ -2,19 +2,19 @@
 
 Both acquisition routes drop a table whose fields are exactly Text/Text/Long as an
 Access ImportErrors table. The rule is deliberate and the reason is good: a long-lived
-application accumulates hundreds of them, one A05 frontend carried 210 against 21 real
-tables, and identifying them by *table* name fails because that name is localized and
+application accumulates hundreds of them, one frontend carried ten for every real
+table, and identifying them by *table* name fails because that name is localized and
 this corpus has a legitimate table matching the Japanese word for "error".
 
-Shape alone is not enough either, and A05's backend is the proof. Measured there on
-2026-09-08, all four of its Text/Text/Long tables:
+Shape alone is not enough either, and a real backend is the proof. Measured there,
+all four of its Text/Text/Long tables:
 
     Sheet1$_インポート エラー      エラー(Text) / フィールド(Text) / 行(Long)
     商品情報_エクスポート エラー   エラー(Text) / フィールド(Text) / 行(Long)
     集計分類マスタ                集計分類コード(Text) / 集計分類名(Text) / 配送分類コード(Long)
     雑貨Ⅱ集計分類マスタ           集計分類コード(Text) / 集計分類名(Text) / 配送分類コード(Long)
 
-The last two are business masters, referenced 56 and 18 times across the corpus, and
+The last two are business masters, referenced dozens of times across the corpus, and
 both routes dropped them recording nothing but their names - so nobody could tell
 `エラー / フィールド / 行` from `集計分類コード / 集計分類名 / 配送分類コード`, and the
 exclusion could only be trusted. Backlog A22.
@@ -116,7 +116,7 @@ def verdicts(cases: dict[str, tuple[tuple[str, ...], tuple[int, ...]]]) -> dict:
 
 # --- the rule, run ----------------------------------------------------------
 
-def test_the_four_shapes_a05_actually_has() -> None:
+def test_the_four_shapes_that_motivated_the_rule() -> None:
     """One run, both halves of the decision, on the tables that motivated it."""
     answers = verdicts({
         "ja_errors": (JA_ERRORS, (TEXT, TEXT, LONG)),
@@ -128,7 +128,7 @@ def test_the_four_shapes_a05_actually_has() -> None:
     assert answers["ja_errors"]["naming"], "Access's Japanese errors table"
     assert answers["en_errors"]["naming"], "Access's English errors table"
     assert not answers["master"]["naming"], (
-        "集計分類マスタ is a business master referenced 56 times; excluding it is the "
+        "集計分類マスタ is a business master referenced throughout; excluding it is the "
         "defect A22 records")
 
 

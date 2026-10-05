@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 import shutil
 import subprocess
 import sys
@@ -35,7 +36,7 @@ def _sources(root: Path) -> Path:
 # The wrong role is the costly part: nothing then declares an authoritative backend,
 # so Phase 1 can never leave BLOCKED however complete the extraction is.
 def test_two_access_databases_are_classified_as_a_split_application(tmp_path: Path) -> None:
-    app_root = tmp_path / "A05"
+    app_root = tmp_path / "A98"
     sources = _sources(app_root / "sources")
     (sources / "access" / "frontend.mdb").write_bytes(b"x")
     (sources / "access" / "data.mdb").write_bytes(b"x")
@@ -52,7 +53,7 @@ def test_two_access_databases_are_classified_as_a_split_application(tmp_path: Pa
 
 
 def test_a_single_access_database_stays_a_monolith(tmp_path: Path) -> None:
-    app_root = tmp_path / "A05"
+    app_root = tmp_path / "A98"
     sources = _sources(app_root / "sources")
     (sources / "access" / "only.mdb").write_bytes(b"x")
 
@@ -67,7 +68,7 @@ def test_a_single_access_database_stays_a_monolith(tmp_path: Path) -> None:
 # the id sanitize, so distinct objects collapsed onto one base and were separated by
 # an arrival-order counter that changed whenever the file order did.
 def test_non_ascii_names_get_stable_distinct_ids(tmp_path: Path) -> None:
-    app_root = tmp_path / "A05"
+    app_root = tmp_path / "A98"
     sources = _sources(app_root / "sources")
     (sources / "forms" / "共通ルーチン.txt").write_text("Version =20", encoding="utf-8")
     (sources / "forms" / "印刷設定.txt").write_text("Version =20", encoding="utf-8")
@@ -86,7 +87,7 @@ def test_non_ascii_names_get_stable_distinct_ids(tmp_path: Path) -> None:
 # macros/ and vba/. Classifying by extension alone dropped all of it into the
 # catch-all sample bucket, so the package did not recognize its own output.
 def test_the_kits_own_export_layout_is_recognized(tmp_path: Path) -> None:
-    app_root = tmp_path / "A05"
+    app_root = tmp_path / "A98"
     sources = _sources(app_root / "sources")
     (sources / "forms" / "OrderEntry.txt").write_text("Version =20", encoding="utf-8")
     (sources / "schema" / "tables.txt").write_text("{}", encoding="utf-8")
@@ -104,7 +105,7 @@ def test_the_kits_own_export_layout_is_recognized(tmp_path: Path) -> None:
 
 
 def test_sql_outside_a_queries_folder_still_implies_a_server(tmp_path: Path) -> None:
-    app_root = tmp_path / "A05"
+    app_root = tmp_path / "A98"
     sources = _sources(app_root / "sources")
     (sources / "sql").mkdir()
     (sources / "sql" / "schema.sql").write_text("CREATE TABLE t (id int);", encoding="utf-8")
@@ -121,7 +122,7 @@ def test_generated_v22_manifest_declares_no_graph_runtime() -> None:
     import yaml
 
     text = init_app.manifest_v22_text(
-        "A05", "Product Assortment Support",
+        "A98", "Order Support",
         {"topology": "monolith", "frontend_format": "mdb", "source_availability": "full", "backend_kinds": ["embedded_access"]},
         [],
     )
@@ -151,7 +152,11 @@ def test_init_writes_the_input_guide(tmp_path: Path) -> None:
 def test_the_guide_names_no_project(tmp_path: Path) -> None:
     """A shared template carrying one project's counts is a template nobody trusts."""
     text = (PACKAGE / "templates" / "input.README.md").read_text(encoding="utf-8")
-    for leaked in ("A05", "品揃支援", "受注データ", "L:"):
+    # Any project id, not only the one that once leaked: a guard keyed to one name
+    # would itself be a record of that project.
+    found = re.findall(r"\bA0[0-9]\b", text)
+    assert not found, f"the shared guide must not name a project id: {found}"
+    for leaked in ("受注データ", "L:"):
         assert leaked not in text, f"the shared guide must not name {leaked!r}"
 
 

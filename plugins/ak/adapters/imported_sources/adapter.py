@@ -349,8 +349,8 @@ def _declared_kind(artifact: dict[str, Any]) -> str:
 def _record(item: dict[str, Any], raw: bytes) -> dict[str, Any]:
     record = {key: item.get(key) for key in ("logical_id", "kind", "role", "sha256", "media_type", "object_name") if item.get(key) is not None}
     # Stated explicitly because consumers key on it and an imported record left it
-    # empty. The A05 screen catalogue looked up every one of 51 forms and 63 reports
-    # by (database, kind, name), missed all 118, and reported all 118 as referenced
+    # empty. One run's screen catalogue looked up every one of its forms and reports
+    # by (database, kind, name), missed all of them, and reported all as referenced
     # by nothing - a figure that says the join failed, not that the code is dead.
     database_id = str(item.get("database_id") or "")
     if not database_id:
@@ -435,14 +435,14 @@ def _route_imex_specs(sections: dict[str, Any], record: dict[str, Any]) -> bool:
 def _route_controls(sections: dict[str, Any], record: dict[str, Any]) -> bool:
     """Expand an imported ui/controls.json into the UI section.
 
-    A55. `tools/ExportAccessObjects.bas` writes a control inventory - A06's frontend has
-    1,924 controls with their captions, positions, visibility and event handlers - and
+    A55. `tools/ExportAccessObjects.bas` writes a control inventory - one frontend had
+    nearly two thousand controls with their captions, positions, visibility and event handlers - and
     `_route_record` had no branch for it, so it fell through to the `else` and landed in
-    `databases/objects.json`: 423 KB of JSON inside a record, in the section a reader
+    `databases/objects.json`: hundreds of KB of JSON inside a record, in the section a reader
     takes for a list of database objects.
 
-    Nothing was lost and nothing could read it either. Every control figure in A06's
-    Phase 2 was quoted from the unsealed export folder instead of from the bundle, which
+    Nothing was lost and nothing could read it either. Every control figure in that
+    project's Phase 2 was quoted from the unsealed export folder instead of from the bundle, which
     is weaker evidence than the document presented. Routed here, `ui/controls.json` is a
     bundle section like any other and the screen catalogue can carry hidden controls per
     object.

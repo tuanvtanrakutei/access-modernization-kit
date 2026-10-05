@@ -2,7 +2,7 @@
 """Generate the exhaustive catalogues: every table, every screen, every query.
 
 A phase document is a narrative - it says what matters and why. Measured against the
-bundle, the A05 narratives named 20 of 118 tables, 4 of 328 distinct column names, 22
+bundle, one project's narratives named 20 of 118 tables, 4 of 328 distinct column names, 22
 of 51 forms and 5 of 77 queries. That is not a writing failure; a narrative that
 listed 1,055 columns would stop being one.
 
@@ -12,7 +12,7 @@ column. Its Phase 1 narrative is the *shortest* phase document in the set precis
 because the enumeration lives beside it. The kit had no counterpart at all.
 
 These catalogues are generated, never written, and that is the point. Three wrong
-counts in one A05 session (QA18, QA18a, E-06) were all the same mistake: a set counted
+counts in one session (QA18, QA18a, E-06) were all the same mistake: a set counted
 by one key and then described from a subset of it. Writing 118 rows by hand is that
 mistake with more chances to make it. Generated from the bundle, a catalogue is right
 by construction and stays right when the bundle is re-acquired.
@@ -388,7 +388,7 @@ def _table_reconciliation(tables: list[dict[str, Any]]) -> list[str]:
         "in every frontend that links it.",
         "",
         # Deliberately not summed. Adding the rows would decide the question the last
-        # paragraph of this section refuses to decide - on A06 the sum reads 56-103,
+        # paragraph of this section refuses to decide - on one project the sum read 56-103,
         # because 20 of the backend's 21 tables are also the frontend's link targets,
         # and whether the supplied backend is the database those links name is not a
         # fact in a connect string. Per database is the largest true statement here.
@@ -545,7 +545,7 @@ def data_catalogue(app_id: str, bundle: Path, types: dict[int, dict[str, str]],
     ]
 
     out += ["## 1. Table list", ""]
-    # A39. `len(tables)` counts table *objects*, and on A06 that was 209 against 35
+    # A39. `len(tables)` counts table *objects*, and on one project that was 209 against 35
     # tables - 153 of the objects being the same tables linked again under a name
     # Access numbered itself. The count was never wrong about objects; it was read as
     # a count of tables, by a reader with no way to tell the difference. So the
@@ -799,7 +799,7 @@ def definition_headline(shapes: dict[tuple[str, str, str], dict]) -> str:
     looking for something that is not there.
 
     A consumer trace returns *absence*, and absence from an incomplete corpus reads
-    exactly like absence from a complete one. On A05 that turned "one screen imports
+    exactly like absence from a complete one. On one project that turned "one screen imports
     every inbound file" into "no screen imports any of them", and nothing in the output
     hinted that a form had been cut to a third of its length (backlog A15).
     """
@@ -825,7 +825,7 @@ def definition_shapes(space: Any) -> dict[tuple[str, str, str], dict]:
     Read here because a figure nobody reads is not a signal. `check_export_completeness`
     writes `.ak/extracted/object-shapes.json` and, until now, nothing consumed it - so a
     reader tracing a screen's consumers over an incomplete corpus got absence with no
-    way to tell it from absence over a complete one. A05's `メインメニュー` sat in the
+    way to tell it from absence over a complete one. One project's `メインメニュー` sat in the
     workspace twice, at 1,642 lines and at 4,886, and the two handlers that import every
     inbound file begin past line 4,000. Backlog A15: the figure has to travel with the
     corpus.
@@ -852,7 +852,7 @@ def recorded_answers(space: Any) -> dict | None:
     """What `$ak interviews` recorded about the Q&A register, or None if it never ran.
 
     Read here because backlog A24 is about exactly this: `$ak samples` found a real
-    contradiction on A05 and left it in terminal output, where no document could state
+    contradiction on one project and left it in terminal output, where no document could state
     it and no citation could reach it. A register reading has the same problem and the
     same fix - the check writes `.ak/extracted/interview-register.json`, and this is
     the reader.
@@ -904,7 +904,7 @@ def definition_note(entry: dict | None) -> str:
     Three answers, and the third is the one A15 is about. `_not extracted_` means no
     shape was recorded. A balanced text that both routes agree on says its size, which
     is what makes a later disagreement visible. Anything else names the problem, because
-    an unbalanced definition lost content from the *middle* - A05's truncated main menu
+    an unbalanced definition lost content from the *middle* - one truncated main menu
     ended on a clean `End Sub` and reported 77 `Begin` against 68 `End`.
     """
     if not entry:
@@ -953,7 +953,7 @@ def _interactive_controls(bundle: Path, forms: list, reports: list,
 
     `ui/controls.json` reached the bundle in A55 and only counts were ever read out of
     it. The cost was concrete: Phase 2 asked an operator `What are the option-group
-    values behind 受注数調整リスト?` and routed it to warehouse operations, while the
+    values behind 出荷数確認リスト?` and routed it to warehouse operations, while the
     answer sat in the bundle - two choices, `バラのみ` at 1 and `ケースとバラ` at 2.
 
     Decoration is counted and not listed. 448 labels, 135 lines and 87 rectangles
@@ -1031,7 +1031,7 @@ def _interactive_controls(bundle: Path, forms: list, reports: list,
         "",
         f"**`Offers`** expands the {groups_seen} option group(s) into the choices each "
         "presents, as `value` = label, with the default where one is declared. The value "
-        "is what the code receives: a screen opening `\"受注数調整リスト\" & <group>` opens "
+        "is what the code receives: a screen opening `\"出荷数確認リスト\" & <group>` opens "
         "exactly the objects these values name, and nothing else. A `DefaultValue` "
         "beginning `=` is an Access expression and is printed as the definition writes it.",
         "",
@@ -1215,9 +1215,9 @@ def _per_object_behaviour(bundle: Path, forms: list[dict], reports: list[dict],
     this existed the enumeration half was in the phase document, written out for the
     twelve screens somebody chose to analyse, and absent for the other thirty-nine.
 
-    Every column here answers a question A06 got wrong without it. `Opens a built name`
-    is why "referenced by nothing" is not a deletion list - four of A06's nine are
-    opened as `"受注数調整リスト" & Me.fraレポート`, a name no search can find. `Writes`
+    Every column here answers a question one project got wrong without it. `Opens a built name`
+    is why "referenced by nothing" is not a deletion list - four of one project's nine were
+    opened as `"出荷数確認リスト" & Me.fraレポート`, a name no search can find. `Writes`
     is how `入荷実績入力` turned out to write eleven tables while its recorded purpose
     was "not established beyond the name".
     """
@@ -1269,8 +1269,8 @@ def _per_object_behaviour(bundle: Path, forms: list[dict], reports: list[dict],
         "The name is never written down, so no reference search finds it and the object "
         "it opens appears in *Objects referenced by nothing* below while being in use. "
         "The target is what the expression produces, never the quoted fragment before the "
-        "`&`: `\"受注数調整リスト\" & Me.fraレポート` opens `受注数調整リスト1` or "
-        "`受注数調整リスト2`, and no object is called `受注数調整リスト`. Which of them a "
+        "`&`: `\"出荷数確認リスト\" & Me.fraレポート` opens `出荷数確認リスト1` or "
+        "`出荷数確認リスト2`, and no object is called `出荷数確認リスト`. Which of them a "
         "given run produces depends on a control's value and is a question for an "
         "operator, not a fact in the code.",
         "",
@@ -1301,7 +1301,7 @@ def imex_columns(records: list[dict]) -> dict[str, list[str]]:
 
     Why it is worth having at all: a text link declaring `HDR=NO` has no header row, so
     its columns are positional and the specification is the only declaration of what
-    those positions mean. On A05 all six links reported `read_error` with `columns: 0`
+    those positions mean. On one project all six links reported `read_error` with `columns: 0`
     because the share was unmounted at acquisition - Access cannot enumerate a text
     link's columns without reading the file - so this was the only copy of the inbound
     boundary's layout that did not depend on the file being reachable. Backlog A17.
@@ -1466,13 +1466,12 @@ def logic_catalogue(app_id: str, bundle: Path, derived: dict | None,
             "",
             "**Scope.** This counts stored record sources only. SQL that a form builds "
             "in VBA carries `IN` clauses too, and those cannot be counted as statements "
-            "because the path is a variable rather than a literal - which is itself the "
-            "finding: in A05 the variable is `Sパス名`, declared `Public` and assigned "
-            "nowhere in either database. See `Q20`.",
+            "because the path is a variable rather than a literal. Trace where that variable "
+            "is assigned before concluding anything about where these statements read.",
             "",
         ]
 
-    # A39/A41. `len(linked)` counted link objects, and on A06 that read 360 - two
+    # A39/A41. `len(linked)` counted link objects, and on one project that read 360 - two
     # routes describing 180 links, which A40 now collapses - for 27 source tables
     # behind 10 targets. Three numbers, and the heading used to carry the one that
     # answers no question a reader has. The connections come first, because "what does
@@ -1518,7 +1517,7 @@ def logic_catalogue(app_id: str, bundle: Path, derived: dict | None,
         # The file is the subject of this table, so the path goes in the first column -
         # the expression itself where it is built from variables, because naming it
         # `_not extracted_` would hide that the code says exactly this much and no more.
-        # `Declared by` carries the call: three A06 screens import `Ｓ仕商品` from three
+        # `Declared by` carries the call: three screens can import one table from three
         # places, and without it they print as three identical rows.
         where = " ".join(part for part in (
             f"`{escape(feed.declared_in)}`" if feed.declared_in else "",

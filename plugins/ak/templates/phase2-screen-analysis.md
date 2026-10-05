@@ -29,8 +29,8 @@ document is JP-primary, with a Romaji alias for cross-reference. Never translate
 <!-- Compose this from the catalogue, never by hand. A hand-written alias is not a
      small defect: a reader who searches the catalogue for the English this document
      gave them finds nothing, and cannot tell whether the row is missing or the name
-     is. A06 published `daily_stock_report_print` against a catalogue composing
-     `date_by_stock_report_print`, and the rule forbidding it was stated in this very
+     is. One run published `daily_order_report_print` against a catalogue composing
+     `date_by_order_report_print`, and the rule forbidding it was stated in this very
      section of the document that broke it.
 
      The diagrams are where the reader needs this most. A node cannot carry
@@ -42,10 +42,10 @@ document is JP-primary, with a Romaji alias for cross-reference. Never translate
 
 <!-- THE CAPTION IS NOT THE OBJECT NAME, and an operator names the caption.
 
-     A06 published a screen called `商品情報登録` for two drafts. No object in the
-     application carries that name: it is the title bar on `商品情報設定画面` and the
+     One run published a screen called `受注登録` for two drafts. No object in the
+     application carries that name: it is the title bar on `受注入力画面` and the
      label on the switchboard button that opens it. The interview that is the entire
-     basis for the finding names two captions - 『商品情報登録』『商品情報一覧登録』 -
+     basis for the finding names two captions - 『受注登録』『受注一覧登録』 -
      and the document had folded both into one screen that does not exist, attaching
      the finding to the wrong object.
 
@@ -55,10 +55,10 @@ document is JP-primary, with a Romaji alias for cross-reference. Never translate
      calls by one name is filed under another.
 
      Recording captions is cheap and pays twice more:
-       - `新規事業部受注取込画面` carries the caption `受注データ取込`, character for
+       - `臨時受注取込画面` carries the caption `受注データ取込`, character for
          character the caption on the live daily import. The hidden screen does not
          merely write the same tables; it presents itself as the same screen.
-       - `前日準備リスト` prints as `受注差分リスト`, so the report an operator asks for
+       - `翌日準備リスト` prints as `出荷差分リスト`, so the report an operator asks for
          by name is not findable under it.
 
      A caption establishes no meaning - it is a label, like the object name, and rule
@@ -81,7 +81,7 @@ document is JP-primary, with a Romaji alias for cross-reference. Never translate
      what they must not get wrong. Two habits follow:
 
      Open with what they must not get wrong. A short numbered list, each item pointing at
-     the section that proves it. A06's Phase 2 was correct and unusable before it had one:
+     the section that proves it. One Phase 2 was correct and unusable before it had one:
      the fact that re-running the morning import destroys the quantities staff typed the
      night before was in the document, four sections deep, in prose.
 
@@ -89,7 +89,7 @@ document is JP-primary, with a Romaji alias for cross-reference. Never translate
      One required diagram per phase is a floor, not a budget. Reach for one whenever the
      thing being described has a shape: an order of steps, a cycle, a lifecycle with a
      failure branch, a fan-out from one object to many, or three artefacts that should
-     agree and do not. A06's Phase 2 carries five and is shorter than the four-diagram
+     agree and do not. One Phase 2 carries five and is shorter than the four-diagram
      draft it replaced, because each one removed a paragraph that was describing a picture.
 
      Mermaid renders, or it is not evidence a reader can see. Check it - `mmdc -i x.mmd -o
@@ -99,7 +99,7 @@ document is JP-primary, with a Romaji alias for cross-reference. Never translate
 
      Keep the document's own revision history out of it. How many drafts a figure went
      through is a fact about the analysis, not about the application, and a developer
-     reading once does not need it: A06's Phase 2 carried a paragraph explaining that a
+     reading once does not need it: one Phase 2 carried a paragraph explaining that a
      count had been "wrong twice before it was right", naming all three numbers and both
      causes, and it was the hardest paragraph in the document to read.
 
@@ -155,7 +155,7 @@ document is JP-primary, with a Romaji alias for cross-reference. Never translate
 | Controls hidden in the definition | | | `ui/controls.json` |
 | Business purpose not established | | | the catalogue's marked cells |
 
-<!-- The hidden-control row is not housekeeping. A06's switchboard carries 32 command
+<!-- The hidden-control row is not housekeeping. One switchboard carries 32 command
      buttons and seven of them are hidden with no code anywhere making them visible
      again - one of the seven would reach a screen that declares two live inbound
      feeds. A hidden control is REACHABILITY evidence and not usage evidence: a
@@ -199,12 +199,12 @@ flowchart TD
 
      `Who uses it` is the half of this phase's claim that definition text cannot
      answer. It comes from a DOCUMENT or an INTERVIEW or it reads "not established";
-     an operating procedure that names a department beside a function - A06 has one
+     an operating procedure that names a department beside a function - one application has one
      naming 受注課 and 常温庫 against the morning and evening runs - is the cheapest
      evidence there is for it, and it is usually already in `input/documents`.
 
      Record it here when a screen CREATES OR DROPS a database object while running.
-     A06 has three, and a migration that reads the object inventory as fixed is wrong
+     One application has three, and a migration that reads the object inventory as fixed is wrong
      about all of them: one builds and drops a staging table per day, one deletes and
      recreates a query before exporting it, and one drops a whole table and re-imports
      it from a spreadsheet. -->
@@ -231,9 +231,9 @@ flowchart TD
 | Opened by a database property rather than by code | |
 | **Referenced by nothing, and no route found** | |
 
-<!-- The two middle rows are why the last one is not a deletion list. A06's four
-     `受注数調整リスト1/2` and `残数記入リスト1/2` reports are opened as
-     `"受注数調整リスト" & Me.fraレポート` - a name no search can find because it is
+<!-- The two middle rows are why the last one is not a deletion list. One application's four
+     `出荷数確認リスト1/2` and `在庫数記入リスト1/2` reports are opened as
+     `"出荷数確認リスト" & Me.fraレポート` - a name no search can find because it is
      never written down - and the switchboard itself is opened by the database's
      startup property. Five of that application's nine "referenced by nothing" objects
      were reachable, and finding them meant reading the open calls for concatenation
@@ -286,11 +286,11 @@ flowchart TD
      has to reach BOTH.
 
      RA, not RS. RS is Phase 5's and means security and compliance; a screen is
-     application layer. A06's Phase 2 published five findings as RS-nn, one of them
+     application layer. One Phase 2 published five findings as RS-nn, one of them
      "grouping carried by 222 line and rectangle controls", and took Phase 5's
      numbers before Phase 5 ran.
 
-     This section exists because A06's Phase 2 had none: thirteen identifiers were
+     This section exists because one Phase 2 had none: thirteen identifiers were
      allocated into the register with nowhere in the document to appear, and four
      risks were never written down in any sentence a reader would see. -->
 
@@ -330,7 +330,7 @@ flowchart TD
        duplicate  - it asks what another identifier already asks. Name that one and
                     stop carrying both.
 
-     A06's Phase 2 skipped this section and allocated `Q108`, which asks what Phase 1's
+     One Phase 2 skipped this section and allocated `Q108`, which asks what Phase 1's
      `Q103` already asked of the same owner about the same file. Two questions to one
      person about one thing is the cheapest kind of waste to avoid and the easiest to
      create.
@@ -382,7 +382,7 @@ flowchart TD
      Write \| for a pipe inside a cell. A cell that is prose is not wrong, but nothing
      can read it, and the checker counts it instead of comparing it.
      To close a question, set resolved_by in the register AND begin the row with
-     **Answered - <evidence id>**. Leave Blocks and Party as they were: A06's Q120 was
+     **Answered - <evidence id>**. Leave Blocks and Party as they were: one run's Q120 was
      rewritten in place when it was answered, so its Blocks column now holds the original
      question, its owner column an evidence id, and its real owner is gone. -->
 
@@ -395,7 +395,7 @@ flowchart TD
 
 <!-- Only when something about the acquisition qualifies what is above: screenshots
      that name no screen, an export produced by an older tool, a control inventory
-     that failed on some objects. A06's case: 13 of its 14 screenshots carry no index
+     that failed on some objects. One run's case: 13 of its 14 screenshots carry no index
      naming the screen they show, so the one evidence class this phase degrades
      without is present and, for all but one screen, uncitable. -->
 

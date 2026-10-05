@@ -157,10 +157,10 @@ def test_derived_node_ids_survive_japanese_names() -> None:
     # The skill's own id rule normalizes to [a-z0-9_], which erases every character of
     # these three names and merges them into one node.
     names = ["受注データ", "商品マスタ", "店舗マスタ"]
-    ids = {module.node_id("table_a05", name) for name in names}
+    ids = {module.node_id("table_a99", name) for name in names}
     assert len(ids) == 3, "distinct Japanese names must not collapse onto one id"
     # Deterministic: the same name yields the same id on a later run.
-    assert module.node_id("table_a05", names[0]) == module.node_id("table_a05", names[0])
+    assert module.node_id("table_a99", names[0]) == module.node_id("table_a99", names[0])
     # Still shaped as Graphify expects, with the digest appended rather than replacing.
     for identifier in ids:
         assert identifier.replace("_", "").isalnum()
@@ -209,7 +209,7 @@ def test_distilled_ui_facts_keep_relationships_and_drop_geometry() -> None:
 # `missing:any:trigger_effect_output_trace` was permanent. No adapter names it,
 # `_declaration_capabilities` yields only `backend_authority_declared`, and the manifest
 # has no field for it - so the remedy printed beside it changed nothing when followed.
-# A06 supplied one SAMPLE_DATA and fourteen OUTPUT_SAMPLE and stayed BLOCKED.
+# A workspace supplied one SAMPLE_DATA and over a dozen OUTPUT_SAMPLE and stayed BLOCKED.
 
 HEADER = ("run_id,app_id,task_id,workflow_id,step,user_action,screen,vba_event,"
           "processing,data_target,output,evidence_ids\n")
@@ -231,8 +231,8 @@ def _trace_workspace(tmp_path, *, samples=True, outputs=True, matrix_rows=()):
 
 
 def test_samples_alone_do_not_establish_the_trace(tmp_path) -> None:
-    """The half A06 had. Samples are outputs; nothing in them says which action made
-    one, and that is two thirds of what the capability is named for."""
+    """The half one workspace had. Samples are outputs; nothing in them says which
+    action made one, and that is two thirds of what the capability is named for."""
     root = _trace_workspace(tmp_path)
     assert not evidence_classes.trace_capability(
         root, evidence_classes.supplied_inventory(root))

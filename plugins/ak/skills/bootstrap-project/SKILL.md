@@ -1,6 +1,6 @@
 ---
 name: bootstrap-project
-description: "Set up a brand-new modernization project - copy the template documents into a target repo's docs directory, and seed Screens_Registry.md from a six-phase run's Phase 2 inventory when one exists. Trigger when the user wants to start a new Access-family modernization project, bootstrap a project, or set up the docs folder for a new subsystem before running the pipeline for the first time. Examples: \"bootstrap a new project for A05\", \"set up the modernize docs for this repo\", \"seed the screens registry from the six-phase run\"."
+description: "Set up a brand-new modernization project - copy the template documents into a target repo's docs directory, and seed Screens_Registry.md from a six-phase run's Phase 2 inventory when one exists. Trigger when the user wants to start a new Access-family modernization project, bootstrap a project, or set up the docs folder for a new subsystem before running the pipeline for the first time. Examples: \"bootstrap a new project for A99\", \"set up the modernize docs for this repo\", \"seed the screens registry from the six-phase run\"."
 ---
 
 # Bootstrap A New Modernization Project
@@ -73,7 +73,7 @@ names *because the pipeline documents reference each other directly*, and
 `MASTER_WORKFLOW.md` cites its siblings by bare filename twelve times. Copying the
 templates without them produces a project whose own `README.md` and `CLAUDE.md` pointer
 both name `MASTER_WORKFLOW.md` and whose `MASTER_WORKFLOW.md` is not there — which is what
-A06 got. A project holds its own copies so that a plugin upgrade cannot silently change
+one project got. A project holds its own copies so that a plugin upgrade cannot silently change
 the manual a half-finished screen was planned against.
 
 Copy them **unsubstituted**, like every other template here. They carry `{{...}}` keys that

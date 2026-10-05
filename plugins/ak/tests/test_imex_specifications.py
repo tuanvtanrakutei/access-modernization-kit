@@ -1,6 +1,6 @@
 """The two tables that declare a text link's columns, and why they are read at all.
 
-A05 links six delimited text files, every one declaring `FMT=Delimited;HDR=NO;IMEX=2`
+One application linked six delimited text files, every one declaring `FMT=Delimited;HDR=NO;IMEX=2`
 and `DSN=<spec name>`. `HDR=NO` means there is no header row, so a column's meaning is
 positional and the specification named by `DSN=` is the only declaration of what those
 positions mean. It lives in `MSysIMEXSpecs` and `MSysIMEXColumns`, inside the database.
@@ -222,10 +222,10 @@ def test_a_missing_specification_table_is_recorded_not_raised(missing: str) -> N
 def test_the_reader_runs_whether_or_not_a_link_declares_a_dsn() -> None:
     """A44. The gate asked whether a *link* names a specification, and code can too.
 
-    A06 has no text links at all and six saved specifications, four of them called by
-    name from VBA. The DAO tier cannot see a `TransferText` call when
+    An application can have no text links at all and six saved specifications, four of
+    them called by name from VBA. The DAO tier cannot see a `TransferText` call when
     `skip_object_export` is set, so the gate was asking a question it could not answer,
-    and it collected A06's six only by accident - an ODBC connect carries `DSN=` as
+    and it collected such an application's six only by accident - an ODBC connect carries `DSN=` as
     well (A42). Removing that accident without removing the gate would have dropped
     four inbound CSV layouts.
 
@@ -246,14 +246,14 @@ def test_an_odbc_data_source_is_not_an_import_specification() -> None:
 
     Both routes now read the specification tables unconditionally (A44), so no gate
     inspects a connect string for `DSN=` any more. What must not happen is an ODBC
-    link being *reported* as naming a specification: A06's three SQL Server links were
-    its only three "file feeds", `dbo.仕入商品マスタ` among them, each told to go find a
+    link being *reported* as naming a specification: one application's three SQL Server
+    links were its only three "file feeds", `dbo.仕入商品マスタ` among them, each told to go find a
     sample of a database table.
     """
     import feed_samples
 
-    odbc = ("ODBC;DSN=SMSIIS_TargetNeo;UID=<REDACTED>;APP=Microsoft (R) Access;"
-            "WSID=SYSTEM01;DATABASE=TargetNeo;Trusted_Connection=Yes")
+    odbc = ("ODBC;DSN=SALESIIS_Target;UID=<REDACTED>;APP=Microsoft (R) Access;"
+            "WSID=SYSTEM01;DATABASE=SalesTarget;Trusted_Connection=Yes")
     assert feed_samples.specification_name(odbc) == ""
     assert feed_samples.feeds([{"database_id": "FE", "name": "仕入商品マスタ",
                                 "source_table_name": "dbo.仕入商品マスタ",
@@ -393,14 +393,14 @@ def test_the_run_instruction_names_the_layout_the_kit_uses_now() -> None:
     """Both places told an operator to write into `<APP>/sources/<DATABASE_ID>`.
 
     2.10 moved every supplied input under `input/`, and an export package now lives at
-    `input/exports/<DATABASE_ID>-<DATE>` - which is where A05's is. The instruction was
+    `input/exports/<DATABASE_ID>-<DATE>` - which is where real ones are. The instruction was
     not updated with the layout, so it sent an operator to a directory the workspace
     stopped answering on. Found by an operator reading it, not by a check, which is why
     there is now a check.
     """
     for path in (BAS, GUIDE):
         line = next(l for l in path.read_text(encoding="utf-8").splitlines()
-                    if 'ExportAccessObjects "D:' in l)
+                    if 'ExportAccessObjects "' in l)
         assert "input" in line, f"{path.name}: {line}"
         assert "exports" in line, f"{path.name}: {line}"
         assert "sources" not in line, f"{path.name} still names the pre-2.10 path: {line}"
@@ -412,17 +412,17 @@ def test_the_instruction_asks_for_a_dated_folder_beside_the_last_one() -> None:
     A15's whole finding came from two readings of one form sitting side by side.
     """
     line = next(l for l in BAS.read_text(encoding="utf-8").splitlines()
-                if 'ExportAccessObjects "D:' in l)
+                if 'ExportAccessObjects "' in l)
     assert "YYYY-MM-DD" in line, line
     assert "beside the last one rather than over it" in BAS.read_text(encoding="utf-8")
 
 
-# --- what the 2026-09-08 A05 frontend run turned up --------------------------
+# --- what a real frontend export run turned up ------------------------------
 
 def test_the_exporter_leaves_itself_out_of_the_corpus() -> None:
     """It is imported into the database to run, so without a guard it exports itself.
 
-    A05's 2026-09-08 frontend export carried seven modules against the previous six,
+    A real frontend export carried seven modules against the previous six,
     the extra one being this file. Small as contamination goes, and then measured as if
     it were the application's: `$ak completeness` records its shape and `$ak meanings`
     asks what it is for. Found by running the export, which is the only way this file
@@ -438,7 +438,7 @@ def test_the_exporter_leaves_itself_out_of_the_corpus() -> None:
     assert "If ao.Name <> MODULE_NAME Then" in text
 
 
-def test_the_gate_fires_on_the_connect_strings_a05_actually_has() -> None:
+def test_the_gate_fires_on_connect_strings_shaped_like_real_ones() -> None:
     """The six links are in the *backend*, and their specification names carry spaces.
 
     `DSN=Order ﾘﾝｸの定義2` - a space and half-width katakana. The exporter's gate strips
@@ -448,9 +448,9 @@ def test_the_gate_fires_on_the_connect_strings_a05_actually_has() -> None:
     to join on.
     """
     real = [
-        "Text;DSN=Order ﾘﾝｸの定義2;FMT=Delimited;HDR=NO;IMEX=2;DATABASE=L:" + chr(92) + "品揃支援",
-        "Text;DSN=幸松受注 ﾘﾝｸの定義;FMT=Delimited;HDR=NO;IMEX=2;DATABASE=L:" + chr(92) + "品揃支援",
-        "Text;DSN=DPTENPO ﾘﾝｸの定義;FMT=Delimited;HDR=NO;IMEX=2;DATABASE=L:" + chr(92) + "品揃支援",
+        "Text;DSN=Order ﾘﾝｸの定義2;FMT=Delimited;HDR=NO;IMEX=2;DATABASE=L:" + chr(92) + "業務システム",
+        "Text;DSN=取引先A受注 ﾘﾝｸの定義;FMT=Delimited;HDR=NO;IMEX=2;DATABASE=L:" + chr(92) + "業務システム",
+        "Text;DSN=DPTENPO ﾘﾝｸの定義;FMT=Delimited;HDR=NO;IMEX=2;DATABASE=L:" + chr(92) + "業務システム",
     ]
     for connect in real:
         # The exporter's gate, evaluated as VBA evaluates it.
@@ -462,16 +462,16 @@ def test_the_gate_fires_on_the_connect_strings_a05_actually_has() -> None:
 
 
 def test_a_frontend_with_no_dsn_link_is_a_real_case_not_a_failure() -> None:
-    """A05's frontend has two linked tables to the backend .mdb, neither with a DSN.
+    """A frontend can have only linked tables to the backend .mdb, none with a DSN.
 
     A plain Jet link declares no layout, so the catalogue cell stays empty rather than
     reporting a specification the database does not hold. Since A44 the count is just a
     count: a database with no saved specification reports zero rows, which is a
     measurement, where `no link declares DSN=` was a statement about the wrong thing -
-    A06 has no DSN link and six specifications.
+    an application can have no DSN link and six specifications.
     """
     assert catalogues.declared_layout(
-        ";DATABASE=L:" + chr(92) + "新品揃支援" + chr(92) + "XP" + chr(92) + "品揃支援data.mdb", {}) == ""
+        ";DATABASE=L:" + chr(92) + "新業務システム" + chr(92) + "XP" + chr(92) + "業務システムdata.mdb", {}) == ""
     text = BAS.read_text(encoding="utf-8")
     assert '"imex_specification_rows=" & CStr(nImexRows)' in text
     assert "no link declares DSN=" not in text

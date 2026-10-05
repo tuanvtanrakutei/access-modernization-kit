@@ -711,7 +711,7 @@ def test_ocr_that_returns_nothing_is_a_gap_not_a_normalization(tmp_path, monkeyp
 
 
 def test_a_supplied_image_is_stripped_of_alpha_before_ocr(tmp_path):
-    """Measured on a real A06 screenshot: RGBA reads empty, dropped it reads.
+    """Measured on a real screenshot: RGBA reads empty, dropped it reads.
 
     Its alpha is uniformly opaque, so removing it changes no pixel - confirmed by
     `ImageChops.difference` finding no bounding box between the two. This is not an
@@ -780,7 +780,7 @@ def test_a_japanese_image_name_does_not_reach_tesseract_as_a_path(tmp_path):
 
     So a Japanese name in the temp path arrives mangled on a cp932 host and every read
     fails - reported as OCR_FAILED for a file that was perfectly readable. Four of a
-    real A06 workspace's report exports (新商品一覧表.png and three more) failed this
+    real workspace's report exports (新商品一覧表.png and three more) failed this
     way within an hour of the alpha fix that introduced it.
 
     Named from a digest, which is the remedy this kit already uses twice:

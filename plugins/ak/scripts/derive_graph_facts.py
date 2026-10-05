@@ -42,7 +42,7 @@ import workspace as workspace_contract  # noqa: E402
 # An escaped quote inside the value must not end it. Access writes a record source
 # containing an `IN "path"` clause as `RecordSource ="select ... IN \"L:\...\"..."`,
 # and a pattern that stops at the first quote captured only `select ... IN \` - so the
-# `IN` clause was truncated away on 35 of 51 A05 forms, and the boundary it declares
+# `IN` clause was truncated away on 35 of 51 forms in one project, and the boundary it declares
 # was invisible to every later reader. The symptom was visible in the catalogue as a
 # record source ending in `IN \` and was not chased.
 RECORD_SOURCE_RE = re.compile(
@@ -111,7 +111,7 @@ def fact_filename(database_id: str, name: str, kind: str = "") -> str:
 
     The kind is in the name because Access permits a form and a report to share one,
     and this application does it four times - 酒アイテム別確認表, 青果アイテム別確認表,
-    雑貨Ⅱアイテム別確認表 and 冷凍品引渡表 each exist as both in the frontend. Keyed on
+    日用品Ⅱアイテム別確認表 and 冷凍品出荷表 each exist as both in the frontend. Keyed on
     (database, name) alone, one silently overwrote the other and four objects' distilled
     facts left the corpus without a word.
     """
@@ -171,7 +171,7 @@ def bundle_texts(
     takes its definition text from an operator's export writes that text into the
     bundle and leaves the previous staging files untouched, so a deriver reading
     staging alone re-derives from the older text and reports no difference. That is
-    not hypothetical: it is how A05's reachability figures came to be computed from a
+    not hypothetical: it is how one project's reachability figures came to be computed from a
     main menu missing 24 of its 45 procedures (E-17).
 
     The text is either inline in the inventory - the imported route stores it there,

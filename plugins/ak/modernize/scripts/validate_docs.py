@@ -54,7 +54,7 @@ DOC_EXAMPLE_TOKENS = {"PLACEHOLDER", "KEY", "SCREEN", "FIELD", "VALUE", "FILL"}
 # Per-row example tokens inside templates, e.g. {{SCREEN_1_KEY}}, {{SCREEN_2_URL}}.
 ROW_TOKEN_RE = re.compile(r"^SCREEN_\d+(_[A-Z_]+)?$")
 
-# `A01 Known_Issues.md #41` - a row in another subsystem's log. The SMS family copies
+# `A99 Known_Issues.md #41` - a row in another subsystem's log. A system family copies
 # code between subsystems, and the comment that explains why a helper exists is worth
 # more with its origin attached than with the origin stripped to keep a checker quiet.
 EXTERNAL_ISSUE_RE = re.compile(r"\b[A-Z]\d{2}(?:'s)?\s+Known_Issues\.md\s*#\d+")
@@ -290,8 +290,8 @@ def check_issues(f: Findings, docs_dir: str, issues_path: str, source_dir: str |
                     continue
                 p = os.path.join(dirpath, name)
                 # A citation qualified by another subsystem's code is that subsystem's
-                # row, not a broken one here. A06's backend inherits code from A01 and
-                # carries A01's issue numbers in the comments that explain why the code
+                # row, not a broken one here. One subsystem's backend inherits code from another
+                # and carries that one's issue numbers in the comments that explain why the code
                 # is shaped the way it is - removing the qualified ones before the scan
                 # keeps that provenance readable instead of making it a finding.
                 text = EXTERNAL_ISSUE_RE.sub("", read(p))

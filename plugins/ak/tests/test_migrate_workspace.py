@@ -22,7 +22,7 @@ from workspace import Workspace  # noqa: E402
 
 MANIFEST = """version: '2.2'
 app:
-  id: A05
+  id: A99
 artifacts:
 - id: DATA
   source_ref:
@@ -57,11 +57,11 @@ def build(root: Path) -> Path:
     bundle = root / "acquired" / "bundle-abc123"
     bundle.mkdir()
     (bundle / "bundle.json").write_text("{}", encoding="utf-8")
-    outputs = root / "runs" / "A05-P1" / "outputs"
+    outputs = root / "runs" / "A99-P1" / "outputs"
     outputs.mkdir(parents=True)
-    (outputs / "A05_Phase1_DataUnderstanding_EN.md").write_text("# one", encoding="utf-8")
-    (outputs / "A05_Evidence.json").write_text("{}", encoding="utf-8")
-    (root / "runs" / "A05-P1" / "run-state.json").write_text("{}", encoding="utf-8")
+    (outputs / "A99_Phase1_DataUnderstanding_EN.md").write_text("# one", encoding="utf-8")
+    (outputs / "A99_Evidence.json").write_text("{}", encoding="utf-8")
+    (root / "runs" / "A99-P1" / "run-state.json").write_text("{}", encoding="utf-8")
     (root / "manifest.yaml").write_text(MANIFEST, encoding="utf-8")
     (root / ".gitignore").write_text(GITIGNORE, encoding="utf-8")
     (root / ".graphifyignore").write_text("x\n", encoding="utf-8")
@@ -70,7 +70,7 @@ def build(root: Path) -> Path:
 
 @pytest.fixture()
 def legacy(tmp_path: Path) -> Path:
-    return build(tmp_path / "A05")
+    return build(tmp_path / "A99")
 
 
 def test_planning_changes_nothing(legacy: Path) -> None:
@@ -82,13 +82,13 @@ def test_planning_changes_nothing(legacy: Path) -> None:
 def test_the_move_puts_the_documents_at_the_top(legacy: Path) -> None:
     migrate.apply(legacy, migrate.plan(legacy))
     published = sorted(p.name for p in (legacy / "output").iterdir())
-    assert published == ["A05_Evidence.json", "A05_Phase1_DataUnderstanding_EN.md"]
+    assert published == ["A99_Evidence.json", "A99_Phase1_DataUnderstanding_EN.md"]
 
 
 def test_the_run_keeps_its_working_state(legacy: Path) -> None:
     """Only the rendered documents move. Losing the evidence trail would be silent."""
     migrate.apply(legacy, migrate.plan(legacy))
-    assert (legacy / ".ak" / "runs" / "A05-P1" / "run-state.json").is_file()
+    assert (legacy / ".ak" / "runs" / "A99-P1" / "run-state.json").is_file()
 
 
 def test_sources_move_and_reports_out_is_renamed(legacy: Path) -> None:
@@ -119,7 +119,7 @@ def test_every_accessor_resolves_to_something_that_exists(legacy: Path) -> None:
     assert workspace.input_dir("access").is_dir()
     assert workspace.staging_root().is_dir()
     assert workspace.extracted().is_dir()
-    assert workspace.run_dir("A05-P1").is_dir()
+    assert workspace.run_dir("A99-P1").is_dir()
     assert workspace.output_dir().is_dir()
 
 
@@ -188,8 +188,8 @@ def test_a_workspace_with_no_runs_still_migrates(tmp_path: Path) -> None:
 
 
 def test_cited_paths_are_repointed(legacy: Path) -> None:
-    outputs = legacy / "runs" / "A05-P1" / "outputs"
-    (outputs / "A05_Evidence.json").write_text(
+    outputs = legacy / "runs" / "A99-P1" / "outputs"
+    (outputs / "A99_Evidence.json").write_text(
         '{"items": ['
         '{"id": "X-001", "source_path": "acquired/staging/DB/fresh-01/vba/AutoExec.txt"},'
         '{"id": "X-002", "source_path": "acquired/bundle-abc123/interfaces/linked.json"},'
@@ -201,7 +201,7 @@ def test_cited_paths_are_repointed(legacy: Path) -> None:
     migrate.apply(legacy, migrate.plan(legacy))
     import json
 
-    items = json.loads((legacy / "output" / "A05_Evidence.json").read_text(encoding="utf-8"))
+    items = json.loads((legacy / "output" / "A99_Evidence.json").read_text(encoding="utf-8"))
     paths = {item["id"]: item["source_path"] for item in items["items"]}
     assert paths["X-001"] == ".ak/staging/DB/fresh-01/vba/AutoExec.txt"
     assert paths["X-002"] == ".ak/bundles/bundle-abc123/interfaces/linked.json"
@@ -212,8 +212,8 @@ def test_cited_paths_are_repointed(legacy: Path) -> None:
 
 def test_every_repointed_path_actually_exists(legacy: Path) -> None:
     """The point of the rewrite, asserted against the filesystem rather than a string."""
-    outputs = legacy / "runs" / "A05-P1" / "outputs"
-    (outputs / "A05_Evidence.json").write_text(
+    outputs = legacy / "runs" / "A99-P1" / "outputs"
+    (outputs / "A99_Evidence.json").write_text(
         '{"items": ['
         '{"id": "X-001", "source_path": "acquired/bundle-abc123/bundle.json"},'
         '{"id": "X-002", "source_path": "extracted/component-index.json"},'
@@ -224,18 +224,18 @@ def test_every_repointed_path_actually_exists(legacy: Path) -> None:
     migrate.apply(legacy, migrate.plan(legacy))
     import json
 
-    items = json.loads((legacy / "output" / "A05_Evidence.json").read_text(encoding="utf-8"))
+    items = json.loads((legacy / "output" / "A99_Evidence.json").read_text(encoding="utf-8"))
     for item in items["items"]:
         assert (legacy / item["source_path"]).exists(), f"{item['id']} -> {item['source_path']}"
 
 
 def test_a_document_citing_a_path_in_prose_is_repointed_too(legacy: Path) -> None:
-    outputs = legacy / "runs" / "A05-P1" / "outputs"
-    (outputs / "A05_Phase1_DataUnderstanding_EN.md").write_text(
+    outputs = legacy / "runs" / "A99-P1" / "outputs"
+    (outputs / "A99_Phase1_DataUnderstanding_EN.md").write_text(
         "Read from `acquired/staging/DB/fresh-01/schema/tables.json`.\n", encoding="utf-8"
     )
     migrate.apply(legacy, migrate.plan(legacy))
-    text = (legacy / "output" / "A05_Phase1_DataUnderstanding_EN.md").read_text(encoding="utf-8")
+    text = (legacy / "output" / "A99_Phase1_DataUnderstanding_EN.md").read_text(encoding="utf-8")
     assert ".ak/staging/DB/fresh-01/schema/tables.json" in text
     assert "acquired/" not in text
 
@@ -243,9 +243,9 @@ def test_a_document_citing_a_path_in_prose_is_repointed_too(legacy: Path) -> Non
 def test_the_rewrite_is_idempotent(legacy: Path) -> None:
     """It must be safe to run on a workspace someone already migrated by hand."""
     migrate.apply(legacy, migrate.plan(legacy))
-    before = (legacy / "output" / "A05_Evidence.json").read_text(encoding="utf-8")
+    before = (legacy / "output" / "A99_Evidence.json").read_text(encoding="utf-8")
     assert migrate.rewrite_published_citations(legacy) == []
-    assert (legacy / "output" / "A05_Evidence.json").read_text(encoding="utf-8") == before
+    assert (legacy / "output" / "A99_Evidence.json").read_text(encoding="utf-8") == before
 
 
 def test_a_longer_prefix_is_not_eaten_by_a_shorter_one() -> None:

@@ -1,6 +1,6 @@
 """The `needs` block, the parties it names, and the tables that must agree with it (A75).
 
-Measured on A06 before any of this existed: 39 open Q and UK entries were about two dozen
+Measured on a real register before any of this existed: 39 open Q and UK entries were about two dozen
 distinct asks, twelve spellings stood for four parties, and the register knew none of it
 because owner, blocks and default were prose in four tables. Q120 shows the cost. When it
 was marked answered its row was rewritten in place: the Blocks column now holds the
@@ -75,7 +75,7 @@ def problems(block: dict, namespace: str = "Q", eid: str = "Q117",
 # --- parties: twelve spellings, four parties --------------------------------
 
 def test_one_department_under_two_spellings_is_one_party() -> None:
-    """A06 writes the same department as `常温庫` (9 cells), 'Warehouse operations' (10)
+    """One register writes the same department as `常温庫` (9 cells), 'Warehouse operations' (10)
     and `常温庫 / システム課` (3). An agenda keyed by the raw cell would be twelve agendas."""
     p = parties()
     assert p.resolve("Warehouse operations") == (["常温庫"], [])
@@ -309,12 +309,12 @@ def test_a_row_of_the_wrong_width_is_reported_not_misread() -> None:
 
 
 def test_a_risk_id_inside_the_first_cell_is_still_its_id() -> None:
-    """A06's Phase 1 writes `| RD-01 — Missing primary keys | HIGH | ...`: no ID column,
+    """A real Phase 1 writes `| RD-01 — Missing primary keys | HIGH | ...`: no ID column,
     the identifier inside the first cell. Seven risks with no identifier to a parser."""
     assert dq.leading_identifier("RD-01 — Missing primary keys") == "RD-01"
     assert dq.leading_identifier("**Q116**") == "Q116"
     assert dq.leading_identifier("`BR-ORD-10` rule") == "BR-ORD-10"
-    assert dq.leading_identifier("[A06-P4-CODE-003]") is None
+    assert dq.leading_identifier("[A99-P4-CODE-003]") is None
     table = ("## 7. Risks\n\n| Risk | Severity | Consequence | Mitigation |\n|---|---|---|---|\n"
              "| RD-01 — Missing primary keys | HIGH | duplicates | Profile first |\n")
     rows = dq.tables(table)[0].rows
@@ -355,10 +355,10 @@ def test_a_party_that_differs_between_document_and_register_is_reported() -> Non
 def test_an_evidence_id_in_the_party_column_is_not_a_party() -> None:
     """Q120's Owner column. Its original cells were overwritten when it was answered."""
     text = ("### Questions\n\n" + OLD_Q_HEAD +
-            "| Q120 | **Answered — E-11.** Original question: | Who uses it? | [A06-P4-CODE-003] |\n")
-    entries = register(entry("Q120", "Q", resolved_by="A06-P4-CODE-003", needs=needs()))
+            "| Q120 | **Answered — E-11.** Original question: | Who uses it? | [A99-P4-CODE-003] |\n")
+    entries = register(entry("Q120", "Q", resolved_by="A99-P4-CODE-003", needs=needs()))
     result = compare(text, entries)
-    assert any("A06-P4-CODE-003" in f and "does not know" in f for f in result.findings)
+    assert any("A99-P4-CODE-003" in f and "does not know" in f for f in result.findings)
 
 
 def test_blocks_that_differ_are_reported_when_the_cell_names_identifiers() -> None:
@@ -368,7 +368,7 @@ def test_blocks_that_differ_are_reported_when_the_cell_names_identifiers() -> No
 
 
 def test_a_prose_blocks_cell_is_counted_not_compared() -> None:
-    """A06's Q117 reads 'Reproducing the day boundary - the `参考日` half of this is Q115'.
+    """A real Q117 reads 'Reproducing the day boundary - the `参考日` half of this is Q115'.
     Q115 is mentioned, not blocked, and a register that is right must not be contradicted
     by a sentence."""
     text = ("### Questions\n\n" + OLD_Q_HEAD +
@@ -393,7 +393,7 @@ def test_the_default_column_must_agree() -> None:
 
 
 def test_a_row_marked_answered_while_the_register_is_open_is_reported() -> None:
-    """Q120, Q106 and UK-S03 on A06: the document knew, the register did not."""
+    """Q120, Q106 and UK-S03 on one register: the document knew, the register did not."""
     text = ("### Questions\n\n" + OLD_Q_HEAD +
             "| Q120 | **Answered — E-11, and it should never have been asked.** | x | y |\n")
     result = compare(text, register(entry("Q120", "Q")))
@@ -420,7 +420,7 @@ def test_withdrawn_is_closed_and_raised_by_is_not() -> None:
 
 def test_closure_phrases_exist_for_every_output_language() -> None:
     """A49: a gate that reads one language reports a conformant document in another as
-    non-conformant. The Vietnamese A06 documents say 'Đã trả lời' and 'Rút lại'."""
+    non-conformant. One project's Vietnamese documents say 'Đã trả lời' and 'Rút lại'."""
     for language in ("EN", "JA", "VI"):
         assert checker.signals_for("closed_item", Path(f"A99_Phase4_{language}.md")), language
     vi = checker.signals_for("closed_item", Path("A99_Phase4_WorkflowReconstruction_VI.md"))

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Record the shape of every object's definition text, and compare it with last time.
 
-The gap this closes is A15: integrity was verified and completeness was not, so A05's
+The gap this closes is A15: integrity was verified and completeness was not, so one project's
 first export passed every gate carrying 21 of a form's 45 procedures. The reasoning
 for why this is a record-and-compare rather than a check lives in
 `contracts/export_completeness.py`; the short version is that one observation of a
@@ -14,7 +14,7 @@ It reads the definition text the newest bundle carries and the text staging hold
 the same two places `derive_graph_facts` reads, through the same function, because two
 readers disagreeing about where the text is would be a defect of exactly the kind this
 file exists to find. An object present in both is compared across the routes as well:
-that is the comparison that was available on A05 all along and that nobody had made.
+that is the comparison that was available on that project all along and that nobody had made.
 
 Exit codes: 0 when nothing is reported, 1 when something is. It is a report, not a
 gate - nothing in the pipeline refuses to run because of it, because a disagreement
@@ -89,7 +89,7 @@ def report(current: dict[str, dict[str, Any]],
             if shape is not None and not shape.balanced:
                 lines.append(f"UNBALANCED  {key} ({route}): {shape.imbalance}")
 
-    # The two routes reading one object. Available on A05 from the day the frontend was
+    # The two routes reading one object. Available on that project from the day the frontend was
     # acquired twice, and never once made.
     for key, entry in current.items():
         in_bundle = completeness.from_json(entry.get("bundle"))

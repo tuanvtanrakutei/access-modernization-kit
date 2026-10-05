@@ -40,7 +40,7 @@ SHOWN = 3
 # Naming an object is not asking what it offers: "are these two screens reachable?" says nothing
 # about their option groups, and listing them there is noise a person learns to skip. A control is
 # named exactly when it is the subject, so it is flagged on the name alone; an object is flagged
-# only when the question is also about choices. The words are the ones A06's questions used, in
+# only when the question is also about choices. The words are the ones one project's questions used, in
 # the languages its documents are written in, and a question worded another way is missed: the
 # direction that costs a question asked, not a question wrongly withdrawn.
 CHOICE_WORDS = re.compile(r"option|choice|value|enumerat|toggle|default|select|choose|"
