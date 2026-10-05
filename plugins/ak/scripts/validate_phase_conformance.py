@@ -485,13 +485,15 @@ def apparatus_checks(phase: int, text: str, registers: dict[str, Any],
     # A75. A person was asked in ten places and the register knew none of it: the owner of
     # a question, what waited on it, and what the pipeline did meanwhile were prose in four
     # tables. These two checks hold the fields where a program can read them, and hold the
-    # document to the register (ID-07 to ID-10, and `register.needs` in the scheme).
+    # document to the register (ID-07 to ID-11, and `register.needs` in the scheme). Risks
+    # joined in slice 3: each one's Mitigation is a recommended answer, routed to the decider.
     if entries is not None:
         parties = registers.get("parties")
         mine = [e for e in entries if e.get("phase") == phase]
         asks = [e for e in mine if e.get("namespace") in ("Q", "UK-")]
+        risks = [e for e in mine if e.get("namespace") in decision_queue.RISK_NAMESPACES]
         problems = decision_queue.validate_register(entries, parties, phase)
-        if parties is None and (asks or any(isinstance(e.get("needs"), dict) for e in mine)):
+        if parties is None and (asks or risks or any(isinstance(e.get("needs"), dict) for e in mine)):
             problems.append(
                 "there is no input/decisions/parties.yaml, so no party can be checked and "
                 "no question routed")
@@ -500,8 +502,9 @@ def apparatus_checks(phase: int, text: str, registers: dict[str, Any],
         results.append(check(
             "decision_fields_present", "apparatus", not problems,
             f"{len(problems)} problem(s), first: {problems[:3]}" if problems
-            else f"{len(asks)} question(s) and unknown(s) allocated here, each routable"
-            if asks else "no question or unknown allocated in this phase",
+            else f"{len(asks)} question(s) and unknown(s) and {len(risks)} risk(s) allocated here, "
+                 "each routable"
+            if asks or risks else "no question, unknown or risk allocated in this phase",
         ))
 
         comparison = decision_queue.compare_document(

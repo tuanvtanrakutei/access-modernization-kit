@@ -45,6 +45,12 @@ Three things are checked, and each is a defect this kit has already had:
 
 Nothing here decides a party or a block. It records the ones a person or a phase
 author chose, and refuses the ones that cannot be followed.
+
+Risks join in slice 3. Every risk already carries a Mitigation, which for a legacy defect is
+a recommended answer nobody was asked to accept: A06 has 25 of them. An open risk is now a
+DISPOSITION owned by the decider, proceeding on that Mitigation, with a `class` that standing
+policy (`input/decisions/policy.yaml`) settles by. A rule asked once beats the same question
+asked per risk, and every risk a rule settles is still listed, as settled by it.
 """
 from __future__ import annotations
 
@@ -66,6 +72,15 @@ DECIDER_KINDS = ("DISPOSITION", "SCOPE", "POLICY")
 
 RISK_NAMESPACES = ("RD-", "RA-", "RW-", "RS-")
 RISK_CLASSES = ("technical", "data", "retired", "behaviour")
+
+# What the new system does about a legacy behaviour. `fix` is doing what the risk's own
+# Mitigation says; the other three are what a decider chooses when the Mitigation is not
+# what they want. One closed list, because a disposition becomes a row in a screen plan's
+# gap matrix (`planned` for preserve, `accepted-difference` for fix or drop) and a word the
+# matrix does not know is a decision nobody downstream can act on. A policy may also say
+# `ask`: the class is put to the decider item by item.
+DISPOSITIONS = ("fix", "preserve", "drop", "defer")
+POLICY_DISPOSITIONS = (*DISPOSITIONS, "ask")
 
 # A disposition's default is the Mitigation its own risk already carries. That is not an
 # assumption, so it cannot be an `AS-` id; this literal says where to read it from.
@@ -303,6 +318,19 @@ def validate_needs(entry: dict[str, Any], ids: set[str],
 
     namespace = str(entry.get("namespace") or "")
     is_risk = namespace in RISK_NAMESPACES
+    # A risk's disposition decides what the risk's own Mitigation says to do, so the risk
+    # is the thing that waits on it. A06's 25 risks name no object in their rows; asking a
+    # reviewer to invent one per risk would fill `blocks` with guesses.
+    own_mitigation = is_risk and kind == "DISPOSITION" and needs.get("default") == MITIGATION
+
+    if is_risk and kind in KINDS and kind != "DISPOSITION":
+        problems.append(
+            f"{eid}: a risk asks what the new system does about it, so its `kind` is "
+            "DISPOSITION; a fact it waits on is a Q it `depends_on`")
+    if is_risk and kind == "DISPOSITION" and needs.get("class") is None:
+        problems.append(
+            f"{eid}: a risk's DISPOSITION names its `class` ({', '.join(RISK_CLASSES)}), "
+            "the key standing policy settles by")
 
     party = needs.get("party")
     if not isinstance(party, str) or not party.strip():
@@ -338,7 +366,7 @@ def validate_needs(entry: dict[str, Any], ids: set[str],
     if blocks is None or any(not isinstance(b, str) or not b.strip() for b in blocks):
         problems.append(f"{eid}: `blocks` must be a list of identifiers or `object:` references")
     else:
-        if not blocks and kind != "POLICY":
+        if not blocks and kind != "POLICY" and not own_mitigation:
             problems.append(
                 f"{eid}: `blocks` is empty. A question that blocks nothing identified has no "
                 "reason to be asked; name the narrowest thing that waits on it")
@@ -400,6 +428,8 @@ def validate_needs(entry: dict[str, Any], ids: set[str],
         elif (not isinstance(options, list) or len(options) < 2 or len(set(map(str, options))) != len(options)
               or any(not isinstance(o, str) or not o.strip() for o in options)):
             problems.append(f"{eid}: `options` needs at least two distinct choices")
+        elif kind == "DISPOSITION" and any(o not in DISPOSITIONS for o in options):
+            problems.append(f"{eid}: a DISPOSITION chooses among {list(DISPOSITIONS)}, got {options}")
 
     qa = needs.get("qa")
     if qa is not None and (
@@ -440,7 +470,7 @@ def _cycles(entries: Iterable[dict[str, Any]]) -> list[list[str]]:
 
 def validate_register(entries: list[dict[str, Any]], parties: Parties | None,
                       phase: int | None = None) -> list[str]:
-    """ID-07 to ID-09 over one phase's allocations, or the whole register when phase is None."""
+    """ID-07 to ID-09 and ID-11 over one phase's allocations, or the whole register when phase is None."""
     ids = {str(e.get("id")) for e in entries if e.get("id")}
     mine = [e for e in entries if phase is None or e.get("phase") == phase]
     problems: list[str] = []
@@ -458,12 +488,146 @@ def validate_register(entries: list[dict[str, Any]], parties: Parties | None,
             problems.append(f"{eid}: an open question with no `needs`; nothing can route, rank or block on it")
         elif namespace == "UK-" and eid not in asked:
             problems.append(f"{eid}: an open unknown that no Q asks about (`gap`) and that carries no `needs`")
+        elif namespace in RISK_NAMESPACES:
+            problems.append(
+                f"{eid}: an open risk with no `needs`; its Mitigation is a recommendation nobody "
+                "is asked to accept and no policy can settle")
 
     mine_ids = {str(e.get("id")) for e in mine}
     for loop in _cycles(entries):
         if mine_ids.intersection(loop):
             problems.append("depends_on cycle: " + " -> ".join(loop))
     return problems
+
+
+# --- standing policy -------------------------------------------------------------
+
+POLICY_KEYS = ("id", "class", "disposition", "decided_by", "decided_on", "note")
+POLICY_ID = re.compile(r"P-[1-9][0-9]{0,2}")
+_DATE = re.compile(r"[0-9]{4}-[0-9]{2}-[0-9]{2}")
+
+
+def _date_text(value: Any) -> str:
+    """A date as YAML hands it back: `2026-10-02` unquoted is a date, quoted a string."""
+    return value.isoformat() if hasattr(value, "isoformat") else str(value if value is not None else "")
+
+
+@dataclass
+class Policy:
+    """Rules asked once, each settling a class of dispositions (design section 5).
+
+    A policy is a decision about the new system, so it names what every target-intent record
+    names: who decided and when. One that names neither is a proposal - the kit writes them
+    that way - and settles nothing; the items it would settle are still asked, and the list
+    says which policy would take them off the agenda. A policy that says `ask` settles nothing
+    by design: its class is put to the decider one item at a time, with the Mitigation as the
+    default, which is what the maintainer chose for behaviour defects on 2026-10-01.
+    """
+
+    entries: list[dict[str, Any]] = field(default_factory=list)
+    problems: list[str] = field(default_factory=list)
+
+    @classmethod
+    def from_mapping(cls, data: Any) -> "Policy":
+        result = cls()
+        raw = (data or {}).get("policy") if isinstance(data, dict) else None
+        if raw is None:
+            return result
+        if not isinstance(raw, list):
+            result.problems.append("`policy` must be a list of rules")
+            return result
+        seen_ids: set[str] = set()
+        seen_classes: dict[str, str] = {}
+        for index, body in enumerate(raw, start=1):
+            if not isinstance(body, dict):
+                result.problems.append(f"rule {index}: must be a mapping")
+                continue
+            pid = str(body.get("id") or f"rule {index}")
+            unknown = sorted(set(body) - set(POLICY_KEYS))
+            if unknown:
+                result.problems.append(f"{pid}: unknown field(s) {unknown}; allowed: {list(POLICY_KEYS)}")
+            if not POLICY_ID.fullmatch(pid):
+                result.problems.append(f"{pid}: a policy id is P-<n>")
+            elif pid in seen_ids:
+                result.problems.append(f"{pid}: used twice")
+            seen_ids.add(pid)
+            klass = body.get("class")
+            if klass not in RISK_CLASSES:
+                result.problems.append(f"{pid}: `class` must be one of {list(RISK_CLASSES)}, got {klass!r}")
+            elif klass in seen_classes:
+                result.problems.append(
+                    f"{pid}: {seen_classes[klass]} already settles `{klass}`; two rules for one class contradict")
+            else:
+                seen_classes[klass] = pid
+            if body.get("disposition") not in POLICY_DISPOSITIONS:
+                result.problems.append(f"{pid}: `disposition` must be one of {list(POLICY_DISPOSITIONS)}, "
+                                       f"got {body.get('disposition')!r}")
+            by = str(body.get("decided_by") or "").strip()
+            on = _date_text(body.get("decided_on")).strip()
+            if bool(by) != bool(on):
+                result.problems.append(f"{pid}: `decided_by` and `decided_on` go together; "
+                                       "a decision names both who and when")
+            elif on and not _DATE.fullmatch(on):
+                result.problems.append(f"{pid}: `decided_on` is a date (YYYY-MM-DD), got {on!r}")
+            result.entries.append({"id": pid, "class": klass, "disposition": body.get("disposition"),
+                                   "decided_by": by or None, "decided_on": on or None,
+                                   "note": body.get("note")})
+        return result
+
+    @staticmethod
+    def in_force(rule: dict[str, Any]) -> bool:
+        return bool(rule.get("decided_by") and rule.get("decided_on"))
+
+    def rule_for(self, klass: Any) -> dict[str, Any] | None:
+        """The rule for a class, decided or not. None for a file with problems: a broken
+        policy settles nothing, rather than settling by whichever half of it parsed."""
+        if self.problems:
+            return None
+        return next((r for r in self.entries if r["class"] == klass), None)
+
+    def applies(self, entry: dict[str, Any]) -> dict[str, Any] | None:
+        """The rule that would settle this entry, in force or not; None when none would."""
+        needs = entry.get("needs")
+        if (not isinstance(needs, dict) or needs.get("kind") != "DISPOSITION"
+                or str(entry.get("namespace") or "") not in RISK_NAMESPACES or not is_open(entry)):
+            return None
+        rule = self.rule_for(needs.get("class"))
+        if rule is None or rule["disposition"] == "ask":
+            return None
+        if needs.get("options") and rule["disposition"] not in needs["options"]:
+            return None
+        if rule["disposition"] == "fix" and needs.get("default") != MITIGATION:
+            return None         # "do what the Mitigation says" with none to do is no decision
+        return rule
+
+
+def load_policy(path: Path) -> Policy | None:
+    """None when the file does not exist; a Policy carrying `problems` when it is wrong."""
+    if not path.is_file():
+        return None
+    try:
+        import yaml
+
+        data = yaml.safe_load(path.read_text(encoding="utf-8-sig"))
+    except Exception as error:
+        broken = Policy()
+        broken.problems.append(f"{path.name} cannot be read: {error}")
+        return broken
+    return Policy.from_mapping(data)
+
+
+# How a recorded disposition reads in its evidence item, written by `$ak decisions --decide`
+# and read back by the queue. One format in one place: the queue reads only what this writes.
+DISPOSITION_STATEMENT = re.compile(r"^Disposition of (\S+): (" + "|".join(DISPOSITIONS) + r")\.")
+
+
+def disposition_statement(item_id: str, choice: str, meaning: str) -> str:
+    return f"Disposition of {item_id}: {choice}. {meaning}".strip()
+
+
+def recorded_disposition(item: dict[str, Any] | None) -> str | None:
+    match = DISPOSITION_STATEMENT.match(str((item or {}).get("statement") or ""))
+    return match.group(2) if match else None
 
 
 # --- the document side -----------------------------------------------------------
@@ -542,6 +706,36 @@ def leading_identifier(cell: str) -> str | None:
     stripped = re.sub(r"^[\s*_`\[(]+", "", cell)
     match = _LEADING.match(stripped)
     return match.group(0) if match else None
+
+
+def risk_cells(cells: list[str], identifier: str) -> dict[str, str] | None:
+    """A risk row's title, severity, detail and mitigation, read by position. None if not one.
+
+    The templates give the identifier a column of its own (`ID | Risk | Severity | Detail |
+    Mitigation`, and Phase 2 adds `Evidence` after it). A06's Phase 1 has no ID column: the
+    identifier opens the first cell and every column after it sits one to the left. Both are
+    read by where the identifier is, not by header text, because the Vietnamese table is the
+    same table (`Rủi ro | Mức | Hậu quả khi migrate | Giảm thiểu`).
+    """
+    if not cells:
+        return None
+    own_column = re.sub(r"[\s*_`\[\]()]", "", cells[0]) == identifier
+    offset = 0 if own_column else -1
+    if len(cells) < 5 + offset:
+        return None
+    title = cells[1] if own_column else re.sub(
+        rf"^[\s*_`\[(]*{re.escape(identifier)}[\s*_`\])]*(?:[—–:-]\s*)?", "", cells[0])
+    return {"title": title.strip(), "severity": cells[2 + offset],
+            "detail": cells[3 + offset], "mitigation": cells[4 + offset]}
+
+
+# What a row writes when a risk has no recommended answer. The template asks for one of the
+# two, and a risk with nothing to proceed on blocks instead of defaulting.
+NO_MITIGATION = ("none proposed", "không đề xuất", "提案なし", "なし")
+
+
+def has_mitigation(text: str) -> bool:
+    return not is_blank_cell(text) and _norm(text) not in {_norm(n) for n in NO_MITIGATION}
 
 
 def tables(text: str) -> list[Table]:

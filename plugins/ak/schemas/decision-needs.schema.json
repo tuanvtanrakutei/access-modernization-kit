@@ -28,6 +28,15 @@
     },
     "qa": {"type": ["array", "null"], "items": {"type": "integer", "minimum": 1}, "uniqueItems": true}
   },
-  "if": {"properties": {"kind": {"not": {"const": "POLICY"}}}},
-  "then": {"properties": {"blocks": {"minItems": 1}}}
+  "allOf": [
+    {
+      "$comment": "A POLICY settles a class, and a risk's DISPOSITION proceeding on its own Mitigation decides that risk; neither need name anything else. That `mitigation` belongs only on a risk is the module's to check.",
+      "if": {"properties": {"kind": {"not": {"const": "POLICY"}}, "default": {"not": {"const": "mitigation"}}}},
+      "then": {"properties": {"blocks": {"minItems": 1}}}
+    },
+    {
+      "if": {"properties": {"kind": {"const": "DISPOSITION"}}, "required": ["kind"]},
+      "then": {"properties": {"options": {"items": {"enum": ["fix", "preserve", "drop", "defer"]}}}}
+    }
+  ]
 }

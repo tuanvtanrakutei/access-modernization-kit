@@ -296,8 +296,10 @@ rules:
     rule: >
       Every identifier a `needs` block names resolves in the register. `default` is an
       `AS-` (or `mitigation` on a risk's DISPOSITION), `gap` is a `UK-` and appears only on
-      a `Q`, `blocks` is not empty unless the kind is POLICY, `depends_on` has no cycle,
-      and no field outside the declared ones is present.
+      a `Q`, `blocks` is not empty unless the kind is POLICY or the item is a risk's
+      DISPOSITION proceeding on its own Mitigation, `depends_on` has no cycle, a
+      DISPOSITION's `options` are among the dispositions below, and no field outside the
+      declared ones is present.
     on_violation: "A reference that points nowhere, an agenda that cannot be ordered, or a misspelt field that does nothing while looking like one that works."
 
   - id: ID-10
@@ -306,6 +308,18 @@ rules:
       default and whether an item is closed. A cell that is prose, naming nothing a program
       can follow, is counted and not compared.
     on_violation: "The document and the register describe two different questions; a reader acts on one and the queue on the other."
+
+  # A75 slice 3. A risk's Mitigation is a recommended answer for a legacy defect, and nobody
+  # was asked to accept any of A06's 25.
+  - id: ID-11
+    rule: >
+      Every open risk (`RD-`, `RA-`, `RW-`, `RS-`) carries a `needs` block of kind
+      DISPOSITION, owned by the `decider`, with a `class`. It proceeds on `mitigation`, the
+      risk's own Mitigation, unless the row proposes none, and it `depends_on` the open
+      questions that Mitigation waits on. A rule in `input/decisions/policy.yaml` that names
+      who decided it and when settles every open disposition of its class unless it says
+      `ask`, and every item it settles is still listed, as settled by it.
+    on_violation: "A recommendation nobody is asked to accept, and that no standing policy can reach."
 
 # ---------------------------------------------------------------------------
 # Where allocations live.
@@ -341,6 +355,10 @@ register:
       SCOPE: "Whether a screen, report, table or boundary file is in the replacement. Settled by TARGET_INTENT (EC-07)."
       POLICY: "A rule that settles a class of the others. Settled by TARGET_INTENT."
     risk_classes: ["technical", "data", "retired", "behaviour"]
+    # What the new system does about a legacy behaviour. `fix` is doing what the risk's own
+    # Mitigation says. One closed list, because a disposition becomes a gap-matrix row
+    # (`planned` for preserve, `accepted-difference` for fix or drop).
+    dispositions: ["fix", "preserve", "drop", "defer"]
     fields:
       kind: "One of the kinds above. Required."
       party: "Canonical name in input/decisions/parties.yaml. Required. The `decider` for every kind but FACT."
@@ -353,3 +371,24 @@ register:
       class: "Risks only: technical, data, retired or behaviour, the key into standing policy."
       options: "DISPOSITION and SCOPE: the choices, at least two."
       qa: "The customer's Q&A register ids this item was posted as, once a person has posted it (`$ak decisions --link`). Read by `$ak decisions` to tell what is already with the customer. Optional."
+    answered_by: >
+      A DISPOSITION is answered by the decider, in a batch (`$ak decisions --decide`): each
+      answer is a row of a TARGET_INTENT record in `input/target-intent/` naming who decided
+      and when, and an evidence item citing that row, whose statement opens
+      `Disposition of <id>: <choice>.`; `resolved_by` then names the evidence. The answer is
+      never written into the `needs` block.
+
+  # A75 slice 3. Rules asked once. The module `contracts/decision_queue.py` (`Policy`) holds
+  # the validator, and a test holds these lists to it.
+  policy:
+    path: "input/decisions/policy.yaml"
+    written_by: "`$ak backfill-needs` proposes it; the decider edits it"
+    fields: ["id", "class", "disposition", "decided_by", "decided_on", "note"]
+    dispositions: ["fix", "preserve", "drop", "defer", "ask"]
+    in_force: >
+      A rule settles nothing until it names `decided_by` and `decided_on`, as every
+      target-intent record names both. One class has one rule. A rule saying `ask` puts
+      each item of its class to the decider, with its Mitigation as the default, and a
+      `fix` rule passes over a risk whose row proposed no Mitigation, there being nothing
+      to do. A file with any problem settles nothing, rather than settling by whichever
+      half parsed.

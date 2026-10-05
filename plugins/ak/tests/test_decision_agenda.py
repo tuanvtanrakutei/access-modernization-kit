@@ -81,12 +81,13 @@ def test_the_queue_is_the_open_entries_that_carry_a_needs_block() -> None:
     entries = base() + [q("Q1"), entry("Q2", "Q"), entry("Q3", "Q", resolved_by="A-1", needs=needs())]
     result = build(entries)
     assert order(result) == ["Q1"]
-    assert result["unrouted"] == ["Q2"]
+    # The two risks in base() carry no `needs` either, and since slice 3 a risk is routed too.
+    assert result["unrouted"] == ["Q2", "RW-02", "RW-07"]
 
 
 def test_an_unknown_a_question_asks_about_is_not_unrouted() -> None:
     entries = base() + [entry("UK-W01", "UK-"), q("Q1", gap="UK-W01"), entry("UK-W02", "UK-")]
-    assert build(entries)["unrouted"] == ["UK-W02"]
+    assert build(entries)["unrouted"] == ["RW-02", "RW-07", "UK-W02"]
 
 
 def test_a_default_is_what_lets_an_item_proceed() -> None:

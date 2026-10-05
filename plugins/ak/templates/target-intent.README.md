@@ -24,6 +24,15 @@ Same requirement as `interviews/`, for the same reason: a scope decision that ca
 taken back to whoever made it cannot be revisited when it turns out to cost something.
 A record with no attribution is read as a draft and carries no weight.
 
+## Records the kit writes here
+
+`$ak decisions --decide` puts the decider's open dispositions to them in the terminal: what the
+new system does about each legacy defect a phase found, with the risk's own Mitigation as the
+default. The answers are written here as `{APP_ID}_Decisions_<date>.md`, in the shape above -
+who decided, when, and from what - with one row per decision, and each row is cited by one
+TARGET_INTENT evidence item. Edit the decision by recording a new one, not by editing the file:
+the evidence item carries the file's SHA-256, so a changed file no longer matches what was cited.
+
 ## What this evidence can and cannot do
 
 It settles **SCOPE** claims — what the replacement includes — and **nothing else**.
