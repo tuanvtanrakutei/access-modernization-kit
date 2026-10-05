@@ -336,9 +336,9 @@ def content_checks(phase: int, text: str, path: Path | None = None) -> list[dict
 # hold in one read.
 #
 # These WARN and never FAIL. The calibration is the reference set, and it does not pass
-# them: SMS Phase 6 runs 890 words of prose against two diagrams in its roadmap section,
-# and carries 14 sentences over the limit. A check the gold standard fails is a contract
-# written wrong if it gates, and a question worth asking if it only reports.
+# them: its synthesis has a section with far more prose than diagrams, and more than ten
+# sentences over the limit. A check the gold standard fails is a contract written wrong
+# if it gates, and a question worth asking if it only reports.
 #
 # EN only. A word count is whitespace, which Japanese does not have, and a Vietnamese
 # word is a syllable, so one threshold would mean three different things. The VI and JA
@@ -436,8 +436,8 @@ def readability_checks(phase: int, text: str, path: Path | None = None) -> list[
 def render_check(path: Path) -> dict[str, Any]:
     """Whether every Mermaid block in the document renders, by mermaid-cli.
 
-    The templates have said since A06's Phase 2 that a diagram which does not render is
-    not evidence a reader can see, and nothing checked it. One `mmdc` call renders the
+    The templates say that a diagram which does not render is not evidence a reader can
+    see, and nothing checked it. One `mmdc` call renders the
     whole document; only when it fails is each block rendered alone, to say which.
     """
     import shutil

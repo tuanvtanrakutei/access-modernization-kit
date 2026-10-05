@@ -7,7 +7,7 @@ pressure. Catalogues and registers are read by agents and are out of scope here.
 Every rule below exists so that this person reads a claim correctly on the first read.
 The prose rules are adapted from [SimpleEnglish](https://github.com/AminBlg/SimpleEnglish)
 (MIT), which applies ASD-STE100 Simplified Technical English to software documents. The
-diagram rules are this kit's own, measured on the A01 reference set and on A06.
+diagram rules are this kit's own, calibrated on the reference set.
 
 `validate_phase_conformance.py` reports the measurable part as the `readability` group,
 on the EN document of each phase. That group warns and never fails a run, because the
@@ -23,9 +23,9 @@ Use the first form that can hold the claim:
 3. Prose, only for what neither can hold: a cause, an argument, an exception, a
    consequence.
 
-A section that describes a picture in prose is a diagram that was not drawn. A06's
-Phase 2 carries five diagrams and is shorter than the four-diagram draft it replaced,
-because each diagram removed a paragraph.
+A section that describes a picture in prose is a diagram that was not drawn. A phase
+document with more diagrams is often the shorter one, because each diagram removes a
+paragraph.
 
 ### Which diagram
 
@@ -70,7 +70,7 @@ structure.
    have 20 words at most and one action each.
 2. Put the condition before the command, with a comma: "If the import file is empty,
    the screen deletes nothing."
-3. Use active voice and name the actor: "`受注データ取込` deletes the rows", not "the
+3. Use active voice and name the actor: "`取込画面` deletes the rows", not "the
    rows are deleted".
 4. Use simple tenses. Use the present tense for what the code does. Use the simple past
    for what happened in a run or an interview.
@@ -87,7 +87,7 @@ structure.
 9. Give each fact before the step that needs it. Name the screen, the table, or the prior
    step that a statement depends on.
 10. Write a warning with the condition or command first and the risk second: "Do not run
-    `受注データ取込` twice on one day. The second run deletes the manual edits."
+    `取込画面` twice on one day. The second run deletes the manual edits."
 11. Use bold only for a label that a reader scans for. Do not use bold as emphasis, and
     do not start a paragraph with a bold phrase.
 12. Do not use an em-dash to join two ideas. Write two sentences, or name the relation:

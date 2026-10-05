@@ -23,13 +23,10 @@ Change: `references/technical-writing.md` (a diagram chooser, and prose rules ad
 SimpleEnglish), a `readability` group in `validate_phase_conformance.py` that warns and
 never fails, and `--render`, which renders every block with `mmdc` and fails on a broken one.
 
-**Measured, EN documents only:**
-
-- A01 reference set: 4 warnings. Phase 1 §6 has 382 words and no diagram. Phase 6 has
-  890 words against 2 diagrams in its roadmap, 14 long sentences, and 4 hedges.
-- A06 phases 1 to 4: 10 warnings, 15 to 28 sentences over 30 words in each document, and
-  Phase 2 §3 with 808 words against one diagram. Every diagram in the 8 A06 documents (EN
-  and VI) renders.
+**Measured on EN documents only.** The reference set raises a few warnings: a section
+with no diagram, a synthesis section with far more prose than diagrams, long sentences
+and hedges. A live application's documents raise more, mostly long sentences. Every
+diagram measured renders.
 
 Not yet known: whether the thresholds (300 prose words per diagram, 10 sentences over 30
 words) match what a developer finds hard. They are calibrated on two applications. The
