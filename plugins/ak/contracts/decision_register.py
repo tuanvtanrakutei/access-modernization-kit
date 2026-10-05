@@ -96,6 +96,13 @@ def write_register(space: Any, path: Path, register: dict[str, Any]) -> Path:
     backups.mkdir(parents=True, exist_ok=True)
     stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S%fZ")
     backup = backups / f"{path.stem}.{stamp}.json"
+    # Windows' clock can return one microsecond stamp for two writes in a row, and the
+    # second backup then replaced the first: CI lost a previous file this way. A stamp
+    # already taken gets a counter rather than an overwrite.
+    counter = 1
+    while backup.exists():
+        backup = backups / f"{path.stem}.{stamp}-{counter}.json"
+        counter += 1
     backup.write_bytes(path.read_bytes())
     atomic_write(path, format_register(register))
     return backup
