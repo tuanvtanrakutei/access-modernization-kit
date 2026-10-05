@@ -82,6 +82,27 @@ def open_risks(entries: list[dict[str, Any]]) -> list[dict[str, Any]]:
             and not isinstance(e.get("needs"), dict)]
 
 
+WHOLE_SPAN = re.compile(r"`([^`\n]+)`")
+
+
+def named_in(text: str) -> list[str]:
+    """Identifiers a Mitigation names, in prose or as a whole code span, each once.
+
+    `find_identifiers` skips code spans, because `d31` in backticks is a column (A52). A
+    Mitigation writes an identifier the same way: A05's RA-01 says "Establish whether the
+    button is used (`Q12`)", and RA-05 and RA-08 do the same, so all three were proposed
+    with nothing to wait on. A span that is one identifier and nothing else is a citation.
+    The caller keeps only open Q and UK- entries in the register, so a column that merely
+    looks like an identifier still names nothing.
+    """
+    found = dq.find_identifiers(text)
+    for match in WHOLE_SPAN.finditer(text):
+        token = match.group(1).strip()
+        if dq.is_identifier(token) and token not in found:
+            found.append(token)
+    return found
+
+
 def waits_on(text: str, own: str, entries: list[dict[str, Any]]) -> tuple[list[str], list[str]]:
     """(open items the text names, notes on the ones it names that are closed).
 
@@ -94,7 +115,7 @@ def waits_on(text: str, own: str, entries: list[dict[str, Any]]) -> tuple[list[s
                 if isinstance(e.get("needs"), dict) and e["needs"].get("gap") and dq.is_open(e)}
     found: list[str] = []
     notes: list[str] = []
-    for named in dq.find_identifiers(text):
+    for named in named_in(text):
         current, seen = named, set()
         entry = by_id.get(current)
         if entry is None or entry.get("namespace") not in ("Q", "UK-") or current == own:

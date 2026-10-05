@@ -845,3 +845,32 @@ def test_a_namespace_written_without_its_dash_is_read_with_it(tmp_path: Path) ->
     path.write_text(json.dumps({"app_id": "A05", "items": rows}), encoding="utf-8")
     spaces = [e["namespace"] for e in dr.read_identifiers(path)["entries"]]
     assert spaces == ["UK-", "RA-", "Q", "A05-P3-FORMAT"]
+
+
+# --- what a Mitigation waits on ------------------------------------------------
+
+def test_an_identifier_in_backticks_in_a_mitigation_is_waited_on() -> None:
+    """A05's RA-01 says "(`Q12`)" and was proposed with nothing to wait on."""
+    entries = [entry("Q12", "Q"), entry("RA-01", "RA-")]
+    found, _ = backfill_needs.waits_on(
+        "Establish whether the button is used (`Q12`); disable it", "RA-01", entries)
+    assert found == ["Q12"]
+
+
+def test_prose_and_backticked_identifiers_are_both_found_once() -> None:
+    entries = [entry("Q6", "Q"), entry("Q22", "Q"), entry("RA-05", "RA-")]
+    found, _ = backfill_needs.waits_on("Settle `Q6` and Q22, then `Q6` again", "RA-05", entries)
+    assert sorted(found) == ["Q22", "Q6"]
+
+
+def test_a_column_in_backticks_is_still_not_waited_on() -> None:
+    """A52: `d31` is a column. It is not a Q or UK- entry, so it names nothing here."""
+    entries = [entry("d31", "d-"), entry("RA-01", "RA-")]
+    found, _ = backfill_needs.waits_on("Sum `d31` over the month", "RA-01", entries)
+    assert found == []
+
+
+def test_a_code_span_with_more_than_an_identifier_is_not_a_citation() -> None:
+    entries = [entry("Q12", "Q"), entry("RA-01", "RA-")]
+    found, _ = backfill_needs.waits_on("Run `SELECT * FROM Q12` first", "RA-01", entries)
+    assert found == []
