@@ -197,8 +197,8 @@ evidence_classes:
     requires_attribution: true
     note: >
       Must name who and when, so a later contradiction can be taken back to them.
-      The A01 reference cites these directly - "Q&A ID-19 (Tanaka+Sekiya
-      2026-05-06)" - and they carry findings nothing else in the corpus could.
+      The A01 reference cites these directly - "Q&A ID-19 (two named
+      respondents, 2026-05-06)" - and they carry findings nothing else in the corpus could.
 
   OPERATOR_DECLARATION:
     means: "A statement the operator makes in the manifest about the project itself."

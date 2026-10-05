@@ -26,7 +26,7 @@ because that is the shape the register on a real project actually has:
 Matched on the `ID` both carry. What the comparison is for is the disagreement: a
 register row marked `Answered` whose page holds no answer is not a closed question, and
 nothing else in the workspace can tell you so. Observed on A06 the first time this ran
-on a real register - ID 6, `Status: Answered`, `Respondent: 榎本 稔`,
+on a real register - ID 6, `Status: Answered`, `Respondent: <a named person>`,
 `Answer date: 2026/08/30`, and not one answer in the page.
 
 A record is written to `.ak/extracted/interview-register.json` rather than only printed,
@@ -151,7 +151,7 @@ def _merge_sidecar_answers(
 
     A47. **A Notion "Markdown & CSV" export does not export comments**, and a Notion
     Q&A is answered in the comments. A06's ID 6 is the case: the register says
-    `Status: Answered`, `Respondent: 榎本 稔`, `Answer date: 2026/08/30`, the exported
+    `Status: Answered`, `Respondent: <a named person>`, `Answer date: 2026/08/30`, the exported
     page holds the question and nothing else, and the answer - a full account of why
     `商品情報` deletion is never used, what the `99` defaults mean, and that
     `担当者: 10` is how a discontinued product is hidden - existed the whole time as a

@@ -467,14 +467,14 @@ screens:
   "form メインメニュー":
     meaning: The startup form; every day's work begins by choosing a task here.
     evidence_class: INTERVIEW
-    source: 業務課 (堀内), 2026-09-07, asked by Vo Ta Tuan
+    source: 業務課 (Respondent One), 2026-09-07, asked by Asker One
 """, encoding="utf-8")
 
     screens = build(workspace)["T01_ScreenCatalogue.md"]
     assert "every day's work begins by choosing a task here" in screens
     # The citation travels with it - a meaning without its source is the claim this
     # kit exists to refuse.
-    assert "INTERVIEW: 業務課 (堀内), 2026-09-07" in screens
+    assert "INTERVIEW: 業務課 (Respondent One), 2026-09-07" in screens
     # A form and a report share a name in this fixture; only the form was answered.
     row = next(line for line in screens.splitlines()
                if "ピッキングリスト" in line and line.startswith("|"))
@@ -500,13 +500,13 @@ boundaries:
   "order.txt":
     meaning: Yesterday's orders from the warehouse system; absent means the night job failed.
     evidence_class: INTERVIEW
-    source: 業務課 (堀内), 2026-09-08, asked by Vo Ta Tuan
+    source: 業務課 (Respondent One), 2026-09-08, asked by Asker One
 """, encoding="utf-8")
 
     logic = build(workspace)["T01_LogicCatalogue.md"]
     row = next(line for line in logic.splitlines() if "`order.txt`" in line)
     assert "absent means the night job failed" in row
-    assert "INTERVIEW: 業務課 (堀内), 2026-09-08" in row
+    assert "INTERVIEW: 業務課 (Respondent One), 2026-09-08" in row
     # The other file was not answered, and says so.
     other = next(line for line in logic.splitlines() if "`shipping.dat`" in line)
     assert catalogues.NEEDS_DOC in other
