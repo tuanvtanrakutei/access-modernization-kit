@@ -6,7 +6,7 @@
   they are FOR and the rules a change to `scripts/build_decisions.py` must not break.
 
   It replaces a skeleton an agent filled in by hand at the end of a run. That list numbered
-  its questions independently of the register, and A05's reused Q3, Q4 and Q5 for different
+  its questions independently of the register, and one run's reused Q3, Q4 and Q5 for different
   questions than the ones the register already held (backlog A12). A list generated from the
   register cannot do that, because it has no numbers of its own.
 -->

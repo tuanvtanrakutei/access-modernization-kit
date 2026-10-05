@@ -12,7 +12,7 @@ from manifest_v22 import ManifestError, load_manifest  # noqa: E402
 
 V22 = """
 version: "2.2"
-app: {id: "A05", name_en: "Product Picking Support"}
+app: {id: "A99", name_en: "Order Support"}
 project:
   profile: "access-file-split"
   profile_version: "1.0"
@@ -22,7 +22,7 @@ project:
     source_availability: "full"
     backend_kinds: ["access_file", "text_or_csv"]
 artifacts:
-  - id: "A05_FRONTEND"
+  - id: "A99_FRONTEND"
     kind: "access_database"
     role: "frontend"
     format: "mdb"
@@ -43,7 +43,7 @@ def test_v21_still_uses_strict_legacy_schema(tmp_path: Path) -> None:
     path = tmp_path / "manifest.yaml"
     path.write_text(
         """version: "2.1"
-app: {id: "A05", name_en: "Incomplete"}
+app: {id: "A99", name_en: "Incomplete"}
 """,
         encoding="utf-8",
     )

@@ -22,10 +22,10 @@ sources:
   sample_files: ["sources/samples"]
   app_documents: ["sources/documents"]
   japanese_documents:
-    operational_functions_xlsx: "shared-docs/Operational functions and report data list.xlsx"
-    training_manual_xlsx: "shared-docs/SMS Basic Training Manual (From the Perspective of the Order Processing Department).xlsx"
-    business_flow_pdf: "shared-docs/diagram sms_system_business_diagram.pdf"
-    architecture_pdf: "shared-docs/SMS System Replacement Project Overview Attached Diagram.pdf"
+    operational_functions_xlsx: "shared-docs/operational-functions.xlsx"
+    training_manual_xlsx: "shared-docs/training-manual.xlsx"
+    business_flow_pdf: "shared-docs/business-flows.pdf"
+    architecture_pdf: "shared-docs/replacement-overview.pdf"
 analysis:
   source_policy:
     ignore_file: ".investigationignore"

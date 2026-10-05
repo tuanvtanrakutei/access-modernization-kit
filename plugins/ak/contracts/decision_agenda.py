@@ -27,7 +27,7 @@ Five rules, each a decision the maintainer approved with the design:
 
   Say what the machine did. Closed items are counted by who closed them: a person, a
   decision, or the bundle - evidence already in hand that made the question unnecessary
-  (Q109 and Q120 on A06 were put to people and then answered by the code, after publication).
+  (on one project, Q109 and Q120 were put to people and then answered by the code, after publication).
 
   Name objects, not numbers. Every identifier in `blocks` is shown with its title, so an
   `F-` is never a bare number (ID-06).
@@ -392,7 +392,7 @@ ORIGIN_MARKER = re.compile(r"^\*\*[^*]*\bE-\d{2}\b[^*]*\*\*\s*")
 
 def _clean(text: str, origin: bool = True) -> str:
     """The sentence without its citations, and without the marker saying which correction
-    raised it. A Mitigation keeps that marker: A06's RA-10 opens with **E-05: confirmed - do
+    raised it. A Mitigation keeps that marker: a run's RA-10 opened with **E-05: confirmed - do
     not carry it forward.**, and without it the default reads as a quotation and nothing else."""
     if origin:
         text = ORIGIN_MARKER.sub("", text)

@@ -14,10 +14,10 @@ Option Explicit
 ' default behaviour, and it is the default because the alternative edits a running
 ' application.
 '
-' Remove this module when you are finished with it. A51: it was left in A06's
+' Remove this module when you are finished with it. A51: it was left in one project's
 ' frontend, Access had named it `Module1`, and the next export reported eight modules
-' where the application has seven - with this file's comments, which name A06's own
-' tables, sitting in the corpus that describes A06. The exporter now excludes it, so
+' where the application has seven - with this file's comments, which name that project's own
+' tables, sitting in the corpus that describes it. The exporter now excludes it, so
 ' leaving it behind is no longer a wrong count; it is still someone else's code in a
 ' production database.
 '
@@ -30,10 +30,10 @@ Option Explicit
 '
 ' Comparing the two names for mere inequality looks equivalent and is not. SQL Server
 ' returns a schema-qualified source name, so an ODBC link named 商品マスタ reports its
-' source as dbo.商品マスタ - unequal, live, and in daily use. On A06 that comparison
+' source as dbo.商品マスタ - unequal, live, and in daily use. On one project that comparison
 ' would have removed three tables carrying 16, 43 and 68 fields.
 '
-' A source table that genuinely ends in digits is also not a duplicate. A06 has one,
+' A source table that genuinely ends in digits is also not a duplicate. One project had one,
 ' 商品情報20121115, named for a date the way its five local 受YYYYMMDD tables are. A
 ' rule that looked at the suffix instead of at both names would have deleted it.
 '
@@ -52,7 +52,7 @@ Option Explicit
 '
 ' Forms, reports and modules are NOT searched here - a macro cannot read their
 ' definitions without exporting them. Run `ExportAccessObjects` first and have the kit
-' search the export package. On A06 that search covered 87 definitions and found none
+' search the export package. On one project that search covered 87 definitions and found none
 ' of the 153 candidates referenced anywhere.
 '
 ' -----------------------------------------------------------------------------------

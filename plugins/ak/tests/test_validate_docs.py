@@ -105,9 +105,9 @@ def test_the_plugin_docs_only_consume_keys_its_own_template_declares() -> None:
 
 # --- A71: a citation qualified by another subsystem is not a broken one -------
 #
-# A06's backend inherits `auth_client` and `format_bulk_validation_errors` from A01, and
-# the comments that explain why they exist cite A01's issue rows. Scanned as if they were
-# A06's, they read as two dangling references, and three more came from walking into
+# One subsystem's backend inherited `auth_client` and `format_bulk_validation_errors` from
+# another, and the comments that explain why they exist cite the other's issue rows. Scanned
+# as if they were its own, they read as two dangling references, and three more came from walking into
 # `.claude`, a symlink to the plugin whose own test fixtures cite issue numbers.
 
 
@@ -118,7 +118,7 @@ def test_a_citation_qualified_by_another_subsystem_is_not_dangling(tmp_path: Pat
     source.mkdir()
     (docs / "Known_Issues.md").write_text("# log\n", encoding="utf-8")
     (source / "conftest.py").write_text(
-        "# Inherited from A01 - see A01 Known_Issues.md #41.\n", encoding="utf-8")
+        "# Inherited from A98 - see A98 Known_Issues.md #41.\n", encoding="utf-8")
 
     findings = validate_docs.Findings()
     validate_docs.check_issues(findings, str(docs), str(docs / "Known_Issues.md"),

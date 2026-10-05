@@ -1,9 +1,9 @@
 """The queue a person works from, and the list that asks it (A75, slice 2).
 
-Built on A06's register after the slice 1 backfill: 22 open items, 17 of them with no default,
+Built on a real register after the slice 1 backfill: 22 open items, 17 of them with no default,
 11 closed - six of those by the bundle answering on its own, which nothing reported before.
 Q&A 5 was open with the customer and in no item; Q&A 8 still is. Every test here is a rule the
-maintainer approved with the design, or a defect the first run on A06 showed: an item ranked
+maintainer approved with the design, or a defect the first real run showed: an item ranked
 first because of how many things it was guessed to block, a block list that read as a
 paragraph, a citation left in the sentence a person is asked, a bundle-owned file called a
 legacy object.
@@ -141,7 +141,7 @@ def test_a_loop_is_reported_and_every_item_is_still_listed() -> None:
 
 
 def test_what_the_analysis_called_high_outranks_a_longer_block_list() -> None:
-    """The first run on A06 put the item that blocked six workflows first, because that is how
+    """The first real run put the item that blocked six workflows first, because that is how
     its author had written it. The one that decides a HIGH risk should come before it."""
     entries = base() + [q("Q1", blocks=["WF-001", "WF-002"]), q("Q2", blocks=["RW-02"])]
     assert order(build(entries)) == ["Q2", "Q1"]
@@ -177,7 +177,7 @@ def test_a_dated_answer_the_register_does_not_know_is_reported() -> None:
 
 
 def test_marked_answered_with_no_answer_in_its_page_is_not_called_answered() -> None:
-    """A47: A06's Q&A 6 was `Answered` for two weeks with the answer visible to everyone but
+    """A47: a real Q&A 6 was `Answered` for two weeks with the answer visible to everyone but
     the kit. A status is not an answer."""
     entries = base() + [q("Q6", qa=[6])]
     item = build(entries, interviews=interviews(("6", "Answered")))["items"][0]
@@ -197,7 +197,7 @@ def test_a_link_with_no_qa_register_at_all_is_a_problem() -> None:
 
 
 def test_a_qa_open_with_the_customer_that_no_item_names_is_reported() -> None:
-    """A06: Q&A 8 is In Progress and in no item. The queue cannot see what it blocks."""
+    """Q&A 8 is In Progress and in no item. The queue cannot see what it blocks."""
     entries = base() + [q("Q5", qa=[5])]
     result = build(entries, interviews=interviews(("5", "In Progress"), ("6", "Answered"),
                                                   ("8", "In Progress")))
@@ -207,7 +207,7 @@ def test_a_qa_open_with_the_customer_that_no_item_names_is_reported() -> None:
 # --- what the machine already did ----------------------------------------------
 
 def test_closed_items_are_counted_by_who_closed_them() -> None:
-    """Six of A06's eleven closures were the bundle answering on its own, after the question
+    """Six of one register's eleven closures were the bundle answering on its own, after the question
     had been published as one to put to a person (Q109, Q120, Q106...)."""
     entries = base() + [
         entry("Q1", "Q", resolved_by="E1"), entry("Q2", "Q", resolved_by="E2"),
@@ -327,12 +327,12 @@ def test_an_object_that_is_not_a_legacy_object_is_not_called_one() -> None:
 
 
 def test_the_sentence_a_person_is_asked_has_no_citation_and_no_origin_marker() -> None:
-    """A06's Q121 reads '**Raised by E-11.** The monthly run ... [A06-P4-CODE-002] [A06-P4-CODE-003]'.
+    """A real Q121 reads '**Raised by E-11.** The monthly run ... [A99-P4-CODE-002] [A99-P4-CODE-003]'.
     The citations are listed under 'Evidence already read'; the marker is about the analysis."""
-    texts = {"Q1": {"ask": "**Raised by E-11.** What is the screen for? [A06-P4-CODE-002] [A06-P4-CODE-003]"}}
+    texts = {"Q1": {"ask": "**Raised by E-11.** What is the screen for? [A99-P4-CODE-002] [A99-P4-CODE-003]"}}
     text = da.render_markdown(build(base() + [q("Q1")]), texts=texts)
     assert "> What is the screen for?" in text
-    assert "Raised by" not in text and "A06-P4-CODE-002]" not in text
+    assert "Raised by" not in text and "A99-P4-CODE-002]" not in text
 
 
 def test_a_sentence_that_repeats_the_title_is_not_printed_twice() -> None:
@@ -377,7 +377,7 @@ def test_only_one_party_prints_just_that_agenda() -> None:
 
 
 def test_one_agenda_pasted_alone_still_says_what_is_already_with_the_customer() -> None:
-    """Linking Q5 to Q&A 5 on A06 made the party's agenda read '0 to ask. 1 already with the
+    """Linking Q5 to Q&A 5 on a real workspace made the party's agenda read '0 to ask. 1 already with the
     customer.' and then nothing, because the detail lived in a table further down the full list."""
     entries = base() + [q("Q5", qa=[5]), q("Q6", qa=[6])]
     result = build(entries, interviews=interviews(("5", "In Progress"), ("6", "Answered"),
@@ -553,7 +553,7 @@ def test_a_second_run_changes_nothing(
 
 def test_it_will_not_overwrite_a_list_it_did_not_write(
         tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture) -> None:
-    """A05's was written by hand and numbered its questions itself, which is how A12 happened."""
+    """One project's was written by hand and numbered its questions itself, which is how A12 happened."""
     root = make_workspace(tmp_path)
     handwritten = root / "output" / "A99_QuestionList.md"
     handwritten.write_text("# My own list\n\nQ3: something else entirely\n", encoding="utf-8")
@@ -653,7 +653,7 @@ def test_an_answer_the_register_does_not_know_is_reported_not_applied(
 
 def test_the_qa_register_is_read_fresh_every_time(
         tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """A06's stored record had five rows when the CSV beside it had six."""
+    """One workspace's stored record had five rows when the CSV beside it had six."""
     root = make_workspace(tmp_path)
     run(monkeypatch, root)
     assert "Q&A 8" not in (root / "output" / "A99_QuestionList.md").read_text(encoding="utf-8")
@@ -734,3 +734,30 @@ def test_the_output_contract_lists_the_queue_and_the_template_states_its_reader(
     assert "Who reads it" in template and "$ak decisions" in template
     readme = (PACKAGE / "templates" / "readme.md").read_text(encoding="utf-8")
     assert "_QuestionList.md" in readme and "_DecisionQueue.json" in readme
+
+
+def test_two_writes_in_one_clock_tick_keep_both_previous_files(
+        tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """The test above failed on Windows CI: two writes got the same backup name.
+
+    A clock that moves in milliseconds returns one time for both, the name is built from it,
+    and the second backup replaced the first - losing a previous file, which is the one thing
+    `write_register` promises not to do. The clock is fixed here so the tie happens everywhere,
+    not on the platforms that happen to tick coarsely.
+    """
+    import datetime as real
+
+    class Frozen(real.datetime):
+        @classmethod
+        def now(cls, tz=None):  # type: ignore[override]
+            return real.datetime(2026, 10, 5, 3, 0, 0, 123456, tzinfo=tz)
+
+    monkeypatch.setattr(dr, "datetime", Frozen)
+    space = workspace_contract.Workspace(tmp_path)
+    (tmp_path / "input").mkdir()
+    path = tmp_path / "A99_Identifiers.json"
+    path.write_text(dr.format_register({"entries": []}), encoding="utf-8")
+    backups = [dr.write_register(space, path, {"entries": [{"id": f"Q{n}"}]}) for n in (1, 2, 3)]
+    assert len({b.name for b in backups}) == 3 and all(b.is_file() for b in backups)
+    assert [json.loads(b.read_text(encoding="utf-8")) for b in backups] == [
+        {"entries": []}, {"entries": [{"id": "Q1"}]}, {"entries": [{"id": "Q2"}]}]

@@ -4,7 +4,7 @@
 The catalogues render `商品コード (product_cd?)` because they are generated. The phase
 documents are written, so they carried the Japanese alone - which is right for
 authority and wrong for a developer who has to build the replacement and cannot type
-`雑貨Ⅱアイテム別確認表フッタ` into anything.
+`日用品Ⅱアイテム別確認表フッタ` into anything.
 
 This annotates the published documents in place. Three rules keep it from doing harm:
 
@@ -57,21 +57,21 @@ ALREADY = re.compile(r"\s*\([a-z0-9_.\-]+\??(?:\s+partial)?\)")
 
 # A backticked span is only a NAME when it is one. The composer answers whatever it is
 # handed, so handing it a path or a SQL fragment gets a confident string back:
-# A06 published `\\server6\user\物流部\` (server6_user_logistics_dept) and
+# a run published `\\server\share\物流部\` (server_share_logistics_dept) and
 # `inner join 商品マスタ` (inner join_product_master) this way. Neither is a second name
 # for the thing beside it, and printing one tells a reader it has an English name.
 #
 # Four shapes are refused, each from a real defect in that run:
 NOT_A_NAME = (
     ("/", "a path"),          # forms/受注データ取込画面.txt
-    ("\\", "a path"),         # \\smsdb\data\品揃支援\２１受注.CSV
+    ("\\", "a path"),         # \\server\data\受注.CSV
     (" ", "a phrase"),        # 店舗コード between 127000 and 127999
     ("=", "code"),            # 棚卸除外ＦＬＧ = 0
     (":", "a column and a value"),   # 担当者:10 - `employee_10` names nothing
 )
 # Parentheses with something between them are a call or an alias already printed:
 # `Format(受注日,"yyyymmdd")` and `メイン画面 (main_screen)`. Empty ones are part of a
-# VBA procedure's name - `SMS受注取込()` - and refusing those was a first attempt at
+# VBA procedure's name - `受注取込()` - and refusing those was a first attempt at
 # this rule that silently dropped every function in the document.
 CALL_OR_ALIAS = re.compile(r"\(.+\)")
 
@@ -176,8 +176,8 @@ def appendix(text: str, naming: object) -> str:
         "",
         "The Japanese name is the production name and is authoritative. The English is "
         "composed from `specifications/ja-en-terms.yaml`. The table below says what "
-        "each one's standing is: **accepted** means a person settled it; **A01 "
-        "precedent** means every term in it was already decided in the A01 conversion "
+        "each one's standing is: **accepted** means a person settled it; **reference "
+        "precedent** means every term in it was already decided in the reference conversion "
         "table, so overriding it makes the two systems disagree; **proposed** means "
         "this analysis composed it and nobody has confirmed it; **partial** means only "
         "part of the Japanese matched a known term. Correct any of them in "
@@ -194,8 +194,8 @@ def appendix(text: str, naming: object) -> str:
             english = f"`{rendered.english}`"
             if rendered.accepted:
                 note = "accepted"
-            elif rendered.provenance == "A01" and rendered.is_complete:
-                note = "A01 precedent"
+            elif rendered.provenance == "reference" and rendered.is_complete:
+                note = "reference precedent"
             else:
                 note = "proposed" if rendered.is_complete else "**partial**"
         lines.append(f"| `{name}` | {english} | {note} |")

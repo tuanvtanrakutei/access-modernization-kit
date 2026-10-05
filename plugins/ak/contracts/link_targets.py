@@ -1,6 +1,6 @@
 """What a linked table points at, and how many distinct tables that adds up to.
 
-A06's frontend holds 188 table objects and 35 tables. The difference is not a
+One frontend held 188 table objects and 35 tables. The difference is not a
 miscount - every one of the 188 is a real object in the `.mdb` - it is the wrong
 subject. 180 of them are links, and 153 of those point at a table already linked,
 under a name Access numbered on its own: residue of a 97->2003 conversion, a Windows
@@ -190,8 +190,8 @@ def summarise(table_rows: Iterable[dict[str, Any]]) -> list[dict[str, Any]]:
 
     Both bounds are reported because the gap between them is a real open question, not
     a rounding choice. `tables_if_targets_are_copies` reads two paths naming the same
-    table as one table; `tables_if_targets_are_distinct` reads them as two. On A06's
-    frontend that is 35 against 82, from 188 objects.
+    table as one table; `tables_if_targets_are_distinct` reads them as two. On that
+    frontend it was 35 against 82, from 188 objects.
     """
     per_database: dict[str, dict[str, Any]] = {}
     for row in table_rows:

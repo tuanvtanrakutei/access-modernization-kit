@@ -138,11 +138,11 @@ _DEFAULTS = {
 def test_v22_export_package_feeds_both_vba_and_sql() -> None:
     data = {"version": "2.2", "artifacts": [
         {"id": "FE", "kind": "source_export", "format": "directory",
-         "source_ref": {"type": "local_path", "value": "sources/A05_FRONTEND"}},
+         "source_ref": {"type": "local_path", "value": "sources/A99_FRONTEND"}},
     ]}
     buckets = create_tasks._v22_source_inputs(data, _DEFAULTS)
-    assert buckets["vba"] == ["../../sources/A05_FRONTEND"]
-    assert buckets["sql"] == ["../../sources/A05_FRONTEND"]
+    assert buckets["vba"] == ["../../sources/A99_FRONTEND"]
+    assert buckets["sql"] == ["../../sources/A99_FRONTEND"]
 
 
 def test_v22_document_artifact_reaches_the_document_bucket() -> None:

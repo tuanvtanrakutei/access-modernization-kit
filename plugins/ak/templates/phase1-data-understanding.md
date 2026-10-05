@@ -20,7 +20,7 @@
      what they must not get wrong. Two habits follow:
 
      Open with what they must not get wrong. A short numbered list, each item pointing at
-     the section that proves it. A06's Phase 2 was correct and unusable before it had one:
+     the section that proves it. One Phase 2 was correct and unusable before it had one:
      the fact that re-running the morning import destroys the quantities staff typed the
      night before was in the document, four sections deep, in prose.
 
@@ -30,7 +30,7 @@
      One required diagram per phase is a floor, not a budget. Reach for one whenever the
      thing being described has a shape: an order of steps, a cycle, a lifecycle with a
      failure branch, a fan-out from one object to many, or three artefacts that should
-     agree and do not. A06's Phase 2 carries five and is shorter than the four-diagram
+     agree and do not. One Phase 2 carries five and is shorter than the four-diagram
      draft it replaced, because each one removed a paragraph that was describing a picture.
 
      Mermaid renders, or it is not evidence a reader can see. Check it - `mmdc -i x.mmd -o
@@ -40,7 +40,7 @@
 
      Keep the document's own revision history out of it. How many drafts a figure went
      through is a fact about the analysis, not about the application, and a developer
-     reading once does not need it: A06's Phase 2 carried a paragraph explaining that a
+     reading once does not need it: one Phase 2 carried a paragraph explaining that a
      count had been "wrong twice before it was right", naming all three numbers and both
      causes, and it was the hardest paragraph in the document to read.
 
@@ -112,7 +112,7 @@ a translation reads like a definition and is not one.
 
 <!-- The inventory is `{{APP_ID}}_DataCatalogue.md`, generated from the bundle:
      every table, every column, every index, the declared relationships. Do not
-     restate it here. Measured against A05's bundle, the first run's narrative named
+     restate it here. Measured against one bundle, the first run's narrative named
      20 of 118 tables, 4 of 328 distinct column names and 5 of 77 queries - every
      aggregate figure correct, and almost nothing that was counted named (A14). A
      narrative cannot carry 1,055 columns, and a second copy carrying a sixth of
@@ -159,9 +159,9 @@ a translation reads like a definition and is not one.
      own vocabulary, which a migration has to decide what to do with.
 
      Include here any object the application addresses by a name it BUILDS AT RUN
-     TIME. A06 has three: a staging table named `"受" & Format(date,"yyyymmdd")`, a
+     TIME. One application has three: a staging table named `"受" & Format(date,"yyyymmdd")`, a
      query deleted and recreated each run, and four reports opened as
-     `"受注数調整リスト" & <option group>`. None of those names is written down
+     `"出荷数確認リスト" & <option group>`. None of those names is written down
      anywhere, so no reference search can find them and every one of them appears in
      the catalogue's "referenced by nothing" list while being in daily use. Where
      this pattern exists, say so here and quote the line - it is the sharpest case of
@@ -171,7 +171,7 @@ a translation reads like a definition and is not one.
 ### 2.4 What changed in the database between acquisitions
 
 <!-- Only when it did. An operator who cleans the application between runs leaves a
-     gap no reader can close: A06's frontend held 188 table objects, then 32, then
+     gap no reader can close: one frontend held 188 table objects, then 32, then
      28, and a reader comparing two bundles would find 140 objects missing with no
      explanation in either document.
 
@@ -324,7 +324,7 @@ erDiagram
      Write \| for a pipe inside a cell. A cell that is prose is not wrong, but nothing
      can read it, and the checker counts it instead of comparing it.
      To close a question, set resolved_by in the register AND begin the row with
-     **Answered - <evidence id>**. Leave Blocks and Party as they were: A06's Q120 was
+     **Answered - <evidence id>**. Leave Blocks and Party as they were: one run's Q120 was
      rewritten in place when it was answered, so its Blocks column now holds the original
      question, its owner column an evidence id, and its real owner is gone. -->
 
@@ -339,7 +339,7 @@ erDiagram
      export produced by a tool version older than the kit's, a database copy that is
      not the live one, a route that answered a question the other route could not.
 
-     A06's case: both export packages were written by a pre-2.12 `ExportAccessObjects`,
+     One run's case: both export packages were written by a pre-2.12 `ExportAccessObjects`,
      so neither manifest carries `exporter_version=` and the backend's still printed a
      gate removed two releases earlier. The effect on the analysis was nil and the note
      was written anyway, because "no effect" is a finding a reader is entitled to check

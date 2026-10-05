@@ -153,8 +153,8 @@ class ManagedAccessAdapter:
             # Three markers, because A22 gave the exclusion an evidence trail: the
             # `EXCLUDED:` summary, one `EXCLUDED table <name>: <fields>` line per table
             # the shape rule dropped, and one `KEPT table ...` line per table it nearly
-            # did. Matching only the summary would have filed 208 of those lines as
-            # unreadable objects on one A05 frontend - the exact defect this comment is
+            # did. Matching only the summary would have filed some two hundred of those lines as
+            # unreadable objects on one frontend - the exact defect this comment is
             # about, in the code that fixed it.
             #
             # An unmarked warning stays a failure, and that default is now correct

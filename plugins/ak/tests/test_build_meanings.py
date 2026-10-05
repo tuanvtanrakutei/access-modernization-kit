@@ -134,7 +134,7 @@ tables:
 def test_a_form_and_a_report_sharing_a_name_are_two_questions(
     workspace: Path,  # noqa: F811
 ) -> None:
-    """Keyed `"{kind} {name}"`, because A05 has a form and a report called the same.
+    """Keyed `"{kind} {name}"`, because a real application has a form and a report called the same.
 
     Keying by name alone would put one duplicate key in the YAML, where the last one
     silently wins - the defect the tables section already had to be fixed for. The
@@ -266,7 +266,7 @@ def test_the_file_it_writes_parses_as_yaml(workspace: Path) -> None:  # noqa: F8
 
 
 def test_a_section_this_tool_does_not_manage_survives(workspace: Path) -> None:  # noqa: F811
-    """Found by running the first version against the real A05 workspace.
+    """Found by running the first version against a real workspace.
 
     Its `meanings.yaml` carried a third section, `system:`, holding a sourced
     DOCUMENT-class statement of what the whole application is for, plus a note saying
@@ -284,10 +284,10 @@ tables:
 # per-table meanings are still empty.
 
 system:
-  A05:
+  A99:
     meaning: Printing the lists used by 入出庫課 and 運送課.
     evidence_class: DOCUMENT
-    source: SMSシステム一覧 20241015.xlsx, row 11
+    source: 業務システム一覧 20241015.xlsx, row 11
 """)
     text = run(workspace)
     assert "system:" in text
@@ -305,10 +305,10 @@ def test_an_unmanaged_section_still_parses_after_a_rewrite(workspace: Path) -> N
     target = workspace / "input" / "decisions" / "meanings.yaml"
     target.parent.mkdir(parents=True, exist_ok=True)
     io.open(target, "w", encoding="utf-8", newline="\n").write(
-        "system:\n  A05:\n    meaning: x\n    evidence_class: DOCUMENT\n"
+        "system:\n  A99:\n    meaning: x\n    evidence_class: DOCUMENT\n"
         "    source: y\n")
     data = yaml.safe_load(run(workspace))
-    assert data["system"]["A05"]["source"] == "y"
+    assert data["system"]["A99"]["source"] == "y"
     assert "tables" in data and "columns" in data
 
 
@@ -316,7 +316,7 @@ def test_one_name_in_two_databases_is_one_entry(workspace: Path) -> None:  # noq
     """`contracts/meanings.py` resolves a table meaning by name alone.
 
     Emitting one key per database put a duplicate key in the YAML, where the last
-    silently wins. On the real A05 workspace that turned 121 subjects into 118 entries
+    silently wins. On a real workspace that folded three pairs of subjects into one entry each
     and lost three tables' notes - `商品情報` among them, which the evidence request has
     an open question about precisely because it exists in both databases.
     """

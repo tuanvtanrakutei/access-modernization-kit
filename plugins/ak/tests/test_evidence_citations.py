@@ -116,7 +116,7 @@ REGISTER_DOC = "\n".join([
 def test_an_item_only_listed_in_the_register_is_not_cited(tmp_path: Path) -> None:
     """A50. This regexed the whole file, register included, so every item cited itself.
 
-    A06's Phase 1 reported `12 of 12 items cited`; seven were. The five that were not
+    A real Phase 1 reported `12 of 12 items cited`; seven were. The five that were not
     included the project's only `TARGET_INTENT` item - the one record of what the
     replacement is for supported no statement in the document carrying it.
     """
@@ -151,7 +151,7 @@ def test_the_register_is_found_by_shape_not_by_an_english_heading(tmp_path: Path
 
 def test_cross_phase_citations_are_surfaced(tmp_path: Path) -> None:
     """`phase 2: 5 of 5` counts items ALLOCATED to phase 2, not citations made by the
-    Phase 2 document. A06's Phase 2 cites nine ids, four of them Phase 1's, and read
+    Phase 2 document. One Phase 2 cites nine ids, four of them Phase 1's, and read
     `5 of 5` - right about register coverage, and quoted as though it described the
     document. A document resting on an earlier phase's evidence is the reuse this kit
     is for, and it was invisible.

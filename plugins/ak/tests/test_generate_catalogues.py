@@ -214,8 +214,8 @@ def test_the_statement_comes_from_the_sql_not_the_metadata(workspace: Path) -> N
 def test_code_imports_are_listed_as_boundary_files(workspace: Path) -> None:
     """A46. A feed the code declares is a feed.
 
-    Every reader of the specifications began at a link's connect string, so A06's four
-    live CSV inputs - each named in a `TransferText` call, each with its layout saved in
+    Every reader of the specifications began at a link's connect string, so one
+    application's live CSV inputs - each named in a `TransferText` call, each with its layout saved in
     the database - appeared in no document at all.
     """
     bundle = workspace / ".ak" / "bundles" / "bundle-abc"
@@ -238,7 +238,7 @@ def test_code_imports_are_listed_as_boundary_files(workspace: Path) -> None:
     # of this cell: a path the scan resolved is printed as a path, without VBA's quotes,
     # which is what the link rows above it already print. Quotes survive only inside an
     # expression that did NOT resolve, where they are what separates literal text from
-    # code - `"\\server6\user\物流部\" & Format(Me.受注日, "yyyymmdd") & ".csv"`.
+    # code - `"\\server\user\物流部\" & Format(Me.受注日, "yyyymmdd") & ".csv"`.
     assert "| `C:\\stock.CSV` |" in logic
     assert "| outbound code |" in logic
 
@@ -423,8 +423,8 @@ def test_sql_naming_a_nonexistent_object_is_reported(workspace: Path) -> None:
 def test_a_screen_record_source_is_checked_too(workspace: Path) -> None:
     """The fixture's main menu binds to a table that is not in the inventory.
 
-    Which is the real A05 case: two screens bind to `集計分類マスタ`, and it
-    exists nowhere - so neither screen can open, and nothing said so.
+    Which is a real case: two screens of one application bound to a table that
+    existed nowhere - so neither screen could open, and nothing said so.
     """
     logic = build(workspace)["T01_LogicCatalogue.md"]
     assert "form メインメニュー" in logic
@@ -536,9 +536,9 @@ tables:
 
 # --- the figure has to travel with the corpus (A15) -------------------------
 
-A05_MAIN_MENU = {
+TRUNCATED_MAIN_MENU = {
     "database_id": FE, "kind": "form", "name": "メインメニュー",
-    # The corrected export, in the bundle since 2026-09-04.
+    # The corrected export, in the bundle.
     "bundle": {"lines": 4886, "characters": 200000, "blocks": 114,
                "block_ends": 114, "procedures": 45, "procedure_ends": 45},
     # The first, incomplete one, still in staging: content lost from the middle, so it
@@ -546,7 +546,7 @@ A05_MAIN_MENU = {
     "staging": {"lines": 1642, "characters": 91119, "blocks": 77,
                 "block_ends": 68, "procedures": 21, "procedure_ends": 21},
 }
-A05_SEARCH = {
+COMPLETE_SEARCH = {
     "database_id": FE, "kind": "form", "name": "商品検索",
     "bundle": {"lines": 120, "characters": 4000, "blocks": 8, "block_ends": 8,
                "procedures": 3, "procedure_ends": 3},
@@ -563,9 +563,9 @@ def test_an_unmeasured_corpus_says_so_where_a_reader_will_see_it(
 ) -> None:
     """A consumer trace returns absence, and absence reads the same either way.
 
-    On A05 that turned "one screen imports every inbound file" into "no screen imports
-    any of them" - both handlers begin past line 4,000 of a form the staging copy cut
-    at 1,642 - and nothing in the output hinted that anything was missing.
+    On one application that turned "one screen imports every inbound file" into "no
+    screen imports any of them" - both handlers began thousands of lines into a form
+    the staging copy had cut short - and nothing in the output hinted that anything was missing.
     """
     screens = build(workspace)["T01_ScreenCatalogue.md"]
     assert "Definition-text completeness was not measured" in screens
@@ -575,7 +575,7 @@ def test_an_unmeasured_corpus_says_so_where_a_reader_will_see_it(
 def test_a_disagreement_is_named_in_the_headline_and_in_the_row(
     workspace: Path,  # noqa: F811
 ) -> None:
-    record_shapes(workspace, A05_MAIN_MENU, A05_SEARCH)
+    record_shapes(workspace, TRUNCATED_MAIN_MENU, COMPLETE_SEARCH)
     screens = build(workspace)["T01_ScreenCatalogue.md"]
 
     assert "1 of 2 object(s) have a definition text" in screens
@@ -583,14 +583,14 @@ def test_a_disagreement_is_named_in_the_headline_and_in_the_row(
                if line.startswith("|") and "メインメニュー" in line and "form" not in line[:6])
     # Block balance fires even though the file ends cleanly, which is the whole point.
     assert "77 Begin against 68 End" in row
-    # And both routes' readings are compared, in the direction A05 actually moved: the
+    # And both routes' readings are compared, in the direction a real export moved: the
     # correction arrived as a rise, so a rule watching only for drops says nothing.
     assert "21 then, 45 now" in row
 
 
 def test_an_object_the_routes_agree_on_reports_its_size(workspace: Path) -> None:  # noqa: F811
     """Saying the size is what makes a later disagreement visible at all."""
-    record_shapes(workspace, A05_SEARCH)
+    record_shapes(workspace, COMPLETE_SEARCH)
     screens = build(workspace)["T01_ScreenCatalogue.md"]
     assert "none is unbalanced and the routes agree" in screens
     row = next(line for line in screens.splitlines()
@@ -601,7 +601,7 @@ def test_an_object_the_routes_agree_on_reports_its_size(workspace: Path) -> None
 def test_an_object_with_no_record_says_nothing_rather_than_guessing(
     workspace: Path,  # noqa: F811
 ) -> None:
-    record_shapes(workspace, A05_SEARCH)
+    record_shapes(workspace, COMPLETE_SEARCH)
     screens = build(workspace)["T01_ScreenCatalogue.md"]
     row = next(line for line in screens.splitlines()
                if line.startswith("|") and "ピッキングリスト" in line)
@@ -663,3 +663,36 @@ def test_every_generated_row_has_as_many_cells_as_its_header(workspace: Path) ->
                 f"{name}: table at line {line} has rows of {sorted(set(widths))} "
                 f"cells; a header and its rows must agree"
             )
+
+
+def test_an_empty_on_click_is_not_read_as_a_removed_handler(tmp_path: Path) -> None:
+    """The legend said an empty `On click` is how a button whose handler was removed looks.
+
+    A real `発注点更新ボタン` showed the other case. Its definition has no `OnClick`, so the
+    cell is empty, and the form's module still holds `発注点更新ボタン_Click`, which opens
+    `発注点更新画面`: the handler was never connected, not removed. Phase 2 took the legend's
+    one reading as fact and asked a customer what a deleted function used to do (E-13).
+
+    The legend now says what an empty cell is - an empty property, so nothing runs - and
+    that it neither shows a handler exists nor that one was removed.
+    """
+    bundle = tmp_path / "bundle"
+    write(bundle / "ui" / "controls.json", [
+        {"object": "メイン", "controls": [
+            {"name": "未接続ボタン", "type": 104, "caption": "更新", "on_click": "", "visible": False},
+            {"name": "接続済みボタン", "type": 104, "caption": "取込", "on_click": "[Event Procedure]",
+             "visible": True},
+        ]},
+    ])
+    form = {"database_id": FE, "name": "メイン", "kind": "form", "text": ""}
+    lines = catalogues._interactive_controls(bundle, [form], [], None)
+    text = "\n".join(lines)
+
+    assert "handler was removed still looks like a button" not in text
+    assert "that property is empty, so nothing runs when the control is clicked" in text
+    assert "neither evidence that a handler exists nor that one was removed" in text
+    # The cell itself is unchanged: a dash for the empty property, the name for the wired one.
+    unwired = next(line for line in lines if "未接続ボタン" in line)
+    wired = next(line for line in lines if "接続済みボタン" in line)
+    assert unwired.split(" | ")[5] == "—"
+    assert "[Event Procedure]" in wired

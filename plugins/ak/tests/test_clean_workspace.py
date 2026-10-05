@@ -7,10 +7,10 @@ So most of what follows asserts a *refusal*: the cited session survives, the las
 session survives, the newest export survives, the supplied file survives without
 the flag that names it.
 
-The first test is the case that decided the design. On the real A05 workspace the
+The first test is the case that decided the design. On a real workspace the
 newest staging session for the frontend holds four files, because that acquisition
-declared `skip_object_export`, while the session the register cites 30 times is
-three weeks older and holds 170 definition texts. Any rule phrased as "keep the
+declared `skip_object_export`, while the session the register cites dozens of times
+is three weeks older and holds every definition text. Any rule phrased as "keep the
 newest" deletes the evidence and keeps the husk.
 """
 from __future__ import annotations
@@ -31,7 +31,7 @@ from workspace import Workspace  # noqa: E402
 
 MANIFEST = """version: '2.2'
 app:
-  id: A05
+  id: A99
 artifacts:
 - id: FRONTEND
   source_ref:
@@ -133,7 +133,7 @@ def test_a_legacy_workspace_keeps_its_own_layout(tmp_path: Path) -> None:
     write(tmp_path / "manifest.yaml", MANIFEST.replace("input/", "sources/"))
     write(tmp_path / "sources/access/frontend.mdb")
     write(tmp_path / "acquired/staging/FRONTEND/fresh-01/forms/menu.txt")
-    write(tmp_path / "runs/A05-P1/tasks.json", "{}")
+    write(tmp_path / "runs/A99-P1/tasks.json", "{}")
 
     found = offered(Workspace(tmp_path))
     assert "runs" not in found
@@ -160,7 +160,7 @@ def test_a_superseded_export_package_is_offered_and_the_newest_is_not(space: Wor
 
 
 def test_a_same_day_variant_is_the_same_artifact(space: Workspace) -> None:
-    """A06 exported four times per artifact: `-2026-09-10`, `_new`, `-2026-09-14`, `b`.
+    """One workspace exported four times per artifact: `-2026-09-10`, `_new`, `-2026-09-14`, `b`.
 
     Read as four artifacts rather than one, each is the newest of its own family and
     the guard below never fires - which is how eight packages accumulated.
@@ -208,14 +208,14 @@ def test_a_lock_file_beside_a_declared_database_is_offered(space: Workspace) -> 
 
 
 def test_an_undeclared_database_is_left_alone_when_nothing_is_declared(tmp_path: Path) -> None:
-    write(tmp_path / "manifest.yaml", "version: '2.2'\napp:\n  id: A05\n")
+    write(tmp_path / "manifest.yaml", "version: '2.2'\napp:\n  id: A99\n")
     write(tmp_path / "input/access/one.mdb")
     write(tmp_path / "input/access/two.mdb")
     assert not offered(Workspace(tmp_path))
 
 
 def test_a_keep_a_copy_folder_is_offered(space: Workspace) -> None:
-    """A06 holds `precleanup/` and `pretabledelete/`, 135 MB no artifact names."""
+    """A real workspace held `precleanup/` and `pretabledelete/`, 135 MB no artifact names."""
     write(space.root / "input/access/pretabledelete/before.mdb")
     found = offered(space)
     assert found["input/access/pretabledelete"]["kind"] == "directory"
@@ -231,7 +231,7 @@ def bundle(root: Path, name: str) -> Path:
 
 
 def test_a_bundle_nothing_cites_goes_and_a_cited_one_stays(space: Workspace) -> None:
-    """A05's register cites a superseded bundle 26 times; five of A06's seven, never."""
+    """One register cited a superseded bundle 26 times; another, five of its seven never."""
     superseded = bundle(space.root, "2026-09-10-aaaaaaaa")
     cited = bundle(space.root, "2026-09-10-bbbbbbbb")
     newest = bundle(space.root, "2026-09-14-cccccccc")
@@ -240,7 +240,7 @@ def test_a_bundle_nothing_cites_goes_and_a_cited_one_stays(space: Workspace) -> 
     # rule (see test_with_nothing_cited_the_newest_session_is_kept, which fixed the same thing).
     for path, when in ((superseded, 1_700_000_000), (cited, 1_700_000_000), (newest, 1_700_000_600)):
         os.utime(path / "bundle.json", (when, when))
-    write(space.root / "output/A06_Phase1.md",
+    write(space.root / "output/A99_Phase1.md",
           "| Supersedes | `.ak/bundles/2026-09-10-bbbbbbbb`, before the table removal |")
 
     found = offered(space)
@@ -287,14 +287,14 @@ def test_a_protected_path_is_refused(space: Workspace) -> None:
 
 
 @pytest.mark.parametrize("text, expected", [
-    (r'"D:\Anrakutei\fresh\A05\.ak\staging\FRONTEND\fresh-01\forms\menu.txt"',
+    (r'"C:\work\app\.ak\staging\FRONTEND\fresh-01\forms\menu.txt"',
      ".ak/staging/FRONTEND/fresh-01/forms/menu.txt"),
     ("see input/exports/FRONTEND-2026-09-04/forms/menu.txt, line 12",
      "input/exports/FRONTEND-2026-09-04/forms/menu.txt"),
     ("[the export](input/exports/FRONTEND-2026-09-04)",
      "input/exports/FRONTEND-2026-09-04"),
-    ("input/access/品揃支援（windows11専用）.mdb",
-     "input/access/品揃支援（windows11専用）.mdb"),
+    ("input/access/業務支援（windows11専用）.mdb",
+     "input/access/業務支援（windows11専用）.mdb"),
     ("| Supersedes | `.ak/bundles/2026-09-10-50cfe32e`, before the removal |",
      ".ak/bundles/2026-09-10-50cfe32e"),
     ("The text was read out of .ak/staging/FRONTEND/fresh-01.",

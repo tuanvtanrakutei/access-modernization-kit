@@ -506,7 +506,7 @@ def _prepared_for_ocr(image: Path, workspace: Path) -> tuple[Path, list[str]]:
 
     An alpha channel makes Tesseract return **nothing at all** - exit 0, empty string,
     no error - and the kit then recorded NORMALIZED with a parser and a hash for a file
-    that contributed not one character. Measured on a real A06 screenshot whose alpha
+    that contributed not one character. Measured on a real screenshot whose alpha
     is uniformly opaque, so it carries no transparency and changes no pixel: RGBA reads
     empty, dropped it reads. A screenshot saved by almost any Windows tool is RGBA.
 
@@ -521,8 +521,8 @@ def _prepared_for_ocr(image: Path, workspace: Path) -> tuple[Path, list[str]]:
 
     The PDF route does not come through here, and that is measured rather than assumed:
     its pixmaps are already `alpha=False`, and at the `Matrix(2, 2)` it renders they
-    read correctly - `担当者登録`, `商品情報登録` and `商品情報一覧登` all came out of a
-    real A06 page. Working code is not improved on the strength of a different file's
+    read correctly - `担当者登録`, `受注登録` and `受注一覧登` all came out of a
+    real page. Working code is not improved on the strength of a different file's
     symptoms.
     """
     try:

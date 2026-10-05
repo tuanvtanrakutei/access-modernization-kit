@@ -2,7 +2,7 @@
 
 Every risk a phase writes carries a Mitigation, and for a legacy defect that Mitigation is a
 recommended answer: what the replacement should do about it. Nobody was asked to accept any
-of A06's 25. Standing policy settles whole classes of them (`policy.yaml`); what is left is
+of them. Standing policy settles whole classes of them (`policy.yaml`); what is left is
 put to the decider here, all at once, with the Mitigation as the default:
 
     ok              accept the default of every item listed
@@ -191,7 +191,7 @@ def record_markdown(app: str, decisions: dict[str, str], items: dict[str, dict[s
 
 
 def next_serial(evidence_items: list[dict[str, Any]], app: str, token: str = EVIDENCE_TOKEN) -> int:
-    """The class's next number. A06 numbers per class across phases: TARGET-001 is Phase 1's,
+    """The class's next number. A run numbers per class across phases: TARGET-001 is Phase 1's,
     TARGET-002 Phase 4's, so the next is 003 whatever phase records it."""
     pattern = re.compile(rf"^{re.escape(app)}-P[1-6]-{re.escape(token)}-([0-9]{{3,}})$")
     numbers = [int(m.group(1)) for i in evidence_items

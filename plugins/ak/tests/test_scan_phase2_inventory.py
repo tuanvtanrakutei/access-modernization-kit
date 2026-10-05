@@ -27,7 +27,7 @@ SCANNER = PACKAGE / "modernize" / "scripts" / "scan_phase2_inventory.py"
 TEMPLATE = PACKAGE / "templates" / "phase2-screen-analysis.md"
 
 # The filename the real output contract declares, not the template's own name.
-PUBLISHED_NAME = "A05_Phase2_ScreenAnalysis_EN.md"
+PUBLISHED_NAME = "A99_Phase2_ScreenAnalysis_EN.md"
 ENTRY_TABLE_HEADER = (
     "| ID | Object | Type | Business purpose | Entry path | Evidence |\n"
     "|---|---|---|---|---|---|\n"

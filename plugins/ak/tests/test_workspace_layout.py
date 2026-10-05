@@ -335,7 +335,7 @@ def test_the_input_root_is_where_an_operator_actually_puts_things(tmp_path: Path
 # --- a form and a report may share a name -----------------------------------
 
 def test_a_form_and_a_report_sharing_a_name_are_two_objects() -> None:
-    """Access permits it, and the A05 frontend does it four times.
+    """Access permits it, and a real frontend does it four times.
 
     Keyed on (database, name) alone the second silently replaced the first. Five
     objects never entered the derived corpus, and - worse - four of them were print

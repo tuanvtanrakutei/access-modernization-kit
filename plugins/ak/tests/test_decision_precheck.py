@@ -7,7 +7,7 @@ the two places that already hold facts - the screen catalogue's `Offers` column 
 `meanings.yaml` - and flags, never answers.
 
 A flag a person learns to skip is worse than none, so half of these tests are the ways a
-matcher goes noisy. The first run on A06's 47 open items flagged one, and it was wrong: a
+matcher goes noisy. The first run on one register's 47 open items flagged one, and it was wrong: a
 question about whether two screens were reachable matched an object whose short name sat
 inside a longer one the question quoted.
 """
@@ -36,9 +36,9 @@ CATALOGUE = """# A99 - Screen Catalogue
 
 | Object | Control | Type | Caption | Offers | On click | Visible |
 |---|---|---|---|---|---|---|
-| `受注数調整リスト印刷画面` | `fraレポート` | option group | — | `1` = バラのみ, `2` = ケースとバラ (default `2`) | — | visible |
-| `受注数調整リスト印刷画面` | `cmd印刷` | button | `印刷` | — | `[Event Procedure]` | visible |
-| `残数記入リスト印刷画面` | `fra分類` | option group | — | `1` = 保冷品, `2` = 常温品 | — | visible |
+| `出荷数確認リスト印刷画面` | `fraレポート` | option group | — | `1` = バラのみ, `2` = ケースとバラ (default `2`) | — | visible |
+| `出荷数確認リスト印刷画面` | `cmd印刷` | button | `印刷` | — | `[Event Procedure]` | visible |
+| `在庫数記入リスト印刷画面` | `fra分類` | option group | — | `1` = 保冷品, `2` = 常温品 | — | visible |
 | `印刷画面` | `fra向き` | option group | — | `1` = 縦, `2` = 横 | — | visible |
 """
 
@@ -61,7 +61,7 @@ def flags(text: str, meanings: list[dp.Meaning] | None = None, *, kind: str = "F
 def test_the_catalogue_is_read_by_header_name_and_rows_with_no_offers_are_skipped() -> None:
     rows = offers()
     assert [(o.object, o.control) for o in rows] == [
-        ("受注数調整リスト印刷画面", "fraレポート"), ("残数記入リスト印刷画面", "fra分類"), ("印刷画面", "fra向き")]
+        ("出荷数確認リスト印刷画面", "fraレポート"), ("在庫数記入リスト印刷画面", "fra分類"), ("印刷画面", "fra向き")]
     assert "ケースとバラ" in rows[0].offers
 
 
@@ -79,8 +79,8 @@ def test_text_with_no_such_table_gives_nothing() -> None:
 # --- what is flagged -----------------------------------------------------------------
 
 def test_q109_as_it_was_asked_is_flagged_before_it_is_put_to_anyone() -> None:
-    found = flags("What are the option-group values behind `受注数調整リスト` and `残数記入リスト`?")
-    assert {f["name"] for f in found} == {"受注数調整リスト", "残数記入リスト"}
+    found = flags("What are the option-group values behind `出荷数確認リスト` and `在庫数記入リスト`?")
+    assert {f["name"] for f in found} == {"出荷数確認リスト", "在庫数記入リスト"}
     assert all(f["kind"] == "offers" and f["source"] == "ScreenCatalogue" for f in found)
     assert "ケースとバラ" in found[0]["text"] and "fraレポート" in found[0]["text"]
 
@@ -92,11 +92,11 @@ def test_a_control_named_exactly_is_flagged_without_asking_about_choices() -> No
 
 
 def test_naming_an_object_is_not_asking_what_it_offers() -> None:
-    assert flags("Is `受注数調整リスト印刷画面` reachable at all?") == []
+    assert flags("Is `出荷数確認リスト印刷画面` reachable at all?") == []
 
 
 def test_an_object_inside_a_longer_quoted_name_is_a_different_object() -> None:
-    """The one flag A06's first run produced, and it was wrong: `印刷画面` is a real object, and
+    """The one flag that first run produced, and it was wrong: `印刷画面` is a real object, and
     it sits inside the name of a screen the question was asking about for another reason."""
     assert flags("What values does `新規事業部受注合計表印刷画面` take?") == []
 

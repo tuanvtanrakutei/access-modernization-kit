@@ -1,9 +1,9 @@
 """Risks, standing policy and the decider's batch (A75, slice 3).
 
 Every risk a phase writes carries a Mitigation, and for a legacy defect that is a recommended
-answer: what the replacement should do about it. A06 has 25, and nobody had been asked to
+answer: what the replacement should do about it. One project had 25, and nobody had been asked to
 accept any of them; the register knew each one's severity and nothing else. The first run of
-this slice on a copy of A06 found the rest of what is tested here: a risk's row names no object
+this slice on a copy of that project found the rest of what is tested here: a risk's row names no object
 it would block, the Phase 1 table has no ID column, RA-02 names a question that was superseded
 and another that was answered, and the marker that strips "Raised by E-11" from a question
 also stripped "E-05: confirmed - do not carry it forward" from RA-10's Mitigation, which is the
@@ -93,7 +93,7 @@ def test_a_risk_is_a_disposition_and_names_its_class() -> None:
 
 
 def test_a_risk_on_its_own_mitigation_need_block_nothing_else_and_nothing_else_may() -> None:
-    """A06's 25 risk rows name no object between them. What waits on a risk's disposition is
+    """That project's 25 risk rows name no object between them. What waits on a risk's disposition is
     the risk's own Mitigation, so `blocks` may be empty there and nowhere else."""
     assert problems_of(risk("RA-01")) == []
     no_default = risk("RA-01", default=None)
@@ -136,7 +136,7 @@ def test_a_risk_row_is_read_by_where_its_identifier_is() -> None:
         "mitigation": "Restrict the update"}
     with_evidence = ["**RA-01**", "Built names", "HIGH", "Nothing found", "Make it explicit", "[E]"]
     assert dq.risk_cells(with_evidence, "RA-01")["mitigation"] == "Make it explicit"
-    # A06's Phase 1, in English and in Vietnamese: no ID column, everything one to the left.
+    # A real Phase 1, in English and in Vietnamese: no ID column, everything one to the left.
     phase1 = ["RD-05 — `準備数` lost during recovery (**E-02**)", "CAO", "Lost", "Give it a path"]
     assert dq.risk_cells(phase1, "RD-05") == {
         "title": "`準備数` lost during recovery (**E-02**)", "severity": "CAO",
@@ -325,7 +325,7 @@ def test_an_answer_that_cannot_be_recorded_is_refused(line: str, expected: str) 
 
 
 def test_the_class_serial_continues_across_phases() -> None:
-    """A06 numbers per class: TARGET-001 is Phase 1's and TARGET-002 Phase 4's."""
+    """One register numbers per class: TARGET-001 is Phase 1's and TARGET-002 Phase 4's."""
     existing = [{"id": "A99-P1-TARGET-001"}, {"id": "A99-P4-TARGET-002"}, {"id": "A99-P4-CODE-009"}]
     assert batch.next_serial(existing, "A99") == 3
     assert batch.next_serial([], "A99") == 1
@@ -599,7 +599,7 @@ def test_each_open_risk_is_proposed_as_a_disposition_with_its_class_left_to_deci
 
 
 def test_what_a_mitigation_waits_on_follows_supersession_and_skips_what_is_closed() -> None:
-    """A06's RA-02 names Q108, superseded by Q103, and UK-S04, answered."""
+    """A real RA-02 names Q108, superseded by Q103, and UK-S04, answered."""
     entries = [entry("Q108", "Q", superseded_by="Q103"), question("Q103"),
                entry("UK-S04", "UK-", resolved_by="A99-P4-CODE-001"),
                entry("UK-S06", "UK-"), question("Q110", gap="UK-S06")]
@@ -642,7 +642,7 @@ def test_a_reviewed_risk_proposal_applies_and_the_register_passes_its_checks(
 
 def test_a_second_applied_proposal_does_not_replace_the_first(
         tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """A06 is backfilled twice, the questions in slice 1 and the risks in slice 3. The second
+    """A register is backfilled twice, the questions in slice 1 and the risks in slice 3. The second
     apply renamed its proposal over the first reviewed one, the only record of that review."""
     root = make_workspace(tmp_path, with_needs=False)
     decisions = root / "input" / "decisions"
@@ -659,7 +659,7 @@ def test_a_second_applied_proposal_does_not_replace_the_first(
 
 
 def test_an_unknown_a_question_already_asks_about_is_not_proposed_again() -> None:
-    """Re-running the backfill on A06 after slice 1 proposed 14 unknowns again, every one of
+    """Re-running the backfill on a real register after slice 1 proposed 14 unknowns again, every one of
     them already asked by a question's `gap`, for a reviewer to delete a second time."""
     entries = [entry("UK-W01", "UK-"), question("Q117", gap="UK-W01"), entry("UK-W02", "UK-")]
     assert [e["id"] for e in backfill_needs.open_asks(entries)] == ["UK-W02"]

@@ -23,15 +23,15 @@ sys.path.insert(0, str(PACKAGE / "contracts"))
 import bilingual as bl  # noqa: E402
 
 TERMS = {
-    "商品": {"en": "product", "provenance": "A01"},
-    "店舗": {"en": "store", "provenance": "A01"},
-    "コード": {"en": "cd", "provenance": "A01"},
+    "商品": {"en": "product", "provenance": "reference"},
+    "店舗": {"en": "store", "provenance": "reference"},
+    "コード": {"en": "cd", "provenance": "reference"},
     "ＤＰコード": {"en": "dp_cd", "provenance": "analysis"},
-    "名": {"en": "name", "provenance": "A01"},
-    "数量": {"en": "quantity", "provenance": "A01"},
-    "マスタ": {"en": "master", "provenance": "A01"},
+    "名": {"en": "name", "provenance": "reference"},
+    "数量": {"en": "quantity", "provenance": "reference"},
+    "マスタ": {"en": "master", "provenance": "reference"},
     "元": {"en": "source", "provenance": "analysis"},
-    "移動元": {"en": "movement_source", "provenance": "A01"},
+    "移動元": {"en": "movement_source", "provenance": "reference"},
     "バックアップ": {"en": "backup", "provenance": "analysis"},
     "の": {"en": "", "provenance": "analysis"},
 }
@@ -63,7 +63,7 @@ def test_the_longest_term_wins() -> None:
 
 
 def test_width_is_normalised_before_matching() -> None:
-    """A05's most-joined pair is `DPコード` against `ＤＰコード`. Both are the term."""
+    """One application's most-joined pair is `DPコード` against `ＤＰコード`. Both are the term."""
     assert compose("DPコード").english == "dp_cd"
 
 
@@ -80,15 +80,15 @@ def test_a_partial_name_is_flagged_on_the_object_even_though_nothing_is_printed(
     assert rendered.covered < 1.0
 
 
-def test_a_name_from_a01_precedent_alone_carries_no_question_mark() -> None:
+def test_a_name_from_reference_precedent_alone_carries_no_question_mark() -> None:
     """`?` must mean "this analysis made this up", or it means nothing.
 
-    `商品コード` composes from `商品` and `コード`, both decided in the A01 conversion
-    table. That is precedent applied, not a proposal, and 149 of 649 A05 names are in
-    that position.
+    `商品コード` composes from `商品` and `コード`, both decided in the reference conversion
+    table. That is precedent applied, not a proposal, and on one real application
+    nearly a quarter of the names are in that position.
     """
     rendered = compose("商品コード")
-    assert rendered.provenance == "A01"
+    assert rendered.provenance == bl.REFERENCE
     assert rendered.is_settled and not rendered.accepted
     assert rendered.bilingual() == "商品コード (product_cd)"
 
@@ -108,7 +108,7 @@ def test_a_name_using_any_analysis_term_records_that_in_its_provenance() -> None
     """
     rendered = compose("ＤＰコード商品")
     assert rendered.is_complete
-    assert rendered.provenance == "A01+analysis"
+    assert rendered.provenance == bl.REFERENCE_MIX
     assert not rendered.is_settled
     assert rendered.bilingual() == "ＤＰコード商品 (dp_cd_product)"
 
@@ -141,12 +141,12 @@ def test_a_particle_carrying_no_word_still_counts_as_covered() -> None:
 # --- provenance -------------------------------------------------------------
 
 
-def test_provenance_is_A01_when_every_term_is_precedent() -> None:
-    assert compose("商品コード").provenance == "A01"
+def test_provenance_is_reference_when_every_term_is_precedent() -> None:
+    assert compose("商品コード").provenance == bl.REFERENCE
 
 
 def test_provenance_is_mixed_when_any_term_is_only_proposed() -> None:
-    assert compose("ＤＰコード商品").provenance == "A01+analysis"
+    assert compose("ＤＰコード商品").provenance == bl.REFERENCE_MIX
 
 
 def test_provenance_is_none_when_nothing_matched() -> None:
@@ -168,7 +168,7 @@ def test_every_shipped_term_has_an_english_name_and_a_provenance() -> None:
     for key, entry in bl.load_terms(PACKAGE).items():
         assert isinstance(entry, dict), key
         assert "en" in entry, key
-        assert entry.get("provenance") in ("A01", "analysis"), key
+        assert entry.get("provenance") in ("reference", "analysis"), key
 
 
 def test_a_missing_glossary_means_nothing_accepted_rather_than_an_error(
@@ -255,7 +255,7 @@ def test_a_project_term_composes_inside_a_longer_name(tmp_path: Path) -> None:
 def test_a_vocabulary_hole_returns_a_wrong_name_not_an_empty_one(tmp_path: Path) -> None:
     """Why the section above is worth more than coverage.
 
-    A06 has seven columns named for a weekday (`月出荷` … `土出荷`), so `月` and `金`
+    One application has seven columns named for a weekday (`月出荷` … `土出荷`), so `月` and `金`
     are single-character terms. Without a longer term above them the composer read
     `月初在庫` as `monday_stock` and `合計金額` as `total_friday` - and labelled both
     `_partial_`, which a reader takes for *unfinished* rather than *wrong*.
@@ -311,3 +311,17 @@ def test_separators_are_decided_by_category_not_by_a_list() -> None:
 def test_a_name_that_is_only_separators_is_not_claimed_as_covered() -> None:
     """Dividing by an empty countable set must not read as 100%."""
     assert bl.compose("・・", {"商品": {"en": "product"}}, {}).covered == 0.0
+
+
+# --- the label before the rename ---------------------------------------------
+
+def test_a_glossary_written_before_the_rename_is_read_with_the_new_label() -> None:
+    """Terms and glossaries written before the rename say `A01`. They still count as
+    precedent, so an existing workspace renders the same names with the same standing."""
+    legacy = {key: {**value, "provenance": "A01" if value["provenance"] == "reference"
+                    else value["provenance"]} for key, value in TERMS.items()}
+    assert bl.compose("商品コード", legacy, {}).provenance == bl.REFERENCE
+    assert bl.compose("商品コード", legacy, {}).is_settled
+    assert bl.compose("ＤＰコード商品", legacy, {}).provenance == bl.REFERENCE_MIX
+    assert bl.normalize_provenance("A01+analysis") == bl.REFERENCE_MIX
+    assert bl.normalize_provenance("analysis") == "analysis"

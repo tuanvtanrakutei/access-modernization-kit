@@ -133,7 +133,7 @@ def workspace_with(tmp_path: Path, phase6: bool) -> tuple[Path, Path]:
     a manifest error and must not be masked by a later short-circuit. A minimal
     hand-written one fails on `project` and would have tested the validator instead.
     """
-    app = tmp_path / "A05"
+    app = tmp_path / "A99"
     run = app / ".ak" / "runs" / "R1"
     run.mkdir(parents=True)
     text = (PACKAGE / "examples" / "minimal-app" / "manifest.yaml").read_text(

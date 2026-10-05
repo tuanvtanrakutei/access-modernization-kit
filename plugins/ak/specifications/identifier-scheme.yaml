@@ -20,7 +20,7 @@ conventions:
     Bare, as the reference set writes them: `BR-ORD-06`, `WF-003`, `RD-01`. The
     app is implied by the document.
   in_registers: >
-    App-scoped: `A05::BR-ORD-06`. Two apps' registers can be merged without a
+    App-scoped: `A99::BR-ORD-06`. Two apps' registers can be merged without a
     collision, and an identifier can never be read as belonging to the wrong app.
   allocation: >
     Sequential within a namespace, allocated by the phase that discovers the item,
@@ -137,7 +137,7 @@ namespaces:
     requires_severity: true
     note: >
       Phase 2 owns this as well as Phase 3. A screen is application layer, and until
-      2026-09-14 no risk namespace was owned by Phase 2 at all - so A06's Phase 2 put
+      2026-09-14 no risk namespace was owned by Phase 2 at all - so one Phase 2 put
       five screen risks into RS, whose letter reads as Screen and whose name is
       "security and compliance". One of them was "grouping carried by 222 line and
       rectangle controls", which is not a security finding, and the numbers RS-01..05
@@ -206,7 +206,7 @@ namespaces:
     # it. ER-06 already says an entry may correct a claim in any phase, and a
     # correction found in Phase 3 cannot wait for Phase 6 - by then the wrong claim
     # has been published for the length of three more phases, and anyone rebuilding
-    # from it has already acted. A06's Phase 3 corrected two Phase 1 risks and could
+    # from it has already acted. One Phase 3 corrected two Phase 1 risks and could
     # allocate nothing, so it wrote the correction into prose and the register stayed
     # empty. Phase 1 is excluded because there is nothing published before it.
     owned_by: [phase2, phase3, phase4, phase5, phase6]
@@ -310,7 +310,7 @@ rules:
     on_violation: "The document and the register describe two different questions; a reader acts on one and the queue on the other."
 
   # A75 slice 3. A risk's Mitigation is a recommended answer for a legacy defect, and nobody
-  # was asked to accept any of A06's 25.
+  # was asked to accept any of one run's 25.
   - id: ID-11
     rule: >
       Every open risk (`RD-`, `RA-`, `RW-`, `RS-`) carries a `needs` block of kind
@@ -324,7 +324,7 @@ rules:
   # A75, errata slice. A question with a default proceeds on an assumption; its answer either
   # held that assumption or broke it, and the register used to record the answer and leave the
   # assumption standing. "If wrong" was a prose column, so the list of what to refresh was
-  # assembled by a person reading three documents (A06's E-01 and E-02).
+  # assembled by a person reading three documents (one run's E-01 and E-02).
   - id: ID-12
     rule: >
       Every open `AS-` carries `if_wrong` in the register: the sentence its phase wrote in the
@@ -354,7 +354,7 @@ register:
     set. `resolved_by` names the evidence id that answers it - the question is done,
     and the answer is in the phase that found it. `superseded_by` names another
     identifier that asks the same thing, which is how a duplicate stops being carried
-    twice: A06 allocated `Q108` asking what `Q103` already asked of the same owner
+    twice: one run allocated `Q108` asking what `Q103` already asked of the same owner
     about the same file, because Phase 2 never re-read Phase 1's questions.
 
     Neither field is a way to make a list shorter. An item with nothing in this phase

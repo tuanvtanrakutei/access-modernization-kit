@@ -1,7 +1,7 @@
 # Minimal synthetic app
 
 This public-safe fixture exercises the V2.2 acquisition contract with invented data only. It
-contains no Access database, live connection, customer data, A01 material, or proprietary
+contains no Access database, live connection, customer data, reference-set material, or proprietary
 evidence.
 
 The fixture declares three artifacts:

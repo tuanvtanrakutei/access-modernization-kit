@@ -1,7 +1,7 @@
 """What an export does not say: whether the exporter wrote the whole object.
 
 The imported-sources adapter verifies every file against the SHA-256 the export
-manifest declares, and the manifest against the source database's own digest. On A05
+manifest declares, and the manifest against the source database's own digest. On one project
 all of it passed, and the definition text was still materially incomplete:
 `メインメニュー` arrived with 21 of its 45 procedures, 45 of its 114 control blocks and
 1,642 of its 4,886 lines. Ten errata followed from that gap, and the largest was a
@@ -11,7 +11,7 @@ Integrity answers "is this the file the exporter wrote". Nothing answered "did t
 exporter write the whole object", and the position this module is built around is that
 **one observation cannot answer it**. A file whose digest is correct, whose object
 count matches the other route's, and which ends on a complete `End Sub` is
-indistinguishable from a complete one - which is precisely how A05's export passed
+indistinguishable from a complete one - which is precisely how that export passed
 every gate the kit has. Pretending otherwise would put a checkmark where the doubt
 belongs.
 
@@ -19,7 +19,7 @@ So two things, neither of which claims to be the check that does not exist:
 
   **Shape, recorded.** Lines, `Begin`/`End` blocks, procedures, per object. A first
   export has nothing to be compared against; recording its shape is what gives the
-  second one something. This costs nothing and is the part that would have made A05
+  second one something. This costs nothing and is the part that would have made that gap
   visible the moment the re-export arrived, rather than after somebody thought to diff.
 
   **Shape, compared.** Where the workspace has seen an object before - a previous run's
@@ -27,14 +27,14 @@ So two things, neither of which claims to be the check that does not exist:
   reported. That is "re-export and diff", which is what actually found this, turned
   into something that happens without anyone deciding to do it.
 
-A disagreement is reported in both directions and never as "it shrank". A05's first
+A disagreement is reported in both directions and never as "it shrank". In that case the first
 export was the incomplete one, so the correction arrived as a *rise*; a rule that only
 watched for drops would have said nothing at the exact moment the evidence appeared.
 What is reportable is that two observations of one object disagree, and which of them
 is smaller.
 
 Unbalanced nesting is reported outright, because that one *is* decidable from a single
-file. It would not have caught A05 - the truncated `メインメニュー` balanced - and it is
+file. It would not have caught that case - the truncated `メインメニュー` balanced - and it is
 worth having anyway, for the ordinary truncation: a transfer that stopped early, a
 file cut at a byte boundary, a disk that filled.
 """
@@ -48,7 +48,7 @@ from typing import Any
 # its line is the block terminator; `End Sub`, `End If` and the rest are VBA and are
 # not counted here, which is why the pattern anchors to the end of the line.
 #
-# A block is opened two ways, and missing the second called nearly every A05 form
+# A block is opened two ways, and missing the second called nearly every form
 # truncated on the first real run. Access writes its binary print settings as
 # `PrtMip = Begin` / hex lines / `End` - five such properties on a typical form - so a
 # pattern matching only a bare `Begin` counts the closers and not the openers, and
@@ -135,7 +135,7 @@ MATERIAL = 0.02
 def disagreements(previous: Shape, current: Shape) -> list[str]:
     """Where two observations of one object disagree about its size.
 
-    Both directions. A05's first export was the incomplete one, so the correction
+    Both directions. One project's first export was the incomplete one, so the correction
     arrived as a rise, and a rule that only watched for drops would have said nothing
     at the moment the evidence turned up.
     """
