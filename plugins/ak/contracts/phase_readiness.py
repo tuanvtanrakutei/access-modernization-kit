@@ -6,7 +6,9 @@ from typing import Any
 import evidence_classes
 from classification import Classification, resolve_classification
 
-PHASES = tuple(f"phase{i}" for i in range(1, 7))
+# Phase 6 was retired (A78). Its readiness asked for `prior_phase_outputs_accepted`, which
+# no acquisition produces, so it read BLOCKED on every project that had published phases 1-4.
+PHASES = tuple(f"phase{i}" for i in range(1, 6))
 # Non-applicability is not modelled, and this is where somebody will come looking.
 #
 # `NOT_APPLICABLE` used to sit here at rank 0 beside READY, with a special case in
@@ -54,10 +56,6 @@ BASELINE = {
     },
     "phase4": {"any": {"trigger_effect_output_trace"}, "status": "BLOCKED"},
     "phase5": {"any": {"document_inventory"}, "status": "LIMITED"},
-    "phase6": {
-        "all": {"prior_phase_outputs_accepted", "unresolved_risk_register"},
-        "status": "BLOCKED",
-    },
 }
 
 

@@ -357,7 +357,7 @@ def parse_args() -> argparse.Namespace:
     phase_commands = phase.add_subparsers(dest="phase_action", required=True)
     phase_req = phase_commands.add_parser("requirements")
     phase_req.add_argument("--app-root", required=True)
-    phase_req.add_argument("--phase", type=int, choices=range(1, 7), required=True)
+    phase_req.add_argument("--phase", type=int, choices=range(1, 6), required=True)
     phase_req.add_argument(
         "--waive", action="append", default=[],
         help="Proceed without a capability. Requires --reason and is recorded in the receipt.",

@@ -112,10 +112,17 @@ def test_a_document_with_no_source_coverage_fails_apparatus() -> None:
     assert "source_coverage" in failed
 
 
-def test_phase6_without_an_errata_register_fails_apparatus() -> None:
-    results = checker.apparatus_checks(6, "# X", {})
-    failed = {r["check"] for r in results if r["status"] == "FAIL"}
-    assert "errata_register" in failed
+def test_a_retired_phase_document_is_named_and_not_checked(
+        tmp_path: Path, capsys: pytest.CaptureFixture) -> None:
+    """A78. An old workspace keeps its Phase 6, and no contract is left to hold it to."""
+    outputs = tmp_path / "outputs"
+    write(outputs, "A99_Phase1_DataUnderstanding_EN.md",
+          "## Naming Convention\n\nProduction names.\n\n```mermaid\ngraph TD\n```\n\nOB-01 x.\n")
+    write(outputs, "A99_Phase6_Synthesis_EN.md", "# Synthesis\n")
+    assert run(outputs) == 0
+    captured = capsys.readouterr()
+    assert "A99_Phase6_Synthesis_EN.md belongs to a retired phase" in captured.err
+    assert "1 phase document(s)" in captured.out
 
 
 # --- end to end -------------------------------------------------------------
@@ -607,13 +614,6 @@ def test_an_errata_id_does_not_have_to_be_in_the_identifier_register() -> None:
     results = checker.apparatus_checks(3, "RD-05 is corrected by E-02.", registers)
     result = next(r for r in results if r["check"] == "identifiers_resolve")
     assert result["status"] == "PASS", result["detail"]
-
-
-def test_phase_six_still_needs_a_register_at_all() -> None:
-    """Widening ownership must not weaken the one place the register is rendered."""
-    failed = {r["check"] for r in checker.apparatus_checks(6, "# X", {})
-              if r["status"] == "FAIL"}
-    assert "errata_register" in failed
 
 
 def test_the_scheme_lets_a_middle_phase_allocate_an_errata_id() -> None:

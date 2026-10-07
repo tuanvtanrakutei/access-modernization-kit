@@ -33,8 +33,8 @@ procedure:
   3_render_the_page: >
     Run `$ak errata`. It renders the register as `{APP_ID}_Errata.md`, which the
     README sends a reader to first, because it governs how every phase should be
-    read. This used to be the head of Phase 6; the phases cite an entry as soon as
-    it is written (ER-07), so the page cannot wait for Phase 6 (A81).
+    read. This used to be the head of Phase 6, which was retired (A78); the phases
+    cite an entry as soon as it is written (ER-07), so the page is rendered then (A81).
 
   prohibition: >
     A published claim is never silently edited, and never deleted. Correcting the
@@ -143,7 +143,7 @@ rules:
     rule: >
       A phase that announces it has corrected an earlier phase's published claim
       cites at least one E-. The entry is written when the correction is made, not
-      when Phase 6 is written: by then the wrong claim has stood through every phase
+      at the end of the investigation: by then the wrong claim has stood through every phase
       in between, and whoever rebuilt from it has already acted on it.
     on_violation: >
       The prose stops saying the wrong thing and no record survives that it ever did.

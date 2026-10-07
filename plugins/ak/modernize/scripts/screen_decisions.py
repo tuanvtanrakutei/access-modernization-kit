@@ -6,7 +6,7 @@ executes. Pre-flight runs it before Stage 1, so a screen is not planned over a q
 the extraction raised and nobody has answered.
 
 The queue (`{APP_ID}_DecisionQueue.json`, written by `$ak decisions`) holds every open
-question, unknown and risk the six phases raised, with who can answer, what each one
+question, unknown and risk the five phases raised, with who can answer, what each one
 blocks, and what the pipeline proceeds on meanwhile (an assumption, or the risk's own
 Mitigation). An item with no default is BLOCKING and stops only what it names; one with
 a default proceeds on it. This script says which of those name this screen.

@@ -1,7 +1,7 @@
 # Input Preconditions
 
 This specification defines the minimum inputs and environment each app workspace
-needs before the six-phase investigation runs. It is advisory: `preflight.py`
+needs before the five-phase investigation runs. It is advisory: `preflight.py`
 reports gaps as warnings and the investigation records missing inputs as
 assumptions or open questions. It never silently invents evidence.
 

@@ -83,12 +83,12 @@ Stage 1 needs the extraction's registers. A project whose Stage 0 was manual exp
 
 Stage 0 is not performed by **this pipeline** — Stages 1-6 below never run extraction, and running
 them is always the user's own, separate decision from running Stage 0. It ships in the same
-package as the six-phase investigation (`ak`), and the two are **independently invokable**:
-running the six phases does not automatically continue into Stage 1, and this pipeline never
+package as the five-phase investigation (`ak`), and the two are **independently invokable**:
+running the five phases does not automatically continue into Stage 1, and this pipeline never
 triggers Stage 0 on its own. Manual export, per `LEGACY_EVIDENCE.md`, remains equally valid — the
 handoff contract below does not assume `ak` produced the evidence.
 
-The pipeline consumes whatever Stage 0 produced, provided it satisfies the handoff contract in `LEGACY_EVIDENCE.md` §6: files present in the declared evidence directories, anchorable by line or page, matchable to a screen, encoding known. `LEGACY_EVIDENCE.md` §6.1 describes the enriched form this contract takes when `ak`'s six-phase output is the producer.
+The pipeline consumes whatever Stage 0 produced, provided it satisfies the handoff contract in `LEGACY_EVIDENCE.md` §6: files present in the declared evidence directories, anchorable by line or page, matchable to a screen, encoding known. `LEGACY_EVIDENCE.md` §6.1 describes the enriched form this contract takes when `ak`'s five-phase output is the producer.
 
 At pre-flight the agent verifies the contract is satisfied for the target screen. It does **not** attempt extraction itself, and does not check whether Stage 0 has been run recently or at all beyond what the contract requires — that determination belongs to whoever decided to start Stage 1. If evidence is missing, it stops and reports which objects are absent.
 
@@ -131,8 +131,9 @@ Run once per screen, before Stage 1. These reads are independent — batch them 
 4. **Grep `Known_Issues.md`** for the screen name and module. List every row with status `open` or `in_progress`. Pay particular attention to `traceability` rows from prior gate runs — they affect coverage decisions in this run. If any row is a blocker, stop and ask.
 5. **Verify evidence.** If `{{AK_RUN_DIR}}` is not `n/a`, read `{{AK_RUN_DIR}}/run-state.json` → `phase_gates` for this screen's module before judging anything by hand:
    - `phase2` is not `PUBLISHED` → stop. This pipeline reads its content, so a work-in-progress or rejected one is not something to plan a screen from.
-   - `phase4` or `phase6` is `PENDING` or `REJECTED` → stop. A phase somebody started and has not finished is not a readiness signal.
-   - `phase4` or `phase6` is `NOT_REQUESTED` → **proceed.** The project declared in `outputs.phases` that it does not produce that document, and this pipeline reads neither one's content (§6.4). Say so in the pre-flight line: a screen planned without phase 6 must not read the same as one planned with it.
+   - `phase4` or `phase5` is `PENDING` or `REJECTED` → stop. A phase somebody started and has not finished is not a readiness signal.
+   - `phase4` or `phase5` is `NOT_REQUESTED` → **proceed.** The project declared in `outputs.phases` that it does not produce that document, and this pipeline reads neither one's content (§6.4). Say so in the pre-flight line: a screen planned without phase 5 must not read the same as one planned with it.
+   - `phase6`, in a run-state written before Phase 6 was retired → ignore it, whatever it says. No document is produced for it any more.
    - Otherwise `PUBLISHED` → proceed. If the enriched artifacts (`Evidence.json`, `TraceabilityMatrix.csv`, `<bundle_id>/phase-readiness.json`, `<bundle_id>/coverage.json`) are present, prefer them per `LEGACY_EVIDENCE.md` §6.1; if only `phase_gates` is present, that alone satisfies this step.
    - State in the pre-flight announcement which tier was used — `phase_gates` only, or enriched. A screen that silently used the weaker signal must not read the same as one that used the stronger.
 

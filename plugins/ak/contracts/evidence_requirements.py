@@ -81,14 +81,6 @@ SUPPLY: dict[str, tuple[str, list[tuple[str, str]]]] = {
          (ANALYSIS, "seed output/{APP_ID}_TraceabilityMatrix.csv from Phase 3's action-to-effect section: one row per step, each naming its data_target and its output. Leave workflow_id and step empty - Phase 4 assigns those, and requiring them here would make the gate circular"),
          (RUNTIME, "run the application against a snapshot and record what each action changes")],
     ),
-    "prior_phase_outputs_accepted": (
-        "phases 1 to 5 reviewed and accepted",
-        [(ANALYSIS, "complete and accept the earlier phases; this is a process state, not a file")],
-    ),
-    "unresolved_risk_register": (
-        "the risks the earlier phases left open",
-        [(ANALYSIS, "produce the risk register in the synthesis phase")],
-    ),
     # Required by the composable profile rules rather than by a phase baseline. A
     # classification that declares a backend or frontend shape is also declaring what
     # has to be proven about it, so each of these is reachable the same way.

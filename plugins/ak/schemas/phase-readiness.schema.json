@@ -3,7 +3,8 @@
   "$id": "https://sms.local/schemas/phase-readiness.schema.json",
   "title": "Rule-Computed Phase Readiness",
   "type": "object",
-  "required": ["phase1", "phase2", "phase3", "phase4", "phase5", "phase6", "_meta"],
+  "$comment": "phase6 is retired (A78): accepted so a file written before still validates, never written.",
+  "required": ["phase1", "phase2", "phase3", "phase4", "phase5", "_meta"],
   "additionalProperties": false,
   "properties": {
     "phase1": {"$ref": "#/$defs/phase"}, "phase2": {"$ref": "#/$defs/phase"},

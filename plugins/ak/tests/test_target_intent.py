@@ -98,13 +98,16 @@ def test_ec_07_is_declared_as_a_rule(contract: dict) -> None:
     assert "TARGET_INTENT" in rule["rule"] and "SCOPE" in rule["rule"]
 
 
-def test_phase_six_degrades_without_it_and_no_phase_requires_it(contract: dict) -> None:
-    """Scope is about the system being built, so only the phase that plans it suffers.
+def test_no_extraction_phase_needs_it(contract: dict) -> None:
+    """Scope is about the system being built, and no phase that describes the old one needs it.
 
-    Required anywhere, it would block every project that changes nothing.
+    Phase 6 degraded without it, and was retired (A78). Required anywhere, it would
+    block every project that changes nothing.
     """
     needs = contract["phase_needs"]
-    assert "TARGET_INTENT" in [entry.get("class") for entry in needs["phase6"]["degraded_without"]]
+    assert "phase6" not in needs
+    for phase, entry in needs.items():
+        assert "TARGET_INTENT" not in [d.get("class") for d in entry.get("degraded_without") or []], phase
     for phase, entry in needs.items():
         assert "TARGET_INTENT" not in (entry.get("required") or []), phase
 

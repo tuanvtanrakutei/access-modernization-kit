@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Define how multiple contributors analyze one approved application bundle without committing production source binaries or duplicating the six-phase pipeline.
+Define how multiple contributors analyze one approved application bundle without committing production source binaries or duplicating the five-phase pipeline.
 
 ## Prerequisites
 
