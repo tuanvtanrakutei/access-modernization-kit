@@ -275,6 +275,10 @@ Stage 1 — Scope (computed, nothing is written):
 - Run screen_scope.py for the screen (and screen_decisions.py, which pre-flight step 8 already ran).
   Read what it reports: the workflows and steps, the evidence they cite, the business rules in scope,
   the open risks with their dispositions, and the decisions that name the screen.
+- Read the cross-cutting list too: rules and risks linked to this screen only through evidence
+  most screens cite, so the evidence cannot say whether they belong here. The plan cites one only
+  if it applies. If one plainly belongs to this screen (or to another), say so to the user, who
+  places it with `$ak decisions --place <id>=<F-id> --by <name>`; never place it for them.
 - Closing gate: G1 Evidence Coverage, which the script computes. A finding is classified by
   TRACEBACK_GATES.md and handled like any other gate finding.
 

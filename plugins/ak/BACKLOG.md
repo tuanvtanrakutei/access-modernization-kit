@@ -12,6 +12,33 @@ that it should now work.
 
 ## Open
 
+### A82 - one evidence item every screen cites put every rule it backs on every screen
+
+**Found 2026-10-07, measuring the scope the modernize pipeline computes per screen.**
+`screen_scope.py` links a rule or a risk to a screen through the evidence they share (A75 slice
+4c). On a live application, more than half the screens' traceability rows cited one evidence item
+whose source was the whole UI export, so three risks and one rule reached seven of thirteen screens
+through it, and every one of those screens owed the rule a mapping row. One of the three risks was
+about hidden functions of the main menu, which is not among the seven: the coarse link put it
+everywhere except where it belongs.
+
+Two changes, chosen together by the maintainer:
+
+- **Broad evidence places nothing on its own.** An evidence item cited by half the matrix's screens
+  or more (never fewer than three) is broad. An entry that cites any narrower item is placed by the
+  narrow one alone; an entry whose only link is broad is listed as cross-cutting, with the broad
+  item named, and its rules are not owed a mapping row on every screen it reaches. Measured on the
+  live application, the rules and risks in scope across all screens fell from 67 to 39, and nothing
+  that a narrow link placed was lost.
+- **A person can place an entry.** `$ak decisions --place ID=F-nnn[,object:<name>] --by NAME`
+  (`contracts/decision_place.py`) writes `screens`, `placed_by` and `placed_on` on a business rule
+  or a risk; `ID=` removes it. A placement decides alone: the scope stops consulting evidence for
+  that entry. All or nothing, refused for a missing, superseded or non-rule/risk entry, an unknown
+  `F-`, or an author who is not one of the decider's people.
+
+The threshold is a calibration on one application: half the screens. MASTER_WORKFLOW Stage 1 tells
+the agent to read the cross-cutting list and to ask the user to place an entry, never to place it.
+
 ### A80 - a question with no default stopped a screen, and the only way on was editing the register
 
 **Found 2026-10-07, on a live application whose main import screen could not pass pre-flight.**
