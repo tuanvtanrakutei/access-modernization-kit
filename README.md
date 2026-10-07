@@ -62,7 +62,7 @@ not already provide them.
 
 ---
 
-## III. Command Guide — Six-Phase Investigation
+## III. Command Guide — Five-Phase Investigation
 
 Not literal CLI syntax — `$ak ...` is this skill's own recognized phrasing, matched by
 the agent from your chat message, the same as any natural-language request. Typing the

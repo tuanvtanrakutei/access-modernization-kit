@@ -67,7 +67,7 @@ The agent classifies per finding. The Stage 5 reviewer may adjust with a recorde
 ## Anchor Format
 
 Anchors make findings verifiable by grep rather than by memory. Which form to use depends on
-whether the enriched Stage 0 tier (`Evidence.json` from the six-phase analysis) is present for
+whether the enriched Stage 0 tier (`Evidence.json` from the five-phase analysis) is present for
 this project — see `LEGACY_EVIDENCE.md` §6.
 
 ### When `Evidence.json` is present — cite the `evidenceItem`

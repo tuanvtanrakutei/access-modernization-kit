@@ -37,7 +37,7 @@ def test_every_publication_key_is_a_declared_wave() -> None:
 
 def test_every_phase_has_a_wave_that_makes_it_ready() -> None:
     ready = {phase for phases in advance_run.READY_AFTER.values() for phase in phases}
-    missing = sorted({f"phase{n}" for n in range(1, 7)} - ready)
+    missing = sorted({f"phase{n}" for n in range(1, 6)} - ready)
     assert not missing, f"{missing} can never be marked READY by completing any wave"
 
 

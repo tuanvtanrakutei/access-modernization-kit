@@ -22,7 +22,7 @@ _EXPORT_CONTAINERS = {"forms": "form", "reports": "report", "macros": "macro", "
 
 # Organised by who owns it, not by which stage of the pipeline produced it. An
 # operator used to meet seven top-level directories, four of which they never open,
-# with the six phase documents two levels down inside runs/<run-id>/outputs/. There
+# with the five phase documents two levels down inside runs/<run-id>/outputs/. There
 # are three things here now: the file you edit, what you supply, and what you read -
 # everything the kit owns is under .ak/ and is never opened by hand.
 #
@@ -325,19 +325,16 @@ shared_context:
 outputs:
   root: "outputs"
   languages: [{language_list}]
-  presentation_template: ""
   derived:
     e2e_html: true
     boundary_html: true
-    presentation_pptx: false  # optional; enable only when a presentation is required
-  # Phases 4-6 are asked for, not assumed: each degrades without DOCUMENT or INTERVIEW
+  # Phases 4 and 5 are asked for, not assumed: each degrades without DOCUMENT or INTERVIEW
   # evidence that nothing upstream collects. Set one to `false` and its gate reads
   # NOT_REQUESTED for the whole run. Phases 1-3 are not listed - an acquisition can
   # support them unaided.
   phases:
     phase4: true
     phase5: true
-    phase6: true
   refresh_policy: "before_each_phase"
   corpus_policy: "binary_free_normalized"
 multi_agent:
@@ -349,7 +346,7 @@ multi_agent:
   evidence_collection_parallel: true
   phase_publication_sequential: true
   conflict_policy: "record_and_escalate"
-  human_checkpoints: ["inventory", "context_extraction", "module_plan", "phase1_phase2", "phase3", "phase4_phase5", "phase6", "qa"]
+  human_checkpoints: ["inventory", "context_extraction", "module_plan", "phase1_phase2", "phase3", "phase4_phase5", "qa"]
 '''
 
 

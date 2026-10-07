@@ -57,11 +57,9 @@ sources/access/*.ADP
 !extracted/**
 !output/*.md
 !output/*.html
-!output/*.pptx
 !output/*.json
 !output/*.csv
 !outputs/*.md
 !outputs/*.html
-!outputs/*.pptx
 !outputs/*.json
 !outputs/*.csv

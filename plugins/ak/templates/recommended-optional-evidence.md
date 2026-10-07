@@ -1,6 +1,6 @@
 # {{APP_ID}} — Recommended optional evidence
 
-Status: **optional, non-blocking.** The six-phase investigation runs from the
+Status: **optional, non-blocking.** The five-phase investigation runs from the
 sources already provided. Each item below strengthens a specific phase; anything
 not supplied is recorded as an `Assumption` / `Open Question` in the Question
 List — never invented. Emit this list during the assess/report step and mirror

@@ -6,7 +6,7 @@ executes. Pre-flight runs it before Stage 1, so a screen is not planned over a q
 the extraction raised and nobody has answered.
 
 The queue (`{APP_ID}_DecisionQueue.json`, written by `$ak decisions`) holds every open
-question, unknown and risk the six phases raised, with who can answer, what each one
+question, unknown and risk the five phases raised, with who can answer, what each one
 blocks, and what the pipeline proceeds on meanwhile (an assumption, or the risk's own
 Mitigation). An item with no default is BLOCKING and stops only what it names; one with
 a default proceeds on it. This script says which of those name this screen.
@@ -182,6 +182,11 @@ def render(report: dict[str, Any]) -> str:
                 out.append(f"    if the default is wrong: {row['if_wrong']}")
             for flag in row["precheck"]:
                 out.append(f"    check before asking: {flag.get('text')}")
+        if key == "blocking_directly" and rows:
+            # The stop is right - there is nothing to proceed on - and it is not a dead end.
+            out.append("To plan before it is answered, the decider records what to proceed on: "
+                       "`$ak decisions --assume <id> --that <assumption> --if-wrong <what changes> "
+                       "--by <name>`. The item stays open, and its answer is checked against it.")
         out.append("")
     if report["settled_by_policy"]:
         out.append(f"## Settled by standing policy ({len(report['settled_by_policy'])})")

@@ -15,11 +15,11 @@
     "current_wave": {"type": ["string", "null"]},
     "wave_status": {
       "type": "object",
-      "additionalProperties": {"enum": ["PENDING", "RUNNING", "COMPLETED", "BLOCKED", "REJECTED"]}
+      "additionalProperties": {"enum": ["PENDING", "RUNNING", "COMPLETED", "BLOCKED", "REJECTED", "RETIRED"]}
     },
     "phase_gates": {
       "type": "object",
-      "patternProperties": {"^phase[1-6]$": {"enum": ["PENDING", "READY", "PUBLISHED", "REJECTED"]}},
+      "patternProperties": {"^phase[1-6]$": {"enum": ["PENDING", "READY", "PUBLISHED", "REJECTED", "NOT_REQUESTED"]}},
       "additionalProperties": false
     },
     "created_at": {"type": "string", "format": "date-time"},

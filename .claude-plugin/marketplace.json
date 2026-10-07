@@ -13,7 +13,7 @@
     {
       "name": "ak",
       "source": "./plugins/ak",
-      "description": "Evidence-backed six-phase investigation for Access/VBA and SQL Server legacy applications, plus an optional Django REST + React modernization pipeline that carries a project from that investigation's output to implemented, coverage-traced code.",
+      "description": "Evidence-backed five-phase investigation for Access/VBA and SQL Server legacy applications, plus an optional Django REST + React modernization pipeline that carries a project from that investigation's output to implemented, coverage-traced code.",
       "version": "2.11.0",
       "author": {
         "name": "Vo Ta Tuan",

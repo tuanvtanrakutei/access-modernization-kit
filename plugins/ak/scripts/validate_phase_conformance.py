@@ -47,6 +47,7 @@ if str(PACKAGE / "contracts") not in sys.path:
     sys.path.insert(0, str(PACKAGE / "contracts"))
 
 import decision_queue  # noqa: E402
+import errata_render  # noqa: E402
 
 PHASE_FILE = re.compile(r"Phase([1-6])_", re.IGNORECASE)
 MERMAID = re.compile(r"^```mermaid", re.MULTILINE)
@@ -56,7 +57,7 @@ CITATION = re.compile(r"\b[A-Z][A-Z0-9_-]{1,15}-P[1-6]-[A-Z][A-Z0-9_]*-\d{3,}\b"
 
 # The namespaces a phase cannot do its job without. Calibrated against the reference
 # set: it allocates OB- in Phase 1, F- in Phase 2, BR- from Phase 3 onward, WF- in
-# Phase 4, DISC- in Phase 5, and the risk, unknown and errata registers in Phase 6.
+# Phase 4, DISC- in Phase 5, and the risk, unknown and errata registers in its Phase 6.
 # Phase 1 is deliberately not required to carry RD- or UK-, because the reference
 # does not - it records risks and unknowns as prose there and gives them addresses
 # only in Phase 6. That is a weakness worth naming, not one to enforce retroactively
@@ -67,8 +68,9 @@ REQUIRED_NAMESPACES: dict[int, tuple[str, ...]] = {
     3: ("BR-",),
     4: ("WF-", "BR-"),
     5: ("DISC-", "BR-"),
-    6: ("BR-", "RD-", "UK-", "AS-", "E-"),
 }
+# A78. Phase 6 was retired; its file name still matches PHASE_FILE in an old workspace.
+RETIRED_PHASES = frozenset({6})
 
 # Finding an identifier in prose and judging whether it is well formed are two jobs,
 # and one pattern cannot do both. Deriving the finder from the scheme's own pattern
@@ -598,7 +600,7 @@ def apparatus_checks(phase: int, text: str, registers: dict[str, Any],
         ))
 
         # `requires_severity` was declared on every risk namespace and read by nothing,
-        # so twelve risks reached the register with none. Phase 6 consolidates from the
+        # so twelve risks reached the register with none. `$ak decisions` orders from the
         # register, not from the prose table, and would have had nothing to rank by.
         unrated = [str(entry.get("id")) for entry in mine
                    if (SCHEME_RULES.get(str(entry.get("namespace") or "").rstrip("-"))
@@ -611,7 +613,7 @@ def apparatus_checks(phase: int, text: str, registers: dict[str, Any],
         ))
 
     # Every unknown and question an earlier phase left open has to be accounted for
-    # here, not silently carried to Phase 6. A Phase 2 once named none of Phase 1's
+    # here, not silently carried forward. A Phase 2 once named none of Phase 1's
     # open items, and allocated `Q108` asking what `Q103` already asked of the same owner
     # about the same file.
     if entries is not None and phase > 1:
@@ -685,17 +687,24 @@ def apparatus_checks(phase: int, text: str, registers: dict[str, Any],
     # existed.
     errata = registers.get("errata_ids")
     cited_errata = set(NAMESPACE_PATTERNS["E-"].findall(prose(text)))
-    if phase == 6 and errata is None:
-        results.append(check(
-            "errata_register", "apparatus", False,
-            "Phase 6 without an errata register cannot supersede an earlier claim",
-        ))
     if cited_errata or errata is not None:
         dangling = sorted(cited_errata - (errata or set()))
         results.append(check(
             "errata_resolve", "apparatus", not dangling,
             f"{len(dangling)} dangling, first: {dangling[:6]}" if dangling
             else f"{len(cited_errata)} entry reference(s)",
+        ))
+
+    # A81. A document says `see E-07`, and the reader needs a page to see it on. The page
+    # is generated, so the only way it can be wrong is by falling behind its register.
+    page = registers.get("errata_page")
+    if page is not None:
+        status, name = page
+        results.append(check(
+            "errata_rendered", "apparatus", status == "current",
+            f"{name} is missing; run `$ak errata`" if status == "missing"
+            else f"{name} no longer matches the errata register; run `$ak errata`"
+            if status == "stale" else f"{name} matches the errata register",
         ))
 
     # A correction a document announces and does not register is the prohibition in
@@ -751,6 +760,7 @@ def load_registers(outputs: Path) -> dict[str, Any]:
     ids_from("*_Errata.json", "errata_ids", "id")
     entries_from("*_Identifiers.json", "identifier_entries")
     entries_from("*_Errata.json", "errata_entries")
+    registers["errata_page"] = _errata_page(outputs)
     # Next to glossary.yaml and meanings.yaml, which `outputs.parent` already reaches for
     # the same reason (annotate_bilingual). None when the file is absent, which the check
     # reports; a project that predates the file is not the same as one that wrote it wrong.
@@ -770,6 +780,27 @@ def load_registers(outputs: Path) -> dict[str, Any]:
             1 for item in items
             if isinstance(item, dict) and not item.get("evidence_class"))
     return registers
+
+
+def _errata_page(outputs: Path) -> tuple[str, str] | None:
+    """Whether `{APP}_Errata.md` is what `$ak errata` would write now; None with no register."""
+    matches = [m for where in (".", "registers")
+               for m in sorted((outputs / where).glob("*_Errata.json"))]
+    if len(matches) != 1:
+        return None
+    try:
+        data = json.loads(read(matches[0]) or "{}")
+    except json.JSONDecodeError:
+        return None
+    app = str(data.get("app_id") or matches[0].name.split("_Errata")[0])
+    entries = [e for e in data.get("entries") or [] if isinstance(e, dict)]
+    contract = Path(__file__).resolve().parents[1] / "specifications" / "errata-contract.yaml"
+    expected = errata_render.render(entries, app, errata_render.load_causes(contract),
+                                    source=matches[0].name)
+    page = errata_render.output_path(outputs, app)
+    if not page.is_file():
+        return ("missing", page.name)
+    return ("current" if read(page) == expected else "stale", page.name)
 
 
 def _class_kind_violations(outputs: Path) -> list[str] | None:
@@ -885,10 +916,17 @@ def main() -> int:
 
     registers = load_registers(outputs)
     documents: list[tuple[int, Path]] = []
+    retired: list[str] = []
     for path in sorted(outputs.glob("*.md")):
         match = PHASE_FILE.search(path.name)
-        if match:
+        if match and int(match.group(1)) in RETIRED_PHASES:
+            # A78. A workspace published before keeps its Phase 6, and the contract it was
+            # written against is gone, so there is nothing left to hold it to.
+            retired.append(path.name)
+        elif match:
             documents.append((int(match.group(1)), path))
+    for name in retired:
+        print(f"note: {name} belongs to a retired phase and is not checked", file=sys.stderr)
     if not documents:
         print(f"error: no phase documents found in {outputs}", file=sys.stderr)
         return 2
