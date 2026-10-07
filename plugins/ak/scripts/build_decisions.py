@@ -56,6 +56,7 @@ for _path in (PACKAGE / "contracts", PACKAGE / "scripts"):
 
 import check_interview_register as interview_register  # noqa: E402
 import decision_agenda as da  # noqa: E402
+import decision_assume as da_assume  # noqa: E402
 import decision_batch as batch  # noqa: E402
 import decision_precheck as dp  # noqa: E402
 import decision_queue as dq  # noqa: E402
@@ -203,6 +204,30 @@ def decide(space: workspace_contract.Workspace, output: Path, register_file: Pat
     return True
 
 
+def assume(space: workspace_contract.Workspace, output: Path, register_file: Path,
+           register: dict[str, Any], parties: dq.Parties | None, args: argparse.Namespace) -> None:
+    """Allocate an assumption and make it the question's default (A80)."""
+    try:
+        made = da_assume.assume(register["entries"], args.assume, args.that, args.if_wrong,
+                                args.by, args.on or date.today().isoformat(), parties)
+    except da_assume.AssumeProblem as problem:
+        raise Problem(f"nothing written: {problem}") from None
+    entry = made.entry
+    print(f"assumed: {entry['id']} for {args.assume} - {entry['title']}")
+    print(f"  if wrong: {entry[dq.IF_WRONG]}")
+    for warning in made.warnings:
+        print(f"  WARNING {warning}")
+    phase = made.item.get("phase")
+    documents = sorted(p.name for p in output.glob(f"*_Phase{phase}_*.md")) if phase else []
+    for line in da_assume.document_edits(made, documents):
+        print(f"  edit: {line}")
+    if args.dry_run:
+        print("dry run: the register is not written")
+        return
+    backup = dr.write_register(space, register_file, register)
+    print(f"wrote {register_file}; the previous file is {backup}")
+
+
 def main() -> int:
     if hasattr(sys.stdout, "reconfigure"):
         sys.stdout.reconfigure(encoding="utf-8", errors="replace")
@@ -219,12 +244,21 @@ def main() -> int:
     parser.add_argument("--on", help="With --decide: the date decided, YYYY-MM-DD. Default today.")
     parser.add_argument("--answers", help="With --decide: the answers, instead of reading them "
                                           "from the terminal (`ok 3=preserve`).")
+    parser.add_argument("--assume", metavar="ITEM",
+                        help="Give this open question a default: a new AS- the pipeline proceeds on "
+                             "until it is answered. Needs --that, --if-wrong and --by.")
+    parser.add_argument("--that", help="With --assume: what is assumed.")
+    parser.add_argument("--if-wrong", help="With --assume: what stops holding if it is wrong.")
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--replace-handwritten", action="store_true",
                         help="Overwrite a QuestionList.md this command did not write.")
     args = parser.parse_args()
     if args.decide and args.party:
         parser.error("--decide records answers and --party writes nothing; run them apart")
+    if args.assume and (args.decide or args.party):
+        parser.error("--assume writes the register; run it apart from --decide and --party")
+    if args.assume and not (args.that and args.if_wrong and args.by):
+        parser.error("--assume needs --that, --if-wrong and --by")
 
     space = workspace_contract.Workspace(args.app_root)
     try:
@@ -244,6 +278,9 @@ def main() -> int:
             if changed and not args.dry_run:
                 backup = dr.write_register(space, register_file, register)
                 print(f"wrote {register_file}; the previous file is {backup}")
+
+        if args.assume:
+            assume(space, output, register_file, register, parties, args)
 
         if args.decide:
             decide(space, output, register_file, register, parties, interviews, policy, args)
