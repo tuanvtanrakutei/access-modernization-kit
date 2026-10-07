@@ -16,12 +16,23 @@ scope instead, and gates G1 and G2 are read off it:
   G2  (with --plan) every business rule in scope is cited in the screen plan's mapping section,
       and every open decision that names the screen is cited in its gap matrix
 
-A rule or a risk belongs to a screen when it cites an evidence item that one of the screen's
-traceability rows cites. That is an exact link and not a guess, and it is coarse: a module read
-by three screens puts every rule it yields on all three. The scope is therefore a superset, and
-the direction matters: a rule listed against a screen that does not use it costs the plan a row
-saying so, where a rule missing from the scope costs a defect nobody planned for. Over-inclusion
-is the safe error, and the count per screen is printed so an inflated scope is visible.
+A rule or a risk belongs to a screen in one of two ways, both exact:
+
+  placed     a person listed the screen in the entry's `screens` (its `F-`, or `object:<name>`),
+             with `$ak decisions --place`. A placement decides alone: evidence is not consulted.
+  evidence   it cites an evidence item that one of the screen's traceability rows cites.
+
+The evidence link is coarse: a module read by three screens puts every rule it yields on all
+three. The scope is therefore a superset, and the direction matters: a rule listed against a
+screen that does not use it costs the plan a row saying so, where a rule missing from the scope
+costs a defect nobody planned for. Over-inclusion is the safe error, and the count per screen is
+printed so an inflated scope is visible.
+
+One kind of coarseness is removed (A82). An evidence item that half the matrix's screens or more
+cite - a whole UI export, a screenshot set - is broad, and places nothing while the entry cites
+any narrower item: the narrow one says where the entry lives. An entry whose only link is broad
+is listed as cross-cutting, and its rules are not owed a mapping row on every screen it reaches;
+placing it is a person's decision.
 
 Screen names are compared exactly after Unicode normalisation, never fuzzily
 (`LEGACY_EVIDENCE.md` 6.3). A screen that matches no traceability row is a finding to raise.
@@ -46,6 +57,7 @@ import screen_decisions as sd  # noqa: E402
 
 RULE_NAMESPACE = "BR-"
 RISK_NAMESPACES = ("RD-", "RA-", "RW-", "RS-")
+BROAD_MIN = 3
 EVIDENCE_SPLIT = re.compile(r"[,;\s]+")
 RULE_ID = re.compile(r"(?<![A-Za-z0-9_-])BR-[A-Z0-9]{1,6}(?:-[0-9]{2})?[a-z]?(?![A-Za-z0-9_-])")
 DECISION_ID = re.compile(r"(?<![A-Za-z0-9_-])(?:Q[0-9]{1,3}|UK-[A-Z][0-9]{2})(?![A-Za-z0-9_-])")
@@ -81,16 +93,34 @@ def cited(cell: str | None) -> list[str]:
     return [token for token in EVIDENCE_SPLIT.split(str(cell or "")) if token]
 
 
+def broad_threshold(screens: int) -> int:
+    """How many screens an evidence item has to be cited by before it places nothing on its own.
+
+    Half the matrix's screens, and never fewer than BROAD_MIN: with three screens, an item two of
+    them cite is still telling the planner where something lives.
+    """
+    return max(BROAD_MIN, -(-screens // 2))
+
+
+def placement_ids(entries: list[dict[str, Any]], screen: str, screen_id: str | None) -> set[str]:
+    """The identifiers a person can place an entry on this screen by: its `F-`, or `object:<name>`."""
+    ids = {str(e["id"]) for e in entries
+           if e.get("namespace") == "F-" and e.get("id") and sd.norm(e.get("title")) == screen}
+    return ids | ({screen_id} if screen_id else set()) | {f"{sd.OBJECT_PREFIX}{screen}"}
+
+
 def scope_of(entries: list[dict[str, Any]], rows: list[dict[str, str]], evidence_ids: set[str] | None,
-             screen: str) -> dict[str, Any]:
+             screen: str, screen_id: str | None = None) -> dict[str, Any]:
     mine = [r for r in rows if sd.norm(r.get("screen")) == screen]
     # Which screens cite each evidence item: an item many screens cite (a screenshot set, a shared
-    # module) links its rules and risks to all of them, and the planner should see that.
+    # module, a whole export) links its rules and risks to all of them, and the planner should see that.
     by_evidence: dict[str, set[str]] = {}
     for row in rows:
         for token in cited(row.get("evidence_ids")):
             by_evidence.setdefault(token, set()).add(sd.norm(row.get("screen")))
     every = {sd.norm(r.get("screen")) for r in rows if sd.norm(r.get("screen"))}
+    threshold = broad_threshold(len(every))
+    broad = {token for token, screens in by_evidence.items() if len(screens & every) >= threshold}
     used: set[str] = set()
     workflows: dict[str, int] = {}
     for row in mine:
@@ -98,9 +128,7 @@ def scope_of(entries: list[dict[str, Any]], rows: list[dict[str, str]], evidence
         wid = str(row.get("workflow_id") or "").strip()
         if wid:
             workflows[wid] = workflows.get(wid, 0) + 1
-
-    def reach(entry: dict[str, Any]) -> list[str]:
-        return sorted(used.intersection(entry.get("evidence_ids") or []))
+    here = placement_ids(entries, screen, screen_id)
 
     def alive(entry: dict[str, Any]) -> bool:
         return not str(entry.get("superseded_by") or "").strip()
@@ -109,19 +137,51 @@ def scope_of(entries: list[dict[str, Any]], rows: list[dict[str, str]], evidence
         """How many screens of the matrix this entry is linked to, through any evidence it cites."""
         return len(set().union(*(by_evidence.get(t, set()) for t in entry.get("evidence_ids") or [])) & every)
 
-    rules = [{"id": e["id"], "title": e.get("title"), "through": reach(e), "screens": reaches(e)}
-             for e in entries if e.get("namespace") == RULE_NAMESPACE and alive(e) and reach(e)]
-    risks = [{"id": e["id"], "title": e.get("title"), "severity": e.get("severity"), "through": reach(e),
-              "screens": reaches(e)}
-             for e in entries if e.get("namespace") in RISK_NAMESPACES and alive(e)
-             and not str(e.get("resolved_by") or "").strip() and reach(e)]
+    def placed(entry: dict[str, Any]) -> tuple[str, list[str]] | None:
+        """(how, through) when the entry belongs to this screen, None when it does not.
+
+        A person's placement (`screens`) decides alone. Otherwise the evidence it shares with the
+        screen's rows does, and an item cited by most screens places nothing while the entry has
+        any narrower one: it is the narrow one that says where the entry lives. An entry whose
+        only link is broad is cross-cutting - listed, and not owed a row in this screen's plan.
+        """
+        declared = entry.get("screens")
+        if isinstance(declared, list) and declared:
+            hit = sorted(here.intersection(str(s) for s in declared))
+            return ("placed", hit) if hit else None
+        cites = [t for t in entry.get("evidence_ids") or [] if by_evidence.get(t)]
+        shared = sorted(used.intersection(cites))
+        if not shared:
+            return None
+        if any(t not in broad for t in cites):
+            narrow = [t for t in shared if t not in broad]
+            return ("evidence", narrow) if narrow else None
+        return ("cross-cutting", shared)
+
+    rules, risks, cross = [], [], []
+    for e in entries:
+        namespace = e.get("namespace")
+        if not alive(e) or namespace not in (RULE_NAMESPACE, *RISK_NAMESPACES):
+            continue
+        if namespace != RULE_NAMESPACE and str(e.get("resolved_by") or "").strip():
+            continue
+        found = placed(e)
+        if found is None:
+            continue
+        how, through = found
+        row = {"id": e["id"], "title": e.get("title"), "through": through, "screens": reaches(e), "how": how}
+        if namespace != RULE_NAMESPACE:
+            row["severity"] = e.get("severity")
+        (cross if how == "cross-cutting" else rules if namespace == RULE_NAMESPACE else risks).append(row)
     all_rules = sum(1 for e in entries if e.get("namespace") == RULE_NAMESPACE and alive(e))
     return {
         "rows": len(mine), "workflows": dict(sorted(workflows.items())),
         "evidence_ids": sorted(used),
         "evidence_missing": sorted(used - evidence_ids) if evidence_ids is not None else [],
         "evidence_checked": evidence_ids is not None,
-        "rules": rules, "rules_in_register": all_rules, "risks": risks, "screens_in_matrix": len(every),
+        "rules": rules, "rules_in_register": all_rules, "risks": risks, "cross_cutting": cross,
+        "broad_evidence": sorted(broad & used), "broad_threshold": threshold,
+        "screens_in_matrix": len(every),
     }
 
 
@@ -210,13 +270,13 @@ def build(ak: Path, screen: str, plan: Path | None, screen_id: str | None) -> di
     ids = None
     if evidence is not None:
         ids = {str(i.get("id")) for i in (read_json(evidence).get("items") or []) if isinstance(i, dict) and i.get("id")}
-    scope = scope_of(entries, matrix_rows(matrix), ids, screen)
+    scope = scope_of(entries, matrix_rows(matrix), ids, screen, screen_id)
     empty = {"blocking_directly": [], "blocking_by_workflow": [], "proceeding_on_default": [],
              "settled_by_policy": [], "screen_ids": [], "workflows": [], "open_items_elsewhere": 0,
              "open_items_unattached": 0, "matrix_read": True}
     queue_data = sd.read_queue(queue) if queue is not None else None
     decisions = sd.build(queue_data, screen, matrix, screen_id) if queue_data is not None else empty
-    for risk in scope["risks"]:
+    for risk in scope["risks"] + [c for c in scope["cross_cutting"] if "severity" in c]:
         risk["disposition"] = disposition_of(risk["id"], queue_data)
     checked = check_plan(plan, scope, decisions) if plan is not None else None
     return {"screen": screen, "scope": scope, "decisions": decisions, "queue_present": queue is not None,
@@ -229,6 +289,12 @@ def spread(item: dict[str, Any], scope: dict[str, Any]) -> str:
     return f"(reaches {item['screens']} of {scope['screens_in_matrix']} screens)"
 
 
+def placement(item: dict[str, Any], scope: dict[str, Any]) -> str:
+    if item.get("how") == "placed":
+        return f"(placed here by a person: {', '.join(item['through'])})"
+    return f"(through {', '.join(item['through'])}) {spread(item, scope)}"
+
+
 def render(report: dict[str, Any]) -> str:
     scope, decisions = report["scope"], report["decisions"]
     out = [f"Scope of `{report['screen']}`", ""]
@@ -238,12 +304,20 @@ def render(report: dict[str, Any]) -> str:
                + ("" if scope["evidence_checked"] else " (no Evidence.json, so not checked)")
                + (f"; missing from Evidence.json: {', '.join(scope['evidence_missing'])}" if scope["evidence_missing"] else ""))
     out.append(f"- Business rules in scope: {len(scope['rules'])} of {scope['rules_in_register']} in the register "
-               "(linked by shared evidence, so a superset)")
+               "(placed by a person, or linked by evidence specific to this screen; still a superset)")
     for rule in scope["rules"]:
-        out.append(f"    {rule['id']}  {rule['title']}  {spread(rule, scope)}")
+        out.append(f"    {rule['id']}  {rule['title']}  {placement(rule, scope)}")
     out.append(f"- Open risks in scope: {len(scope['risks'])}")
     for risk in scope["risks"]:
-        out.append(f"    {risk['id']} [{risk['severity']}]  {risk['title']}  {spread(risk, scope)} -> {risk['disposition']}")
+        out.append(f"    {risk['id']} [{risk['severity']}]  {risk['title']}  {placement(risk, scope)} -> {risk['disposition']}")
+    if scope["cross_cutting"]:
+        out.append(f"- Cross-cutting, not placed on this screen: {len(scope['cross_cutting'])}. Linked only through "
+                   f"evidence that {scope['broad_threshold']} or more screens cite "
+                   f"({', '.join(scope['broad_evidence'])}); the plan cites one only if it applies. "
+                   "Place one with `$ak decisions --place <id>=<F-id> --by <name>`")
+        for item in scope["cross_cutting"]:
+            tail = f" -> {item['disposition']}" if "disposition" in item else ""
+            out.append(f"    {item['id']}  {item['title']}  {spread(item, scope)}{tail}")
     if report["queue_present"]:
         out.append(f"- Decisions: {len(decisions['blocking_directly'])} blocking and naming the screen, "
                    f"{len(decisions['blocking_by_workflow'])} blocking a workflow through it, "

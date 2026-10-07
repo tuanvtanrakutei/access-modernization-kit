@@ -57,6 +57,7 @@ for _path in (PACKAGE / "contracts", PACKAGE / "scripts"):
 import check_interview_register as interview_register  # noqa: E402
 import decision_agenda as da  # noqa: E402
 import decision_assume as da_assume  # noqa: E402
+import decision_place as da_place  # noqa: E402
 import decision_batch as batch  # noqa: E402
 import decision_precheck as dp  # noqa: E402
 import decision_queue as dq  # noqa: E402
@@ -244,6 +245,9 @@ def main() -> int:
     parser.add_argument("--on", help="With --decide: the date decided, YYYY-MM-DD. Default today.")
     parser.add_argument("--answers", help="With --decide: the answers, instead of reading them "
                                           "from the terminal (`ok 3=preserve`).")
+    parser.add_argument("--place", action="append", default=[], metavar="ID=F-nnn[,F-nnn]",
+                        help="Place a business rule or a risk on the screens it belongs to, so the "
+                             "modernize scope stops linking it by evidence; `ID=` removes it. Needs --by.")
     parser.add_argument("--assume", metavar="ITEM",
                         help="Give this open question a default: a new AS- the pipeline proceeds on "
                              "until it is answered. Needs --that, --if-wrong and --by.")
@@ -259,6 +263,8 @@ def main() -> int:
         parser.error("--assume writes the register; run it apart from --decide and --party")
     if args.assume and not (args.that and args.if_wrong and args.by):
         parser.error("--assume needs --that, --if-wrong and --by")
+    if args.place and (args.decide or args.party or args.assume):
+        parser.error("--place writes the register; run it apart from --decide, --party and --assume")
 
     space = workspace_contract.Workspace(args.app_root)
     try:
@@ -281,6 +287,20 @@ def main() -> int:
 
         if args.assume:
             assume(space, output, register_file, register, parties, args)
+
+        if args.place:
+            try:
+                changed = da_place.place(register["entries"], da_place.parse(args.place), args.by or "",
+                                         args.on or date.today().isoformat(), parties)
+            except da_place.PlaceProblem as problem:
+                raise Problem(f"nothing written: {problem}") from None
+            for line in changed:
+                print(f"placed: {line}")
+            if args.dry_run:
+                print("dry run: the register is not written")
+            else:
+                backup = dr.write_register(space, register_file, register)
+                print(f"wrote {register_file}; the previous file is {backup}")
 
         if args.decide:
             decide(space, output, register_file, register, parties, interviews, policy, args)

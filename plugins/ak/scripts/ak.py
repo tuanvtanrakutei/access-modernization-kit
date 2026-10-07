@@ -189,6 +189,9 @@ def parse_args() -> argparse.Namespace:
     decisions.add_argument("--on", help="With --decide: the date decided, YYYY-MM-DD. Default today.")
     decisions.add_argument("--answers", help="With --decide: the answers (`ok 3=preserve`), instead "
                                              "of reading them from the terminal.")
+    decisions.add_argument("--place", action="append", default=[], metavar="ID=F-nnn[,F-nnn]",
+                           help="Place a business rule or a risk on the screens it belongs to; "
+                                "`ID=` removes it. Needs --by.")
     decisions.add_argument("--assume", metavar="ITEM",
                            help="Give this open question a default: a new AS- the pipeline proceeds "
                                 "on until it is answered. Needs --that, --if-wrong and --by.")
@@ -746,6 +749,8 @@ def main() -> int:
                 decision_args += [flag, value]
         for link in args.link:
             decision_args += ["--link", link]
+        for spec in args.place:
+            decision_args += ["--place", spec]
         for flag, wanted in (("--decide", args.decide), ("--dry-run", args.dry_run),
                              ("--replace-handwritten", args.replace_handwritten)):
             if wanted:

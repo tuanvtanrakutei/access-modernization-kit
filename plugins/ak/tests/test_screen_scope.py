@@ -186,7 +186,7 @@ def test_the_screen_name_is_matched_exactly(tmp_path: Path) -> None:
 
 def test_the_report_says_how_much_of_the_register_the_scope_is(tmp_path: Path) -> None:
     done = run("--ak", workspace(tmp_path), "--screen", SCREEN)
-    assert "Business rules in scope: 2 of 3 in the register (linked by shared evidence, so a superset)" in done.stdout
+    assert "Business rules in scope: 2 of 3 in the register (placed by a person, or linked by evidence" in done.stdout
 
 
 # --- G1 -----------------------------------------------------------------------------------------
@@ -298,3 +298,76 @@ def test_the_script_writes_nothing(tmp_path: Path) -> None:
 def test_the_production_name_survives_the_pipe(tmp_path: Path) -> None:
     done = run("--ak", workspace(tmp_path), "--screen", SCREEN)
     assert done.stdout.startswith(f"Scope of `{SCREEN}`")
+
+
+# --- A82: broad evidence places nothing, and a person's placement decides --------------------
+
+THIRD, FOURTH = "第三画面", "第四画面"
+BROAD = "A99-P2-UI-ALL"                    # a whole export: three of four screens cite it
+WIDE_MATRIX = [
+    {"workflow_id": "WF-001", "step": "1", "screen": SCREEN, "evidence_ids": f"{BROAD}, A99-P3-CODE-001"},
+    {"workflow_id": "WF-002", "step": "1", "screen": OTHER, "evidence_ids": f"{BROAD}, A99-P3-CODE-009"},
+    {"workflow_id": "WF-003", "step": "1", "screen": THIRD, "evidence_ids": BROAD},
+    {"workflow_id": "WF-004", "step": "1", "screen": FOURTH, "evidence_ids": "A99-P3-CODE-010"},
+]
+WIDE_REGISTER = [
+    entry("F-002", "F-", [], title=SCREEN),
+    entry("BR-X-01", "BR-", [BROAD]),                                    # only broad: cross-cutting
+    entry("RA-20", "RA-", [BROAD, "A99-P3-CODE-009"], severity="LOW"),   # narrow says: the other screen
+    entry("RA-21", "RA-", [BROAD, "A99-P3-CODE-001"], severity="LOW"),   # narrow says: this screen
+    entry("RA-22", "RA-", [], severity="LOW", screens=["F-002"]),        # placed here, no evidence
+    entry("RA-23", "RA-", ["A99-P3-CODE-001"], severity="LOW", screens=[f"object:{OTHER}"]),
+]
+WIDE_EVIDENCE = {"app_id": "A99", "items": [{"id": i} for i in
+                                            (BROAD, "A99-P3-CODE-001", "A99-P3-CODE-009", "A99-P3-CODE-010")]}
+
+
+def wide(tmp_path: Path, screen: str = SCREEN, *extra: str | Path) -> dict:
+    tmp_path.mkdir(parents=True, exist_ok=True)
+    out = workspace(tmp_path, register=WIDE_REGISTER, matrix=WIDE_MATRIX, evidence=WIDE_EVIDENCE, queue=None)
+    return report(out, screen, *extra)[1]
+
+
+def test_an_entry_linked_only_by_broad_evidence_is_cross_cutting_not_in_scope(tmp_path: Path) -> None:
+    scope = wide(tmp_path)["scope"]
+    assert "BR-X-01" not in {r["id"] for r in scope["rules"]}
+    cross = {c["id"]: c for c in scope["cross_cutting"]}
+    assert set(cross) == {"BR-X-01"} and cross["BR-X-01"]["screens"] == 3
+    assert scope["broad_evidence"] == [BROAD] and scope["broad_threshold"] == 3
+
+
+def test_narrow_evidence_says_where_an_entry_lives(tmp_path: Path) -> None:
+    risks = {r["id"]: r for r in wide(tmp_path)["scope"]["risks"]}
+    assert risks["RA-21"]["through"] == ["A99-P3-CODE-001"] and risks["RA-21"]["how"] == "evidence"
+    assert "RA-20" not in risks, "its narrow evidence places it on another screen"
+    assert "RA-20" not in {c["id"] for c in wide(tmp_path / "again")["scope"]["cross_cutting"]}
+
+
+def test_a_placement_decides_alone(tmp_path: Path) -> None:
+    here = {r["id"]: r for r in wide(tmp_path)["scope"]["risks"]}
+    assert here["RA-22"]["how"] == "placed" and here["RA-22"]["through"] == ["F-002"]
+    assert "RA-23" not in here, "placed on another screen, so shared evidence does not bring it here"
+    there = {r["id"] for r in wide(tmp_path / "other", OTHER)["scope"]["risks"]}
+    assert "RA-23" in there and "RA-22" not in there
+
+
+def test_a_cross_cutting_rule_is_not_owed_a_mapping_row(tmp_path: Path) -> None:
+    plan = tmp_path / "plan.md"
+    plan.write_text("# x\n\n## Legacy-To-New Mapping\n\nnone\n\n## Gap Matrix\n\nnone\n", encoding="utf-8")
+    data = wide(tmp_path / "ws", SCREEN, "--plan", plan)
+    assert not [f for f in data["findings"] if "BR-X-01" in f["text"]]
+
+
+def test_the_report_names_the_broad_evidence_and_how_to_place(tmp_path: Path) -> None:
+    out = workspace(tmp_path, register=WIDE_REGISTER, matrix=WIDE_MATRIX, evidence=WIDE_EVIDENCE, queue=None)
+    done = run("--ak", out, "--screen", SCREEN)
+    assert "Cross-cutting, not placed on this screen: 1" in done.stdout
+    assert BROAD in done.stdout and "$ak decisions --place" in done.stdout
+    assert "(placed here by a person: F-002)" in done.stdout
+
+
+def test_the_broad_threshold_is_half_the_screens_and_never_below_three() -> None:
+    sys.path.insert(0, str(SCRIPT.parent))
+    import screen_scope
+
+    assert [screen_scope.broad_threshold(n) for n in (1, 2, 4, 6, 7, 13)] == [3, 3, 3, 3, 4, 7]
