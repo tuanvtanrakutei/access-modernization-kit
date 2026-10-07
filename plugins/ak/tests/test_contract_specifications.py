@@ -15,7 +15,7 @@ import yaml
 
 PACKAGE = Path(__file__).resolve().parents[1]
 SPECS = PACKAGE / "specifications"
-PHASES = {f"phase{n}" for n in range(1, 7)}
+PHASES = {f"phase{n}" for n in range(1, 6)}
 
 
 def load(name: str) -> dict:
@@ -149,10 +149,11 @@ def test_risk_namespaces_require_a_severity(identifiers: dict) -> None:
         assert identifiers["namespaces"][name].get("requires_severity") is True, name
 
 
-def test_consolidation_rule_names_the_namespaces_phase6_may_not_invent(identifiers: dict) -> None:
+def test_the_consolidation_rule_is_retired_and_its_id_kept(identifiers: dict) -> None:
+    """A78. ID-04 governed Phase 6. A rule id is an identifier, and is never reused."""
     rule = next(r for r in identifiers["rules"] if r["id"] == "ID-04")
-    for namespace in ("BR-", "RD-", "RA-", "RW-", "RS-", "UK-", "AS-"):
-        assert namespace in rule["rule"], f"ID-04 does not cover {namespace}"
+    assert rule.get("retired") == "A78"
+    assert "on_violation" not in rule
 
 
 # --- errata -----------------------------------------------------------------

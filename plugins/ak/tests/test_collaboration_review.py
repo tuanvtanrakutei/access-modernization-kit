@@ -3073,7 +3073,7 @@ def test_publication_advance_blocks_cross_wave_failed_sibling_agent(
     assert state["phase_gates"]["phase1"] != "PUBLISHED"
 
 
-@pytest.mark.parametrize("phase", range(1, 7))
+@pytest.mark.parametrize("phase", range(1, 6))
 def test_publication_advance_blocks_without_publication_receipt(
     tmp_path: Path, phase: int
 ) -> None:
@@ -3094,7 +3094,7 @@ def test_publication_advance_blocks_without_publication_receipt(
     assert state["phase_gates"][f"phase{phase}"] != "PUBLISHED"
 
 
-@pytest.mark.parametrize("phase", range(1, 7))
+@pytest.mark.parametrize("phase", range(1, 6))
 def test_publication_advance_publishes_with_exact_publication_receipt(
     tmp_path: Path, phase: int
 ) -> None:
@@ -4918,9 +4918,8 @@ def test_low_legacy_and_package_open_conflicts_use_different_policies(
 
     legacy_errors, _, _ = validate_run_handoffs(
         legacy_run,
-        wave="gate6_publish_phase6",
+        wave="wave6_independent_qa",
         work_package_root=legacy_package_root,
-        publication_phase=6,
     )
     collaboration_errors, _, _ = validate_run_handoffs(
         collaboration_run, work_package_root=package_root
@@ -4934,7 +4933,7 @@ def test_low_legacy_and_package_open_conflicts_use_different_policies(
 
 
 @pytest.mark.parametrize("severity", ["HIGH", "CRITICAL"])
-def test_legacy_high_severity_conflict_blocks_phase6_gate_for_earlier_task(
+def test_legacy_high_severity_conflict_blocks_qa_for_earlier_task(
     tmp_path: Path, severity: str
 ) -> None:
     task = candidate_task()
@@ -4952,20 +4951,19 @@ def test_legacy_high_severity_conflict_blocks_phase6_gate_for_earlier_task(
 
     errors, _, _ = validate_run_handoffs(
         run,
-        wave="gate6_publish_phase6",
+        wave="wave6_independent_qa",
         work_package_root=package_root,
-        publication_phase=6,
     )
 
     assert "SYN-W1-SQL-ORDERS: open conflict SYN-CONFLICT-PHASE6" in errors
 
 
-def test_legacy_phase6_conflict_does_not_block_whole_run_validation(
+def test_legacy_qa_conflict_does_not_block_whole_run_validation(
     tmp_path: Path,
 ) -> None:
     task = candidate_task()
-    task["wave_id"] = "gate6_publish_phase6"
-    task["phase_targets"] = [6]
+    task["wave_id"] = "wave6_independent_qa"
+    task["phase_targets"] = []
     run = write_task_only_run(tmp_path, json.dumps(task))
     handoff = legacy_handoff(task)
     handoff["conflict_ids"] = ["SYN-CONFLICT-PHASE6"]

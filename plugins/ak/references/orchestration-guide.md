@@ -17,7 +17,7 @@
 4. Derive the relationships the sealed bundle states literally (`$ak derive`), once, and accept the receipt.
 5. Create a run and immutable manifest/source snapshot.
 6. Create module-aware task envelopes from `orchestration/waves.json` and `orchestration/roles.json`.
-7. Publish Phases 1-6 in order through coordinator-owned gates; the derived facts are already available to every one of them.
+7. Publish Phases 1-5 in order through coordinator-owned gates; the derived facts are already available to every one of them.
 8. Dispatch only tasks whose dependencies passed. Leaf modules may fan out to separate workers; parent/cross-module synthesis follows their handoffs.
 9. Validate every handoff before advancing the wave.
 10. Merge evidence deterministically and preserve conflicts.

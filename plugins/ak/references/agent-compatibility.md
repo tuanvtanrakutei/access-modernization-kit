@@ -1,8 +1,8 @@
 # Agent Compatibility
 
-The root `SKILL.md` and bundled contracts are canonical. Agent-specific metadata must remain thin and must not duplicate the six-phase instruction.
+The root `SKILL.md` and bundled contracts are canonical. Agent-specific metadata must remain thin and must not duplicate the five-phase instruction.
 
-Since the 2.8.0 merge, `plugins/ak/skills/` holds ten skills, not one: the six-phase
+Since the 2.8.0 merge, `plugins/ak/skills/` holds ten skills, not one: the five-phase
 investigation (`investigate/`), four whole-project/whole-screen modernization skills
 (`bootstrap-project/`, `modernize-screen/`, `validate-docs/`, `triage-suite/`), and five
 single-stage modernization skills (`plan-screen/`, `code-screen/`, `test-screen/`,
@@ -10,7 +10,7 @@ single-stage modernization skills (`plan-screen/`, `code-screen/`, `test-screen/
 `agents/openai.yaml` — the metadata file is per skill, not one file describing the whole
 package.
 
-The six-phase skill's directory was renamed from `ak/` to `investigate/` (user feedback: the
+The five-phase skill's directory was renamed from `ak/` to `investigate/` (user feedback: the
 plugin is named `ak`, so the old `/ak:ak` slash form in Claude Code's picker was two copies
 of the same word telling the user nothing about what it does, unlike the self-describing
 `/ak:bootstrap-project` etc.). The rename only changes what registers this skill with a
@@ -44,13 +44,13 @@ Nothing below is a step to perform on those two runtimes; it is the fallback for
 |---|---|---|
 | Codex | `~/.codex/plugins/cache/access-modernization-kit/ak/{version}/` | Not needed — `codex plugin add` does this |
 | Claude Code | Wherever the active Claude runtime resolves an installed plugin | Not needed — `/plugin install` does this |
-| Generic agent, no marketplace support | Any readable tools/skills directory, using `investigate` as the six-phase skill's directory (see `adapters/adapter-map.json` for the other nine) | Copy or link the complete package; each skill's `agents/openai.yaml` supplies UI metadata where the runtime reads one |
+| Generic agent, no marketplace support | Any readable tools/skills directory, using `investigate` as the five-phase skill's directory (see `adapters/adapter-map.json` for the other nine) | Copy or link the complete package; each skill's `agents/openai.yaml` supplies UI metadata where the runtime reads one |
 
 Do not maintain separate copies of the canonical instruction. For a generic agent, prefer a
 directory link over a copy when the runtime supports it, and record the source version either
 way.
 
-Discovery compatibility is not orchestration compatibility. Before a multi-agent run, map every required operation in `orchestration/runtime-adapters.json`, enforce the write scopes in `orchestration/roles.json`, and preserve the same task, handoff, conflict, and evidence schemas across runtimes. Provider-specific agents may schedule work differently, but they must not change the six-phase gates or coordinator-only merge rule.
+Discovery compatibility is not orchestration compatibility. Before a multi-agent run, map every required operation in `orchestration/runtime-adapters.json`, enforce the write scopes in `orchestration/roles.json`, and preserve the same task, handoff, conflict, and evidence schemas across runtimes. Provider-specific agents may schedule work differently, but they must not change the five-phase gates or coordinator-only merge rule.
 
 An agent that cannot read relative resources must load these files explicitly before work:
 

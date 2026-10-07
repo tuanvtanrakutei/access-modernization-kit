@@ -67,7 +67,7 @@ The agent classifies per finding. The Stage 5 reviewer may adjust with a recorde
 ## Anchor Format
 
 Anchors make findings verifiable by grep rather than by memory. Which form to use depends on
-whether the enriched Stage 0 tier (`Evidence.json` from the six-phase analysis) is present for
+whether the enriched Stage 0 tier (`Evidence.json` from the five-phase analysis) is present for
 this project — see `LEGACY_EVIDENCE.md` §6.
 
 ### When `Evidence.json` is present — cite the `evidenceItem`
@@ -197,7 +197,7 @@ An item missed at G1 therefore resurfaces at G2 as an unmapped-rule risk and at 
 
 ## What Gates Do Not Do
 
-- Gates check **coverage**, never correctness. "Does the endpoint exist?" — not "is its output right?" Correctness belongs to Stage 4 tests and the Stage 5 parity review.
+- Gates check **coverage**, never correctness. "Does the endpoint exist?" — not "is its output right?" Correctness belongs to Stage 4 tests and the Stage 5 parity review. Output parity is computed outside the gates by `screen_parity.py`, which compares saved legacy output with the new output byte for byte; the review reads its `PARITY.json`.
 - Only HIGH blocks. MEDIUM and LOW never stop the pipeline.
 - Gates do not replace review. They move detection of one subset — coverage — earlier. The reviewer still performs the full correctness pass, plus an independent coverage re-check so a gate omission is caught.
 
