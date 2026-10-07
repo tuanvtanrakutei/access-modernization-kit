@@ -197,7 +197,7 @@ An item missed at G1 therefore resurfaces at G2 as an unmapped-rule risk and at 
 
 ## What Gates Do Not Do
 
-- Gates check **coverage**, never correctness. "Does the endpoint exist?" — not "is its output right?" Correctness belongs to Stage 4 tests and the Stage 5 parity review.
+- Gates check **coverage**, never correctness. "Does the endpoint exist?" — not "is its output right?" Correctness belongs to Stage 4 tests and the Stage 5 parity review. Output parity is computed outside the gates by `screen_parity.py`, which compares saved legacy output with the new output byte for byte; the review reads its `PARITY.json`.
 - Only HIGH blocks. MEDIUM and LOW never stop the pipeline.
 - Gates do not replace review. They move detection of one subset — coverage — earlier. The reviewer still performs the full correctness pass, plus an independent coverage re-check so a gate omission is caught.
 
