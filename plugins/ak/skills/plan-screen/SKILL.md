@@ -29,6 +29,9 @@ authority for what each stage does and what closes it.
 - Stage 1 is computed and writes nothing: run `modernize/scripts/screen_scope.py --ak <AK_RUN_DIR> --screen "<screen>"` and read the report. Closing gate: **G1 Evidence Coverage**, which the script computes.
 - Stage 2 per `Screen_plans/README.md`, producing **both** contracts — backend and frontend.
   Closing gate: **G2 Rule Coverage** plus a populated gap matrix, with `screen_scope.py --plan Screen_plans/<screen>.md` reporting no finding.
+  When the register holds no rule for the screen, the mapping rows carry ids minted as `BR-<PREFIX>-nn`: run
+  `modernize/scripts/screen_rule_ids.py --registry Screens_Registry.md --screen "<screen>" --plan Screen_plans/<screen>.md`
+  and apply what it proposes. Ask the user to declare the screen's `rule_prefix` in the registry if it is missing; never pick it yourself.
 
 Mark the backend contract frozen only if the user says 3a and 3b will run concurrently.
 

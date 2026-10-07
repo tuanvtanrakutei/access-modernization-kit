@@ -67,12 +67,12 @@ def test_every_flag_the_skill_passes_is_one_its_script_takes():
 
 def test_the_skill_leaves_out_no_option_its_script_requires():
     for script, args in commands():
-        # an alternative pair (--ak with --screen, or --rules) is satisfied by either; --rules is optional here
+        # the rules come from --ak with --screen, or --plan, or --rules: any one source satisfies it
         needed = required_flags(script)
         given = set(FLAG.findall(args))
         missing = needed - given
         if script == "screen_rule_tests.py":
-            missing -= {"--ak", "--screen", "--rules"}
+            missing -= {"--ak", "--screen", "--rules", "--plan"}
         assert not missing, f"{script} needs {sorted(missing)}"
 
 
