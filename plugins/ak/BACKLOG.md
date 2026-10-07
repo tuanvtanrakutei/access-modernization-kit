@@ -12,6 +12,31 @@ that it should now work.
 
 ## Open
 
+### A81 - errata were cited in every phase and rendered in none
+
+**Found 2026-10-07, preparing to retire Phase 6 as a document.** The errata contract put the
+rendered register at the head of Phase 6, and A67 let phases 2 to 5 write entries as soon as
+they found the error. So a project that had not reached Phase 6 cited `E-nn` throughout its
+published phases, and the only place a reader could look one up was the JSON register. The
+README sent them to a Phase 6 that did not exist. Retiring Phase 6 needs the register to have
+a home first; this is that home.
+
+Change: `$ak errata` (`scripts/build_errata.py`, `contracts/errata_render.py`) renders
+`{APP}_Errata.md` beside the phase documents: a table of every entry ordered by severity, the
+cause classes used and what each means, then one block per entry in id order with what was
+said, what is true, the passages that carried it, the source that settled it, and the evidence
+it supersedes. No date, so the same register gives the same bytes. It refuses to overwrite a
+page it did not write, writes nothing when there is no register (an absent register and an
+empty one mean different things), and exits 1 on an entry ER-03 says cannot be audited.
+`validate_phase_conformance.py` gains `errata_rendered` (apparatus): the page must exist and
+match what `$ak errata` would write now. The README template sends the reader to the page
+first; Phase 6's errata section points at it instead of copying it; `errata-contract.yaml`,
+`identifier-scheme.yaml` and `output-contract.yaml` name it.
+
+Not done: the page is English whatever the phase documents' languages are, because the
+register's text is written once. Nothing runs `$ak errata` for you; the gate only notices when
+it was not run. Phase 6 itself is unchanged here.
+
 ### A77 - a control type code was guessed, so an ActiveX control was printed as a toggle
 
 **Found 2026-10-07, reading a catalogue's interactive-controls table against the

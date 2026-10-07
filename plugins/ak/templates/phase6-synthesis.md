@@ -17,16 +17,13 @@
 
 ## Errata
 
-<!-- Rendered from {{APP_ID}}_Errata.json. Every entry names what was said, what is
-     true, which sections carried it, and what settled it. See
-     specifications/errata-contract.yaml. -->
+<!-- Do not copy the register here. `$ak errata` renders it as {{APP_ID}}_Errata.md,
+     which the phase gate holds to the register; a second copy is one that can fall
+     behind (A81). Point at the page, and name the entries that change what this
+     synthesis concludes. If the run corrected nothing, say so: an absent section and
+     an empty one read very differently. -->
 
-| # | Original | Corrected | Affected sections | Cause | Source |
-|---|---|---|---|---|---|
-
-<!-- If this run corrected nothing, say "No claim published by Phases 1-5 has been
-     superseded" rather than deleting the section - an absent errata table and an
-     empty one read very differently. -->
+Every correction this run made is listed in `{{APP_ID}}_Errata.md`.
 
 ## Naming Convention
 

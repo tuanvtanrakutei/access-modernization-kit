@@ -47,6 +47,7 @@ if str(PACKAGE / "contracts") not in sys.path:
     sys.path.insert(0, str(PACKAGE / "contracts"))
 
 import decision_queue  # noqa: E402
+import errata_render  # noqa: E402
 
 PHASE_FILE = re.compile(r"Phase([1-6])_", re.IGNORECASE)
 MERMAID = re.compile(r"^```mermaid", re.MULTILINE)
@@ -698,6 +699,18 @@ def apparatus_checks(phase: int, text: str, registers: dict[str, Any],
             else f"{len(cited_errata)} entry reference(s)",
         ))
 
+    # A81. A document says `see E-07`, and the reader needs a page to see it on. The page
+    # is generated, so the only way it can be wrong is by falling behind its register.
+    page = registers.get("errata_page")
+    if page is not None:
+        status, name = page
+        results.append(check(
+            "errata_rendered", "apparatus", status == "current",
+            f"{name} is missing; run `$ak errata`" if status == "missing"
+            else f"{name} no longer matches the errata register; run `$ak errata`"
+            if status == "stale" else f"{name} matches the errata register",
+        ))
+
     # A correction a document announces and does not register is the prohibition in
     # errata-contract.yaml: the prose stops saying the wrong thing and the record that
     # the analysis changed its mind is gone, which is the record a reviewer needs.
@@ -751,6 +764,7 @@ def load_registers(outputs: Path) -> dict[str, Any]:
     ids_from("*_Errata.json", "errata_ids", "id")
     entries_from("*_Identifiers.json", "identifier_entries")
     entries_from("*_Errata.json", "errata_entries")
+    registers["errata_page"] = _errata_page(outputs)
     # Next to glossary.yaml and meanings.yaml, which `outputs.parent` already reaches for
     # the same reason (annotate_bilingual). None when the file is absent, which the check
     # reports; a project that predates the file is not the same as one that wrote it wrong.
@@ -770,6 +784,27 @@ def load_registers(outputs: Path) -> dict[str, Any]:
             1 for item in items
             if isinstance(item, dict) and not item.get("evidence_class"))
     return registers
+
+
+def _errata_page(outputs: Path) -> tuple[str, str] | None:
+    """Whether `{APP}_Errata.md` is what `$ak errata` would write now; None with no register."""
+    matches = [m for where in (".", "registers")
+               for m in sorted((outputs / where).glob("*_Errata.json"))]
+    if len(matches) != 1:
+        return None
+    try:
+        data = json.loads(read(matches[0]) or "{}")
+    except json.JSONDecodeError:
+        return None
+    app = str(data.get("app_id") or matches[0].name.split("_Errata")[0])
+    entries = [e for e in data.get("entries") or [] if isinstance(e, dict)]
+    contract = Path(__file__).resolve().parents[1] / "specifications" / "errata-contract.yaml"
+    expected = errata_render.render(entries, app, errata_render.load_causes(contract),
+                                    source=matches[0].name)
+    page = errata_render.output_path(outputs, app)
+    if not page.is_file():
+        return ("missing", page.name)
+    return ("current" if read(page) == expected else "stale", page.name)
 
 
 def _class_kind_violations(outputs: Path) -> list[str] | None:
