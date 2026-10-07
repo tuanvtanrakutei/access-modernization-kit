@@ -38,7 +38,7 @@ Read `MASTER_WORKFLOW.md` in full. Do not skim. It defines:
 - Agent-Assisted Registration for unregistered screens
 - Parallelism Rules
 - Update Gates for the registry and the issue log
-- Traceback Gates G1, G2, and G3 — summarized there, specified fully in `TRACEBACK_GATES.md`
+- Traceback Gates G1, G2, G3, and G4 — summarized there, specified fully in `TRACEBACK_GATES.md`
 - Loop Handling, Abort and Cleanup, and the scope boundaries
 
 Also read `LEGACY_EVIDENCE.md` for the project's declared legacy variant. What counts as complete evidence for a `.adp` differs from a split `.accdb`, and the G2 evidence sub-check measures against that difference.
@@ -69,7 +69,7 @@ If a screen is absent from the registry, run **Agent-Assisted Registration**: de
 
 Run the master prompt from `MASTER_WORKFLOW.md` §"Master Agent Prompt", stages in order, honoring each stage's closing gate:
 
-- G1 after Stage 1, G2 after Stage 2, G3 after Stage 3b
+- G1 after Stage 1, G2 after Stage 2, G3 after Stage 3b, G4 after Stage 4 (the `test-screen` skill runs it)
 - On a HIGH gate finding, prompt the user with `examine` / `defer` / `cancel` and wait
 - On MEDIUM or LOW, file a `traceability` row and continue
 - Apply the registry and issue-log update gates at the moments defined, and nowhere else
