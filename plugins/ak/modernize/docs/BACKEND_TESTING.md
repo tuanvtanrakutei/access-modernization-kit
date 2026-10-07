@@ -118,6 +118,24 @@ because the code path that mattered simply could not run locally.
 - **A test that passes before and after a change proves nothing** as a regression test. If the
   point is to pin a fix, show the test failing against the unfixed code first.
 
+## Prove The Tests Can Fail
+
+A suite that is green proves the tests agree with the code. It does not prove they could
+disagree. After the suite is green, run `scripts/screen_canary.py`: it copies the code to a
+scratch folder, runs the suite untouched, breaks one line that matters (a rounding mode, a
+threshold by one, a comparison) and runs the suite again. The real code is never written.
+
+| Verdict | Meaning | Next |
+|---|---|---|
+| **CAUGHT** | Green before, at least one test failed after | The only pass |
+| **SURVIVED** | Still green with the line broken: no test depends on it | Add the missing test, run the canary again |
+| **INCONCLUSIVE** | The break stopped the tests from running (error, timeout, no result) | Choose a break that still builds |
+| **NO BASELINE** | The untouched copy was not green | Fix the suite first; a failure after a break proves nothing |
+
+Choose the line from the screen's rules, not from the code that is easiest to change. One canary
+on one rule says nothing about the other rules: run one for each calculation or validation the
+screen plan marks as critical.
+
 ## What Every Screen Must Cover
 
 Derive the case list from the screen plan's backend contract — every endpoint and side effect
