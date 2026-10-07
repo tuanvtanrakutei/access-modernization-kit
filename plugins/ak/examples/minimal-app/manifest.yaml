@@ -64,15 +64,12 @@ shared_context:
 outputs:
   root: "outputs"
   languages: ["EN"]
-  presentation_template: ""
   derived:
     e2e_html: false
     boundary_html: false
-    presentation_pptx: false
   phases:
     phase4: true
     phase5: true
-    phase6: true
 multi_agent:
   enabled: true
   preferred_runtime: "generic"
@@ -82,4 +79,4 @@ multi_agent:
   evidence_collection_parallel: true
   phase_publication_sequential: true
   conflict_policy: "record_and_escalate"
-  human_checkpoints: ["inventory", "context_extraction", "module_plan", "phase1_phase2", "phase3", "phase4_phase5", "phase6", "qa"]
+  human_checkpoints: ["inventory", "context_extraction", "module_plan", "phase1_phase2", "phase3", "phase4_phase5", "qa"]

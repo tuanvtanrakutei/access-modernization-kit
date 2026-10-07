@@ -150,7 +150,7 @@ def test_minimal_app_preflight_and_acquisition_contract(tmp_path: Path) -> None:
 
     readiness = json.loads((bundle / "phase-readiness.json").read_text(encoding="utf-8"))
     assert {phase: readiness[phase]["status"] for phase in (
-        "phase1", "phase2", "phase3", "phase4", "phase5", "phase6",
+        "phase1", "phase2", "phase3", "phase4", "phase5",
     )} == {
         "phase1": "BLOCKED",
         "phase2": "BLOCKED",
@@ -162,8 +162,9 @@ def test_minimal_app_preflight_and_acquisition_contract(tmp_path: Path) -> None:
         # AUDIT-PLAN.md already said Phase 5 is without DOCUMENT evidence. The old
         # value was not a different opinion; it was the class half not running.
         "phase5": "BLOCKED",
-        "phase6": "BLOCKED",
     }
+    # A78. Phase 6 is retired, and a bundle no longer reports readiness for it.
+    assert "phase6" not in readiness
     # The bundle's own readiness is where every later step reads this from, so the
     # class half has to be recorded here and not only in `$ak phase requirements`.
     # An empty map is the exact signature of the defect: it is what a caller that

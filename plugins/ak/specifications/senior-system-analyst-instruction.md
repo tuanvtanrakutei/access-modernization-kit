@@ -1,6 +1,6 @@
 # Canonical Senior System Analyst Instruction
 
-This is the mandatory investigation contract. Do not shorten, replace, or skip its six phases when analyzing an app.
+This is the mandatory investigation contract. Do not shorten, replace, or skip its five phases when analyzing an app.
 
 You are a senior system analyst.
 
@@ -52,17 +52,17 @@ Analyze a legacy system built with **Microsoft Access (VBA forms) connected to S
 - Translate and align them with actual system behavior.
 - Highlight mismatches between documents and code.
 
-## Phase 6 — Synthesis
+## No synthesis phase
 
-Produce a structured output containing:
+There used to be a Phase 6 that restated all of the above in one document. It was
+retired (A78). What it consolidated is now kept where it is found, and is generated
+rather than rewritten:
 
-- System Overview
-- Key Entities & Data Model
-- Screens & Functions
-- Business Rules
-- End-to-End Workflows
-- Risks / Legacy Issues
-- Assumptions / Unknowns
+- Risks, unknowns and assumptions: each phase allocates its own, in the identifier
+  register. `$ak decisions` lists what is still open, for whom, and in what order.
+- Corrections to an earlier phase: the errata register, rendered by `$ak errata`.
+- The enumeration of entities, screens and logic: the catalogues, from `$ak catalogues`.
+- The migration roadmap: the modernization pipeline, which plans per screen.
 
 ## Notes
 

@@ -2,8 +2,8 @@
 """Read a Q&A register and the pages it indexes, and report where they disagree.
 
 INTERVIEW is the one evidence class nothing in this kit can produce - it arrives only
-because somebody asked a person a question and wrote the answer down - and five of the
-six phases name it in what they lose without it (A19). A project that keeps a register
+because somebody asked a person a question and wrote the answer down - and four of the
+five phases name it in what they lose without it (A19). A project that keeps a register
 of those questions is therefore holding the most valuable evidence it has, and until
 now the kit could see only that some files existed in `input/interviews/`.
 

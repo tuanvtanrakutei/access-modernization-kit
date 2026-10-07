@@ -301,14 +301,14 @@
           }
         },
         "presentation_template": {
-          "type": "string"
+          "type": "string",
+          "description": "Retired with the PPTX output (A78). Accepted so a manifest written before still validates; nothing reads it."
         },
         "derived": {
           "type": "object",
           "required": [
             "e2e_html",
-            "boundary_html",
-            "presentation_pptx"
+            "boundary_html"
           ],
           "properties": {
             "e2e_html": {
@@ -318,14 +318,15 @@
               "type": "boolean"
             },
             "presentation_pptx": {
-              "type": "boolean"
+              "type": "boolean",
+              "description": "Retired (A78): the PPTX rendered Phase 6, which was retired with it. Accepted and ignored."
             }
           },
           "additionalProperties": false
         },
         "phases": {
           "type": "object",
-          "description": "Which requestable phase documents this project asked for. Phases 1-3 are not listed: an acquisition supports them unaided. Phases 4-6 each degrade without DOCUMENT or INTERVIEW evidence that nothing upstream collects, so they are asked for rather than assumed (backlog A19). Omitting a key requests the phase, so a manifest written before this existed behaves unchanged; setting one to false makes its gate read NOT_REQUESTED for the whole run, which records a choice the operator made rather than anything the evidence established.",
+          "description": "Which requestable phase documents this project asked for. Phases 1-3 are not listed: an acquisition supports them unaided. phase6 is retired (A78): accepted so a manifest written before still validates, and ignored. Phases 4 and 5 each degrade without DOCUMENT or INTERVIEW evidence that nothing upstream collects, so they are asked for rather than assumed (backlog A19). Omitting a key requests the phase, so a manifest written before this existed behaves unchanged; setting one to false makes its gate read NOT_REQUESTED for the whole run, which records a choice the operator made rather than anything the evidence established.",
           "properties": {
             "phase4": {
               "type": "boolean"
@@ -334,7 +335,8 @@
               "type": "boolean"
             },
             "phase6": {
-              "type": "boolean"
+              "type": "boolean",
+              "description": "Retired (A78). Accepted and ignored."
             }
           },
           "additionalProperties": false

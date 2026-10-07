@@ -1,18 +1,18 @@
-# Reading The Six-Phase Output
+# Reading The Five-Phase Output
 
-> **Layer 1 document.** Project-independent. Orients a reader to `ak`'s Phase 1–6 output for
+> **Layer 1 document.** Project-independent. Orients a reader to `ak`'s Phase 1–5 output for
 > one app before or while bootstrapping a modernize project on it. It does not replace
 > `LEGACY_EVIDENCE.md` §6.1–6.4 — read this first for orientation, that one for the exact
 > handoff contract, matching rules, and gate mechanics.
 
-If you have never opened a six-phase run's output before, start here rather than opening six
+If you have never opened a five-phase run's output before, start here rather than opening five
 long documents cold and guessing which one answers your question.
 
 ## Contents
 
 - [1. Quick Start — "I want to understand ..."](#1-quick-start-i-want-to-understand)
 - [2. File Naming — What You Actually See On Disk](#2-file-naming-what-you-actually-see-on-disk)
-- [3. The Six Phases At A Glance](#3-the-six-phases-at-a-glance)
+- [3. The Five Phases At A Glance](#3-the-five-phases-at-a-glance)
 - [4. How This Feeds Modernize](#4-how-this-feeds-modernize)
 - [5. Suggested Reading Order For A Newly Investigated App](#5-suggested-reading-order-for-a-newly-investigated-app)
 
@@ -29,16 +29,18 @@ long documents cold and guessing which one answers your question.
 | A business rule (validation, calculation, filter) | Phase 3 §4 "Business Rules" — cross-checked against documents in Phase 5 §2 |
 | An end-to-end workflow that crosses multiple screens | Phase 4 §2 "End-to-End Workflows" |
 | Whether a Japanese manual/spec still matches actual system behavior | Phase 5 §3 "Document-to-System Alignment" |
-| A fast, single-document overview of the whole app | Phase 6 "Synthesis" — read this before 1–5, not after |
-| Known risks or legacy quirks the analyst flagged | Phase 6 §6 "Risks / Legacy Issues" |
+| Which published claims were later corrected | `{APP_ID}_Errata.md` — read this before quoting any phase |
+| Known risks or legacy quirks the analyst flagged | `{APP_ID}_QuestionList.md` and `{APP_ID}_DecisionQueue.json` — every open risk, unknown and question, in the order to settle them |
 | Open questions the analyst could not resolve alone | `{APP_ID}_QuestionList.md` |
 | Whether independent QA found problems | `{APP_ID}_QA_Report.md` |
 | Which VBA event maps to which SQL/output, per workflow step | `{APP_ID}_TraceabilityMatrix.csv` |
 | Exactly which source file and line backs a specific claim | `{APP_ID}_Evidence.json` → `evidenceItem.source_path` / `source_location` |
 | Whether a phase is far enough along to build on | `run-state.json` → `phase_gates.phaseN`, must read `PUBLISHED` |
 
-If your question is not above, it is probably answered inside Phase 6 — it is the one
-document written to be read start to finish rather than looked up by section.
+If your question is not above, look in the catalogues (`{APP_ID}_DataCatalogue.md`,
+`_ScreenCatalogue.md`, `_LogicCatalogue.md`) for the enumeration, and in the phase that
+owns the subject for its meaning. There is no synthesis document: `ak` retired Phase 6
+(its backlog A78).
 
 ## 2. File Naming — What You Actually See On Disk
 
@@ -48,7 +50,8 @@ prefixed with the app ID and carries a language token:
 
 | You're looking for | Real filename pattern |
 |---|---|
-| Phase 1–6 documents | `{APP_ID}_Phase1_DataUnderstanding_{LANG}.md` … `{APP_ID}_Phase6_Synthesis_{LANG}.md` |
+| Phase 1–5 documents | `{APP_ID}_Phase1_DataUnderstanding_{LANG}.md` … `{APP_ID}_Phase5_DocumentIntegration_{LANG}.md` |
+| Corrections to published claims | `{APP_ID}_Errata.md` (generated from `{APP_ID}_Errata.json`) |
 | Evidence register | `{APP_ID}_Evidence.json` |
 | Dependency / workflow trace | `{APP_ID}_TraceabilityMatrix.csv` |
 | Open questions | `{APP_ID}_QuestionList.md` |
@@ -59,7 +62,7 @@ Do not search by a bare `startswith("phase2")` or similar — the phase number i
 after the app ID, not the start of the filename. See `LEGACY_EVIDENCE.md` §6.2 for why this
 matters mechanically, not just cosmetically.
 
-## 3. The Six Phases At A Glance
+## 3. The Five Phases At A Glance
 
 | Phase | Title | Answers |
 |---|---|---|
@@ -68,30 +71,29 @@ matters mechanically, not just cosmetically.
 | 3 | Logic & Processing | What the SQL and VBA processing actually computes |
 | 4 | Workflow Reconstruction | How a user action turns into an end-to-end outcome across screens |
 | 5 | Document Integration | Whether external manuals/specs still describe real behavior |
-| 6 | Synthesis | Everything above, rolled into one reading pass |
 
 Phases publish strictly in this order — Phase 4 cannot be `PUBLISHED` before Phase 3 is, and
-so on through Phase 6. See `LEGACY_EVIDENCE.md` §6.4 for what that guarantees and does not.
+so on through Phase 5. See `LEGACY_EVIDENCE.md` §6.4 for what that guarantees and does not.
 
 ## 4. How This Feeds Modernize
 
-Modernize's pre-flight and Stage 1 read these mechanically, not all six documents in
+Modernize's pre-flight and Stage 1 read these mechanically, not all five documents in
 full: Phase 2 (screen inventory and per-screen detail), `TraceabilityMatrix.csv` (dependency
-map), `run-state.json` → `phase_gates` (readiness signal for phase2/phase4/phase6), and the
+map), `run-state.json` → `phase_gates` (readiness signal for phase2/phase4/phase5), and the
 registers `Identifiers.json`, `Evidence.json` and `DecisionQueue.json`, from which Stage 1
 computes a screen's scope (`screen_scope.py`). The
 `bootstrap-project` skill goes further and only ever touches Phase 2 — it seeds
 `Screens_Registry.md` from Phase 2 §1 alone, because that is the only phase document with a
-structured, per-object table; nothing else about a new project's registry needs Phase 4, 5,
-or 6's content. Full mapping, precedence rules, and known limits: `LEGACY_EVIDENCE.md` §6.1–6.4.
+structured, per-object table; nothing else about a new project's registry needs Phase 4's or
+5's content. Full mapping, precedence rules, and known limits: `LEGACY_EVIDENCE.md` §6.1–6.4.
 
-Everything else in Phase 1, 3, 4, 5, and 6 remains valuable **reading**, for a human or an
+Everything else in Phase 1, 3, 4 and 5 remains valuable **reading**, for a human or an
 agent doing Stage 2's screen plan — it is just not parsed by any script. Stage 1 no longer
 writes a business-flow document: what it held is computed from the registers.
 
 ## 5. Suggested Reading Order For A Newly Investigated App
 
-1. **Phase 6** — fast orientation to the whole app in one pass.
+1. **`{APP_ID}_Errata.md`** — what a later reading corrected, so you do not build on it.
 2. **Phase 2 §1** — the screen list; decide what you're bootstrapping first.
 3. **Phase 1** — the data model behind the screens you care about.
 4. **Phase 3 / Phase 4** for the specific screen or workflow you're about to work on — not

@@ -74,7 +74,7 @@ def manifest_needs(path: Path | None) -> dict[str, bool]:
     # tier can require elevation; the DAO tier activates in-process and never does. An
     # Access-only project that skips object export needs no host at all, and warning it
     # about administrator rights trains operators to elevate runs that never needed it.
-    needs = {"xlsx": False, "pdf": False, "html": False, "pptx": False, "live_sql": False, "access": False, "access_host": False, "adp": False, "compdb": False, "yaml_parsed": False}
+    needs = {"xlsx": False, "pdf": False, "html": False, "live_sql": False, "access": False, "access_host": False, "adp": False, "compdb": False, "yaml_parsed": False}
     if not path or not path.is_file():
         return needs
     text = path.read_text(encoding="utf-8", errors="ignore").lower()
@@ -91,7 +91,6 @@ def manifest_needs(path: Path | None) -> dict[str, bool]:
         needs["xlsx"] = ".xlsx" in text
         needs["pdf"] = ".pdf" in text
         needs["html"] = bool(derived.get("e2e_html") or derived.get("boundary_html"))
-        needs["pptx"] = bool(derived.get("presentation_pptx") or data.get("outputs", {}).get("presentation_template"))
         # A V2.2 manifest declares its inputs as `artifacts`, not under `sources`, so
         # reading only the V2.1 shape reported every capability as unneeded - including
         # Access itself on an Access-only project.
@@ -117,10 +116,7 @@ def manifest_needs(path: Path | None) -> dict[str, bool]:
     except (ImportError, AttributeError, TypeError, ValueError):
         needs["xlsx"] = ".xlsx" in text
         needs["pdf"] = ".pdf" in text
-        template_match = re.search(r"(?m)^\s*presentation_template:\s*([^#\r\n]*)", text)
-        template_value = template_match.group(1).strip().strip('"\'') if template_match else ""
         needs["html"] = "e2e_html: true" in text or "boundary_html: true" in text
-        needs["pptx"] = "presentation_pptx: true" in text or bool(template_value)
         # The V2.2 shape has to be recognized here too. This branch only ever matched
         # V2.1 keys, so without PyYAML a V2.2 Access-only project reported access:false
         # - the same defect already fixed in the parsed branch above, left standing in
@@ -388,7 +384,7 @@ def input_preconditions(manifest: Path | None, needs: dict[str, bool], access: d
             recommended_missing.extend(declared["sql"])
 
     if mode == "none":
-        warnings.append("No app sources detected; add exported VBA/SQL (export mode) or an Access database (extract mode) before running the six phases.")
+        warnings.append("No app sources detected; add exported VBA/SQL (export mode) or an Access database (extract mode) before running the five phases.")
     else:
         for relative in recommended_missing:
             warnings.append(f"No files in {relative}; affected phases will run but must record missing coverage as an assumption/open question.")
@@ -458,8 +454,6 @@ def main() -> int:
         recommendations.append("Enable a spreadsheet skill/runtime or install openpyxl for XLSX fallback.")
     if needs["pdf"] and not modules["pypdf"]:
         recommendations.append("Use a runtime PDF reader; install pypdf only if a local fallback is needed.")
-    if needs["pptx"] and not any("presentation" in name.lower() for name in skills):
-        recommendations.append("Enable a presentation skill/runtime before requesting PPTX output.")
     if needs["html"] and not any("playwright" in name.lower() for name in skills) and not modules["playwright"]:
         recommendations.append("Enable a browser automation skill/runtime before HTML visual QA.")
     if needs["live_sql"] and not modules["pyodbc"]:

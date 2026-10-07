@@ -283,8 +283,8 @@ flowchart TD
 ### Risks
 
 <!-- RA-nn, severity HIGH/MEDIUM/LOW, and a mitigation or an explicit "none
-     proposed". A risk without a severity cannot be prioritised, and Phase 6
-     consolidates from the register rather than from this table - so the severity
+     proposed". A risk without a severity cannot be prioritised, and `$ak decisions`
+     orders from the register rather than from this table - so the severity
      has to reach BOTH.
 
      RA, not RS. RS is Phase 5's and means security and compliance; a screen is

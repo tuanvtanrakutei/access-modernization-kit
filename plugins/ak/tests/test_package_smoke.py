@@ -138,9 +138,10 @@ def test_friendly_cli_entrypoint(tmp_path: Path) -> None:
     )
     app = tmp_path / "T22"
     assert (app / "manifest.yaml").is_file()
-    # Presentation output is optional and off by default.
+    # The PPTX and Phase 6 were retired (A78); a new manifest names neither.
     manifest_text = (app / "manifest.yaml").read_text(encoding="utf-8")
-    assert "presentation_pptx: false" in manifest_text
+    assert "presentation" not in manifest_text
+    assert "phase6" not in manifest_text
     assert "graphify" not in manifest_text
     run_script("ak.py", "preflight", "--app-root", str(app))
     planned_documents = run_script(

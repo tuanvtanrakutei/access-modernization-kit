@@ -139,7 +139,7 @@ package_files:
 
 # Organised by who owns it, not by the pipeline stage that produced it. An operator
 # used to meet seven top-level directories, four of which they never open, with the
-# six phase documents two levels down inside runs/<run-id>/outputs/. There are three
+# five phase documents two levels down inside runs/<run-id>/outputs/. There are three
 # things now: the file you edit, what you supply, what you read - and .ak/, which the
 # kit owns and a person never opens.
 #
@@ -193,7 +193,7 @@ workspace:
           whoever supplies the export, not by init.
     output:
       purpose: >-
-        Everything a person reads: the six phase documents, the derived HTML, the
+        Everything a person reads: the five phase documents, the derived HTML, the
         README, and the registers. One directory holding the newest run, because a
         run id in the path is a question a reader cannot answer. A later run replaces
         it; every run's working state and evidence stay under .ak/runs/<run-id>/.

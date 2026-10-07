@@ -1,6 +1,6 @@
 ---
 name: bootstrap-project
-description: "Set up a brand-new modernization project - copy the template documents into a target repo's docs directory, and seed Screens_Registry.md from a six-phase run's Phase 2 inventory when one exists. Trigger when the user wants to start a new Access-family modernization project, bootstrap a project, or set up the docs folder for a new subsystem before running the pipeline for the first time. Examples: \"bootstrap a new project for A99\", \"set up the modernize docs for this repo\", \"seed the screens registry from the six-phase run\"."
+description: "Set up a brand-new modernization project - copy the template documents into a target repo's docs directory, and seed Screens_Registry.md from a five-phase run's Phase 2 inventory when one exists. Trigger when the user wants to start a new Access-family modernization project, bootstrap a project, or set up the docs folder for a new subsystem before running the pipeline for the first time. Examples: \"bootstrap a new project for A99\", \"set up the modernize docs for this repo\", \"seed the screens registry from the five-phase run\"."
 ---
 
 # Bootstrap A New Modernization Project
@@ -23,7 +23,7 @@ silent overwrite. Do not proceed past this check on assumption.
 
 1. **Target docs directory** — where `{{DOCS_DIR}}` will live in the target repo. Ask if
    not given.
-2. **`AK_RUN_DIR`** — the root of a six-phase `ak` run for this project, or the literal
+2. **`AK_RUN_DIR`** — the root of a five-phase `ak` run for this project, or the literal
    `n/a` if Stage 0 will be manual export per `LEGACY_EVIDENCE.md`. Ask if not given. Do
    not guess `n/a` by default — an unanswered question is not the same as a real "no
    phase output exists yet."
@@ -94,7 +94,7 @@ whole job is to never contain one.
 
 This step is the reason this skill exists rather than being five manual copy commands.
 Phase 2's content is trustworthy on its own — this step only runs once its gate reads
-`PUBLISHED`, meaning `ak`'s own six-phase process already QA'd it — so `screen`, `type`,
+`PUBLISHED`, meaning `ak`'s own five-phase process already QA'd it — so `screen`, `type`,
 `business_purpose`, `entry_path` and `evidence_ids` are taken as given, not re-confirmed.
 `screen_key`, `url_segment` and `fe_route` are mechanical derivations with no real
 ambiguity once computed (see the script's own docstring for exactly how). The **one**

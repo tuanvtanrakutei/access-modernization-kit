@@ -141,26 +141,25 @@ Continue only after review:
 $ak phase 2 <APP_ID>
 ```
 
-Repeat through Phase 6. The required order is:
+Repeat through Phase 5. The required order is:
 
 1. Phase 1 — Data Understanding
 2. Phase 2 — Screen & Form Analysis
 3. Phase 3 — Logic & Processing
 4. Phase 4 — Workflow Reconstruction
 5. Phase 5 — Document Integration
-6. Phase 6 — Synthesis
 
-Use `$ak run <APP_ID>` only when you explicitly authorize the entire six-phase investigation. It never grants authorization to access a live database.
+Use `$ak run <APP_ID>` only when you explicitly authorize the entire five-phase investigation. It never grants authorization to access a live database.
 
 ## 8. Render the final deliverables
 
-After Phase 6, traceability checks, decisions, and independent QA pass, request the declared output language:
+After Phase 5, traceability checks, decisions, and independent QA pass, request the declared output language:
 
 ```text
 $ak render <APP_ID> English
 ```
 
-Expected deliverables include the Phase documents, E2E Trace, Boundary Map, question list, QA report, and presentation inputs. Rendering a final presentation is gated; it is not a substitute for evidence review.
+Expected deliverables include the Phase documents, the errata page, E2E Trace, Boundary Map, question list, and QA report. Rendering is gated; it is not a substitute for evidence review.
 
 ## Decision flow
 
@@ -173,7 +172,7 @@ flowchart TD
     E -->|Approved| F[Snapshot extraction]
     E -->|Blocked or gaps| G[Resolve or record open questions]
     F --> H[Derived facts]
-    H --> I[Phase 1 through Phase 6]
+    H --> I[Phase 1 through Phase 5]
     I --> J[Traceability and independent QA]
     J --> K[Render approved outputs]
 ```

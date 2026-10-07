@@ -32,13 +32,13 @@ REQUIRED_FILES = (
     "tests/test_phase_readiness.py", "tests/test_migration.py", "tests/test_cli_v27.py", "tests/test_bundle_assembly.py", "tests/test_cli_acquire.py", "tests/test_acquisition_orchestrator.py", "tests/collaboration_helpers.py", "tests/test_collaboration.py", "tests/test_collaboration_projection.py", "tests/test_collaboration_review.py", "tests/test_contract_impact.py", "tests/test_cli_collaboration.py", "tests/test_collaboration_integration.py",
     "tests/adapters/test_base.py", "tests/adapters/test_imported_sources.py", "tests/adapters/test_managed_access.py", "tests/adapters/test_msaccess_vcs.py", "tests/adapters/test_sql_server.py",
     "orchestration/roles.json", "orchestration/waves.json", "orchestration/merge-policy.json", "orchestration/conflict-policy.json", "orchestration/runtime-adapters.json",
-    "references/manifest.example.yaml", "references/agent-compatibility.md", "references/presentation-guidance.md", "references/orchestration-guide.md",
+    "references/manifest.example.yaml", "references/agent-compatibility.md", "references/orchestration-guide.md",
     "references/capability-matrix.md", "references/access-extraction-guide.md", "references/module-and-build-context.md", "references/fact-derivation.md", "references/technical-writing.md",
     "templates/phase1-data-understanding.md", "templates/phase2-screen-analysis.md", "templates/phase3-logic-processing.md",
-    "templates/phase4-workflow-reconstruction.md", "templates/phase5-document-integration.md", "templates/phase6-synthesis.md",
+    "templates/phase4-workflow-reconstruction.md", "templates/phase5-document-integration.md",
     "templates/question-list.md", "templates/qa-report.md", "templates/traceability-matrix.csv", "templates/e2e-trace.html",
     "templates/recommended-optional-evidence.md",
-    "templates/boundary-map.html", "templates/presentation-storyboard.md", "templates/task-envelope.json", "templates/agent-handoff.json",
+    "templates/boundary-map.html", "templates/wireframes.html", "templates/task-envelope.json", "templates/agent-handoff.json",
     "templates/conflict-record.json", "templates/worker-prompt.md", "templates/readme.md", "templates/app.gitignore", "templates/app.investigationignore",
     "scripts/init_app.py", "scripts/preflight.py", "scripts/create_run.py", "scripts/create_tasks.py", "scripts/extract_access.py",
     "scripts/extract_access.ps1", "scripts/access_runtime.py", "scripts/parse_compilation_database.py", "scripts/build_component_index.py", "scripts/build_module_plan.py", "scripts/derive_graph_facts.py", "scripts/validate_handoffs.py",
@@ -67,12 +67,12 @@ REPOSITORY_FILES = (
     ".github/ISSUE_TEMPLATE/bug_report.yml", ".github/ISSUE_TEMPLATE/feature_request.yml",
 )
 PHASE_HEADINGS = tuple(f"Phase {number} — {title}" for number, title in enumerate((
-    "Data Understanding", "Screen & Form Analysis", "Logic & Processing", "Workflow Reconstruction", "Document Integration", "Synthesis"
+    "Data Understanding", "Screen & Form Analysis", "Logic & Processing", "Workflow Reconstruction", "Document Integration"
 ), 1))
 MANIFEST_TOKENS = (
     'version: "2.1"', "app:", "id:", "scope:", "legacy_only:", "sources:", "access_databases:", "vba_exports:", "sql_server:",
     "japanese_documents:", "analysis:", "source_policy:", "ignore_file:", "build_context:", "compilation_databases:", "execute_commands: false",
-    "module_planning:", 'strategy: "hierarchical_leaf_first"', "shared_context:", "outputs:", "languages:", "derived:", "presentation_pptx:",
+    "module_planning:", 'strategy: "hierarchical_leaf_first"', "shared_context:", "outputs:", "languages:", "derived:",
     "multi_agent:", "coordinator_only_merge:", "independent_qa:", "phase_publication_sequential:",
 )
 IGNORED_SCAN_DIRS = {
@@ -170,8 +170,8 @@ def validate_orchestration(root: Path, json_data: dict[str, object], errors: lis
             errors.append(f"Non-coordinator role may not merge: {role.get('id')}")
         if "handoffs" not in role.get("allowed_writes", []):
             errors.append(f"Role cannot return required handoff: {role.get('id')}")
-    if coverage != set(range(1, 7)):
-        errors.append(f"Role phase coverage must be exactly 1-6, got {sorted(coverage)}")
+    if coverage != set(range(1, 6)):
+        errors.append(f"Role phase coverage must be exactly 1-5, got {sorted(coverage)}")
     required_roles = {"access_extractor", "build_context_analyzer", "module_decomposer", "fact_deriver"}
     if not required_roles.issubset(set(role_ids)):
         errors.append(f"Missing V2.1 preprocessing roles: {sorted(required_roles - set(role_ids))}")
@@ -193,13 +193,13 @@ def validate_orchestration(root: Path, json_data: dict[str, object], errors: lis
     try:
         if not wave_ids.index("wave0_context_extraction") < wave_ids.index("wave0_module_decomposition") < wave_ids.index("wave0_fact_derivation") < wave_ids.index("wave1_source_extraction"):
             errors.append("Context extraction, module planning, and fact derivation must precede source-analysis fanout")
-        publish_gates = [wave_ids.index(f"gate{phase}_publish_phase{phase}") for phase in range(1, 7)]
+        publish_gates = [wave_ids.index(f"gate{phase}_publish_phase{phase}") for phase in range(1, 6)]
         if publish_gates != sorted(publish_gates):
             errors.append("Phase publications must appear in phase order")
-        if not wave_ids.index("gate6_publish_phase6") < wave_ids.index("wave6_independent_qa") < wave_ids.index("wave7_derived_rendering"):
-            errors.append("Independent QA must run after Phase 6 publication and before rendering")
+        if not wave_ids.index("gate5_publish_phase5") < wave_ids.index("wave6_independent_qa") < wave_ids.index("wave7_derived_rendering"):
+            errors.append("Independent QA must run after Phase 5 publication and before rendering")
     except ValueError:
-        errors.append("Required V2.1 preprocessing, Phase 6, QA, or rendering wave is missing")
+        errors.append("Required V2.1 preprocessing, phase publication, QA, or rendering wave is missing")
     if isinstance(adapters, dict) and set(adapters.get("required_operations", [])) != {"spawn", "message", "wait", "inspect", "interrupt"}:
         errors.append("Runtime adapter must define spawn/message/wait/inspect/interrupt")
     if isinstance(merge, dict) and merge.get("coordinator_only_merge") is not True:

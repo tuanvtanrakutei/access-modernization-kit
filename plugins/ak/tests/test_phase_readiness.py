@@ -11,7 +11,7 @@ sys.path.insert(0, str(PACKAGE / "contracts"))
 from classification import Classification  # noqa: E402
 from phase_readiness import RANK, compute_readiness  # noqa: E402
 
-PHASES = tuple(f"phase{i}" for i in range(1, 7))
+PHASES = tuple(f"phase{i}" for i in range(1, 6))
 
 
 def test_adp_without_sql_schema_blocks_phase1_and_phase3() -> None:
