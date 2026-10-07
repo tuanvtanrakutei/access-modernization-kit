@@ -175,6 +175,8 @@ Status is one of: implemented, planned, accepted-difference, open-decision.
 
 The Rule column holds the rule's `BR-` id, as the extraction's register allocates it. Gate G2 reads the ids in this section, so a rule cited only in prose elsewhere is not mapped.
 
+**A screen the register holds no rule for** (the extraction never traced it, or found no rule in it) mints its own ids, here, one per row: `BR-<PREFIX>-nn`. `PREFIX` is the screen's `rule_prefix` in `Screens_Registry.md`, declared once by a person and unique across the registry, because every screen numbers its rules from 01 and two screens each had their own `BR-02`. `nn` is two digits, never renumbered and never reused, even when the rule is retired: a new rule takes the number after the highest. A pointer to the business flow's own number after the id (`BR-LOC-01 (BF BR-01)`) is a reference, not the row's id. Run `modernize/scripts/screen_rule_ids.py --registry Screens_Registry.md --screen "<screen>" --plan Screen_plans/<screen>.md`: it reports the prefix and each row's id, and proposes the id for a row that carries a bare local number (`BR-02`). A row with no id is left alone: the table holds legacy concepts as well as rules, and only a rule carries an id. It writes nothing; the agent edits the plan, and a person declares the prefix. Tests cite these ids, and `screen_rule_tests.py --plan` reads them back as the rules the screen owes.
+
 ## 6. Gap Matrix
 
 | Topic | Legacy behavior | New behavior | Status |

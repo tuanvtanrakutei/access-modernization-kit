@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Say which business rules a screen's tests actually back, from the test results.
 
-    python3 screen_rule_tests.py (--ak <dir> --screen <name> | --rules BR-A,BR-B)
+    python3 screen_rule_tests.py (--ak <dir> --screen <name> | --plan <screen plan> | --rules BR-A,BR-B)
         --junit <result file or folder> [--tests <test source folder>]
         [--coverage-map Test_Instruction/<screen>.md] [--waive BR-X=reason] [--out RULE_TESTS.json]
 
@@ -24,7 +24,9 @@ screen: it is listed as `citedOutsideRun` on a rule that is otherwise CLAIMED or
 `--tests` and `--junit` at the same screen's tests.
 
 The rules come from the extraction (`--ak` and `--screen`, as `screen_scope.py` reads them, so a
-superset of what the screen uses) or from `--rules`. Results come from JUnit-style XML only:
+superset of what the screen uses), from the rows of a screen plan's Legacy-To-New Mapping table
+(`--plan`: the id each row carries, as `screen_rule_ids.py` mints them, for a screen the register
+holds no rule for), or from `--rules`. Results come from JUnit-style XML only:
 a count typed into a document, or a log, shows no test names, so it backs nothing. A run that
 executed no test at all is an input error: nothing was proved.
 
@@ -193,6 +195,21 @@ def rules_from(args: argparse.Namespace) -> list[str]:
         bad = [r for r in ids if not RULE_ID.fullmatch(r)]
         if bad:
             raise InputError(f"not a rule id: {', '.join(bad)}")
+    elif args.plan:
+        import screen_decisions as sd
+        import screen_rule_ids as sr
+
+        try:
+            rows = sr.mapping_rows(args.plan)
+        except sd.Problem as problem:
+            raise InputError(str(problem))
+        # A row with no id is a legacy concept, not a rule: the mapping holds both.
+        wrong = [f"row {r['n']} ({r['id']})" for r in rows if r["id"] and not RULE_ID.fullmatch(r["id"])]
+        if wrong:
+            raise InputError(f"{', '.join(wrong)} carry no valid rule id: run screen_rule_ids.py on the plan")
+        ids = [r["id"] for r in rows if r["id"]]
+        if not ids:
+            raise InputError("no row of the mapping carries a rule id: run screen_rule_ids.py on the plan")
     elif args.ak and args.screen:
         import screen_decisions as sd
         import screen_scope as ss
@@ -203,7 +220,7 @@ def rules_from(args: argparse.Namespace) -> list[str]:
             raise InputError(str(problem))
         ids = [r["id"] for r in report["scope"]["rules"]]
     else:
-        raise InputError("give --ak and --screen, or --rules")
+        raise InputError("give --ak and --screen, or --plan, or --rules")
     if not ids:
         raise InputError("no rule to check")
     return list(dict.fromkeys(ids))
@@ -227,6 +244,7 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--ak", type=Path)
     ap.add_argument("--screen")
     ap.add_argument("--rules")
+    ap.add_argument("--plan", type=Path, help="Screen_plans/<screen>.md: the rules are the ids its mapping rows carry")
     ap.add_argument("--junit", type=Path, nargs="+", required=True)
     ap.add_argument("--tests", type=Path)
     ap.add_argument("--coverage-map", type=Path)

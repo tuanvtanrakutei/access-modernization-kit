@@ -14,6 +14,7 @@ The pipeline reads this file at pre-flight. If a screen is absent, the agent run
 | `module` | Backend app that owns the screen | Code placement; parallelism partitioning |
 | `module_prefix` | URL prefix the module is mounted at | First path segment after `{{API_PREFIX}}` |
 | `fe_route` | Frontend route under `{{FE_ROUTE_BASE}}` | Frontend placement; deep-link target |
+| `rule_prefix` | Optional. One to six capitals or digits, the first a capital, unique across this table and never equal to a scope the extraction's register already uses (`ORD` in `BR-ORD-01`) | The scope of the ids this screen's rules get when the register holds none: `BR-<rule_prefix>-nn`. See `Screen_plans/README.md` §5 |
 | `priority` | Implementation order | Sequencing across screens |
 | `status_be` | Backend implementation state | Resolves `be_mode` for Stages 3a and 4a |
 | `status_fe` | Frontend implementation state | Resolves `fe_mode` for Stages 3b and 4b |
