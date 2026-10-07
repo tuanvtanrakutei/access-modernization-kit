@@ -81,6 +81,16 @@ def test_a_blocking_item_that_names_the_screen_directly_stops_pre_flight(tmp_pat
     assert data["screen_ids"] == ["F-002"]
 
 
+def test_the_stop_says_how_to_proceed_and_only_when_it_stops(tmp_path: Path) -> None:
+    """A80. Waiting is not the only way on: the decider can record an assumption."""
+    for name in ("a", "b"):
+        (tmp_path / name).mkdir()
+    stopped = run("--queue", write(tmp_path / "a", queue(item("Q5", [F_SCREEN]))), "--screen", SCREEN)
+    assert stopped.returncode == 1 and "$ak decisions --assume <id>" in stopped.stdout
+    clear = run("--queue", write(tmp_path / "b", queue(item("Q5", [F_OTHER]))), "--screen", SCREEN)
+    assert clear.returncode == 0 and "--assume" not in clear.stdout
+
+
 def test_an_object_reference_with_the_production_name_names_it_too(tmp_path: Path) -> None:
     out = write(tmp_path, queue(item("Q9", [block(obj=SCREEN)])))
     code, data = report(out)

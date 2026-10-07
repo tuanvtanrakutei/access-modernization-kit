@@ -189,6 +189,11 @@ def parse_args() -> argparse.Namespace:
     decisions.add_argument("--on", help="With --decide: the date decided, YYYY-MM-DD. Default today.")
     decisions.add_argument("--answers", help="With --decide: the answers (`ok 3=preserve`), instead "
                                              "of reading them from the terminal.")
+    decisions.add_argument("--assume", metavar="ITEM",
+                           help="Give this open question a default: a new AS- the pipeline proceeds "
+                                "on until it is answered. Needs --that, --if-wrong and --by.")
+    decisions.add_argument("--that", help="With --assume: what is assumed.")
+    decisions.add_argument("--if-wrong", help="With --assume: what stops holding if it is wrong.")
     decisions.add_argument("--dry-run", action="store_true")
     decisions.add_argument("--replace-handwritten", action="store_true",
                            help="Overwrite a QuestionList.md this command did not write.")
@@ -734,7 +739,9 @@ def main() -> int:
     if args.command == "decisions":
         decision_args = ["--app-root", args.app_root]
         for flag, value in (("--language", args.language), ("--party", args.party),
-                            ("--by", args.by), ("--on", args.on), ("--answers", args.answers)):
+                            ("--by", args.by), ("--on", args.on), ("--answers", args.answers),
+                            ("--assume", args.assume), ("--that", args.that),
+                            ("--if-wrong", args.if_wrong)):
             if value is not None:
                 decision_args += [flag, value]
         for link in args.link:

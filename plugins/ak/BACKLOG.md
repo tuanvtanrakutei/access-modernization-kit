@@ -12,6 +12,43 @@ that it should now work.
 
 ## Open
 
+### A80 - a question with no default stopped a screen, and the only way on was editing the register
+
+**Found 2026-10-07, on a live application whose main import screen could not pass pre-flight.**
+A question that names a screen directly and has no default is BLOCKING, and
+`screen_decisions.py` stops pre-flight on it (A75 slice 4b). That stop is right: there is
+nothing to proceed on. But the question had been with the customer for seven weeks, and the
+register already modelled the way on - a `needs.default` naming an `AS-` whose `if_wrong`
+says what to correct - while no command wrote one. `--decide` records a risk's disposition;
+nothing gave a question an assumption.
+
+The maintainer chose to keep the stop and add the command. `$ak decisions --assume ITEM
+--that TEXT --if-wrong TEXT --by NAME [--on DATE]` (`contracts/decision_assume.py`):
+
+- allocates the next `AS-`, in the phase that allocated the question, because that phase's
+  document is the one that has to change, and records `assumed_for`, `assumed_by` and
+  `assumed_on` on it;
+- sets it as the question's `needs.default`; the question stays open, so ID-13 holds the
+  assumption to the answer when it comes;
+- refuses an item that is missing, closed, without `needs`, a risk's disposition, or already
+  on a default, and an assumption with no statement, no `if_wrong`, no author, or an author
+  who is not one of the decider's people; a refusal writes nothing;
+- warns when `if_wrong` names no identifier, since its refresh set would be empty, and names
+  what the question blocks as candidates;
+- prints the phase document edits the gate needs (the Questions row's Default cell, and a row
+  in the Assumptions table), writes the register with a backup, and rebuilds the queue.
+
+`screen_decisions.py` prints the command under the items that stop pre-flight, and
+MASTER_WORKFLOW step 8 says the assumption is the user's to write, never the agent's.
+
+Rehearsed on a scratch copy of the live workspace (not written): the question moved from
+blocking to proceeding on its new assumption, the import screen's pre-flight went from exit
+1 to exit 0, and the phase gate stayed green because that document's Default cell is
+pre-contract prose and is not compared.
+
+Not done: the command does not edit the phase documents. It names the two edits; making
+them is the phase's work, in every language the document is written in.
+
 ### A79 - a developer rebuilding a screen had every fact about it and no picture of it
 
 **Decided 2026-10-07 with the maintainer, replacing the PPTX retired in A78.** Phase 2

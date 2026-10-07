@@ -182,6 +182,11 @@ def render(report: dict[str, Any]) -> str:
                 out.append(f"    if the default is wrong: {row['if_wrong']}")
             for flag in row["precheck"]:
                 out.append(f"    check before asking: {flag.get('text')}")
+        if key == "blocking_directly" and rows:
+            # The stop is right - there is nothing to proceed on - and it is not a dead end.
+            out.append("To plan before it is answered, the decider records what to proceed on: "
+                       "`$ak decisions --assume <id> --that <assumption> --if-wrong <what changes> "
+                       "--by <name>`. The item stays open, and its answer is checked against it.")
         out.append("")
     if report["settled_by_policy"]:
         out.append(f"## Settled by standing policy ({len(report['settled_by_policy'])})")
