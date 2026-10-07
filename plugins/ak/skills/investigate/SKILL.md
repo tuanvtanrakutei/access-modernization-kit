@@ -77,7 +77,7 @@ Before investigation work, read these files completely:
 - `specifications/language-support.yaml`
 - The target app's `manifest.yaml`
 
-Read only the phase template needed for the current phase. Before any Phase/run request, read `references/fact-derivation.md`, `specifications/evidence-classes.yaml`, `specifications/identifier-scheme.yaml` and `specifications/errata-contract.yaml`. Read `references/presentation-guidance.md` only when generating a presentation. Read `references/agent-compatibility.md` only when installing or adapting the kit for another agent runtime.
+Read only the phase template needed for the current phase. Before writing or revising a phase document, read `references/technical-writing.md`. Before any Phase/run request, read `references/fact-derivation.md`, `specifications/evidence-classes.yaml`, `specifications/identifier-scheme.yaml` and `specifications/errata-contract.yaml`. Read `references/presentation-guidance.md` only when generating a presentation. Read `references/agent-compatibility.md` only when installing or adapting the kit for another agent runtime.
 
 For multi-agent work, also read `references/orchestration-guide.md`, `orchestration/roles.json`, `orchestration/waves.json`, and `orchestration/runtime-adapters.json`. When Access binaries, compilation databases, or module planning are present, also read `references/access-extraction-guide.md` and `references/module-and-build-context.md`.
 

@@ -12,6 +12,26 @@ that it should now work.
 
 ## Open
 
+### A76 - the templates asked for diagrams first and for rendered Mermaid, and nothing measured either
+
+**Found 2026-10-05, reviewing `AminBlg/SimpleEnglish` for what it could give the phase
+documents.** All six templates say "diagram a mechanism; tabulate a set; write prose only
+for what neither can hold" and "Mermaid renders, or it is not evidence". The gate counted
+one diagram per document and did not render any. The prose had no written rules at all.
+
+Change: `references/technical-writing.md` (a diagram chooser, and prose rules adapted from
+SimpleEnglish), a `readability` group in `validate_phase_conformance.py` that warns and
+never fails, and `--render`, which renders every block with `mmdc` and fails on a broken one.
+
+**Measured on EN documents only.** The reference set raises a few warnings: a section
+with no diagram, a synthesis section with far more prose than diagrams, long sentences
+and hedges. A live application's documents raise more, mostly long sentences. Every
+diagram measured renders.
+
+Not yet known: whether the thresholds (300 prose words per diagram, 10 sentences over 30
+words) match what a developer finds hard. They are calibrated on two applications. The
+group does not measure VI or JA, which inherit the EN structure.
+
 ### A75 - a person is asked in ten places, and the register knows none of it
 
 **Found 2026-10-01, asking what a developer would have to decide on A06 and finding no list

@@ -86,6 +86,8 @@ document is JP-primary, with a Romaji alias for cross-reference. Never translate
      night before was in the document, four sections deep, in prose.
 
      Diagram a mechanism; tabulate a set; write prose only for what neither can hold.
+     `references/technical-writing.md` holds the rules: which diagram for which shape,
+     and how to write the prose that remains.
      One required diagram per phase is a floor, not a budget. Reach for one whenever the
      thing being described has a shape: an order of steps, a cycle, a lifecycle with a
      failure branch, a fan-out from one object to many, or three artefacts that should

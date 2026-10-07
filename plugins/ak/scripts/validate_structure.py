@@ -33,7 +33,7 @@ REQUIRED_FILES = (
     "tests/adapters/test_base.py", "tests/adapters/test_imported_sources.py", "tests/adapters/test_managed_access.py", "tests/adapters/test_msaccess_vcs.py", "tests/adapters/test_sql_server.py",
     "orchestration/roles.json", "orchestration/waves.json", "orchestration/merge-policy.json", "orchestration/conflict-policy.json", "orchestration/runtime-adapters.json",
     "references/manifest.example.yaml", "references/agent-compatibility.md", "references/presentation-guidance.md", "references/orchestration-guide.md",
-    "references/capability-matrix.md", "references/access-extraction-guide.md", "references/module-and-build-context.md", "references/fact-derivation.md",
+    "references/capability-matrix.md", "references/access-extraction-guide.md", "references/module-and-build-context.md", "references/fact-derivation.md", "references/technical-writing.md",
     "templates/phase1-data-understanding.md", "templates/phase2-screen-analysis.md", "templates/phase3-logic-processing.md",
     "templates/phase4-workflow-reconstruction.md", "templates/phase5-document-integration.md", "templates/phase6-synthesis.md",
     "templates/question-list.md", "templates/qa-report.md", "templates/traceability-matrix.csv", "templates/e2e-trace.html",
