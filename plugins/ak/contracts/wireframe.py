@@ -15,8 +15,11 @@ operator never sees, and proposes nothing about the replacement.
 Limits, stated where they bite:
   - Positions are twips in the definition and pixels here, at 15 twips to a pixel, which
     is how Access maps them at 96 DPI. Fonts are not read, so text is approximate.
-  - Controls on different pages of a tab control share coordinates and are drawn on top
-    of one another.
+  - Controls on different pages of a tab control share coordinates; each is tagged with
+    its page, and the page draws one page at a time.
+  - A combo or list box's choices are what its definition declares. One whose row source
+    is assigned in the form's code names the procedure that assigns it; what that
+    procedure assigns is in the procedure, not here.
   - A section whose height the definition does not state is sized to its controls.
 """
 from __future__ import annotations
@@ -57,9 +60,10 @@ def pixels(twips: Any) -> int:
 
 
 def _unquote(value: str) -> str:
+    """A quoted definition value, unquoted. The export writes a quote inside one as `\\"`."""
     value = value.strip()
     if len(value) >= 2 and value[0] == value[-1] == '"':
-        return value[1:-1].replace('""', '"')
+        return value[1:-1].replace('\\"', '"').replace('""', '"')
     return value
 
 
@@ -102,6 +106,111 @@ def layout(text: str) -> dict[str, Any]:
             "sections": sections}
 
 
+END = re.compile(r"^\s*End\s*$")
+CONTINUATION = re.compile(r'^\s*"')
+CODE_BEHIND = re.compile(r"^\s*CodeBehindForm\s*$", re.M)
+PROCEDURE = re.compile(r"^\s*(?:(?:Private|Public|Friend|Static)\s+)*(?:Sub|Function|Property\s+\w+)\s+(\w+)",
+                       re.I)
+ROW_SOURCE_SET = re.compile(r"(?:\bMe\s*[.!]\s*)?\[?(\w+)\]?\s*\.\s*RowSource\s*=", re.I)
+
+
+def definitions(text: str) -> dict[str, dict[str, Any]]:
+    """Each named control's own properties, keyed by name, as the definition text writes them.
+
+    A property sits one level inside its control's `Begin`; a value too long for one line
+    goes on in quoted lines below it, and those are joined. A block closes only at an `End`
+    level with its `Begin`, so the `End` of a binary property written as `PrtMip = Begin`
+    closes nothing. Blocks with no `Name` are the form's defaults for a control type and
+    are skipped. `order` is the position in the text, which is the order Access keeps a tab
+    control's pages in.
+    """
+    head = CODE_BEHIND.split(text, 1)[0]
+    found: dict[str, dict[str, Any]] = {}
+    stack: list[dict[str, Any]] = []
+    order = 0
+    for line in head.splitlines():
+        indent = len(line) - len(line.lstrip())
+        begin = BEGIN.match(line)
+        if begin or line.strip() == "Begin":
+            order += 1
+            stack.append({"block": begin.group(2) if begin else "", "indent": indent,
+                          "props": {}, "last": None, "order": order})
+            continue
+        if END.match(line):
+            if stack and stack[-1]["indent"] == indent:
+                done = stack.pop()
+                name = done["props"].get("Name")
+                if done["block"] and name:
+                    found[name] = {"block": done["block"], "order": done["order"],
+                                   "props": done["props"]}
+            continue
+        if not stack:
+            continue
+        top = stack[-1]
+        prop = PROPERTY.match(line)
+        if prop and indent == top["indent"] + 4:
+            top["props"][prop.group(2)] = _unquote(prop.group(3))
+            top["last"] = prop.group(2)
+        elif CONTINUATION.match(line) and top["last"] and indent > top["indent"] + 4:
+            top["props"][top["last"]] += _unquote(line)
+    return found
+
+
+def assigned_in_code(text: str) -> dict[str, list[str]]:
+    """Control name -> the procedures in the form's own code that assign it a row source.
+
+    VBA allows no statement outside a procedure, so every assignment has one to name.
+    """
+    parts = CODE_BEHIND.split(text, 1)
+    found: dict[str, list[str]] = {}
+    procedure = ""
+    for line in (parts[1] if len(parts) == 2 else "").splitlines():
+        head = PROCEDURE.match(line)
+        if head:
+            procedure = head.group(1)
+        for match in ROW_SOURCE_SET.finditer(line.split("'", 1)[0]):  # a comment assigns nothing
+            where = found.setdefault(match.group(1), [])
+            if procedure and procedure not in where:
+                where.append(procedure)
+    return found
+
+
+def _whole(value: Any, default: int) -> int:
+    try:
+        return int(str(value).strip())
+    except (TypeError, ValueError):
+        return default
+
+
+def choices(props: dict[str, str], set_by: list[str]) -> dict[str, Any]:
+    """What a combo or list box offers, from its definition.
+
+    A column whose width is zero shows nothing, which is how a list carries a key it does
+    not show: `1134;0;3402` binds the first column and shows the first and third. Access
+    stores a width of one twip for the same purpose, and that rounds to zero here too.
+    """
+    count = max(1, _whole(props.get("ColumnCount"), 1))
+    widths = [w for w in str(props.get("ColumnWidths") or "").split(";") if w.strip() != ""]
+    shown = [i + 1 for i in range(count) if i >= len(widths) or pixels(widths[i]) > 0]
+    kind = props.get("RowSourceType") or "Table/Query"
+    source = props.get("RowSource") or ""
+    values: list[list[str]] = []
+    if kind == "Value List" and source:
+        cells = [_unquote(v) for v in source.split(";")]
+        values = [cells[i:i + count] for i in range(0, len(cells), count)]
+    return {
+        "row_source_type": kind,
+        "row_source": source,
+        "set_by_code": list(set_by),
+        "columns": count,
+        "shown_columns": shown,
+        "bound_column": _whole(props.get("BoundColumn"), 1),
+        "control_source": props.get("ControlSource") or "",
+        "limit_to_list": str(props.get("LimitToList") or "") in ("NotDefault", "-1", "True"),
+        "values": values,
+    }
+
+
 def _section(value: Any) -> int:
     try:
         return int(value)
@@ -125,6 +234,7 @@ def control(record: dict[str, Any]) -> dict[str, Any]:
         "on_click": str(record.get("on_click") or ""),
         "tooltip": str(record.get("tooltip") or ""),
         "visible": record.get("visible") is not False,
+        "parent": str(record.get("parent") or ""),
     }
 
 
@@ -147,11 +257,48 @@ def decisions_for(queue: dict[str, Any] | None, name: str, ident: str) -> list[d
     return sorted(found, key=lambda d: str(d.get("id")))
 
 
+def _enrich(drawn: list[dict[str, Any]], defs: dict[str, dict[str, Any]],
+            set_by: dict[str, list[str]]) -> list[dict[str, Any]]:
+    """Tag each control with its tab page, give each tab control its pages, and each list
+    its choices. A tab page is not drawn: it has the tab control's geometry, and the tab
+    control draws it as a tab.
+
+    A control's page is found up its parents: an option button's parent is its option
+    group, and the group's parent is the page.
+    """
+    by_name = {c["name"]: c for c in drawn}
+    pages = {c["name"] for c in drawn if c["type"] == 124}
+
+    def page_of(c: dict[str, Any]) -> str:
+        seen = set()
+        parent = c["parent"]
+        while parent in by_name and parent not in seen:
+            if parent in pages:
+                return parent
+            seen.add(parent)
+            parent = by_name[parent]["parent"]
+        return ""
+
+    for c in drawn:
+        c["page"] = page_of(c)
+        if c["type"] in (110, 111):
+            c["list"] = choices((defs.get(c["name"]) or {}).get("props") or {},
+                                set_by.get(c["name"], []))
+        if c["type"] == 123:
+            mine = [p for p in drawn if p["type"] == 124 and p["parent"] == c["name"]]
+            mine.sort(key=lambda p: ((defs.get(p["name"]) or {}).get("order", 1 << 30), p["name"]))
+            c["pages"] = [{"name": p["name"],
+                           "caption": p["caption"] or ((defs.get(p["name"]) or {}).get("props") or {})
+                           .get("Caption", "") or p["name"], "visible": p["visible"]} for p in mine]
+    return [c for c in drawn if c["type"] != 124]
+
+
 def screen(item: dict[str, Any], controls: Iterable[dict[str, Any]], ident: str,
            queue: dict[str, Any] | None, title: str = "") -> dict[str, Any]:
     """One form: its geometry, its controls in drawing order, and what is open about it."""
-    shape = layout(str(item.get("text") or ""))
-    drawn = sorted((control(c) for c in controls),
+    text = str(item.get("text") or "")
+    shape = layout(text)
+    drawn = sorted(_enrich([control(c) for c in controls], definitions(text), assigned_in_code(text)),
                    key=lambda c: (SECTION_ORDER.index(c["section"]) if c["section"] in SECTION_ORDER
                                   else len(SECTION_ORDER), c["top"], c["left"], c["name"]))
     sections = []
