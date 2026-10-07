@@ -17,7 +17,10 @@ do not guess a screen from recent conversation context.
 the Stage 1 scope report (`screen_scope.py`), `Screen_plans/{screen}.md`, `Coding_Records/{screen}.md`,
 `Test_Instruction/{screen}.md`, the code files the coding record cites, every traceability row
 for the screen, and the open `Known_Issues.md` rows for the screen and module. These reads are
-independent — issue them together.
+independent — issue them together. If the screen has a `PARITY.json` from `screen_parity.py`, read it too:
+its verdict was computed from the bytes, so do not re-judge parity by eye. A `differs-approved` case is a
+difference a person accepted; check its reason. Where the screen produces a file or a response and no
+`PARITY.json` exists, say so as a finding.
 
 If any of the first four is missing, say which and review only what exists. A review that
 silently covers less than it appears to is the failure this stage exists to prevent.
