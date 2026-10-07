@@ -108,7 +108,7 @@ def test_readme_sends_the_reader_to_the_errata_first() -> None:
     text = read("readme.md")
     first = text[text.index("## 1."):text.index("## 2.")]
     assert "Read the errata first" in first
-    # The page `$ak errata` writes, not a section of a phase that may not exist yet (A77).
+    # The page `$ak errata` writes, not a section of a phase that may not exist yet (A81).
     assert "{{APP_ID}}_Errata.md" in first
 
 

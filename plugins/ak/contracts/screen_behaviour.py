@@ -63,15 +63,21 @@ TYPE_TEXTBOX = 109
 TYPE_LISTBOX = 110
 TYPE_COMBOBOX = 111
 TYPE_SUBOBJECT = 112
-TYPE_TOGGLE = 119
+# Access's `AcControlType`: 119 is `acCustomControl` and 122 is `acToggleButton`. This
+# file once had 119 as the toggle, so a calendar ActiveX was printed as a toggle and
+# could be offered as an option group's choice, while every real toggle went unlisted.
+TYPE_CUSTOM = 119
+TYPE_TOGGLE = 122
 
+# What can sit inside an option group as one of its values. A custom control cannot:
+# it has no `OptionValue`, whatever it does on the screen.
 TYPE_CHOICE = (TYPE_OPTION_BUTTON, TYPE_CHECKBOX, TYPE_TOGGLE)
 # What a reader has to decide about, as against what only positions the eye.
 TYPE_INTERACTIVE = {
     TYPE_BUTTON: "button", TYPE_OPTION_GROUP: "option group",
     TYPE_COMBOBOX: "combo box", TYPE_LISTBOX: "list box",
     TYPE_SUBOBJECT: "subform / subreport", TYPE_CHECKBOX: "check box",
-    TYPE_TOGGLE: "toggle",
+    TYPE_TOGGLE: "toggle", TYPE_CUSTOM: "custom control (ActiveX)",
 }
 TYPE_DECORATION = {TYPE_LABEL: "label", TYPE_RECTANGLE: "rectangle", TYPE_LINE: "line"}
 

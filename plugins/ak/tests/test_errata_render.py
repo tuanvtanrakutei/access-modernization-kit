@@ -1,4 +1,4 @@
-"""The errata register has a page a person can read, and the page cannot fall behind it (A77).
+"""The errata register has a page a person can read, and the page cannot fall behind it (A81).
 
 Phase documents cite `E-nn` as soon as a correction is made (A67), and the register was meant
 to be rendered at the head of Phase 6. A project that had not reached Phase 6 had entries cited
