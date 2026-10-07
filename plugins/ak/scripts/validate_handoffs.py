@@ -93,7 +93,9 @@ def _legacy_conflict_blocks(
     conflict: dict, wave: str | None, publication_phase: int | None
 ) -> bool:
     return bool(
-        (wave == "gate6_publish_phase6" or publication_phase == 6)
+        # A78. This held the Phase 6 gate. With Phase 6 retired, QA is the gate that
+        # accepts the run's account of the system, so it is the one these block.
+        wave == "wave6_independent_qa"
         and conflict["severity"] in LEGACY_BLOCKING_CONFLICT_SEVERITIES
     )
 
@@ -109,7 +111,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--wave")
     parser.add_argument("--require-complete", action="store_true")
     parser.add_argument("--work-package-root")
-    parser.add_argument("--publication-phase", type=int, choices=range(1, 7))
+    parser.add_argument("--publication-phase", type=int, choices=range(1, 6))
     return parser.parse_args()
 
 

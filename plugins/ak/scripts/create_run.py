@@ -36,7 +36,6 @@ RUN_DIRS = (
     "outputs",
     "derived/e2e",
     "derived/boundary",
-    "derived/presentation",
 )
 
 
@@ -157,7 +156,7 @@ def _manifest_contract():
     return manifest_v22
 
 
-REQUESTABLE_PHASES = ("phase4", "phase5", "phase6")
+REQUESTABLE_PHASES = ("phase4", "phase5")
 
 
 def requested_phases(text: str) -> dict[str, bool]:

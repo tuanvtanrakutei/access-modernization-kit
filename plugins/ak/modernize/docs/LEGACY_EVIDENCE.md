@@ -21,10 +21,10 @@ The evidence sub-check of coverage gate **G2** (see `TRACEBACK_GATES.md`) enforc
 - [4. Encoding](#4-encoding)
 - [5. Access Constructs Needing Explicit Mapping](#5-access-constructs-needing-explicit-mapping)
 - [6. Stage 0 Handoff Contract](#6-stage-0-handoff-contract)
-  - [6.1 The Enriched Tier — When Stage 0 Is A Six-Phase Analysis](#61-the-enriched-tier-when-stage-0-is-a-six-phase-analysis)
+  - [6.1 The Enriched Tier — When Stage 0 Is A Five-Phase Analysis](#61-the-enriched-tier-when-stage-0-is-a-five-phase-analysis)
   - [6.2 File Discovery — Match The Real Contract, Not The Template's Own Filename](#62-file-discovery-match-the-real-contract-not-the-templates-own-filename)
   - [6.3 Cross-Artifact Screen Identity — What Is Guaranteed And What Is Not](#63-cross-artifact-screen-identity-what-is-guaranteed-and-what-is-not)
-  - [6.4 Why Pre-Flight Checks Exactly `phase2`/`phase4`/`phase6`, Not Fewer Or More](#64-why-pre-flight-checks-exactly-phase2phase4phase6-not-fewer-or-more)
+  - [6.4 Why Pre-Flight Checks Exactly `phase2`/`phase4`/`phase5`, Not Fewer Or More](#64-why-pre-flight-checks-exactly-phase2phase4phase5-not-fewer-or-more)
 - [7. Evidence Sufficiency Rule](#7-evidence-sufficiency-rule)
 - [Related Documents](#related-documents)
 
@@ -185,10 +185,10 @@ Stage 0 (legacy analysis) is performed **outside this pipeline** — by tooling,
 
 Because the contract is defined in terms of files and anchors rather than tooling, replacing manual extraction with automated analysis later requires **no change to the pipeline**.
 
-### 6.1 The Enriched Tier — When Stage 0 Is A Six-Phase Analysis
+### 6.1 The Enriched Tier — When Stage 0 Is A Five-Phase Analysis
 
 Items 5–7 above are stated generically because Stage 0's producer is unspecified. When the
-producer is a six-phase legacy analysis (this plugin is designed to run after one), those three
+producer is a five-phase legacy analysis (this plugin is designed to run after one), those three
 optional items exist concretely, and become the **primary** Stage 1 input rather than a bonus:
 
 | Optional item above | Concrete artifact | Format |
@@ -271,34 +271,39 @@ script guessing two strings mean the same screen is exactly the kind of unverifi
 row to a registered screen, that omission is itself a G1/G2 finding to raise, not silently
 resolve.
 
-### 6.4 Why Pre-Flight Checks Exactly `phase2`/`phase4`/`phase6`, Not Fewer Or More
+### 6.4 Why Pre-Flight Checks Exactly `phase2`/`phase4`/`phase5`, Not Fewer Or More
 
-`ak`'s own `orchestration/waves.json` publishes phases strictly sequentially — each phase's
-publish gate depends on the previous phase's publish gate, with no parallel path between them
-(`gate_graph_phaseN` always depends on `gateN-1_publish_phaseN-1`). One consequence: `phase6:
-PUBLISHED` cannot occur unless phases 1–5 already are. So checking `phase2`/`phase4`/`phase6`
-is, under `ak` 2.7.3's own orchestration, equivalent to checking that the whole six-phase run
-is done — `phase6` alone would currently be logically sufficient.
+`ak`'s own `orchestration/waves.json` publishes phases strictly sequentially - each phase's
+publish gate depends on the previous phase's publish gate, with no parallel path between them.
+One consequence: `phase5: PUBLISHED` cannot occur unless phases 1-4 already are, so checking
+`phase5` alone would currently be logically sufficient.
 
-Pre-flight checks the three explicitly anyway, and should keep doing so: relying on `phase6`
-alone hard-codes today's dependency chain from `waves.json` into this pipeline. If a future
-`ak` version parallelizes phases (2.8 is in progress; nothing says it will not), a check
-against `phase6` alone would silently stop being sufficient, while `phase2`/`phase4`/`phase6`
-stay correct because they name the actual phases whose *content* this pipeline reads (Phase 2)
-or whose *gate* it needs as a readiness signal for Stage 1 (Phase 4, Phase 6) — not because of
-how many gates happen to be implied by which other gates this month.
+Pre-flight checks the three explicitly anyway, and should keep doing so: relying on the last
+phase alone hard-codes today's dependency chain from `waves.json` into this pipeline. If a
+future `ak` version parallelizes phases, a check against one gate would silently stop being
+sufficient, while `phase2`/`phase4`/`phase5` stay correct because they name the phase whose
+*content* this pipeline reads (Phase 2) and the gates it needs as a readiness signal for
+Stage 1 (Phase 4, Phase 5) - not because of how many gates happen to be implied by which other
+gates this month.
 
-**Updated 2026-09-07: a fourth status.** `ak` now treats phases 4-6 as requestable rather
-than assumed - `outputs.phases` in the manifest, defaulting to requested - because each of
-them degrades without DOCUMENT or INTERVIEW evidence that nothing upstream of them collects
-(backlog A19). A phase a project did not ask for carries `NOT_REQUESTED` in `run-state.json`
-from creation onwards, and pre-flight treats that as **satisfied**, not as a blocker: the
-project said it does not produce that document, and this pipeline reads neither phase 4's nor
-phase 6's content anyway.
+**Phase 6 was retired (`ak` backlog A78).** The third name used to be `phase6`, the synthesis.
+It restated phases 1-5 in one document, and this pipeline never read its content - only its
+gate. What it consolidated is now kept where it is found: risks, unknowns and assumptions in
+the identifier register (read through `DecisionQueue.json`, §6.1), corrections in the errata
+register, rendered as `{APP}_Errata.md`. A `run-state.json` written before the retirement may
+still carry `phase6`; pre-flight ignores it, whatever its status.
+
+**`NOT_REQUESTED`.** `ak` treats phases 4 and 5 as requestable rather than assumed -
+`outputs.phases` in the manifest, defaulting to requested - because each of them degrades
+without DOCUMENT or INTERVIEW evidence that nothing upstream of them collects (backlog A19). A
+phase a project did not ask for carries `NOT_REQUESTED` in `run-state.json` from creation
+onwards, and pre-flight treats that as **satisfied**, not as a blocker: the project said it
+does not produce that document, and this pipeline reads neither phase 4's nor phase 5's
+content.
 
 The declaration is reversible, which matters for reading a `NOT_REQUESTED` gate: it means
 "not asked for as of now", not "ruled out". Setting the manifest key back to `true` promotes
-the gate on the next advance, so a screen planned today without phase 6 may sit beside one
+the gate on the next advance, so a screen planned today without phase 5 may sit beside one
 planned next week with it. Say which in the pre-flight announcement rather than leaving a
 reader to assume the run was uniform.
 
@@ -308,17 +313,10 @@ could produce it (its backlog A20). So a `NOT_REQUESTED` gate is always a choice
 made, never a finding, and pre-flight should read it that way: ask whether the project wants
 the document, not whether the analysis could have written it.
 
-The reasoning above still holds for the three names. What changed is that two of the three
-can now legitimately never reach `PUBLISHED`, so a check that only accepts `PUBLISHED` would
-stop a screen that has everything it needs.
-
-Separately: `phase4-workflow-reconstruction.md` and `phase6-synthesis.md`'s **content** is
-currently read by no script and cited by no Stage 2 instruction in this pipeline — only their
-*gate status* matters mechanically. An agent doing Stage 2 work may still find it useful
-reading material (Phase 6 in particular synthesizes Business Rules, Workflows and Risks in
-one place), but that is a judgment call today, not a documented requirement. If that gap is
-worth closing, the concrete step would be adding "read `{{AK_RUN_DIR}}`'s Phase 6 document for
-scoping context" to the Pre-Flight Check list — not building anything new.
+Separately: the **content** of `phase4-workflow-reconstruction.md` and
+`phase5-document-integration.md` is read by no script in this pipeline - only their *gate
+status* matters mechanically. Phase 4's workflows reach Stage 1 through
+`TraceabilityMatrix.csv`, which `screen_scope.py` reads.
 
 ## 7. Evidence Sufficiency Rule
 

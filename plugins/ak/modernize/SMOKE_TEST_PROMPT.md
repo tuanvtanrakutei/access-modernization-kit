@@ -1,4 +1,4 @@
-# Smoke Test Prompt — Six-Phase Investigation → Modernize Bootstrap
+# Smoke Test Prompt — Five-Phase Investigation → Modernize Bootstrap
 
 Paste this whole file as your first message in a fresh session. It is self-contained —
 no prior conversation context needed.
@@ -6,8 +6,8 @@ no prior conversation context needed.
 ## Goal
 
 `plugins/ak/modernize/BACKLOG.md` entry D2 (and the G-series follow-ups after it) have never
-been exercised against a **real** six-phase run — only against hand-built fixtures in a
-scratchpad. This is the one remaining gap. Close it: run the six-phase investigation for
+been exercised against a **real** five-phase run — only against hand-built fixtures in a
+scratchpad. This is the one remaining gap. Close it: run the five-phase investigation for
 real on a tiny synthetic app, then bootstrap a modernize project from its real output, and
 report exactly what broke, if anything.
 
@@ -79,25 +79,25 @@ pass, but `phase-readiness.json` is expected to remain honest: Phases 1, 2, 3, 4
 `BLOCKED`; Phase 5 is `LIMITED`. If any blocked phase becomes `READY`, investigate which new
 capability caused it — do not accept a greener result without matching evidence.
 
-**Stop here for the current fixture.** It proves the acquisition seam, not the six-phase
+**Stop here for the current fixture.** It proves the acquisition seam, not the five-phase
 publication seam. Current deterministic scripts do not execute agent analysis or validate the
 canonical Phase documents, so they cannot produce a valid `AK_RUN_DIR` from this fixture by
 themselves. Record the readiness statuses, skip Steps 3–4, and continue to Step 5. Never add
 capability declarations or `PUBLISHED` states solely to force the smoke forward.
 
-## Step 3 — Run the six phases for real, yourself, as the `investigate` skill
+## Step 3 — Run the five phases for real, yourself, as the `investigate` skill
 
 `ak.py` has no `run`/`phase` subcommand on purpose — analyzing legacy VBA/SQL and writing
 Phase documents is agent work, not a deterministic script. Read `plugins/ak/skills/investigate/SKILL.md`
 and `plugins/ak/specifications/senior-system-analyst-instruction.md`, then produce, for real,
 for app `DEMO`:
 
-- Phase 1–6 documents, named per `plugins/ak/specifications/output-contract.yaml`:
-  `DEMO_Phase1_DataUnderstanding_EN.md` … `DEMO_Phase6_Synthesis_EN.md`. **Phase 2 §1
+- Phase 1–5 documents, named per `plugins/ak/specifications/output-contract.yaml`:
+  `DEMO_Phase1_DataUnderstanding_EN.md` … `DEMO_Phase5_DocumentIntegration_EN.md`. **Phase 2 §1
   "Screen, Form, and Report Inventory" must have at least one real row** derived from
   `DemoOrderForm.bas` — this is the one table `scan_phase2_inventory.py` actually parses.
 - `DEMO_Evidence.json`, `DEMO_TraceabilityMatrix.csv`, `DEMO_QuestionList.md`, `DEMO_QA_Report.md`.
-- `run-state.json` with `phase_gates.phase2`, `.phase4`, `.phase6` all reaching `"PUBLISHED"`.
+- `run-state.json` with `phase_gates.phase2`, `.phase4`, `.phase5` all reaching `"PUBLISHED"`.
 
 It is fine for this to be a thin, honest pass over two tiny files — do not pad it. It is
 not fine to fabricate the phase_gates state without actually producing the content those

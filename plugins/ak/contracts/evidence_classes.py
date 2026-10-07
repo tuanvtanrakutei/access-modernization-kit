@@ -207,7 +207,7 @@ def phase_status(
     if not needs:
         return {"phase": phase, "known": False, "blocking": [], "degradations": []}
 
-    required = [name for name in needs.get("required", []) if name != "PRIOR_PHASES"]
+    required = list(needs.get("required", []))
     blocking = [name for name in required if name not in present]
 
     degradations: list[dict[str, str]] = []

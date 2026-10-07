@@ -24,7 +24,7 @@ body:
       options:
         - label: The proposal can be demonstrated using synthetic data.
           required: true
-        - label: The proposal preserves coordinator-only merge and six-phase publication order.
+        - label: The proposal preserves coordinator-only merge and five-phase publication order.
           required: true
         - label: The proposal does not require CodeWiki as a dependency.
           required: true

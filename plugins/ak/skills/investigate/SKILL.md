@@ -1,6 +1,6 @@
 ---
 name: investigate
-description: "Analyze Microsoft Access VBA applications and MDB/ACCDB/ADP projects connected to SQL Server through a mandatory six-phase, evidence-backed legacy-system investigation with Access extraction, deterministic module planning, and provider-neutral multi-agent orchestration. Use when an agent must package, initialize, analyze, review, or continue investigation of an Access-family satellite app and produce Phase documents, E2E traces, boundary maps, question lists, QA, or presentation inputs. Examples: \"$ak help\", \"$ak init A99\", \"$ak assess A99\", \"$ak run A99\", \"initialize a workspace for A99\"."
+description: "Analyze Microsoft Access VBA applications and MDB/ACCDB/ADP projects connected to SQL Server through a mandatory five-phase, evidence-backed legacy-system investigation with Access extraction, deterministic module planning, and provider-neutral multi-agent orchestration. Use when an agent must package, initialize, analyze, review, or continue investigation of an Access-family satellite app and produce Phase documents, E2E traces, boundary maps, question lists, errata, or QA. Examples: \"$ak help\", \"$ak init A99\", \"$ak assess A99\", \"$ak run A99\", \"initialize a workspace for A99\"."
 ---
 
 # Access Modernization Kit V2.11.0
@@ -16,7 +16,7 @@ Treat these short forms as explicit user requests. They are agent commands, not 
 **Typical flow for one app, in order:** `init` → `assess` → `acquire` → `derive` →
 `documents` → `phase`/`run` → `citations`/`conformance` → `status` → `render`. Each later step depends on the one before it — `acquire` needs a
 workspace from `init`; `phase`/`run` need an approved bundle from `acquire`; `render` needs
-Phase 6 and QA gates already passed. `help` and `install ...` are one-time housekeeping, not
+the QA gate already passed. `help` and `install ...` are one-time housekeeping, not
 part of this per-app sequence — most users only ever need them once, if at all.
 
 | User input | Required action |
@@ -37,18 +37,19 @@ part of this per-app sequence — most users only ever need them once, if at all
 | `$ak bilingual --app-root <PATH>` | Print the English name beside every production name in the narratives. |
 | `$ak meanings --app-root <PATH>` | List every table and column still needing a business meaning, blank, for a person to fill. An entry must name its source or it is ignored. |
 | `$ak decisions --app-root <PATH>` | Build `{APP}_QuestionList.md` and `{APP}_DecisionQueue.json` from the identifier register (A75): one agenda per party in the order to ask it, blocking items before ones that proceed on a default, what is already with the customer, and what the bundle answered on its own. `--party NAME` prints one agenda to paste; `--link Q5=5` records that an item was posted as a Q&A; `--decide --by NAME` puts the decider's open dispositions to them (`ok` accepts every default, `3=preserve` overrides one) and records each answer as TARGET_INTENT evidence; `--assume Q5 --that TEXT --if-wrong TEXT --by NAME` gives an open question with no default an assumption to proceed on (a new `AS-`, allocated in the question's phase), so what it blocks stops blocking while the question stays open (A80) - the command prints the phase document edits that keep the gate agreeing. Risks a decided rule in `input/decisions/policy.yaml` covers are settled without being asked, and listed as settled. An open question that quotes a control the ScreenCatalogue's `Offers` column enumerates, or a table or column `meanings.yaml` explains, is flagged "Check before asking" (A58): it stays on the list, and withdrawing it is a person's decision. Run it after each phase gate. |
+| `$ak errata --app-root <PATH>` | Render `{APP}_Errata.json` as `{APP}_Errata.md`, the page the README sends a reader to first: every published claim a later reading corrected, what is true, and which sections carried it (A81). Generated, never edited by hand; the phase gate's `errata_rendered` check fails a page that has fallen behind its register. Run it whenever an `E-` entry is written. |
 | `$ak backfill-needs --app-root <PATH>` | Give a workspace's open questions the `needs` block the decision queue reads (A75): who can answer, what waits on it, what the pipeline proceeds on meanwhile. It proposes from the phase documents and marks what it could not read `UNDECIDED`; `--apply` writes the reviewed proposal and refuses one that still has a `UNDECIDED`. Each open risk is proposed as a disposition for the decider, proceeding on its Mitigation, with its `class` left for you to set; the first run also drafts `input/decisions/policy.yaml`, every rule proposed and none in force. It copies each open assumption's "If wrong" sentence into the register as `if_wrong`, the refresh set an answer that contradicts the assumption has to correct (ID-12, ID-13). |
 | `$ak interviews --app-root <PATH>` | Read the Q&A register and the pages it indexes, and report where they disagree: a question marked answered whose page holds no answer, one still open, one the register does not list. |
 | `$ak samples --app-root <PATH>` | Compare each supplied sample with the import specification its link names: field count, header names, and `StartRow`. |
 | `$ak completeness --app-root <PATH>` | Record each object's definition-text shape and compare it with the last record and the other acquisition route. Integrity says the bytes arrived; this says whether all of them did. |
 | `$ak references --app-root <PATH>` | List every source this analysis read, with the digest that says which copy. |
 | `$ak status <APP_ID>` | Report app/run/phase/QA status without changing evidence or outputs. |
-| `$ak render <APP_ID> [LANGUAGE]` | Render declared outputs only after the required Phase 6, traceability, and QA gates pass. |
+| `$ak render <APP_ID> [LANGUAGE]` | Render declared outputs only after the traceability and QA gates pass. |
 | `$ak help` | Show this guide again; does not modify an app workspace. |
 | `$ak install codex` | One-time, and only if you did **not** already use `codex plugin add` to install this package — explains that `$ak` is already installed as a Codex plugin, and does not create a manual skill link. Skip this if you installed from the marketplace. |
 | `$ak install claude <PROJECT_PATH>` | One-time, and only for pinning this package into one specific project **without** going through `/plugin install` — runs `scripts/ak.py install --runtime claude --project <PROJECT_PATH>`, reports the discovery path and restart requirement. Skip this if you installed from the marketplace. |
 
-This table covers six-phase investigation only — `$ak help` does not describe or run the
+This table covers five-phase investigation only — `$ak help` does not describe or run the
 separate modernization pipeline this package also ships (`bootstrap-project`,
 `modernize-screen`, `validate-docs`, `triage-suite`, `plan-screen`, `code-screen`,
 `test-screen`, `review-screen`, `screen-status` skills). Invoke those directly by name or
@@ -62,8 +63,8 @@ Accept the equivalent Vietnamese or plain-language request. If an app ID is omit
 1. Use **package mode** when asked to create, install, validate, or modify this kit. Do not analyze the reference set or another app unless the user separately authorizes a trial.
 2. Use **app initialization mode** when asked to scaffold a new app workspace. For a non-empty existing project, require explicit --app-root and --adopt-existing; never overwrite files, then stop unless analysis is also requested.
 3. Use **investigation mode** only when asked to run one or more phases for a named app.
-4. Use **rendering mode** only after Phase 6 and traceability validation are complete.
-5. Use **orchestration mode** when the user requests multi-agent execution. Parallelize evidence collection and affected leaf modules, but publish the six phases sequentially through coordinator-owned gates.
+4. Use **rendering mode** only after independent QA and traceability validation are complete.
+5. Use **orchestration mode** when the user requests multi-agent execution. Parallelize evidence collection and affected leaf modules, but publish the five phases sequentially through coordinator-owned gates.
 
 ## Load the mandatory contracts
 
@@ -77,7 +78,7 @@ Before investigation work, read these files completely:
 - `specifications/language-support.yaml`
 - The target app's `manifest.yaml`
 
-Read only the phase template needed for the current phase. Before writing or revising a phase document, read `references/technical-writing.md`. Before any Phase/run request, read `references/fact-derivation.md`, `specifications/evidence-classes.yaml`, `specifications/identifier-scheme.yaml` and `specifications/errata-contract.yaml`. Read `references/presentation-guidance.md` only when generating a presentation. Read `references/agent-compatibility.md` only when installing or adapting the kit for another agent runtime.
+Read only the phase template needed for the current phase. Before writing or revising a phase document, read `references/technical-writing.md`. Before any Phase/run request, read `references/fact-derivation.md`, `specifications/evidence-classes.yaml`, `specifications/identifier-scheme.yaml` and `specifications/errata-contract.yaml`. Read `references/agent-compatibility.md` only when installing or adapting the kit for another agent runtime.
 
 For multi-agent work, also read `references/orchestration-guide.md`, `orchestration/roles.json`, `orchestration/waves.json`, and `orchestration/runtime-adapters.json`. When Access binaries, compilation databases, or module planning are present, also read `references/access-extraction-guide.md` and `references/module-and-build-context.md`.
 
@@ -122,14 +123,15 @@ For multi-agent work, also read `references/orchestration-guide.md`, `orchestrat
 - Compilation databases are optional read-only context for compiled languages. Clang/libclang is conditional enrichment, not a requirement and not an Access/VBA parser.
 - Access-specific build context includes Access version/bitness, VBA references and broken references, conditional constants, startup form, AutoExec, linked tables, and redacted ADP connection metadata.
 
-## Run the six phases in order
+## Run the five phases in order
 
 1. **Phase 1 — Data Understanding:** inventory tables, columns, keys, relationships, entities, stored logic, and business-level data structure.
 2. **Phase 2 — Screen & Form Analysis:** inventory every relevant form/report, purpose, actions, events, validations, navigation, and triggered logic.
 3. **Phase 3 — Logic & Processing:** trace VBA actions to SQL, stored logic, file operations, calculations, filters, updates, error handling, and transaction boundaries.
 4. **Phase 4 — Workflow Reconstruction:** build user-to-output flows and cover create, update, approval, and reporting; mark unsupported use cases as evidence-backed `Not identified` or `Not applicable`.
 5. **Phase 5 — Document Integration:** translate Japanese XLSX/PDF rules, compare them with observed code and data behavior, and record mismatches without silently choosing a winner.
-6. **Phase 6 — Synthesis:** produce system overview, entities/data model, screens/functions, business rules, E2E workflows, risks/legacy issues, and assumptions/unknowns.
+
+There is no Phase 6 (A78). What a synthesis used to restate is kept where it is found: risks, unknowns and assumptions in the identifier register (`$ak decisions` lists what is open), corrections in the errata register (`$ak errata`), the enumeration in the catalogues, and the roadmap in the modernization pipeline. A workspace published before keeps its Phase 6 document; the conformance gate does not check it.
 
 Do not skip a phase because sources appear incomplete. Produce a scoped gap report and open questions instead.
 
@@ -138,7 +140,7 @@ Do not skip a phase because sources appear incomplete. Produce a scoped gap repo
 - For new multi-developer kit or application work, require a schema-valid work package and an approved `scope_acceptance` receipt before projecting run tasks.
 - Run collaboration conflict detection before execution. Do not widen accepted role, module, path, evidence, dependency, or publication scope in a projected task.
 - Require contract-impact records for contract-sensitive changes and bind implementation or publication review to the exact changed artifact set.
-- Follow `docs/collaboration/contributor-workflow.md` and `docs/collaboration/application-team-workflow.md`; do not duplicate the six-phase pipeline in team instructions.
+- Follow `docs/collaboration/contributor-workflow.md` and `docs/collaboration/application-team-workflow.md`; do not duplicate the five-phase pipeline in team instructions.
 - Create an immutable run with `scripts/create_run.py`, then provider-neutral task envelopes with `scripts/create_tasks.py`.
 - When a module plan exists, task generation fans SQL, VBA/UI, interface, and logic work out by affected leaf module. Parent and cross-module analysis consumes those handoffs.
 - Map abstract spawn, message, wait, inspect, and interrupt operations to the active runtime. Do not hard-code a provider into evidence or outputs.
@@ -147,7 +149,7 @@ Do not skip a phase because sources appear incomplete. Produce a scoped gap repo
 - Merge evidence deterministically with `scripts/merge_evidence.py`. Conflicting duplicate IDs are errors, not automatic winner selection.
 - Apply checkpoints in `orchestration/waves.json`. Phase publication stays sequential even when extraction and modules run in parallel.
 - Advance a completed wave with `scripts/advance_run.py`; use `--approve-checkpoint` only after the review occurs.
-- Require independent QA before E2E, Boundary Map, and presentation rendering.
+- Require independent QA before E2E and Boundary Map rendering. QA follows Phase 5.
 - Preserve unresolved conflicts under `orchestration/conflict-policy.json`.
 
 ## Maintain evidence while analyzing
@@ -170,7 +172,7 @@ User action -> screen/form -> VBA event -> processing/query -> table/file -> out
 - Derive only from extracted text and bundle metadata, never directly from MDB/ACCDB/ADP, snapshots, or binary documents.
 - A derived edge is navigation context and a citable count, never evidence for a claim. It says two names appear in a stated relationship; it does not say what the relationship means. A statement resting on an edge cites the file and location the edge came from.
 - Derivation matches what the sources state literally and does not parse VBA. That does not weaken line-backed extraction evidence.
-- Derived facts do not replace the six-phase contract.
+- Derived facts do not replace the five-phase contract.
 - CodeWiki is not a dependency. V2.1 independently implements component indexing, hierarchical decomposition, leaf-first ordering, session isolation, and affected-module refresh.
 
 ## Judge evidence by class, not by count
@@ -186,7 +188,6 @@ User action -> screen/form -> VBA event -> processing/query -> table/file -> out
 
 - `specifications/identifier-scheme.yaml` registers the vocabularies: `BR-`, `WF-`, `F-`, `OB-`, `RD/RA/RW/RS-`, `DISC-`, `UK-`, `AS-`, `E-`, `Q-`, `d0n`/`r0n`. Allocate in the phase that discovers the finding; cite evidence for every one.
 - A published identifier is a permanent address: never renumbered, never reused, never deleted.
-- Phase 6 consolidates rather than re-derives. A finding appearing there for the first time is either an errata entry or a mistake.
 
 ## Correct a published claim through the errata register
 
@@ -216,9 +217,9 @@ User action -> screen/form -> VBA event -> processing/query -> table/file -> out
 
 ## Apply phase gates and generate outputs
 
-Before completing each phase, verify required template sections, evidence status and locations, open questions, app isolation, and manifest language. Before HTML rendering, verify Phase 4 and traceability. Before PPTX, verify Phase 6, evidence, decisions, and presentation scope.
+Before completing each phase, verify required template sections, evidence status and locations, open questions, app isolation, and manifest language. Before HTML rendering, verify Phase 4 and traceability.
 
-Use filenames in `specifications/output-contract.yaml`. Generate only declared language variants. **Presentation output is optional and off by default** (`outputs.derived.presentation_pptx: false`); generate a PPTX only when the manifest enables it or the user explicitly requests one. For presentations, use the available presentation skill/runtime and manifest template; do not mutate PPTX through ad hoc OOXML.
+Use filenames in `specifications/output-contract.yaml`. Generate only declared language variants. There is no presentation output: the PPTX was retired with Phase 6 (A78), and a manifest's `presentation_pptx` or `presentation_template` is ignored.
 
 ## Validate without running an app
 

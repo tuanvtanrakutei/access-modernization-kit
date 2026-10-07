@@ -49,6 +49,96 @@ pre-contract prose and is not compared.
 Not done: the command does not edit the phase documents. It names the two edits; making
 them is the phase's work, in every language the document is written in.
 
+### A78 - Phase 6 restated five documents and its only reader was a presentation
+
+**Decided 2026-10-07 by the maintainer, after A81 gave the errata register a page of its
+own.** Phase 6 was a synthesis: system overview, entities, screens, rules, workflows, risks,
+assumptions and a roadmap, opening with the errata. By the time a project reached it, each
+of those already had a home: every phase allocates its own risks, unknowns and assumptions
+in the identifier register, `$ak decisions` lists what is open in the order to settle it,
+`$ak errata` renders the corrections, the catalogues carry the enumeration, and the roadmap
+is the modernization pipeline's, which plans per screen. No script read Phase 6's content
+(the modernize pre-flight read only its gate), and its one consumer was the PPTX. Both are
+retired; the PPTX is to be replaced by an HTML wireframe design, which is not specified yet.
+
+What changed:
+
+- Waves `wave5_synthesis` and `gate6_publish_phase6`, the `synthesis` and
+  `presentation_renderer` roles, and readiness for `phase6` are gone. QA depends on
+  `gate5_publish_phase5`; wave ids are not renumbered. Conflicts that blocked the Phase 6
+  gate (HIGH or CRITICAL, unresolved) now block independent QA.
+- `phase6` is no longer requestable, owns no namespace, and has no evidence needs, required
+  sections or diagrams. ID-04 (the synthesis consolidates rather than re-derives) is retired
+  and keeps its id. Its readiness capabilities (`prior_phase_outputs_accepted`,
+  `unresolved_risk_register`) are gone: no acquisition produced them, so `phase6` read
+  BLOCKED on every project that had published its other phases.
+- Templates `phase6-synthesis.md` and `presentation-storyboard.md`, and
+  `references/presentation-guidance.md`, are deleted; the preflight no longer asks for a
+  presentation runtime. "Six-phase" reads "five-phase" across the plugin and the
+  repository's current docs.
+- The modernize pre-flight checks `phase2`/`phase4`/`phase5` and ignores `phase6`.
+
+What keeps working: a manifest with `phase6`, `presentation_pptx` or
+`presentation_template` validates and the keys are ignored; a `phase-readiness.json` with
+`phase6` validates; a run sitting on a retired wave moves to QA when that wave is advanced
+(its status reads `RETIRED`, and nothing is written about Phase 6); a published Phase 6
+document is named by the conformance gate and not checked.
+
+Found on the way: `create_run` wrote `NOT_REQUESTED` into `phase_gates` and the run-state
+schema did not list it, so `validate_run_handoffs` refused every run that had declined a
+phase. The schema lists it now.
+
+Not done: the HTML wireframe design that replaces the PPTX.
+
+### A81 - errata were cited in every phase and rendered in none
+
+**Found 2026-10-07, preparing to retire Phase 6 as a document.** The errata contract put the
+rendered register at the head of Phase 6, and A67 let phases 2 to 5 write entries as soon as
+they found the error. So a project that had not reached Phase 6 cited `E-nn` throughout its
+published phases, and the only place a reader could look one up was the JSON register. The
+README sent them to a Phase 6 that did not exist. Retiring Phase 6 needs the register to have
+a home first; this is that home.
+
+Change: `$ak errata` (`scripts/build_errata.py`, `contracts/errata_render.py`) renders
+`{APP}_Errata.md` beside the phase documents: a table of every entry ordered by severity, the
+cause classes used and what each means, then one block per entry in id order with what was
+said, what is true, the passages that carried it, the source that settled it, and the evidence
+it supersedes. No date, so the same register gives the same bytes. It refuses to overwrite a
+page it did not write, writes nothing when there is no register (an absent register and an
+empty one mean different things), and exits 1 on an entry ER-03 says cannot be audited.
+`validate_phase_conformance.py` gains `errata_rendered` (apparatus): the page must exist and
+match what `$ak errata` would write now. The README template sends the reader to the page
+first; Phase 6's errata section points at it instead of copying it; `errata-contract.yaml`,
+`identifier-scheme.yaml` and `output-contract.yaml` name it.
+
+Not done: the page is English whatever the phase documents' languages are, because the
+register's text is written once. Nothing runs `$ak errata` for you; the gate only notices when
+it was not run. Phase 6 itself is unchanged here.
+
+### A77 - a control type code was guessed, so an ActiveX control was printed as a toggle
+
+**Found 2026-10-07, reading a catalogue's interactive-controls table against the
+definitions.** `contracts/screen_behaviour.py` named type 119 `TYPE_TOGGLE`. In Access's
+`AcControlType`, 119 is `acCustomControl` (an ActiveX control) and the toggle button is
+122. So `_interactive_controls` listed custom controls - in the bundle that showed it, a
+calendar - with the type `toggle`, `option_choices` would have offered one as a group's
+choice had it been parented to a group, and a real toggle (122) matched nothing and was
+dropped from both the table and its count.
+
+The defect class: a code table written from memory rather than from the enumeration it
+mirrors. Nothing compared it to the source, and the output read plausibly.
+
+Change: `TYPE_TOGGLE = 122`, a new `TYPE_CUSTOM = 119` listed in `TYPE_INTERACTIVE` as
+`custom control (ActiveX)` - an operator interacts with it - and kept out of
+`TYPE_CHOICE`, since it has no `OptionValue`. The constants carry the `AcControlType`
+names. Tests pin both codes, the choice membership and the catalogue row.
+
+Not yet known: whether any other code in the table is wrong. The rest were checked by hand
+against `AcControlType` today, not by a test that reads the enumeration. A toggle or
+check box inside an option group is listed both as its own row and in the group's
+`Offers`, unlike an option button; that was already so for check boxes and is not
+changed here.
+
 ### A76 - the templates asked for diagrams first and for rendered Mermaid, and nothing measured either
 
 **Found 2026-10-05, reviewing `AminBlg/SimpleEnglish` for what it could give the phase

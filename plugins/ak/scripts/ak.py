@@ -198,6 +198,15 @@ def parse_args() -> argparse.Namespace:
     decisions.add_argument("--replace-handwritten", action="store_true",
                            help="Overwrite a QuestionList.md this command did not write.")
 
+    errata = commands.add_parser(
+        "errata",
+        help="Render the errata register as the page a person reads before quoting a phase.",
+    )
+    errata.add_argument("--app-root", required=True)
+    errata.add_argument("--dry-run", action="store_true")
+    errata.add_argument("--replace-handwritten", action="store_true",
+                        help="Overwrite an _Errata.md this command did not write.")
+
     backfill = commands.add_parser(
         "backfill-needs",
         help="Give a workspace's open questions the `needs` block the decision queue "
@@ -353,7 +362,7 @@ def parse_args() -> argparse.Namespace:
     phase_commands = phase.add_subparsers(dest="phase_action", required=True)
     phase_req = phase_commands.add_parser("requirements")
     phase_req.add_argument("--app-root", required=True)
-    phase_req.add_argument("--phase", type=int, choices=range(1, 7), required=True)
+    phase_req.add_argument("--phase", type=int, choices=range(1, 6), required=True)
     phase_req.add_argument(
         "--waive", action="append", default=[],
         help="Proceed without a capability. Requires --reason and is recorded in the receipt.",
@@ -732,6 +741,14 @@ def main() -> int:
             if wanted:
                 decision_args.append(flag)
         return run("build_decisions.py", *decision_args)
+
+    if args.command == "errata":
+        errata_args = ["--app-root", args.app_root]
+        for flag, wanted in (("--dry-run", args.dry_run),
+                             ("--replace-handwritten", args.replace_handwritten)):
+            if wanted:
+                errata_args.append(flag)
+        return run("build_errata.py", *errata_args)
 
     if args.command == "backfill-needs":
         backfill_args = ["--app-root", args.app_root]

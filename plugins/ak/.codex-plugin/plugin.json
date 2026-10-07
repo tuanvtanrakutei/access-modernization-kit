@@ -1,7 +1,7 @@
 {
   "name": "ak",
   "version": "2.11.0",
-  "description": "Evidence-backed six-phase investigation for Access/VBA and SQL Server legacy applications, plus an optional Django REST + React modernization pipeline that carries a project from that investigation's output to implemented, coverage-traced code.",
+  "description": "Evidence-backed five-phase investigation for Access/VBA and SQL Server legacy applications, plus an optional Django REST + React modernization pipeline that carries a project from that investigation's output to implemented, coverage-traced code.",
   "author": {
     "name": "Vo Ta Tuan",
     "email": "vo-ta-tuan@anrakutei.vn",
@@ -22,7 +22,7 @@
   "interface": {
     "displayName": "Access Modernization Kit",
     "shortDescription": "Investigate Access/VBA and SQL Server applications.",
-    "longDescription": "An evidence-backed six-phase method for analyzing an independent legacy business application.",
+    "longDescription": "An evidence-backed five-phase method for analyzing an independent legacy business application.",
     "developerName": "Vo Ta Tuan",
     "category": "Productivity",
     "capabilities": [

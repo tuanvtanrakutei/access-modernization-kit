@@ -1,7 +1,7 @@
 """Where things live in an app workspace, asked rather than assumed.
 
 An operator opening a workspace used to meet seven directories, four of which they
-never open, with the thing they actually came for - the six phase documents - buried
+never open, with the thing they actually came for - the five phase documents - buried
 two levels down in `runs/<run-id>/outputs/`. The layout was organised by the stage
 of the pipeline that produced each part, which is what the pipeline cares about and
 not what a person does.
