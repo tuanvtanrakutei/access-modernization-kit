@@ -32,6 +32,13 @@ A tolerance lets numbers written with a decimal point or an exponent differ in t
 such as 1.2.3 must match exactly. A tolerance needs a reason, and one above 1% relative or
 1e-6 absolute is refused: that is a different result, not rounding.
 
+Fresh inputs: a case may say `"origin": "fresh"`, with the `"input"` file it ran on and a `"kind"`
+(boundary, empty, oversize, malformed, order, encoding...). A fresh input is one written after the
+build, by someone who did not choose the recorded cases, and run on the legacy system too, so a
+suite or a sample set that only passes on its author's cases is caught. With `--min-fresh N` and
+`--min-kinds K` the verdict needs N fresh cases that were compared, each on input bytes no other
+case used, covering K kinds. Without the options nothing is required and the count is only reported.
+
 Self-check: before the verdict the comparator is run on a copy with one byte added; if that
 does not differ, the comparator is broken and the result is a failure.
 
@@ -44,6 +51,7 @@ Stdlib only, so it runs in a project that has installed nothing.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import math
 import re
@@ -255,7 +263,22 @@ def judge(cases: list[dict[str, Any]], root: Path, default_tol: dict[str, Any] |
         approved = case.get("approvedDifference")
         if approved is not None:
             approved = reason(approved, f"case {cid}: an approvedDifference")
-        rec: dict[str, Any] = {"id": cid, "title": str(case.get("title") or "")[:200], "legacy": case.get("legacy"), "new": case.get("new")}
+        origin = case.get("origin", "recorded")
+        if origin not in ("recorded", "fresh"):
+            raise InputError(f"case {cid}: 'origin' is 'recorded' or 'fresh'")
+        kind = str(case.get("kind") or "").strip().lower()
+        if origin == "fresh" and not (kind and case.get("input")):
+            raise InputError(f"case {cid}: a fresh case needs a 'kind' (boundary, empty, malformed...) and the 'input' file it ran on")
+        rec: dict[str, Any] = {"id": cid, "title": str(case.get("title") or "")[:200], "legacy": case.get("legacy"), "new": case.get("new"),
+                               "origin": origin}
+        if kind:
+            rec["kind"] = kind
+        if case.get("input"):
+            raw, why_in = read_side(root, case.get("input"), allow_outside)
+            if raw is None:
+                rec["inputProblem"] = f"input: {why_in}"
+            else:
+                rec["inputHash"] = hashlib.sha256(raw).hexdigest()
         a, why_a = read_side(root, case.get("legacy"), allow_outside)
         b, why_b = read_side(root, case.get("new"), allow_outside)
         if a is None or b is None:
@@ -291,7 +314,40 @@ def self_check(results: list[dict[str, Any]]) -> tuple[bool, str]:
     return False, "no case was compared"
 
 
-def build(cases_path: Path, allow_outside: bool) -> dict[str, Any]:
+def fresh_report(results: list[dict[str, Any]], min_fresh: int, min_kinds: int) -> tuple[dict[str, Any], list[str]]:
+    """Count the inputs that nobody had used before: written after the build, and not the same input twice.
+
+    A suite or a sample set that only passes on the cases its author chose says little. A fresh case
+    counts once, when it was compared, its input file is known, and no recorded case or earlier fresh
+    case ran on the same input bytes.
+    """
+    used = {r["inputHash"] for r in results if r.get("origin") == "recorded" and r.get("inputHash")}
+    counted: list[dict[str, Any]] = []
+    not_counted: list[dict[str, str]] = []
+    for r in results:
+        if r.get("origin") != "fresh":
+            continue
+        if r["state"] == "missing":
+            why = "an output file is missing"
+        elif "inputProblem" in r:
+            why = r["inputProblem"]
+        elif r["inputHash"] in used:
+            why = "its input was already used by another case"
+        else:
+            used.add(r["inputHash"])
+            counted.append(r)
+            continue
+        not_counted.append({"id": r["id"], "why": why})
+    kinds = sorted({r["kind"] for r in counted})
+    problems = []
+    if len(counted) < min_fresh:
+        problems.append(f"only {len(counted)} fresh input(s) counted; {min_fresh} needed")
+    if len(kinds) < min_kinds:
+        problems.append(f"fresh inputs cover {len(kinds)} kind(s); {min_kinds} needed")
+    return {"required": min_fresh, "requiredKinds": min_kinds, "counted": len(counted), "kinds": kinds, "notCounted": not_counted}, problems
+
+
+def build(cases_path: Path, allow_outside: bool, min_fresh: int = 0, min_kinds: int = 0) -> dict[str, Any]:
     try:
         doc = json.loads(cases_path.read_text(encoding="utf-8-sig"))
     except (OSError, ValueError) as err:
@@ -317,11 +373,13 @@ def build(cases_path: Path, allow_outside: bool) -> dict[str, Any]:
         problems.append("every compared output was empty")
     if not ok:
         problems.append("comparator self-check failed: " + note)
+    fresh, fresh_problems = fresh_report(results, min_fresh, min_kinds)
+    problems += fresh_problems
     return {
         "legacy": doc.get("legacy"), "new": doc.get("new"),
         "verdict": "PARITY" if not problems else "NO PARITY",
         "problems": problems, "counts": counts, "selfCheck": {"passed": ok, "note": note},
-        "cases": results,
+        "freshInputs": fresh, "cases": results,
     }
 
 
@@ -331,10 +389,15 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--out")
     ap.add_argument("--quiet", action="store_true")
     ap.add_argument("--allow-outside", action="store_true")
+    ap.add_argument("--min-fresh", type=int, default=0, help="fresh inputs that must be compared (the rule is 10)")
+    ap.add_argument("--min-kinds", type=int, default=0, help="distinct kinds those fresh inputs must cover")
     args = ap.parse_args(argv)
+    if args.min_fresh < 0 or args.min_kinds < 0:
+        print("screen_parity: --min-fresh and --min-kinds cannot be negative", file=sys.stderr)
+        return 2
     cases_path = Path(args.cases)
     try:
-        pack = build(cases_path, args.allow_outside)
+        pack = build(cases_path, args.allow_outside, args.min_fresh, args.min_kinds)
     except InputError as err:
         print(f"screen_parity: {err}", file=sys.stderr)
         return 2
@@ -346,6 +409,9 @@ def main(argv: list[str] | None = None) -> int:
             if r["state"] in ("differs", "differs-approved"):
                 extra = f"first difference at byte {r['firstDifference']['offset']}"
             print(f"{r['state']:<17}{r['id']}  {extra}".rstrip())
+        fr = pack["freshInputs"]
+        if fr["counted"] or fr["required"]:
+            print(f"fresh inputs: {fr['counted']} counted, kinds: {', '.join(fr['kinds']) or 'none'}")
         print(f"{pack['verdict']}: " + ("; ".join(pack["problems"]) or f"{pack['counts']['same']} same"))
     return 0 if pack["verdict"] == "PARITY" else 1
 
