@@ -56,6 +56,7 @@ is the contract between the two.
 | `{{APP_ID}}_DataCatalogue.md` | every table object, column, key, index and link target | Phase 1 |
 | `{{APP_ID}}_ScreenCatalogue.md` | every form and report, with its record source, events and what references it | Phase 2 |
 | `{{APP_ID}}_LogicCatalogue.md` | every saved query and module, and every file crossing the boundary | Phase 3 |
+| `{{APP_ID}}_Wireframes.html` | every form, drawn as its definition places it, hidden controls included | Phase 2 |
 
 **Where a catalogue and a phase document disagree, the catalogue is right about the count
 and the phase document is right about the meaning.** They are regenerated from the bundle

@@ -38,7 +38,7 @@ REQUIRED_FILES = (
     "templates/phase4-workflow-reconstruction.md", "templates/phase5-document-integration.md",
     "templates/question-list.md", "templates/qa-report.md", "templates/traceability-matrix.csv", "templates/e2e-trace.html",
     "templates/recommended-optional-evidence.md",
-    "templates/boundary-map.html", "templates/task-envelope.json", "templates/agent-handoff.json",
+    "templates/boundary-map.html", "templates/wireframes.html", "templates/task-envelope.json", "templates/agent-handoff.json",
     "templates/conflict-record.json", "templates/worker-prompt.md", "templates/readme.md", "templates/app.gitignore", "templates/app.investigationignore",
     "scripts/init_app.py", "scripts/preflight.py", "scripts/create_run.py", "scripts/create_tasks.py", "scripts/extract_access.py",
     "scripts/extract_access.ps1", "scripts/access_runtime.py", "scripts/parse_compilation_database.py", "scripts/build_component_index.py", "scripts/build_module_plan.py", "scripts/derive_graph_facts.py", "scripts/validate_handoffs.py",
