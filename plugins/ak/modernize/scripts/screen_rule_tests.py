@@ -18,7 +18,10 @@ against the runner's own result files and gives each rule one state:
 A test names a rule in its own name or class name (`test_br_ord_01_rounds_up`, separators may be
 `-`, `_`, `.` or space), or, for Python test files read with `--tests`, anywhere inside the test
 function (a decorator, docstring or comment) or in its class's decorator or docstring. A rule id
-is matched whole: `BR-ORD-01` never matches `BR-ORD-011` or `BR-ORD-01a`.
+is matched whole: `BR-ORD-01` never matches `BR-ORD-011` or `BR-ORD-01a`. A citation in a
+test file that has no result in this run is not counted, because rule ids are often local to a
+screen: it is listed as `citedOutsideRun` on a rule that is otherwise CLAIMED or UNTESTED. Point
+`--tests` and `--junit` at the same screen's tests.
 
 The rules come from the extraction (`--ak` and `--screen`, as `screen_scope.py` reads them, so a
 superset of what the screen uses) or from `--rules`. Results come from JUnit-style XML only:
@@ -148,7 +151,17 @@ def judge(rules: list[str], cases: list[dict[str, str]], cited: dict[tuple[str, 
                 break
         for rid in named & by_rule.keys():
             by_rule[rid][case["state"]].append(label)
-    in_source = set().union(*cited.values()) if cited else set()
+    # A citation counts as "a test with no result" only when its file took part in this run. A citation in
+    # a file with no result at all belongs to another run, and rule ids are often local to a screen.
+    ran = {m for case in cases for m, _, _ in key_of(case)}
+    in_source: set[str] = set()
+    outside: dict[str, set[str]] = {}
+    for (module, _cls, _fn), ids in cited.items():
+        if module in ran:
+            in_source |= ids
+        else:
+            for rid in ids:
+                outside.setdefault(rid, set()).add(module)
     out: list[dict[str, Any]] = []
     for rule in rules:
         r = by_rule[canon(rule)]
@@ -164,6 +177,8 @@ def judge(rules: list[str], cases: list[dict[str, str]], cited: dict[tuple[str, 
             state = "UNTESTED"
         rec: dict[str, Any] = {"rule": rule, "state": state, "tests": {k: v[:5] for k, v in r.items() if v},
                                "testCount": {k: len(v) for k, v in r.items() if v}}
+        if state in ("CLAIMED", "UNTESTED") and outside.get(canon(rule)):
+            rec["citedOutsideRun"] = sorted(outside[canon(rule)])
         if rule in waived:
             rec["waived"] = waived[rule]
             rec["state"] = "WAIVED"

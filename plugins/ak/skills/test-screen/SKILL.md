@@ -85,7 +85,8 @@ result file, never from memory.
 A green run says the tests agree with the code, not that they could disagree. Once the backend
 suite is green, break one line that matters in a scratch copy and see whether anything fails.
 Pick a line the screen's rules depend on: a rounding mode, a threshold moved by one, a
-comparison reversed. The break must still build, or the run errors before any test runs.
+comparison reversed. Break the line that applies a value, not the constant that holds it: a test
+that imports the constant moves with it. The break must still build, or the run errors before any test runs.
 
 ```bash
 python "${CLAUDE_PLUGIN_ROOT}/modernize/scripts/screen_canary.py" --root <code folder>   --file <file under root> --find "<exact text, once>" --replace "<broken text>"   --cmd "{{TEST_CMD}}" --out Test_Instruction/{screen}.canary.json

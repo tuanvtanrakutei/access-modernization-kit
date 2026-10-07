@@ -156,7 +156,7 @@ threshold by one, a comparison) and runs the suite again. The real code is never
 | **INCONCLUSIVE** | The break stopped the tests from running (error, timeout, no result) | Choose a break that still builds |
 | **NO BASELINE** | The untouched copy was not green | Fix the suite first; a failure after a break proves nothing |
 
-Choose the line from the screen's rules, not from the code that is easiest to change. One canary
+Choose the line from the screen's rules, not from the code that is easiest to change. Break the line that applies a value, not the constant that holds it: a test that imports the constant builds its expectation from it, so changing the constant moves the test with it and the canary SURVIVES without showing a weak test. One canary
 on one rule says nothing about the other rules: run one for each calculation or validation the
 screen plan marks as critical.
 
