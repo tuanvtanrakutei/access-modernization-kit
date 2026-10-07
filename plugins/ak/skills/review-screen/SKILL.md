@@ -22,6 +22,10 @@ its verdict was computed from the bytes, so do not re-judge parity by eye. A `di
 difference a person accepted; check its reason. Where the screen produces a file or a response and no
 `PARITY.json` exists, say so as a finding.
 
+If the screen has a `*.rule-tests.json` from `screen_rule_tests.py`, read it too: a rule that is not
+TESTED (FAILING, NOT RUN, CLAIMED or UNTESTED) is a finding, whatever the coverage map says, and
+every waiver needs its reason checked against the screen plan.
+
 If any of the first four is missing, say which and review only what exists. A review that
 silently covers less than it appears to is the failure this stage exists to prevent.
 
