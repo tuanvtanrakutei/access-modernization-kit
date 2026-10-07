@@ -19,6 +19,10 @@ the Stage 1 scope report (`screen_scope.py`), `Screen_plans/{screen}.md`, `Codin
 for the screen, and the open `Known_Issues.md` rows for the screen and module. These reads are
 independent — issue them together.
 
+If the screen has a `*.rule-tests.json` from `screen_rule_tests.py`, read it too: a rule that is not
+TESTED (FAILING, NOT RUN, CLAIMED or UNTESTED) is a finding, whatever the coverage map says, and
+every waiver needs its reason checked against the screen plan.
+
 If any of the first four is missing, say which and review only what exists. A review that
 silently covers less than it appears to is the failure this stage exists to prevent.
 

@@ -45,6 +45,26 @@ This is where a run most often lies to itself.
   signature rather than by file** — that turned 49 failures into three root causes here, two
   of them fixed in a few lines.
 
+## Check which rules the tests back
+
+The coverage map in `Test_Instruction/{screen}.md` is a claim. Keep the runner's JUnit XML from the
+backend run (`--junitxml=<file>` for pytest) and let the script read it against the screen's rules:
+
+```bash
+python "${CLAUDE_PLUGIN_ROOT}/modernize/scripts/screen_rule_tests.py" --ak "$AK_RUN_DIR" --screen "<screen>" \
+  --junit <result file or folder> --tests <test source folder> \
+  --coverage-map Test_Instruction/{screen}.md --out Test_Instruction/{screen}.rule-tests.json
+```
+
+A rule is **TESTED** only when a test that names it ran and passed. A test names a rule in its
+own name (`test_br_ord_01_rounds_up`) or, in Python test files, in its docstring, decorator or a
+comment. **FAILING**, **NOT RUN** (only skipped tests, or a test with no result), **CLAIMED**
+(only the coverage map says so) and **UNTESTED** are all gaps: write the missing test, or record
+the gap in section 6. The rules in scope are a superset of what the screen uses, so a rule the
+screen plan says it does not use may be set aside with `--waive BR-X="reason"`; the waiver is
+listed in the result. Copy the state of each rule into the coverage map's Status column from the
+result file, never from memory.
+
 ## Prove the tests can fail (the canary)
 
 A green run says the tests agree with the code, not that they could disagree. Once the backend

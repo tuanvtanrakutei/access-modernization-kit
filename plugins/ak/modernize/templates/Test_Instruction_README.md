@@ -62,6 +62,8 @@ Prerequisites:
 Workflow — backend (4a):
 1. Build a coverage map: every business rule in the screen plan's mapping section (its `BR-` id), mapped to the test that proves it.
    A rule with no test is a gap, and it belongs in section 6 rather than being quietly skipped.
+   The Status column is copied from `screen_rule_tests.py`, which reads the runner's JUnit result:
+   TESTED, FAILING, NOT RUN, CLAIMED, UNTESTED or WAIVED. A status typed from memory is a claim.
 2. Check what regression coverage already exists before writing new tests.
 3. Where real parameters are needed, probe reference data read-only, copy the minimal comparable case
    into the test database, and assert there.

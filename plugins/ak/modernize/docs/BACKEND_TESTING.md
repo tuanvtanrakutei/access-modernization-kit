@@ -118,6 +118,26 @@ because the code path that mattered simply could not run locally.
 - **A test that passes before and after a change proves nothing** as a regression test. If the
   point is to pin a fix, show the test failing against the unfixed code first.
 
+## Which Rules The Tests Back
+
+A coverage map that says a rule is proved by a test is a claim. `screen_rule_tests.py` reads the
+screen's rules from the extraction and the runner's JUnit XML, and gives each rule one state.
+
+| State | Meaning |
+|---|---|
+| **TESTED** | A test that names the rule ran and passed, and none that names it failed |
+| **FAILING** | A test that names the rule failed or errored |
+| **NOT RUN** | Only skipped tests, or a test in the source with no result, name the rule |
+| **CLAIMED** | Only the coverage map names it |
+| **UNTESTED** | Nothing names it |
+| **WAIVED** | A person set it aside with a reason; still listed |
+
+Only TESTED is a pass. A test names a rule in its own name or class name, or, in a Python test
+file, in the function's docstring, decorator or a comment, or in the class's docstring or
+decorator. Use separators (`test_br_ord_01_rounds_up`): `BR-ORD-01` never matches `BR-ORD-011`.
+A run that executed no test, a log, and a count typed into a document show no test names and
+back no rule.
+
 ## Prove The Tests Can Fail
 
 A suite that is green proves the tests agree with the code. It does not prove they could
