@@ -3,7 +3,7 @@
 
     python3 screen_canary.py --root <code folder> --file <path under root> \\
         --find "<exact text>" --replace "<broken text>" --cmd "<test command>" \\
-        [--junit <result file under root>] [--timeout 900] [--out CANARY.json] [--keep]
+        [--junit <result file under root>] [--link <folder under root> ...] [--timeout 900] [--out CANARY.json] [--keep]
 
 A suite that passes proves nothing until it is known to be able to fail. The canary copies the
 code to a scratch folder, runs the tests once untouched, changes one line that matters (a
@@ -16,6 +16,11 @@ from the two runs:
                   timeout, no result to read), so nothing was learned about the line. Pick another
                   break that still builds
   NO BASELINE     the untouched copy is not green, so a failure after the break proves nothing
+
+A break that makes *every* test fail (and none pass) is INCONCLUSIVE too, not CAUGHT: in a front-end
+project it is what a syntax error does when the dev server cannot build the page, and it says nothing
+about the line. `--link` puts a folder the copy skips (`node_modules`, which the test command needs)
+into the scratch copy as a link, never as a second copy; the link is removed before the scratch folder is.
 
 The code under `--root` is never written. `--find` must occur exactly once in `--file`. Counts
 come from a JUnit result file when `--junit` is given (deleted before each run so a stale one is
@@ -30,6 +35,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import re
 import shutil
 import subprocess
@@ -62,6 +68,44 @@ def copy_tree(root: Path, dest: Path) -> None:
     shutil.copytree(root, dest, ignore=ignore)
 
 
+def make_link(root: Path, work: Path, name: str) -> None:
+    """Link a folder the copy skips into it. A junction on Windows (no privilege needed), a symlink elsewhere."""
+    src = (root / name).resolve()
+    if root not in src.parents or not src.is_dir():
+        raise InputError(f"--link {name!r} must be a folder under --root")
+    dst = work / name
+    if os.path.lexists(dst):
+        raise InputError(f"--link {name!r} is already in the copy; link only a folder the copy skips")
+    dst.parent.mkdir(parents=True, exist_ok=True)
+    if os.name == "nt":
+        done = subprocess.run(["cmd", "/c", "mklink", "/J", str(dst), str(src)], capture_output=True, text=True)
+        if done.returncode:
+            raise InputError(f"cannot link {name}: {(done.stdout + done.stderr).strip()}")
+    else:
+        os.symlink(src, dst, target_is_directory=True)
+
+
+def remove_scratch(scratch: Path, links: list[str]) -> bool:
+    """Remove the scratch folder after taking each link out of it, so that nothing deletes what a link points at.
+
+    `os.rmdir` removes a junction without touching its target and refuses a real folder that has content.
+    When a link cannot be removed the scratch folder is left alone and False is returned.
+    """
+    for name in links:
+        dst = scratch / "copy" / name
+        try:
+            if os.path.islink(dst):
+                os.unlink(dst)
+            elif os.path.lexists(dst):
+                os.rmdir(dst)
+        except OSError:
+            pass
+    if any(os.path.lexists(scratch / "copy" / name) for name in links):
+        return False
+    shutil.rmtree(scratch, ignore_errors=True)
+    return True
+
+
 def junit_counts(path: Path) -> dict[str, int] | None:
     try:
         tree = ET.parse(path)
@@ -77,11 +121,20 @@ def junit_counts(path: Path) -> dict[str, int] | None:
     return total
 
 
+# A summary line that starts with its count: "  1 failed", "  12 passed (47s)", "1 failed, 12 passed in 3s".
+SUMMARY_LINE = re.compile(r"^\s*\d+\s+(?:failed|passed|errors?|skipped|flaky|did not run)\b")
+
+
 def text_counts(output: str) -> dict[str, int] | None:
-    lines = [ln for ln in output.splitlines() if any(c.search(ln) for c in COUNT.values())]
-    if not lines:
+    """The counts from the runner's summary: one line (pytest, jest) or several (Playwright's `1 failed`, then `12 passed`)."""
+    lines = output.splitlines()
+    block = [ln for ln in lines[-60:] if SUMMARY_LINE.match(ln)]
+    if block:  # a summary that starts with its counts, on one line or spread over several: add them up
+        return {k: sum(int(m.group(1)) for ln in block if (m := c.search(ln))) for k, c in COUNT.items()}
+    found = [ln for ln in lines if any(c.search(ln) for c in COUNT.values())]
+    if not found:
         return None
-    last = lines[-1]  # the summary is the last line that carries counts
+    last = found[-1]  # a one-line summary is the last line that carries counts
     return {k: int(m.group(1)) if (m := c.search(last)) else 0 for k, c in COUNT.items()}
 
 
@@ -113,6 +166,9 @@ def verdict(clean: dict[str, Any], broken: dict[str, Any]) -> tuple[str, str]:
         return "INCONCLUSIVE", "no test result could be read from the broken copy"
     if c["errors"] and not c["failed"]:
         return "INCONCLUSIVE", "the broken copy errored before its tests ran; choose a break that still builds"
+    if c["failed"] and not c["passed"] and c["failed"] > 1:
+        return "INCONCLUSIVE", (f"all {c['failed']} tests failed and none passed: the break probably stopped the app or the "
+                                "suite from building; choose a break that changes behaviour only")
     if c["failed"]:
         return "CAUGHT", f"{c['failed']} test(s) failed on the broken copy"
     if broken["exit"] != 0:
@@ -139,10 +195,16 @@ def build(args: argparse.Namespace) -> tuple[dict[str, Any], Path | None]:
     hits = text.count(args.find)
     if hits != 1:
         raise InputError(f"--find occurs {hits} times in {args.file}; it must occur exactly once")
+    for name in args.link:
+        src = (root / name).resolve()
+        if root not in src.parents or not src.is_dir():
+            raise InputError(f"--link {name!r} must be a folder under --root")
     scratch = Path(tempfile.mkdtemp(prefix="canary-"))
     work = scratch / "copy"
     try:
         copy_tree(root, work)
+        for name in args.link:
+            make_link(root, work, name)
         clean = run_tests(args.cmd, work, args.junit, args.timeout)
         line = text[: text.index(args.find)].count("\n") + 1
         if green(clean):
@@ -153,7 +215,7 @@ def build(args: argparse.Namespace) -> tuple[dict[str, Any], Path | None]:
             broken = {"state": "skipped", "exit": None, "counts": None, "tail": ""}
         name, why = verdict(clean, broken)
     except BaseException:
-        shutil.rmtree(scratch, ignore_errors=True)
+        remove_scratch(scratch, args.link)
         raise
     pack = {
         "verdict": name, "why": why,
@@ -171,6 +233,7 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--replace", required=True)
     ap.add_argument("--cmd", required=True)
     ap.add_argument("--junit")
+    ap.add_argument("--link", action="append", default=[], help="a folder under --root to link into the copy instead of copying it")
     ap.add_argument("--timeout", type=int, default=900)
     ap.add_argument("--out", default="CANARY.json")
     ap.add_argument("--keep", action="store_true")
@@ -182,8 +245,9 @@ def main(argv: list[str] | None = None) -> int:
         return 2
     if args.keep:
         pack["scratch"] = str(scratch)
-    else:
-        shutil.rmtree(scratch, ignore_errors=True)
+    elif not remove_scratch(scratch, args.link):
+        pack["scratch"] = str(scratch)
+        print(f"screen_canary: a link could not be removed, so {scratch} was left in place; remove the link before the folder", file=sys.stderr)
     Path(args.out).write_text(json.dumps(pack, indent=2, ensure_ascii=False) + "\n", encoding="utf-8", newline="\n")
     print(f"{pack['verdict']}: {pack['why']} ({args.file}:{pack['break']['line']})")
     return 0 if pack["verdict"] == "CAUGHT" else 1

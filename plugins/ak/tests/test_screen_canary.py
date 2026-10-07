@@ -146,3 +146,121 @@ def test_a_runner_that_exits_zero_having_run_nothing_is_not_green(tmp_path):
     quiet = f'"{sys.executable}" -c "print(0, \'failed\')"'
     code, pack, _ = canary(tmp_path, root, "qty * price", "qty * price + 1", quiet)
     assert code == 1 and pack["verdict"] == "NO BASELINE" and pack["clean"]["counts"]["passed"] == 0
+
+
+# ---- a break that fails every test says nothing about the line; a link brings in what the copy skips
+
+TWO_TESTS = (
+    "from mod import total\n\n\n"
+    "def test_a():\n    assert total(3, 1.5) == 4.5\n\n\n"
+    "def test_b():\n    assert total(2, 2) == 4\n"
+)
+
+
+def test_a_break_that_fails_every_test_is_inconclusive_not_caught(tmp_path):
+    root = project(tmp_path, tests=TWO_TESTS)
+    code, pack, _ = canary(tmp_path, root, "qty * price", "qty * price + 1")
+    assert code == 1 and pack["verdict"] == "INCONCLUSIVE" and "all 2 tests failed" in pack["why"]
+    assert pack["broken"]["counts"]["failed"] == 2
+
+
+def test_a_break_that_fails_some_tests_is_still_caught(tmp_path):
+    root = project(tmp_path, tests=TWO_TESTS + "\n\ndef test_c():\n    assert True\n")
+    code, pack, _ = canary(tmp_path, root, "qty * price", "qty * price + 1")
+    assert code == 0 and pack["verdict"] == "CAUGHT" and pack["broken"]["counts"]["passed"] == 1
+
+
+def linked_project(tmp_path: Path) -> Path:
+    root = tmp_path / "code"
+    (root / "node_modules").mkdir(parents=True)
+    (root / "node_modules" / "data.txt").write_text("x", encoding="utf-8")
+    (root / "mod.py").write_text("VALUE = 1\n", encoding="utf-8")
+    (root / "check.py").write_text(
+        "import sys\n"
+        "ok = open('node_modules/data.txt').read() == 'x' and 'VALUE = 1' in open('mod.py').read()\n"
+        "print('1 passed' if ok else '1 failed')\n"
+        "sys.exit(0 if ok else 1)\n",
+        encoding="utf-8",
+    )
+    return root
+
+
+def link_canary(tmp_path: Path, root: Path, *extra: str) -> tuple[int, dict | None, str]:
+    out = tmp_path / "CANARY.json"
+    proc = subprocess.run(
+        [sys.executable, str(SCRIPT), "--root", str(root), "--file", "mod.py", "--find", "VALUE = 1", "--replace", "VALUE = 2",
+         "--cmd", f'"{sys.executable}" check.py', "--out", str(out), *extra],
+        capture_output=True, text=True)
+    return proc.returncode, (json.loads(out.read_text(encoding="utf-8")) if out.exists() else None), proc.stderr
+
+
+def test_a_link_brings_in_a_folder_the_copy_skips_and_never_touches_it(tmp_path):
+    root = linked_project(tmp_path)
+    code, pack, _ = link_canary(tmp_path, root)
+    assert code == 1 and pack["verdict"] == "NO BASELINE"      # without the link the suite cannot run
+    code, pack, _ = link_canary(tmp_path, root, "--link", "node_modules")
+    assert code == 0 and pack["verdict"] == "CAUGHT" and "scratch" not in pack
+    assert (root / "node_modules" / "data.txt").read_text(encoding="utf-8") == "x"   # the real folder is intact
+
+
+def test_a_kept_scratch_copy_holds_a_link_not_a_second_copy(tmp_path):
+    import os
+    import shutil
+
+    root = linked_project(tmp_path)
+    _, pack, _ = link_canary(tmp_path, root, "--link", "node_modules", "--keep")
+    kept = Path(pack["scratch"])
+    try:
+        assert os.path.lexists(kept / "copy" / "node_modules") and (kept / "copy" / "node_modules" / "data.txt").is_file()
+    finally:
+        # take the link out first, as the script does: rmtree must never reach the real folder
+        link = kept / "copy" / "node_modules"
+        os.unlink(link) if os.path.islink(link) else os.rmdir(link)
+        shutil.rmtree(kept, ignore_errors=True)
+    assert (root / "node_modules" / "data.txt").is_file()
+
+
+def test_a_link_must_be_a_folder_under_the_root_that_the_copy_skips(tmp_path):
+    root = linked_project(tmp_path)
+    (tmp_path / "outside").mkdir()
+    (root / "src").mkdir()
+    for bad in ("../outside", "missing", "src"):
+        code, pack, err = link_canary(tmp_path, root, "--link", bad)
+        assert code == 2 and pack is None, bad
+
+
+# ---- reading the runner's summary: one line, or several
+
+def counts_of(output: str):
+    sys.path.insert(0, str(SCRIPT.parent))
+    import screen_canary as sc
+
+    return sc.text_counts(output)
+
+
+def test_a_playwright_summary_spread_over_lines_is_added_up():
+    output = "\n".join([
+        "Running 13 tests using 4 workers",
+        "  1 failed",
+        "    [chrome] > e2e/x.spec.ts:143:3 > a test whose title says it passed and failed",
+        "  12 passed (47.5s)",
+    ])
+    assert counts_of(output) == {"failed": 1, "errors": 0, "passed": 12}
+
+
+def test_a_playwright_summary_with_skipped_and_flaky_counts_only_what_it_knows():
+    output = "  1 flaky\n    [chrome] > e2e/x.spec.ts:1:1 > a\n  12 passed (30s)\n  13 skipped\n"
+    assert counts_of(output) == {"failed": 0, "errors": 0, "passed": 12}
+
+
+def test_one_line_summaries_still_read_as_before():
+    assert counts_of("collected 13 items\n=== 1 failed, 12 passed in 3.2s ===\n") == {"failed": 1, "errors": 0, "passed": 12}
+    assert counts_of("1 failed, 12 passed in 3.2s\n") == {"failed": 1, "errors": 0, "passed": 12}
+    assert counts_of("Tests:       2 failed, 10 passed, 12 total\n") == {"failed": 2, "errors": 0, "passed": 10}
+    assert counts_of("12 passed (47.5s)\n") == {"failed": 0, "errors": 0, "passed": 12}
+    assert counts_of("nothing countable here\n") is None
+
+
+def test_a_title_that_mentions_a_count_is_not_a_summary_line():
+    # an indented test title is not at the start of a count, so it adds nothing
+    assert counts_of("  12 passed (1s)\n    [chrome] > x > the 3 failed rows are listed\n") == {"failed": 0, "errors": 0, "passed": 12}
