@@ -240,3 +240,16 @@ def test_the_rules_in_scope_come_from_the_extraction(tmp_path):
     bad = subprocess.run([sys.executable, str(SCRIPT), "--ak", str(tmp_path / "none"), "--screen", screen, "--junit", str(res),
                           "--out", str(out)], capture_output=True, text=True, encoding="utf-8")
     assert bad.returncode == 2
+
+
+def test_a_citation_in_a_file_that_was_not_run_is_not_a_test_with_no_result(tmp_path):
+    folder = tmp_path / "tests"
+    folder.mkdir()
+    (folder / "test_order.py").write_text(SOURCE, encoding="utf-8")
+    (folder / "test_other_screen.py").write_text('def test_x():\n    """BR-ORD-05 in another screen\'s own numbering."""\n', encoding="utf-8")
+    res = junit(tmp_path, [("tests.test_order", "test_total", "passed")])
+    _, pack, _ = check(tmp_path, res, "BR-ORD-02,BR-ORD-05", "--tests", str(folder))
+    rec = {r["rule"]: r for r in pack["rules"]}
+    assert rec["BR-ORD-05"]["state"] == "UNTESTED" and rec["BR-ORD-05"]["citedOutsideRun"] == ["test_other_screen"]
+    # a citation in a file that did run, with no result for that test, is still NOT RUN
+    assert rec["BR-ORD-02"]["state"] == "NOT RUN" and "citedOutsideRun" not in rec["BR-ORD-02"]
