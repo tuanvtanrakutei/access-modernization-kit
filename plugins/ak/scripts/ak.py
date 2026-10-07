@@ -189,9 +189,23 @@ def parse_args() -> argparse.Namespace:
     decisions.add_argument("--on", help="With --decide: the date decided, YYYY-MM-DD. Default today.")
     decisions.add_argument("--answers", help="With --decide: the answers (`ok 3=preserve`), instead "
                                              "of reading them from the terminal.")
+    decisions.add_argument("--assume", metavar="ITEM",
+                           help="Give this open question a default: a new AS- the pipeline proceeds "
+                                "on until it is answered. Needs --that, --if-wrong and --by.")
+    decisions.add_argument("--that", help="With --assume: what is assumed.")
+    decisions.add_argument("--if-wrong", help="With --assume: what stops holding if it is wrong.")
     decisions.add_argument("--dry-run", action="store_true")
     decisions.add_argument("--replace-handwritten", action="store_true",
                            help="Overwrite a QuestionList.md this command did not write.")
+
+    errata = commands.add_parser(
+        "errata",
+        help="Render the errata register as the page a person reads before quoting a phase.",
+    )
+    errata.add_argument("--app-root", required=True)
+    errata.add_argument("--dry-run", action="store_true")
+    errata.add_argument("--replace-handwritten", action="store_true",
+                        help="Overwrite an _Errata.md this command did not write.")
 
     backfill = commands.add_parser(
         "backfill-needs",
@@ -243,6 +257,16 @@ def parse_args() -> argparse.Namespace:
     catalogues.add_argument(
         "--dry-run", action="store_true", help="Report the sizes without writing.",
     )
+
+    wireframes = commands.add_parser(
+        "wireframes",
+        help="Draw every form the bundle defines, as it is today, on one HTML page.",
+    )
+    wireframes.add_argument("--app-root", required=True)
+    wireframes.add_argument("--app-id", help="Defaults to the manifest's app id.")
+    wireframes.add_argument("--dry-run", action="store_true")
+    wireframes.add_argument("--replace-handwritten", action="store_true",
+                            help="Overwrite a _Wireframes.html this command did not write.")
 
     migrate = commands.add_parser(
         "migrate-workspace",
@@ -348,7 +372,7 @@ def parse_args() -> argparse.Namespace:
     phase_commands = phase.add_subparsers(dest="phase_action", required=True)
     phase_req = phase_commands.add_parser("requirements")
     phase_req.add_argument("--app-root", required=True)
-    phase_req.add_argument("--phase", type=int, choices=range(1, 7), required=True)
+    phase_req.add_argument("--phase", type=int, choices=range(1, 6), required=True)
     phase_req.add_argument(
         "--waive", action="append", default=[],
         help="Proceed without a capability. Requires --reason and is recorded in the receipt.",
@@ -715,7 +739,9 @@ def main() -> int:
     if args.command == "decisions":
         decision_args = ["--app-root", args.app_root]
         for flag, value in (("--language", args.language), ("--party", args.party),
-                            ("--by", args.by), ("--on", args.on), ("--answers", args.answers)):
+                            ("--by", args.by), ("--on", args.on), ("--answers", args.answers),
+                            ("--assume", args.assume), ("--that", args.that),
+                            ("--if-wrong", args.if_wrong)):
             if value is not None:
                 decision_args += [flag, value]
         for link in args.link:
@@ -725,6 +751,14 @@ def main() -> int:
             if wanted:
                 decision_args.append(flag)
         return run("build_decisions.py", *decision_args)
+
+    if args.command == "errata":
+        errata_args = ["--app-root", args.app_root]
+        for flag, wanted in (("--dry-run", args.dry_run),
+                             ("--replace-handwritten", args.replace_handwritten)):
+            if wanted:
+                errata_args.append(flag)
+        return run("build_errata.py", *errata_args)
 
     if args.command == "backfill-needs":
         backfill_args = ["--app-root", args.app_root]
@@ -756,6 +790,16 @@ def main() -> int:
         if args.dry_run:
             catalogue_args.append("--dry-run")
         return run("generate_catalogues.py", *catalogue_args)
+
+    if args.command == "wireframes":
+        wireframe_args = ["--app-root", args.app_root]
+        if args.app_id:
+            wireframe_args += ["--app-id", args.app_id]
+        for flag, wanted in (("--dry-run", args.dry_run),
+                             ("--replace-handwritten", args.replace_handwritten)):
+            if wanted:
+                wireframe_args.append(flag)
+        return run("build_wireframes.py", *wireframe_args)
 
     if args.command == "migrate-workspace":
         migrate_args = ["--workspace", args.workspace]

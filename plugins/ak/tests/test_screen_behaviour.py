@@ -178,3 +178,52 @@ def test_a_control_without_an_option_value_does_not_inherit_the_one_above_it() -
 def test_a_definition_with_no_option_group_yields_nothing() -> None:
     assert behaviour.option_choices(CAPTION_FORM, []) == []
     assert behaviour.option_choices("", []) == []
+
+
+# --- control type codes: Access's numbering, not a guess at it ---------------
+#
+# 119 is `acCustomControl` and 122 is `acToggleButton`. The table here once had 119 as
+# the toggle, so an ActiveX control was printed as a toggle and every real toggle was
+# left out of the inventory.
+
+def test_type_codes_follow_access_ac_control_type() -> None:
+    assert behaviour.TYPE_TOGGLE == 122
+    assert behaviour.TYPE_CUSTOM == 119
+    assert behaviour.TYPE_INTERACTIVE[behaviour.TYPE_TOGGLE] == "toggle"
+    assert behaviour.TYPE_INTERACTIVE[behaviour.TYPE_CUSTOM] == "custom control (ActiveX)"
+
+
+def test_a_custom_control_is_interactive_but_never_a_choice() -> None:
+    assert behaviour.TYPE_CUSTOM not in behaviour.TYPE_CHOICE
+    assert behaviour.TYPE_TOGGLE in behaviour.TYPE_CHOICE
+
+
+TOGGLE_FORM = (
+    'Begin Form\n'
+    '    Begin Section\n'
+    '        Begin OptionGroup\n'
+    '            Name =\"fraMode\"\n'
+    '            Begin\n'
+    '                Begin ToggleButton\n'
+    '                    OptionValue =1\n'
+    '                    Name =\"tglDaily\"\n'
+    '                End\n'
+    '                Begin CustomControl\n'
+    '                    Name =\"ctlCalendar\"\n'
+    '                End\n'
+    '            End\n'
+    '        End\n'
+    '    End\n'
+    'End\n')
+
+TOGGLE_CONTROLS = [
+    {"name": "fraMode", "type": behaviour.TYPE_OPTION_GROUP, "parent": "F"},
+    {"name": "tglDaily", "type": 122, "parent": "fraMode", "caption": "daily"},
+    {"name": "ctlCalendar", "type": 119, "parent": "fraMode"},
+]
+
+
+def test_a_toggle_in_a_group_is_a_choice_and_a_custom_control_is_not() -> None:
+    """Even parented to an option group, an ActiveX control offers no value to it."""
+    group = behaviour.option_choices(TOGGLE_FORM, TOGGLE_CONTROLS)[0]
+    assert [(c["name"], c["value"]) for c in group["choices"]] == [("tglDaily", "1")]

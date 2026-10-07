@@ -51,10 +51,11 @@ checkable separately.
 
 ## What it changes about the run
 
-Phase 6 degrades without it: the roadmap covers everything the legacy application does,
-so a project that has already dropped screens reads as though it had not. Phases 1 to 5
-describe the legacy system and are unaffected — scope does not change what the old thing
-is.
+No extraction phase reads it: phases 1 to 5 describe the legacy system, and scope does
+not change what the old thing is. `$ak decisions` writes a decision as one of these
+records, and the modernization pipeline reads them to plan the replacement. Without them
+a plan covers everything the legacy application does, so a project that has already
+dropped screens reads as though it had not.
 
 ## Why this is not in `decisions/`
 

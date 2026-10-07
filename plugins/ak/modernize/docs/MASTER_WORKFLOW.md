@@ -83,12 +83,12 @@ Stage 1 needs the extraction's registers. A project whose Stage 0 was manual exp
 
 Stage 0 is not performed by **this pipeline** — Stages 1-6 below never run extraction, and running
 them is always the user's own, separate decision from running Stage 0. It ships in the same
-package as the six-phase investigation (`ak`), and the two are **independently invokable**:
-running the six phases does not automatically continue into Stage 1, and this pipeline never
+package as the five-phase investigation (`ak`), and the two are **independently invokable**:
+running the five phases does not automatically continue into Stage 1, and this pipeline never
 triggers Stage 0 on its own. Manual export, per `LEGACY_EVIDENCE.md`, remains equally valid — the
 handoff contract below does not assume `ak` produced the evidence.
 
-The pipeline consumes whatever Stage 0 produced, provided it satisfies the handoff contract in `LEGACY_EVIDENCE.md` §6: files present in the declared evidence directories, anchorable by line or page, matchable to a screen, encoding known. `LEGACY_EVIDENCE.md` §6.1 describes the enriched form this contract takes when `ak`'s six-phase output is the producer.
+The pipeline consumes whatever Stage 0 produced, provided it satisfies the handoff contract in `LEGACY_EVIDENCE.md` §6: files present in the declared evidence directories, anchorable by line or page, matchable to a screen, encoding known. `LEGACY_EVIDENCE.md` §6.1 describes the enriched form this contract takes when `ak`'s five-phase output is the producer.
 
 At pre-flight the agent verifies the contract is satisfied for the target screen. It does **not** attempt extraction itself, and does not check whether Stage 0 has been run recently or at all beyond what the contract requires — that determination belongs to whoever decided to start Stage 1. If evidence is missing, it stops and reports which objects are absent.
 
@@ -131,8 +131,9 @@ Run once per screen, before Stage 1. These reads are independent — batch them 
 4. **Grep `Known_Issues.md`** for the screen name and module. List every row with status `open` or `in_progress`. Pay particular attention to `traceability` rows from prior gate runs — they affect coverage decisions in this run. If any row is a blocker, stop and ask.
 5. **Verify evidence.** If `{{AK_RUN_DIR}}` is not `n/a`, read `{{AK_RUN_DIR}}/run-state.json` → `phase_gates` for this screen's module before judging anything by hand:
    - `phase2` is not `PUBLISHED` → stop. This pipeline reads its content, so a work-in-progress or rejected one is not something to plan a screen from.
-   - `phase4` or `phase6` is `PENDING` or `REJECTED` → stop. A phase somebody started and has not finished is not a readiness signal.
-   - `phase4` or `phase6` is `NOT_REQUESTED` → **proceed.** The project declared in `outputs.phases` that it does not produce that document, and this pipeline reads neither one's content (§6.4). Say so in the pre-flight line: a screen planned without phase 6 must not read the same as one planned with it.
+   - `phase4` or `phase5` is `PENDING` or `REJECTED` → stop. A phase somebody started and has not finished is not a readiness signal.
+   - `phase4` or `phase5` is `NOT_REQUESTED` → **proceed.** The project declared in `outputs.phases` that it does not produce that document, and this pipeline reads neither one's content (§6.4). Say so in the pre-flight line: a screen planned without phase 5 must not read the same as one planned with it.
+   - `phase6`, in a run-state written before Phase 6 was retired → ignore it, whatever it says. No document is produced for it any more.
    - Otherwise `PUBLISHED` → proceed. If the enriched artifacts (`Evidence.json`, `TraceabilityMatrix.csv`, `<bundle_id>/phase-readiness.json`, `<bundle_id>/coverage.json`) are present, prefer them per `LEGACY_EVIDENCE.md` §6.1; if only `phase_gates` is present, that alone satisfies this step.
    - State in the pre-flight announcement which tier was used — `phase_gates` only, or enriched. A screen that silently used the weaker signal must not read the same as one that used the stronger.
 
@@ -140,7 +141,7 @@ Run once per screen, before Stage 1. These reads are independent — batch them 
 6. **Verify the table mapping** at `{{TABLE_MAP_DOC}}` covers the tables and fields this screen needs. If not, stop and ask for it to be extended.
 7. **Re-read the coding rule documents** — `{{BACKEND_RULES_DOC}}`, `{{FRONTEND_RULES_DOC}}`, `{{CONVENTIONS_DOC}}` — before any coding stage.
 8. **Read what the extraction left undecided about this screen.** If `{{AK_RUN_DIR}}` is not `n/a` and holds a `*_DecisionQueue.json` (written by `$ak decisions`), run `python "${CLAUDE_PLUGIN_ROOT}/modernize/scripts/screen_decisions.py" --queue {{AK_RUN_DIR}} --screen "<the registry's screen value, verbatim>"`. The queue lists every open question, unknown and risk with what it blocks and what the pipeline proceeds on meanwhile; the script says which of them name this screen, directly or through a workflow in `TraceabilityMatrix.csv`, by exact name and never by a guess (`LEGACY_EVIDENCE.md` §6.3).
-   - Exit `1` → **stop.** An item with no default names this very screen, so its plan cannot be finalised; report each item, who can answer it, and wait. This is the same stop as a blocker row in `Known_Issues.md` (step 4).
+   - Exit `1` → **stop.** An item with no default names this very screen, so its plan cannot be finalised; report each item, who can answer it, and wait. This is the same stop as a blocker row in `Known_Issues.md` (step 4). Waiting is not the only way on: if the user decides to plan before the answer arrives, they record what to proceed on with `$ak decisions --assume <id> --that <assumption> --if-wrong <what changes> --by <name>`, and pre-flight is re-run. Never write that assumption for them: what to assume is a decision, and the `if_wrong` is what the eventual answer is checked against.
    - Exit `0` → **proceed**, and say in the pre-flight line how many items proceed on a default and how many block a workflow this screen is a step of. Plan on those defaults and write each into the gap matrix as an `open` row that cites the item id (`Screen_plans_README.md` §6).
    - The report's last line counts the open items that name no screen at all, a risk's disposition among them. Those are not shown to any screen from here; do not read an empty list as "nothing is open".
    - No queue present → say so in the pre-flight line. A screen planned without it must not read the same as one planned with it, which is the rule step 5 already applies to the evidence tier.

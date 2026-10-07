@@ -1021,7 +1021,8 @@ def _interactive_controls(bundle: Path, forms: list, reports: list,
         f"{interactive + decoration + fields + choices_shown} controls)",
         "",
         "Every control a reader has to decide about: buttons, option groups and their "
-        "choices, combo and list boxes, check boxes, toggles, and embedded subforms. "
+        "choices, combo and list boxes, check boxes, toggles, custom (ActiveX) controls, "
+        "and embedded subforms. "
         f"A further {choices_shown} option button(s) appear as the choices inside their "
         f"group's `Offers` rather than as rows of their own. The rest are not listed: "
         f"{fields} text boxes, which are the objects' fields and are counted under "

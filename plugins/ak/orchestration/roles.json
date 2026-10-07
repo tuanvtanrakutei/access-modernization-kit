@@ -101,13 +101,6 @@
       "allowed_writes": ["work/document_integration", "evidence/fragments", "conflicts", "handoffs"]
     },
     {
-      "id": "synthesis",
-      "purpose": "Produce Phase 6 only from accepted Phase 1-5 outputs, evidence, conflicts, and open questions.",
-      "phases": [6],
-      "may_merge": false,
-      "allowed_writes": ["work/synthesis", "handoffs"]
-    },
-    {
       "id": "independent_qa",
       "purpose": "Audit scope, evidence, traceability, phase gates, conflicts, and derived-artifact prerequisites independently.",
       "phases": [],
@@ -128,13 +121,6 @@
       "phases": [],
       "may_merge": false,
       "allowed_writes": ["work/boundary_renderer", "derived/boundary", "handoffs"]
-    },
-    {
-      "id": "presentation_renderer",
-      "purpose": "Render and visually validate PPTX from accepted Phase 6, E2E, Boundary, screenshots, and decisions.",
-      "phases": [],
-      "may_merge": false,
-      "allowed_writes": ["work/presentation_renderer", "derived/presentation", "handoffs"]
     }
   ]
 }

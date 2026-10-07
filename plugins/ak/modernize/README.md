@@ -28,7 +28,7 @@ It drives **one screen at a time** through a fixed pipeline, and enforces covera
 
 ```mermaid
 flowchart LR
-    P["ak: six-phase analysis<br/>separate, optional"] -. optional .-> B["bootstrap-project<br/>one command, once per project"]
+    P["ak: five-phase analysis<br/>separate, optional"] -. optional .-> B["bootstrap-project<br/>one command, once per project"]
     B --> M["modernize-screen<br/>one command, once per screen"]
     M --> D["Ready to merge"]
 ```
@@ -39,7 +39,7 @@ one manual step named under "Bootstrapping A New Project" below.
 
 ## Command Guide
 
-Not covered by the repository root README — that one documents `$ak`'s own six-phase
+Not covered by the repository root README — that one documents `$ak`'s own five-phase
 commands only, a separate, optional upstream step (see "At A Glance" above).
 
 All nine entries below are skills, all using one mechanism: pick one from the `/ak:<name>`
@@ -183,7 +183,7 @@ Stage 0 is **outside this plugin**. It is the seam where a legacy-analysis tool 
 
 The pipeline consumes whatever Stage 0 produces, as long as it satisfies the **input contract** in `docs/LEGACY_EVIDENCE.md` §"Stage 0 Handoff Contract". If you have no analysis tooling yet, export evidence manually — the contract is the same either way, so swapping in tooling later requires no pipeline change.
 
-If Stage 0 was `ak`'s own six-phase analysis and you haven't read that kind of output before,
+If Stage 0 was `ak`'s own five-phase analysis and you haven't read that kind of output before,
 start with `docs/PHASE_OUTPUT_GUIDE.md` — a quick-reference for what each phase document
 answers and the order worth reading them in — before opening `LEGACY_EVIDENCE.md` §6.1–6.4
 for the exact mechanics of what this pipeline consumes.
@@ -231,8 +231,8 @@ and tooling, but a target repository still needs the bootstrap above.
 
 ```
 plugins/ak/
-├── skills/                         ← shared with the six-phase side; every skill discoverable by both CLIs
-│   ├── investigate/                ← the six-phase investigation skill (named `ak` before 2.8.0's naming cleanup)
+├── skills/                         ← shared with the five-phase side; every skill discoverable by both CLIs
+│   ├── investigate/                ← the five-phase investigation skill (named `ak` before 2.8.0's naming cleanup)
 │   ├── bootstrap-project/          ← one-time project setup, seeds the registry when phase output exists
 │   ├── modernize-screen/           ← the full pipeline, the usual entry point
 │   ├── validate-docs/              ← check a bootstrapped project's documents
@@ -250,7 +250,7 @@ plugins/ak/
     │   ├── MASTER_WORKFLOW.md      ← the orchestrator
     │   ├── TRACEBACK_GATES.md      ← coverage gate specification
     │   ├── LEGACY_EVIDENCE.md      ← Access variant evidence taxonomy, Stage 0 handoff contract
-    │   ├── PHASE_OUTPUT_GUIDE.md   ← how to read a six-phase run's output, oriented for humans
+    │   ├── PHASE_OUTPUT_GUIDE.md   ← how to read a five-phase run's output, oriented for humans
     │   ├── BACKEND_CODING.md       ← Stage 3a rules
     │   ├── FRONTEND_CODING.md      ← Stage 3b rules, incl. legacy UI parity
     │   ├── BACKEND_TESTING.md      ← Stage 4a method

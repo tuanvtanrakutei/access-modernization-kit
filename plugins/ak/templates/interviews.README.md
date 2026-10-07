@@ -11,10 +11,9 @@ or UI definition substitutes, however careful the reading, and neither does an
 operator answering from their own knowledge — that *is* an interview, and it needs a
 name and a date.
 
-Five of the six phases name `DOCUMENT` or `INTERVIEW` in what they lose without it.
+Four of the five phases name `DOCUMENT` or `INTERVIEW` in what they lose without it.
 Phase 4's cost line is the sharpest: without it, *"the workflows become code paths, not
-workflows."* Phase 6 without it produces a roadmap that is a proposal rather than an
-agreed sequence.
+workflows."*
 
 Nothing the kit can run produces this class. It is the one evidence class that only
 arrives because somebody asked a person a question and wrote the answer down.

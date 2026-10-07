@@ -6,7 +6,7 @@ Thank you for improving the Access Modernization Kit.
 
 - Do not include real Access databases, SQL data, credentials, DSNs, customer documents, screenshots, or app-specific facts.
 - Use synthetic fixtures with invented names and values.
-- Preserve the canonical six-phase analyst instruction.
+- Preserve the canonical five-phase analyst instruction.
 - Keep CodeWiki as an architectural acknowledgement only; do not introduce it as a dependency or vendor its source.
 - Keep workers isolated and coordinator-only merge intact.
 
