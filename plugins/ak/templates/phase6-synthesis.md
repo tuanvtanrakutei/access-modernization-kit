@@ -19,7 +19,7 @@
 
 <!-- Do not copy the register here. `$ak errata` renders it as {{APP_ID}}_Errata.md,
      which the phase gate holds to the register; a second copy is one that can fall
-     behind (A77). Point at the page, and name the entries that change what this
+     behind (A81). Point at the page, and name the entries that change what this
      synthesis concludes. If the run corrected nothing, say so: an absent section and
      an empty one read very differently. -->
 

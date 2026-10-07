@@ -12,7 +12,7 @@ that it should now work.
 
 ## Open
 
-### A77 - errata were cited in every phase and rendered in none
+### A81 - errata were cited in every phase and rendered in none
 
 **Found 2026-10-07, preparing to retire Phase 6 as a document.** The errata contract put the
 rendered register at the head of Phase 6, and A67 let phases 2 to 5 write entries as soon as
@@ -36,6 +36,30 @@ first; Phase 6's errata section points at it instead of copying it; `errata-cont
 Not done: the page is English whatever the phase documents' languages are, because the
 register's text is written once. Nothing runs `$ak errata` for you; the gate only notices when
 it was not run. Phase 6 itself is unchanged here.
+
+### A77 - a control type code was guessed, so an ActiveX control was printed as a toggle
+
+**Found 2026-10-07, reading a catalogue's interactive-controls table against the
+definitions.** `contracts/screen_behaviour.py` named type 119 `TYPE_TOGGLE`. In Access's
+`AcControlType`, 119 is `acCustomControl` (an ActiveX control) and the toggle button is
+122. So `_interactive_controls` listed custom controls - in the bundle that showed it, a
+calendar - with the type `toggle`, `option_choices` would have offered one as a group's
+choice had it been parented to a group, and a real toggle (122) matched nothing and was
+dropped from both the table and its count.
+
+The defect class: a code table written from memory rather than from the enumeration it
+mirrors. Nothing compared it to the source, and the output read plausibly.
+
+Change: `TYPE_TOGGLE = 122`, a new `TYPE_CUSTOM = 119` listed in `TYPE_INTERACTIVE` as
+`custom control (ActiveX)` - an operator interacts with it - and kept out of
+`TYPE_CHOICE`, since it has no `OptionValue`. The constants carry the `AcControlType`
+names. Tests pin both codes, the choice membership and the catalogue row.
+
+Not yet known: whether any other code in the table is wrong. The rest were checked by hand
+against `AcControlType` today, not by a test that reads the enumeration. A toggle or
+check box inside an option group is listed both as its own row and in the group's
+`Offers`, unlike an option button; that was already so for check boxes and is not
+changed here.
 
 ### A76 - the templates asked for diagrams first and for rendered Mermaid, and nothing measured either
 

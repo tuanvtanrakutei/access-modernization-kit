@@ -699,7 +699,7 @@ def apparatus_checks(phase: int, text: str, registers: dict[str, Any],
             else f"{len(cited_errata)} entry reference(s)",
         ))
 
-    # A77. A document says `see E-07`, and the reader needs a page to see it on. The page
+    # A81. A document says `see E-07`, and the reader needs a page to see it on. The page
     # is generated, so the only way it can be wrong is by falling behind its register.
     page = registers.get("errata_page")
     if page is not None:

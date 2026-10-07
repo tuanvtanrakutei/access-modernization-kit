@@ -34,7 +34,7 @@ procedure:
     Run `$ak errata`. It renders the register as `{APP_ID}_Errata.md`, which the
     README sends a reader to first, because it governs how every phase should be
     read. This used to be the head of Phase 6; the phases cite an entry as soon as
-    it is written (ER-07), so the page cannot wait for Phase 6 (A77).
+    it is written (ER-07), so the page cannot wait for Phase 6 (A81).
 
   prohibition: >
     A published claim is never silently edited, and never deleted. Correcting the

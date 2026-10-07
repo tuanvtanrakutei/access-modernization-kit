@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Render the errata register as the page a person reads first (A77).
+"""Render the errata register as the page a person reads first (A81).
 
     $ak errata --app-root P             write {APP}_Errata.md beside the phase documents
     $ak errata --app-root P --dry-run   say what it would hold, write nothing
