@@ -258,6 +258,16 @@ def parse_args() -> argparse.Namespace:
         "--dry-run", action="store_true", help="Report the sizes without writing.",
     )
 
+    wireframes = commands.add_parser(
+        "wireframes",
+        help="Draw every form the bundle defines, as it is today, on one HTML page.",
+    )
+    wireframes.add_argument("--app-root", required=True)
+    wireframes.add_argument("--app-id", help="Defaults to the manifest's app id.")
+    wireframes.add_argument("--dry-run", action="store_true")
+    wireframes.add_argument("--replace-handwritten", action="store_true",
+                            help="Overwrite a _Wireframes.html this command did not write.")
+
     migrate = commands.add_parser(
         "migrate-workspace",
         help="Move a workspace laid out before 2.10.0 into input/, output/ and .ak/.",
@@ -780,6 +790,16 @@ def main() -> int:
         if args.dry_run:
             catalogue_args.append("--dry-run")
         return run("generate_catalogues.py", *catalogue_args)
+
+    if args.command == "wireframes":
+        wireframe_args = ["--app-root", args.app_root]
+        if args.app_id:
+            wireframe_args += ["--app-id", args.app_id]
+        for flag, wanted in (("--dry-run", args.dry_run),
+                             ("--replace-handwritten", args.replace_handwritten)):
+            if wanted:
+                wireframe_args.append(flag)
+        return run("build_wireframes.py", *wireframe_args)
 
     if args.command == "migrate-workspace":
         migrate_args = ["--workspace", args.workspace]
