@@ -12,6 +12,38 @@ that it should now work.
 
 ## Open
 
+### A79 - a developer rebuilding a screen had every fact about it and no picture of it
+
+**Decided 2026-10-07 with the maintainer, replacing the PPTX retired in A78.** Phase 2
+describes each form in prose, the ScreenCatalogue enumerates its controls as rows, and
+screenshots exist for some forms and not others. The bundle already holds the geometry:
+`ui/controls.json` gives every control's position, size, section, type, caption,
+visibility and click handler, and the form's definition text gives each section's
+height. So the picture is generated, for every form, with nothing guessed.
+
+The maintainer chose: legacy as-is (not a proposed design for the replacement), forms
+only, one self-contained interactive page per application, generated from the bundle
+like a catalogue rather than rendered after QA.
+
+Change: `$ak wireframes` (`scripts/build_wireframes.py`, `contracts/wireframe.py`,
+`templates/wireframes.html`) writes `{APP}_Wireframes.html`. A list of forms by `F-` and
+name; each form drawn section by section at 15 twips to a pixel; hidden controls dashed,
+and an operator's view that removes them; a control's type, caption, handler, tooltip,
+position and size on click; and the open decision-queue items that name the form by its
+`F-` or as `object:<name>` (the modernize pipeline's direct rule). No date in the page,
+so the same inputs give the same bytes; it will not overwrite a page it did not write.
+
+What it does not do: draw reports; read fonts, colours or images; separate the pages of a
+tab control, whose controls are drawn on top of one another; show what a combo or list
+box offers. A section whose height the definition does not state is sized to its
+controls and labelled so; a control past its section's declared height is drawn and
+the section is labelled.
+
+Found on the way: Access control type 119 is an ActiveX custom control, not a toggle
+button (that is 122). `contracts/screen_behaviour.py` names 119 `TYPE_TOGGLE`, so the
+ScreenCatalogue lists custom controls as toggles. The wireframe names each code itself;
+the catalogue's constant was fixed separately (A77).
+
 ### A78 - Phase 6 restated five documents and its only reader was a presentation
 
 **Decided 2026-10-07 by the maintainer, after A81 gave the errata register a page of its
@@ -51,7 +83,7 @@ Found on the way: `create_run` wrote `NOT_REQUESTED` into `phase_gates` and the 
 schema did not list it, so `validate_run_handoffs` refused every run that had declined a
 phase. The schema lists it now.
 
-Not done: the HTML wireframe design that replaces the PPTX.
+The HTML wireframe design that replaces the PPTX is A79.
 
 ### A81 - errata were cited in every phase and rendered in none
 
