@@ -54,20 +54,23 @@ class Manifest:
 
 # Which phase documents a project asked for. Phases 1-3 are not askable: their
 # characteristic claims are STRUCTURE, UI_DEFINITION and BEHAVIOUR, and the classes that
-# support those are what an acquisition produces. Phases 4-6 are, because each degrades
-# without DOCUMENT or INTERVIEW evidence that nothing upstream collects - phase 4's own
-# contract says the workflows "become code paths, not workflows" - so a run that has
-# collected none is producing a document it cannot support (backlog A19).
+# support those are what an acquisition produces. Phases 4 and 5 are, because each
+# degrades without DOCUMENT or INTERVIEW evidence that nothing upstream collects - phase
+# 4's own contract says the workflows "become code paths, not workflows" - so a run that
+# has collected none is producing a document it cannot support (backlog A19).
 #
-# Declared like `presentation_pptx`, optional and off by default since 2.8: the operator
-# says what they want rendered. The default here is every phase, so a manifest written
-# before this key existed behaves as it always has.
+# The operator says what they want written. The default here is every phase, so a
+# manifest written before this key existed behaves as it always has.
 #
 # Lives in this module rather than in `create_run.py` because three callers need it and
 # one of them is a contract, which must not import a script. A second copy drifting from
 # the first is the defect this kit spends most of its time finding.
-REQUESTABLE_PHASES = ("phase4", "phase5", "phase6")
-ALL_PHASES = tuple(f"phase{number}" for number in range(1, 7))
+#
+# A78. Phase 6 was retired, and with it the PPTX that was its only reader. A manifest
+# written before still says `phase6: true` (or `false`); the key is accepted and ignored,
+# so no gate is ever created for a document nobody writes.
+REQUESTABLE_PHASES = ("phase4", "phase5")
+ALL_PHASES = tuple(f"phase{number}" for number in range(1, 6))
 
 
 def requested_phases(text: str) -> dict[str, bool]:

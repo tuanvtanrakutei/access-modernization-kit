@@ -20,8 +20,6 @@
     "vba_query_inventory",
     "trigger_effect_output_trace",
     "document_inventory",
-    "prior_phase_outputs_accepted",
-    "unresolved_risk_register",
     "ui_object_inventory"
   ],
   "expected": {

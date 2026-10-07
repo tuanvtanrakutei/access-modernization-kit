@@ -3,7 +3,8 @@
   "publication_policy": "phase_outputs_sequential_evidence_collection_parallel_facts_derived_once",
   "notes": [
     "Six blocking Graphify gates were removed. They ran once per phase against a bundle that does not change between phases, and on a real application the graph they gated carried no edges: the AST pass produced 79 nodes and 0 edges, while deterministic derivation over the same sources produced 756.",
-    "Derivation replaces them and runs once, after the bundle is sealed - scripts/derive_graph_facts.py. It is deterministic, needs no managed runtime, and its output is regenerable byte-for-byte, so a phase can cite it."
+    "Derivation replaces them and runs once, after the bundle is sealed - scripts/derive_graph_facts.py. It is deterministic, needs no managed runtime, and its output is regenerable byte-for-byte, so a phase can cite it.",
+    "Phase 6 (synthesis) and the PPTX render were retired (A78): wave5_synthesis and gate6_publish_phase6 are gone and QA follows Phase 5. Wave ids are not renumbered, so a run-state written before keeps naming waves that still exist."
   ],
   "waves": [
     {"id": "wave0_inventory", "roles": ["source_inventory"], "depends_on": [], "max_parallel": 1, "gate": "inventory_accepted", "human_checkpoint_default": true},
@@ -25,10 +26,7 @@
     {"id": "wave4_document_integration", "roles": ["document_alignment", "document_integration"], "depends_on": ["gate4_publish_phase4"], "max_parallel": 2, "gate": "phase5_evidence_ready", "human_checkpoint_default": false},
     {"id": "gate5_publish_phase5", "roles": ["coordinator"], "phase_context": 5, "depends_on": ["wave4_document_integration"], "max_parallel": 1, "gate": "phase5_published", "human_checkpoint_default": true},
 
-    {"id": "wave5_synthesis", "roles": ["synthesis"], "depends_on": ["gate5_publish_phase5"], "max_parallel": 1, "gate": "phase6_evidence_ready", "human_checkpoint_default": false},
-    {"id": "gate6_publish_phase6", "roles": ["coordinator"], "phase_context": 6, "depends_on": ["wave5_synthesis"], "max_parallel": 1, "gate": "phase6_published", "human_checkpoint_default": true},
-
-    {"id": "wave6_independent_qa", "roles": ["independent_qa"], "depends_on": ["gate6_publish_phase6"], "max_parallel": 1, "gate": "qa_accepted", "human_checkpoint_default": true},
-    {"id": "wave7_derived_rendering", "roles": ["e2e_renderer", "boundary_renderer", "presentation_renderer"], "depends_on": ["wave6_independent_qa"], "max_parallel": 3, "gate": "derived_outputs_validated", "human_checkpoint_default": false}
+    {"id": "wave6_independent_qa", "roles": ["independent_qa"], "depends_on": ["gate5_publish_phase5"], "max_parallel": 1, "gate": "qa_accepted", "human_checkpoint_default": true},
+    {"id": "wave7_derived_rendering", "roles": ["e2e_renderer", "boundary_renderer"], "depends_on": ["wave6_independent_qa"], "max_parallel": 2, "gate": "derived_outputs_validated", "human_checkpoint_default": false}
   ]
 }

@@ -179,10 +179,9 @@ def test_every_prerequisite_names_an_artifact_the_contract_declares(contract: di
 def test_no_derived_output_depends_on_a_phase_whose_content_nothing_reads(
     contract: dict,
 ) -> None:
-    """Phase 4's and phase 6's content is read by no script (LEGACY_EVIDENCE.md 6.4).
+    """Phase 4's content is read by no script (LEGACY_EVIDENCE.md 6.4).
 
-    Phase 6 is a real input to the presentation - a synthesis is what a presentation
-    renders - so it stays. Phase 4 is not an input to either HTML output: E2ETrace
+    Phase 4 is not an input to either HTML output: E2ETrace
     renders the traceability matrix and BoundaryMap the LogicCatalogue's boundary
     section. Re-listing it would re-create the dependency A19 has to unpick before
     those phases can move.
@@ -200,17 +199,18 @@ def test_readme_is_a_required_control_output(contract: dict) -> None:
 
 def test_every_phase_declares_a_required_diagram(contract: dict) -> None:
     diagrams = contract["required_diagrams"]
-    for phase in (f"phase{n}" for n in range(1, 7)):
+    for phase in (f"phase{n}" for n in range(1, 6)):
         assert diagrams.get(phase), f"{phase} requires no diagram"
     assert diagrams["format"] == "mermaid, rendered inline"
 
 
-def test_phase6_requires_the_sections_a_synthesis_is_for(contract: dict) -> None:
-    sections = contract["phase6_required_sections"]
-    # Consolidation, correction and hand-off - the three the template omitted.
-    for section in ("Errata", "Recommendations & Migration Roadmap",
-                    "Appendix A - Cross-Reference Index", "Appendix B - Glossary"):
-        assert section in sections, f"Phase 6 does not require {section}"
+def test_phase_six_and_its_presentation_are_retired(contract: dict) -> None:
+    """A78. Nothing may still declare a synthesis document or the PPTX that rendered it."""
+    assert "phase6_required_sections" not in contract
+    assert "phase6" not in contract["required_diagrams"]
+    assert not any("pptx" in output["name"] for output in contract["derived_outputs"])
+    for name in ("phase6-synthesis.md", "presentation-storyboard.md"):
+        assert not (PACKAGE / "templates" / name).exists(), name
 
 
 def test_phase5_requires_the_landscape_half_it_used_to_omit(contract: dict) -> None:
@@ -239,7 +239,7 @@ def test_every_phase_template_names_the_namespaces_that_phase_owns() -> None:
     templates = {
         1: "phase1-data-understanding.md", 2: "phase2-screen-analysis.md",
         3: "phase3-logic-processing.md", 4: "phase4-workflow-reconstruction.md",
-        5: "phase5-document-integration.md", 6: "phase6-synthesis.md",
+        5: "phase5-document-integration.md",
     }
     missing = []
     for namespace, body in (scheme.get("namespaces") or {}).items():

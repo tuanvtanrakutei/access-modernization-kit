@@ -12,7 +12,16 @@ from pathlib import Path
 from validate_handoffs import validate_run_handoffs
 
 PUBLISH_PHASES = {
-    f"gate{number}_publish_phase{number}": number for number in range(1, 7)
+    f"gate{number}_publish_phase{number}": number for number in range(1, 6)
+}
+
+# A78. Phase 6 and its two waves were retired. A run created before that may still be
+# sitting on one of them; advancing it moves the run to the wave that now follows Phase
+# 5, writes nothing about Phase 6, and checks no handoffs, because the role that would
+# have written them no longer exists.
+RETIRED_WAVES = {
+    "wave5_synthesis": "wave6_independent_qa",
+    "gate6_publish_phase6": "wave6_independent_qa",
 }
 
 # Which phase becomes READY once a wave completes. Every key must name a wave in
@@ -25,7 +34,6 @@ READY_AFTER: dict[str, tuple[str, ...]] = {
     "wave2_logic_processing": ("phase3",),
     "wave3_workflow": ("phase4",),
     "wave4_document_integration": ("phase5",),
-    "wave5_synthesis": ("phase6",),
 }
 
 
@@ -85,7 +93,7 @@ def promote_requested(state: dict, run: Path) -> list[str]:
     Declining a phase has to be reversible, or it is not a choice - it is a decision
     somebody makes once, before there is anything to base it on. Gates are written at
     run creation and nothing re-read the manifest afterwards, so setting
-    `outputs.phases.phase6` back to `true` used to require a whole new run.
+    `outputs.phases.phase5` back to `true` used to require a whole new run.
 
     One direction only. A phase already `PUBLISHED` is not un-published by a manifest
     edit: the document exists, and run state that denied it would be the same lie as
@@ -108,6 +116,25 @@ def promote_requested(state: dict, run: Path) -> list[str]:
     return promoted
 
 
+def retire(state_path: Path, wave: str, next_wave: str, dry_run: bool) -> int:
+    """Move a run off a wave that no longer exists (A78)."""
+    state = json.loads(state_path.read_text(encoding="utf-8"))
+    if state.get("current_wave") != wave:
+        raise SystemExit(f"Wave {wave} was retired with Phase 6, and this run is not on it")
+    preview = {"retired_wave": wave, "next_wave": next_wave}
+    if dry_run:
+        print(json.dumps(preview, indent=2))
+        return 0
+    state["wave_status"][wave] = "RETIRED"
+    state["current_wave"] = next_wave
+    state["status"] = "RUNNING"
+    state["wave_status"][next_wave] = "RUNNING"
+    state["updated_at"] = datetime.now(timezone.utc).isoformat()
+    state_path.write_text(json.dumps(state, indent=2) + "\n", encoding="utf-8")
+    print(json.dumps(preview, indent=2))
+    return 0
+
+
 def main() -> int:
     args = parse_args()
     run = Path(args.run).expanduser().resolve()
@@ -117,6 +144,8 @@ def main() -> int:
     if waves is None:
         return 1
     wave_index = {wave["id"]: index for index, wave in enumerate(waves)}
+    if args.wave in RETIRED_WAVES and args.wave not in wave_index:
+        return retire(state_path, args.wave, RETIRED_WAVES[args.wave], args.dry_run)
     if args.wave not in wave_index:
         raise SystemExit(f"Unknown wave: {args.wave}")
     index = wave_index[args.wave]
@@ -162,7 +191,7 @@ def main() -> int:
 
     # A phase the manifest did not ask for keeps `NOT_REQUESTED` all the way through.
     # Advancing past its gate has to work - `wave6_independent_qa` depends on
-    # `gate6_publish_phase6`, so a run that skipped phase 6 could otherwise never
+    # `gate5_publish_phase5`, so a run that skipped phase 5 could otherwise never
     # reach QA or rendering - but marking it `PUBLISHED` would record a document
     # nobody wrote. The wave graph is unchanged; only what the traversal writes is.
     for phase in READY_AFTER.get(args.wave, ()):

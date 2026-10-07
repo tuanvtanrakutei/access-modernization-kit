@@ -348,14 +348,6 @@ phase_needs:
       - class: INTERVIEW
         costs: "Everything the documents do not record; unresolved mismatches cannot be closed."
 
-  phase6:
-    characteristic_claim: "One decision-grade account, with its corrections."
-    required: [PRIOR_PHASES]
-    degraded_without:
-      - class: INTERVIEW
-        costs: "Open decisions stay open; the roadmap is a proposal rather than an agreed sequence."
-      - class: TARGET_INTENT
-        costs: >-
-          The scope of the replacement is unstated, so the roadmap covers everything
-          the legacy application does. A project that has already dropped screens or
-          added features reads as though it had not.
+  # A78. Phase 6 was retired. TARGET_INTENT degraded only Phase 6, and no extraction phase
+  # needs it now: it is read by `$ak decisions` (a decision is a TARGET_INTENT record) and
+  # by the modernization pipeline, which plans the replacement.

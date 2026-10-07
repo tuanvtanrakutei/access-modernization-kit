@@ -12,6 +12,6 @@ The prose rules in `plugins/ak/references/technical-writing.md` and the `readabi
 
 ## Managed and optional external capabilities
 
-Graphify and its declared PDF/Office normalization dependencies are installed on demand into an isolated managed environment when a six-phase investigation is requested. They are not vendored in this repository and remain subject to their own licenses and terms.
+Graphify and its declared PDF/Office normalization dependencies are installed on demand into an isolated managed environment when a five-phase investigation is requested. They are not vendored in this repository and remain subject to their own licenses and terms.
 
 Microsoft Access/ACE, Microsoft SQL Server ODBC drivers, browser automation, Tesseract OCR/language data, and presentation runtimes remain conditional external capabilities. They are not bundled and remain subject to their own licenses and terms when installed by a user.

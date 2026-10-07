@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Detect candidate Screens_Registry.md rows from a six-phase run's Phase 2 output.
+"""Detect candidate Screens_Registry.md rows from a five-phase run's Phase 2 output.
 
 Reports only. It never writes Screens_Registry.md or any other project file -
 machine detects, human decides, agent executes. The bootstrap-project skill
@@ -18,7 +18,7 @@ exception:
 
   screen / type / business_purpose / entry_path / evidence_ids
       Taken directly from Phase 2. This step only runs once that phase's
-      gate reads PUBLISHED in run-state.json - ak's own six-phase process has
+      gate reads PUBLISHED in run-state.json - ak's own five-phase process has
       already QA'd this content (QuestionList.md / QA_Report.md), so
       re-confirming the legacy fact itself here would be redundant, not safe.
 
@@ -309,7 +309,7 @@ def build_proposal(
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    parser.add_argument("--ak-run-dir", required=True, help="Root of a six-phase run, or literal 'n/a'")
+    parser.add_argument("--ak-run-dir", required=True, help="Root of a five-phase run, or literal 'n/a'")
     parser.add_argument("--screen-key-case", default="snake_case", choices=["snake_case", "kebab-case"])
     parser.add_argument("--project-config", default=None, help="Path to the target project's PROJECT_CONFIG.md")
     parser.add_argument("--out", required=True, help="Where to write the JSON proposal (UTF-8)")

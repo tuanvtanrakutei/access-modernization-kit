@@ -12,6 +12,47 @@ that it should now work.
 
 ## Open
 
+### A78 - Phase 6 restated five documents and its only reader was a presentation
+
+**Decided 2026-10-07 by the maintainer, after A77 gave the errata register a page of its
+own.** Phase 6 was a synthesis: system overview, entities, screens, rules, workflows, risks,
+assumptions and a roadmap, opening with the errata. By the time a project reached it, each
+of those already had a home: every phase allocates its own risks, unknowns and assumptions
+in the identifier register, `$ak decisions` lists what is open in the order to settle it,
+`$ak errata` renders the corrections, the catalogues carry the enumeration, and the roadmap
+is the modernization pipeline's, which plans per screen. No script read Phase 6's content
+(the modernize pre-flight read only its gate), and its one consumer was the PPTX. Both are
+retired; the PPTX is to be replaced by an HTML wireframe design, which is not specified yet.
+
+What changed:
+
+- Waves `wave5_synthesis` and `gate6_publish_phase6`, the `synthesis` and
+  `presentation_renderer` roles, and readiness for `phase6` are gone. QA depends on
+  `gate5_publish_phase5`; wave ids are not renumbered. Conflicts that blocked the Phase 6
+  gate (HIGH or CRITICAL, unresolved) now block independent QA.
+- `phase6` is no longer requestable, owns no namespace, and has no evidence needs, required
+  sections or diagrams. ID-04 (the synthesis consolidates rather than re-derives) is retired
+  and keeps its id. Its readiness capabilities (`prior_phase_outputs_accepted`,
+  `unresolved_risk_register`) are gone: no acquisition produced them, so `phase6` read
+  BLOCKED on every project that had published its other phases.
+- Templates `phase6-synthesis.md` and `presentation-storyboard.md`, and
+  `references/presentation-guidance.md`, are deleted; the preflight no longer asks for a
+  presentation runtime. "Six-phase" reads "five-phase" across the plugin and the
+  repository's current docs.
+- The modernize pre-flight checks `phase2`/`phase4`/`phase5` and ignores `phase6`.
+
+What keeps working: a manifest with `phase6`, `presentation_pptx` or
+`presentation_template` validates and the keys are ignored; a `phase-readiness.json` with
+`phase6` validates; a run sitting on a retired wave moves to QA when that wave is advanced
+(its status reads `RETIRED`, and nothing is written about Phase 6); a published Phase 6
+document is named by the conformance gate and not checked.
+
+Found on the way: `create_run` wrote `NOT_REQUESTED` into `phase_gates` and the run-state
+schema did not list it, so `validate_run_handoffs` refused every run that had declined a
+phase. The schema lists it now.
+
+Not done: the HTML wireframe design that replaces the PPTX.
+
 ### A77 - errata were cited in every phase and rendered in none
 
 **Found 2026-10-07, preparing to retire Phase 6 as a document.** The errata contract put the
