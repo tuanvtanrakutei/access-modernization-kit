@@ -30,7 +30,9 @@ report; do not proceed to 4b to produce a greener-looking summary.
   A test must name the rule it proves in its own name or docstring (`BR-ORD-01`), or the next
   stage cannot show it.
 - **Stage 4b** — write §Frontend, then run `{{FE_E2E_TEST_CMD}}` (and `{{FE_UNIT_TEST_CMD}}`
-  if defined), plus the output comparison against the legacy samples.
+  if defined), plus the output comparison against the legacy samples. Keep the runner's JUnit result
+  here too (Playwright: `--reporter=junit` with `PLAYWRIGHT_JUNIT_OUTPUT_FILE=Test_Instruction/{screen}.frontend.junit.xml`),
+  and name the rule a test proves in its title (`BR-ORD-01: ...`), since a result file shows titles, not comments.
 - **Close Stage 4** with the evidence and gate G4 (the section after the next one). Stage 4 is
   not done, and `Backend: pass` is not written in the header, until G4 has run.
 
@@ -62,7 +64,8 @@ script, never by hand: a count or a `Canary:` line typed into a document is a cl
 
 ```bash
 python "${CLAUDE_PLUGIN_ROOT}/modernize/scripts/screen_rule_tests.py" --ak "$AK_RUN_DIR" --screen "<screen>" \
-  --junit Test_Instruction/{screen}.junit.xml --tests <this screen's test source folder> \
+  --junit Test_Instruction/{screen}.junit.xml [Test_Instruction/{screen}.frontend.junit.xml] \
+  --tests <this screen's test source folder> \
   --coverage-map Test_Instruction/{screen}.md --out Test_Instruction/{screen}.rule-tests.json
 ```
 
@@ -93,6 +96,12 @@ python "${CLAUDE_PLUGIN_ROOT}/modernize/scripts/screen_canary.py" --root <code f
 It never writes the real code. **CAUGHT** is the only pass. **SURVIVED**: no test depends on that
 line, so add the missing test and run the canary again. **INCONCLUSIVE**: the break stopped the
 tests from running, so choose another break. **NO BASELINE**: the untouched copy was not green.
+
+**A front-end canary** breaks a line of the page's source and runs the end-to-end suite: give `--root` the front-end folder,
+`--link node_modules` (the copy skips that folder and the test command needs it) and the e2e command as `--cmd`. Run it with `CI=1`
+in the environment: without it an end-to-end config reuses a dev server that is already running, which serves the real code and
+never the broken copy. A break that stops the page from building fails every test; that is reported INCONCLUSIVE, not CAUGHT, so pick
+a break that changes behaviour only (a `maxLength`, a `readOnly`, a comparison).
 
 ### 3. Does the output match (screens that produce a file or a response)
 
@@ -129,7 +138,8 @@ a finding. G4 reads the files and runs nothing, so run steps 1 to 3 after the la
   per `TRACEBACK_GATES.md`, so the reviewer confirms it.
 - Fill `Test_Instruction/{screen}.md` §3.6 with the result files, the finding counts and every
   waiver with its reason, and set the header's `G4` field.
-- G4 reads the backend JUnit result. Frontend evidence stays in the 4b results: say so in the
-  report instead of implying G4 covered it.
+- G4 reads the JUnit results and canaries you pass it, backend and frontend alike. A rule that only an end-to-end test proves is
+  TESTED only when the frontend result file is passed to step 1; say in the report which files G4 read. When a test now proves a
+  rule that was waived, G4 says to drop the waiver.
 
 Report the real numbers, the baseline, every skipped case with its reason, and the G4 findings.

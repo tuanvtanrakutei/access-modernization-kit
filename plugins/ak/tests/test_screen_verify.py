@@ -150,3 +150,10 @@ def test_text_output_lists_what_was_read(tmp_path):
 def test_writes_nothing(tmp_path):
     gate(tmp_path, parity=GOOD_PARITY, rules=GOOD_RULES, canaries=[GOOD_CANARY])
     assert sorted(p.name for p in tmp_path.iterdir()) == ["CANARY0.json", "PARITY.json", "RULE_TESTS.json"]
+
+
+def test_a_waiver_that_a_test_now_makes_unneeded_is_said_so(tmp_path):
+    rules = {"rules": [{"rule": "BR-ORD-01", "state": "WAIVED", "wouldBe": "TESTED", "waived": "covered by construction"}]}
+    code, findings, _ = gate(tmp_path, rules=rules, canaries=[GOOD_CANARY])
+    assert code == 1 and severities(findings) == ["LOW"]
+    assert "drop the waiver" in findings[0]["text"] and "covered by construction" in findings[0]["text"]

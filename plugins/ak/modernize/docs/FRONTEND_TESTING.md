@@ -88,6 +88,8 @@ Results go into `Test_Instruction/{screen}.md` §Frontend — the same artifact 
 
 If the team also wants a spreadsheet view for QA, generate it **from** that section rather than maintaining it separately. Two hand-maintained records of the same test run will disagree within a week, and nobody will know which one is right.
 
+**The result file is evidence too.** Keep the runner's JUnit result (Playwright: `--reporter=junit` with `PLAYWRIGHT_JUNIT_OUTPUT_FILE`) beside the screen's `Test_Instruction`, and name the rule a test proves in its title (`BR-ORD-01: ...`): gate G4 reads titles from the result, not comments from the source, to show which rules an end-to-end test that ran and passed backs. A stubbed spec needs the app's own gates stubbed as well (a permission lookup, say), or every test lands on the gate's page and fails on its first locator.
+
 Every finding carries: case id, expected, actual, root cause where known, impact, and suggested fix. A finding without an expected-versus-actual pair is an opinion.
 
 ## Relationship To The Pipeline

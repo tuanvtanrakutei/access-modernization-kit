@@ -81,6 +81,8 @@ def check_rules(data: dict[str, Any], findings: list[dict[str, str]]) -> None:
         state, rid = rule.get("state"), rule.get("rule")
         if state in RULE_SEVERITY:
             findings.append(finding(RULE_SEVERITY[state], f"rule {rid} is {state}: no test that ran and passed names it"))
+        elif state == "WAIVED" and rule.get("wouldBe") == "TESTED":
+            findings.append(finding(LOW, f"rule {rid} is waived, but a test that ran and passed now names it: drop the waiver ({rule.get('waived')})"))
         elif state == "WAIVED":
             findings.append(finding(LOW, f"rule {rid} was waived ({rule.get('wouldBe')}): {rule.get('waived')}"))
 
