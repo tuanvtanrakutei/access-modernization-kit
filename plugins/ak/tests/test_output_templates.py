@@ -106,8 +106,10 @@ def test_e2e_trace_warns_against_passing_off_illustrative_values_as_measured() -
 
 def test_readme_sends_the_reader_to_the_errata_first() -> None:
     text = read("readme.md")
-    assert "errata" in text.lower()
-    assert "Start at Phase 6" in text
+    first = text[text.index("## 1."):text.index("## 2.")]
+    assert "Read the errata first" in first
+    # The page `$ak errata` writes, not a section of a phase that may not exist yet (A77).
+    assert "{{APP_ID}}_Errata.md" in first
 
 
 def test_readme_explains_every_identifier_namespace() -> None:
