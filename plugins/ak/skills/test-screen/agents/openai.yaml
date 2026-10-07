@@ -1,4 +1,4 @@
 interface:
-  display_name: "Test One Screen (Stages 4a-4b)"
-  short_description: "Write and run one screen's backend suite then frontend end-to-end tests"
-  default_prompt: "Write and run the tests for one screen: Stage 4a backend suite then Stage 4b frontend end-to-end, refusing to start unless a coding record already exists for the track being tested."
+  display_name: "Test One Screen (Stages 4a-4b and gate G4)"
+  short_description: "Write and run one screen's backend suite and frontend end-to-end tests, then close with the verification evidence and gate G4"
+  default_prompt: "Write and run the tests for one screen: Stage 4a backend suite then Stage 4b frontend end-to-end, refusing to start unless a coding record already exists for the track being tested, then run the rule-test, canary and parity checks and gate G4."

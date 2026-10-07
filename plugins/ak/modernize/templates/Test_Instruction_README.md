@@ -67,7 +67,10 @@ Workflow — backend (4a):
 2. Check what regression coverage already exists before writing new tests.
 3. Where real parameters are needed, probe reference data read-only, copy the minimal comparable case
    into the test database, and assert there.
-4. Run {{TEST_CMD}}. Record the exact command and its result.
+4. Run {{TEST_CMD}} with the runner's JUnit option and keep the file. Record the exact command and its result.
+   Then close the stage with the evidence and gate G4 (`test-screen` skill): `screen_rule_tests.py`,
+   `screen_canary.py` and, for a screen that produces output, `screen_parity.py`, then `screen_verify.py`.
+   Fill section 3.6 from their result files.
 5. Normalize the per-screen folder under {{API_COLLECTION_DIR}} to the registry screen_key, then
    refresh the examples from cases the tests approved.
 
@@ -100,13 +103,14 @@ One file per screen: `{{DOCS_DIR}}/Test_Instruction/{screen}.md`.
 ```markdown
 # {screen} — Test Instruction
 
-> Last refreshed: YYYY-MM-DD · Backend: pass | fail | blocked · Frontend: pass | fail | blocked
+> Last refreshed: YYYY-MM-DD · Backend: pass | fail | blocked · Frontend: pass | fail | blocked · G4: clean | findings | not run
 
 ## 1. Summary
 
 - **Backend tests**: pass | fail | not run — command and result
 - **Frontend tests**: pass | fail | not run — command and result
 - **Legacy parity**: verified | partial | blocked (reason)
+- **Verification (gate G4)**: clean | N HIGH, N MEDIUM, N LOW | not run — the result files
 - **Manual cases remaining**: count
 
 One paragraph on what was verified and what remains unverified.
@@ -148,6 +152,21 @@ Paste the outcome summary, not the full log.
 
 Folder used under `{{API_COLLECTION_DIR}}`, whether it was renamed to match `screen_key`, and which
 cases were exported.
+
+### 3.6 Verification Evidence (G4)
+
+Written from the result files, never by hand. `Backend: pass` in the header needs G4 to have run
+with no HIGH finding.
+
+| Result file | Script | Verdict |
+|---|---|---|
+| `{screen}.rule-tests.json` | `screen_rule_tests.py` | rules TESTED / WAIVED / gaps |
+| `{screen}.canary-N.json` | `screen_canary.py` | one row per canary: file:line, CAUGHT / SURVIVED / ... |
+| `{screen}.parity.json` | `screen_parity.py` | PARITY / NO PARITY, fresh inputs counted (screens with output) |
+
+G4 findings: counts by severity, each filed as a `traceability` row in `Known_Issues.md`.
+
+Waivers (a person's decision): rule, reason, who accepted it.
 
 ## 4. Frontend Tests
 
@@ -216,15 +235,15 @@ Anything affecting more than one screen is promoted to `Known_Issues.md`; note t
 
 ## Current Test Instructions
 
-| Screen | Test instruction | Backend result | Frontend result | Parity | Code review |
-|---|---|---|---|---|---|
-| | | | | | |
+| Screen | Test instruction | Backend result | Frontend result | Parity | G4 | Code review |
+|---|---|---|---|---|---|---|
+| | | | | | | |
 
 ## Related Documents
 
 | Document | Relationship |
 |---|---|
-| `MASTER_WORKFLOW.md` | Runs Stages 4a and 4b |
+| `MASTER_WORKFLOW.md` | Runs Stages 4a and 4b and closes with gate G4 |
 | `Screen_plans/{screen}.md` | §4.2 and §4.3 are the source of the frontend tier classification |
 | `Coding_Records/{screen}.md` | Says what was built, including deferrals that explain missing coverage |
 | `Code_Review/{screen}.md` | Downstream: reads this file as parity and correctness evidence |
