@@ -696,3 +696,26 @@ def test_an_empty_on_click_is_not_read_as_a_removed_handler(tmp_path: Path) -> N
     wired = next(line for line in lines if "接続済みボタン" in line)
     assert unwired.split(" | ")[5] == "—"
     assert "[Event Procedure]" in wired
+
+
+def test_custom_and_toggle_controls_are_listed_under_their_own_type(tmp_path: Path) -> None:
+    """Type 119 is an ActiveX control and 122 a toggle button, as Access numbers them.
+
+    The table once had 119 as the toggle: a calendar control printed as `toggle`, and a
+    real toggle, unknown under 122, was dropped from the inventory and from its count.
+    """
+    bundle = tmp_path / "bundle"
+    write(bundle / "ui" / "controls.json", [
+        {"object": "A99_Form", "controls": [
+            {"name": "ctlCalendar", "type": 119, "visible": True},
+            {"name": "tglShowAll", "type": 122, "caption": "all", "visible": True},
+        ]},
+    ])
+    form = {"database_id": FE, "name": "A99_Form", "kind": "form", "text": ""}
+    lines = catalogues._interactive_controls(bundle, [form], [], None)
+
+    custom = next(line for line in lines if "`ctlCalendar`" in line)
+    toggle = next(line for line in lines if "`tglShowAll`" in line)
+    assert custom.split(" | ")[2] == "custom control (ActiveX)"
+    assert toggle.split(" | ")[2] == "toggle"
+    assert lines[0] == "## Interactive controls (2 of 2 controls)"

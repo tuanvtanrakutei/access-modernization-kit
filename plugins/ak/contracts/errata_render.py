@@ -1,4 +1,4 @@
-"""Render the errata register as the page a person reads before quoting a phase (A77).
+"""Render the errata register as the page a person reads before quoting a phase (A81).
 
 The register (`{APP}_Errata.json`) is the record of every published claim the analysis
 later found wrong. It was meant to open Phase 6, and a project that had not reached Phase 6

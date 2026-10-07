@@ -209,7 +209,7 @@ namespaces:
     # allocate nothing, so it wrote the correction into prose and the register stayed
     # empty. Phase 1 is excluded because there is nothing published before it.
     owned_by: [phase2, phase3, phase4, phase5]
-    # A77, A78. The phases cite an entry as soon as it is written, and Phase 6 is retired:
+    # A81, A78. The phases cite an entry as soon as it is written, and Phase 6 is retired:
     # `$ak errata` renders `{APP_ID}_Errata.md` from the register.
     rendered_by: "$ak errata"
     requires_evidence: true
