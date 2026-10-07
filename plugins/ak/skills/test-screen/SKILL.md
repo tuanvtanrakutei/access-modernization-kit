@@ -28,6 +28,10 @@ report; do not proceed to 4b to produce a greener-looking summary.
 - **Stage 4a** — write `Test_Instruction/{screen}.md` §Backend, then run `{{TEST_CMD}}`.
 - **Stage 4b** — write §Frontend, then run `{{FE_E2E_TEST_CMD}}` (and `{{FE_UNIT_TEST_CMD}}`
   if defined), plus the output comparison against the legacy samples.
+- **Gate G4** — when 4a and 4b are done, run `python "${CLAUDE_PLUGIN_ROOT}/modernize/scripts/screen_verify.py" --screen "<screen>" --parity <PARITY.json> --rule-tests <rule-tests.json> --canary <CANARY.json ...>`
+  (add `--output-screen` when the screen produces a file or a response). It reads the results of the parity,
+  rule-test and canary scripts; a missing result is a finding. File every finding as a `traceability` row
+  per `TRACEBACK_GATES.md`: HIGH blocks and asks, MEDIUM and LOW continue to Stage 5.
 
 ## Inputs nobody used
 

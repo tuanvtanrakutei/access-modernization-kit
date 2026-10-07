@@ -29,6 +29,10 @@ every waiver needs its reason checked against the screen plan.
 If any of the first four is missing, say which and review only what exists. A review that
 silently covers less than it appears to is the failure this stage exists to prevent.
 
+Read the Stage 4 gate G4 findings in `Known_Issues.md` too (`screen_verify.py` computes them from the parity,
+canary and rule-test results). Confirm or adjust each with a recorded reason; none of them is closed by the
+coverage map alone.
+
 ## Verdict
 
 Write `Code_Review/{screen}.md` with findings and one verdict. A blocker sends the screen back
