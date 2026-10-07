@@ -47,7 +47,8 @@ flowchart LR
     S3b --> G3{{"G3<br/>API + UI"}}
     G3 --> S4a["4a Backend<br/>test"]
     S4a --> S4b["4b Frontend<br/>test"]
-    S4b --> S5["Stage 5<br/>Review"]
+    S4b --> G4{{"G4<br/>Verification"}}
+    G4 --> S5["Stage 5<br/>Review"]
     S5 -->|blocker| S3a
     S5 -->|approved| S6["Stage 6<br/>Final Acceptance"]
     S6 -->|fix required| S3a
@@ -65,6 +66,7 @@ flowchart LR
 | — | — | — | **G3 Implementation Coverage** (API + UI) |
 | 4a. Backend test | `Test_Instruction/` | `Test_Instruction/{screen}.md` §Backend + test run | Backend tests green, or blocker recorded with rerun command |
 | 4b. Frontend test | `Test_Instruction/` | `Test_Instruction/{screen}.md` §Frontend + E2E run | Frontend tests green, or blocker recorded with rerun command |
+| — | — | — | **G4 Verification Evidence**, computed |
 | 5. Review | `Code_Review/` | `Code_Review/{screen}.md` | Verdict `approved` or `approved with follow-ups`; traceability rows closed |
 | 6. Final acceptance | `Final_Acceptance/` | `Final_Acceptance/{screen}.md` | Recommendation `approve` or `approve with follow-ups`, and `User decision: accepted` |
 | — (any stage) | `Bug_Reports/` | `Bug_Reports/{screen}.md` | No gate — filed the moment a single-screen defect is found; an open High-severity entry is a Stage 5 finding |
@@ -235,17 +237,18 @@ Within Stage 4a, independent test suites may run concurrently. Within Stage 5, e
 | **3 — Review verdict** | After the Stage 5 verdict | On `approved`: set `status_be` and/or `status_fe` → `verified` for the tracks this change covered. Open rows for systemic follow-ups. Close issue rows this change resolved. On `changes requested`: change nothing |
 | **4 — Abort** | Pipeline halts on a blocker | Track status → `blocked` when screen-level; open an issue row when the cause is cross-screen |
 
-Coverage gates G1/G2/G3 also write `traceability` rows — see `TRACEBACK_GATES.md`.
+Gates G1 to G4 also write `traceability` rows — see `TRACEBACK_GATES.md`.
 
 **Forbidden:** changing a status without a triggering event; closing an issue row without naming the resolving change or review; two agents writing either file concurrently (the parent queues those writes).
 
 ## Traceback Gates
 
-Three coverage gates sit between stages:
+Four gates sit between stages. G1 to G3 check coverage; G4 checks that the verification is evidence:
 
 - **G1** after Stage 1 — the screen has traceability rows, and every evidence item they cite is in `Evidence.json`. Computed by `screen_scope.py`.
 - **G2** after Stage 2 — every business rule in the screen's scope has a mapping row in the screen plan; every open decision that names the screen is cited in its gap matrix. Computed by `screen_scope.py --plan`.
 - **G3** after Stage 3b — **API coverage** (every planned endpoint has code) and **UI coverage** (every planned screen element, interaction, and validation has a component or handler).
+- **G4** after Stage 4 — **verification evidence.** Computed by `screen_verify.py` from the results of `screen_parity.py` (new output matches the saved legacy output), `screen_canary.py` (the tests can fail) and `screen_rule_tests.py` (every rule in scope is named by a test that ran and passed). A missing result is a finding, never a pass.
 
 Severity drives the action: **HIGH** blocks and prompts the user with `examine` / `defer` / `cancel`; **MEDIUM** and **LOW** file a `traceability` row in `Known_Issues.md` and continue, to be confirmed by the Stage 5 reviewer.
 

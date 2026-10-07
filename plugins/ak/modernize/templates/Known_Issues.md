@@ -30,7 +30,7 @@ If the same open item is being copied into two per-screen files, promote it here
 | `data` | Reference data quality, encoding, missing seed, or a gap in the table mapping |
 | `environment` | Reference database unreachable, file share down, CI broken, secrets missing |
 | `process` | Workflow, documentation, or policy issue affecting how screens get built |
-| `traceability` | Coverage gap surfaced by gate G1, G2, or G3. Carries a severity suffix — see below |
+| `traceability` | Coverage or verification gap surfaced by gate G1, G2, G3, or G4. Carries a severity suffix — see below |
 
 ## Status Lifecycle
 
@@ -88,7 +88,7 @@ Tied to pipeline events, not to whim.
 
 | Trigger | What happens here |
 |---|---|
-| Gate G1, G2, or G3 finds a coverage gap | New `traceability` row with a severity suffix |
+| Gate G1, G2, G3, or G4 finds a gap | New `traceability` row with a severity suffix |
 | Coding stage end | New rows for blocking questions, and promotion of cross-screen findings |
 | Review verdict | New rows for systemic follow-ups; closure of rows this change resolved |
 | Pipeline abort from a cross-screen cause | New `environment`, `data`, or `tech-stack` row |
