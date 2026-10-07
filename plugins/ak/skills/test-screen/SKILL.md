@@ -56,4 +56,21 @@ This is where a run most often lies to itself.
   signature rather than by file** — that turned 49 failures into three root causes here, two
   of them fixed in a few lines.
 
+## Prove the tests can fail (the canary)
+
+A green run says the tests agree with the code, not that they could disagree. Once the backend
+suite is green, break one line that matters in a scratch copy and see whether anything fails.
+Pick a line the screen's rules depend on: a rounding mode, a threshold moved by one, a
+comparison reversed. The break must still build, or the run errors before any test runs.
+
+```bash
+python "${CLAUDE_PLUGIN_ROOT}/modernize/scripts/screen_canary.py" --root <code folder>   --file <file under root> --find "<exact text, once>" --replace "<broken text>"   --cmd "{{TEST_CMD}}" --out Test_Instruction/{screen}.canary.json
+```
+
+It never writes the real code. **CAUGHT** is the only pass. **SURVIVED** means no test depends on
+that line: add the missing test, then run the canary again. **INCONCLUSIVE** means the break
+stopped the tests from running: choose another break. **NO BASELINE** means the untouched copy
+was not green: fix that first. Record the verdict, the file and the line in the screen's test
+instructions. A `Canary:` line typed by hand is a claim; the result file is the evidence.
+
 Report the real numbers, the baseline, and every skipped case with its reason.
