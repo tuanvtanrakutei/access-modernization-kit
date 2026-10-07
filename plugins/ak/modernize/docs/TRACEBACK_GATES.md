@@ -1,6 +1,6 @@
 # Traceback Gates
 
-> **Layer 1 document.** Detailed specification of the three coverage gates referenced from `MASTER_WORKFLOW.md`. Project values appear as `{{PLACEHOLDER}}` and resolve from `PROJECT_CONFIG.md`.
+> **Layer 1 document.** Detailed specification of the four gates referenced from `MASTER_WORKFLOW.md`. Project values appear as `{{PLACEHOLDER}}` and resolve from `PROJECT_CONFIG.md`.
 
 Sequential stages drift silently. Stage 1 may find a screen the extraction never traced. Stage 2 may omit a business rule or never open a sub-form's code. Stage 3 may skip a planned endpoint or a screen control. Discovering any of these at review costs three to five stages of rework.
 
@@ -8,7 +8,7 @@ Traceback Gates catch **coverage** gaps between stages, while the context is sti
 
 ## Contents
 
-- [The Three Gates](#the-three-gates)
+- [The Four Gates](#the-four-gates)
 - [Severity Ladder](#severity-ladder)
   - [Classification Examples](#classification-examples)
 - [Anchor Format](#anchor-format)
@@ -23,15 +23,18 @@ Traceback Gates catch **coverage** gaps between stages, while the context is sti
 - [Output Format](#output-format)
 - [Related Documents](#related-documents)
 
-## The Three Gates
+## The Four Gates
 
 | Gate | Position | What the agent checks |
 |---|---|---|
 | **G1 — Evidence Coverage** | End of Stage 1 | **Computed** by `screen_scope.py`: the screen has traceability rows, and every evidence item they cite is in `Evidence.json`. Stage 1 writes no document, so there is no artifact to anchor; whether the evidence objects *applicable* to the screen were actually opened is the evidence sub-check of G2, where the plan's evidence section cites them |
 | **G2 — Rule Coverage** | End of Stage 2 | **Computed** by `screen_scope.py --plan`: every `BR-` in the screen's scope has a row in the plan's Legacy-To-New Mapping section, and every open decision that names the screen is cited in its Gap Matrix. **Agent sub-check (evidence):** the plan's evidence section cites every evidence object applicable to this screen, per the variant row in `LEGACY_EVIDENCE.md` §1 and the object table in §2. Both the backend contract and the frontend contract exist |
 | **G3 — Implementation Coverage** | End of Stage 3b | **API sub-check:** every endpoint in the screen plan's backend contract has code. **UI sub-check:** every row in the screen plan's control inventory has a target component, and every planned interaction has a handler |
+| **G4 — Verification Evidence** | End of Stage 4 | **Computed** by `screen_verify.py` from the result files of `screen_parity.py` (the new output matches the saved legacy output, including the fresh inputs), `screen_canary.py` (a broken line makes the tests fail) and `screen_rule_tests.py` (every rule in scope is named by a test that ran and passed). It reads results and re-runs nothing, so run the three scripts after the last code change. A missing result is a finding, never a pass |
 
 G3 has two sub-checks because the pipeline now covers both tracks. Report them separately — a screen can be fully covered on API and badly covered on UI, and a single combined number hides that.
+
+G4 reads files that other scripts wrote. Where a rule is not in scope for the screen, the person waives it in `screen_rule_tests.py` with a reason; the gate lists the waiver at LOW and does not re-judge it.
 
 ## Severity Ladder
 
@@ -61,6 +64,7 @@ Anchors for judgment. **When in doubt, classify one level higher** — a reviewe
 | **G2** | A rule describing a calculation, total, lock, or destructive side effect has no mapping row. The frontend contract is missing entirely. The control inventory is absent | A rule describing a non-destructive side effect (refresh, redirect, focus) is unmapped. An accepted difference is not acknowledged in the gap matrix | An open business decision is unmapped because it is still open rather than forgotten. An out-of-slice nice-to-have is unmapped |
 | **G3 API** | A planned endpoint has no route registered. A planned write endpoint (create, update, delete) is entirely absent | An optional endpoint was deferred with no deferral note in the screen plan. A serializer field for a non-critical column is missing | An endpoint appears in narrative prose but not in the contract table, so it is unclear whether it was ever in scope |
 | **G3 UI** | A control that accepts input or triggers an action has no component. A planned validation is absent on both client and server. The screen's primary action (search, register, print, export) has no handler | A read-only display control is missing. A planned empty or error state is not implemented. Keyboard behavior recorded as preserved is not implemented | A cosmetic control (decorative label, spacer) is missing. A tooltip or help text is absent |
+| **G4** | The parity result says NO PARITY. A rule's test failed. A canary survived: no test depends on a line that matters. The rule-test result is missing. A screen that produces output has no parity result | A rule is NOT RUN, CLAIMED or UNTESTED. A canary was inconclusive or had no baseline, or none was run. The fresh-input minimum was not met. A result file cannot be read | A difference a person accepted, or a waived rule: listed so the reviewer sees the reason |
 
 The agent classifies per finding. The Stage 5 reviewer may adjust with a recorded reason.
 
@@ -197,7 +201,7 @@ An item missed at G1 therefore resurfaces at G2 as an unmapped-rule risk and at 
 
 ## What Gates Do Not Do
 
-- Gates check **coverage**, never correctness. "Does the endpoint exist?" — not "is its output right?" Correctness belongs to Stage 4 tests and the Stage 5 parity review.
+- Gates check **coverage**, never correctness. "Does the endpoint exist?" — not "is its output right?" Correctness belongs to Stage 4 tests and the Stage 5 parity review. Output parity is computed outside the gates by `screen_parity.py`, which compares saved legacy output with the new output byte for byte; the review reads its `PARITY.json`.
 - Only HIGH blocks. MEDIUM and LOW never stop the pipeline.
 - Gates do not replace review. They move detection of one subset — coverage — earlier. The reviewer still performs the full correctness pass, plus an independent coverage re-check so a gate omission is caught.
 

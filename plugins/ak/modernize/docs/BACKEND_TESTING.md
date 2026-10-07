@@ -65,6 +65,10 @@ Classify every test, then push it as far toward UNIT as the logic under test all
 
 For PARITY tier, do **not** mock the artifact generation. The point of that tier is that the real code produced the real bytes.
 
+**Compare the bytes with a script, not by eye.** Save the legacy output once, produce the new output from the same input, list both in a `cases.json` and run `screen_parity.py` on it. It compares every byte, masks only the spans you name (each with a reason), accepts last-digit rounding of decimal numbers only inside a declared tolerance, and records any difference a person accepted with the reason. A missing file, an empty output or a run that compared nothing is a failure, never a pass. Keep `PARITY.json` with the test evidence; the Stage 5 review reads it instead of judging parity from a screenshot or a sample.
+
+**Add inputs nobody used.** A sample set that only matches on the cases its author chose says little. After the recorded cases match, write at least ten more inputs that were not in the sample set and run them through the legacy system and the new one: boundaries (smallest, largest, one past each limit), the empty input, an oversize one, malformed records, rows in a different order, and the encodings the operator's own tools produce. List each as a case with `"origin": "fresh"`, the `"input"` file it ran on and its `"kind"`, and run `screen_parity.py --min-fresh 10 --min-kinds 4`. A fresh case counts once, only when it was compared and no other case ran on the same input bytes; ten inputs of one kind do not meet the minimum of kinds. A fresh input whose output differs is a finding, not a case to drop.
+
 ## Pre-Check: Is The Environment The Problem?
 
 Before writing a single test, or before trusting a batch of failures as defects, rule out the
@@ -117,6 +121,44 @@ because the code path that mattered simply could not run locally.
   worse than it is.
 - **A test that passes before and after a change proves nothing** as a regression test. If the
   point is to pin a fix, show the test failing against the unfixed code first.
+
+## Which Rules The Tests Back
+
+A coverage map that says a rule is proved by a test is a claim. `screen_rule_tests.py` reads the
+screen's rules from the extraction and the runner's JUnit XML, and gives each rule one state.
+
+| State | Meaning |
+|---|---|
+| **TESTED** | A test that names the rule ran and passed, and none that names it failed |
+| **FAILING** | A test that names the rule failed or errored |
+| **NOT RUN** | Only skipped tests, or a test in the source with no result, name the rule |
+| **CLAIMED** | Only the coverage map names it |
+| **UNTESTED** | Nothing names it |
+| **WAIVED** | A person set it aside with a reason; still listed |
+
+Only TESTED is a pass. A test names a rule in its own name or class name, or, in a Python test
+file, in the function's docstring, decorator or a comment, or in the class's docstring or
+decorator. Use separators (`test_br_ord_01_rounds_up`): `BR-ORD-01` never matches `BR-ORD-011`.
+A run that executed no test, a log, and a count typed into a document show no test names and
+back no rule.
+
+## Prove The Tests Can Fail
+
+A suite that is green proves the tests agree with the code. It does not prove they could
+disagree. After the suite is green, run `scripts/screen_canary.py`: it copies the code to a
+scratch folder, runs the suite untouched, breaks one line that matters (a rounding mode, a
+threshold by one, a comparison) and runs the suite again. The real code is never written.
+
+| Verdict | Meaning | Next |
+|---|---|---|
+| **CAUGHT** | Green before, at least one test failed after | The only pass |
+| **SURVIVED** | Still green with the line broken: no test depends on it | Add the missing test, run the canary again |
+| **INCONCLUSIVE** | The break stopped the tests from running (error, timeout, no result) | Choose a break that still builds |
+| **NO BASELINE** | The untouched copy was not green | Fix the suite first; a failure after a break proves nothing |
+
+Choose the line from the screen's rules, not from the code that is easiest to change. One canary
+on one rule says nothing about the other rules: run one for each calculation or validation the
+screen plan marks as critical.
 
 ## What Every Screen Must Cover
 

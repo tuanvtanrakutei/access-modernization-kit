@@ -39,7 +39,7 @@ If your question is not above, open `MASTER_WORKFLOW.md` — it is the catch-all
 
 ## 2. The Pipeline At A Glance
 
-Every screen passes through six stages with three Traceback Gates (G1, G2, G3) between them.
+Every screen passes through six stages with four Traceback Gates (G1, G2, G3, G4) between them.
 Stage 1 is computed from the extraction and writes nothing; Stages 2–5 produce the four per-screen implementation artifacts; Stage 6 records the final
 acceptance recommendation and user decision in `Final_Acceptance/{screen}.md`. Each gate
 verifies coverage and routes issues to `Known_Issues.md`. Stage 5 gives the review verdict;
@@ -65,7 +65,7 @@ Key design choices:
 
 - **Test runs before Review.** A reviewer needs test evidence to judge legacy parity. Reviewing on red tests is not reviewing.
 - **Stages are sequential** because each consumes the previous artifact — see `MASTER_WORKFLOW.md` "Parallelism Rules" for the two bounded exceptions (backend/frontend coding when the contract is frozen; different-module screens in a batch).
-- **Traceback Gates G1/G2/G3** catch coverage gaps between stages. HIGH findings block and ask; MEDIUM/LOW file to `Known_Issues.md` and continue; the Stage 5 reviewer confirms.
+- **Traceback Gates G1/G2/G3/G4** catch coverage and verification gaps between stages. HIGH findings block and ask; MEDIUM/LOW file to `Known_Issues.md` and continue; the Stage 5 reviewer confirms.
 - **The pipeline is idempotent.** Running it again on the same screen refreshes the artifacts against current code and evidence. Prior reviewer notes are preserved.
 
 ## 3. Run Modes
