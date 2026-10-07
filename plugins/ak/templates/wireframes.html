@@ -58,16 +58,27 @@
   .ctl.t104, .ctl.t122 { border-radius: 4px; text-align: center; background: var(--accent-soft); }
   .ctl.t107 { background: transparent; border-style: groove; }
   .ctl.t111::after { content: "▾"; position: absolute; right: 3px; top: 0; color: var(--muted); }
+  .ctl.t123 { background: transparent; padding: 0; }
+  .tabs { position: absolute; display: flex; gap: 2px; z-index: 4; }
+  .tabs button { font: inherit; font-size: 11px; padding: 1px 8px; border: 1px solid var(--ctl-line);
+                           border-bottom: 0; border-radius: 4px 4px 0 0; background: var(--section-print);
+                           color: var(--ink); cursor: pointer; }
+  .tabs button[aria-selected="true"] { background: var(--accent-soft); font-weight: 600; }
+  .tabs button.hidden { border: 1px dashed var(--hidden); border-bottom: 0; }
   .ctl.t112 { border-style: dashed; background: transparent; color: var(--muted); }
   .ctl.t119, .ctl.t103, .ctl.t108, .ctl.t114 { background: repeating-linear-gradient(45deg, transparent 0 6px, var(--line) 6px 7px); }
   .ctl.t109, .ctl.t110 { color: var(--muted); }
   .ctl.hidden { border: 1px dashed var(--hidden); opacity: .7; }
-  body.operator .ctl.hidden { display: none; }
+  body.operator .ctl.hidden, body.operator .tabs button.hidden { display: none; }
   aside { border-left: 1px solid var(--line); background: var(--panel); padding: 12px 16px; overflow-y: auto; max-height: calc(100vh - 64px); }
   aside h3 { font-size: 14px; margin: 0 0 8px; }
   aside dl { display: grid; grid-template-columns: max-content 1fr; gap: 3px 10px; margin: 0 0 16px; }
   aside dt { color: var(--muted); }
   aside dd { margin: 0; word-break: break-all; }
+  aside pre { white-space: pre-wrap; word-break: break-all; background: var(--bg); padding: 6px 8px;
+              border-radius: 4px; margin: 0 0 12px; font-size: 12px; }
+  aside table { border-collapse: collapse; margin: 0 0 12px; font-size: 12px; }
+  aside td { border: 1px solid var(--line); padding: 2px 6px; }
   .decision { border-left: 3px solid var(--warn); background: var(--warn-soft); padding: 6px 8px; margin: 0 0 8px; border-radius: 0 4px 4px 0; }
   .decision b { font-variant-numeric: tabular-nums; }
   .empty { color: var(--muted); }
@@ -104,6 +115,7 @@
   var detail = document.getElementById("detail");
   var filter = document.getElementById("filter");
   var current = -1;
+  var selected = {};  // tab control name -> the page drawn
 
   function el(tag, attrs, text) {
     var node = document.createElement(tag);
@@ -173,9 +185,51 @@
       ["Tooltip", c.tooltip], ["Visible", c.visible ? "yes" : "no — an operator never sees it"],
       ["Position", c.left + ", " + c.top + " px"], ["Size", c.width + " × " + c.height + " px"]
     ]));
+    if (c.list) { showList(c.list, c.type === 111); }
+    if (c.pages) {
+      detail.appendChild(el("h3", {}, "Pages"));
+      var ol = el("ol");
+      c.pages.forEach(function (p) {
+        var n = s.controls.filter(function (o) { return o.page === p.name; }).length;
+        ol.appendChild(el("li", {}, p.caption + (p.caption !== p.name ? " (" + p.name + ")" : "") + ": " +
+          n + " control" + (n === 1 ? "" : "s") + (p.visible ? "" : " — hidden, an operator never sees it")));
+      });
+      detail.appendChild(ol);
+    }
     var back = el("button", {type: "button"}, "Back to the screen");
     back.addEventListener("click", function () { node.classList.remove("sel"); showScreen(s); });
     detail.appendChild(back);
+  }
+
+  function showList(L, combo) {
+    detail.appendChild(el("h3", {}, "Choices"));
+    var shown = L.shown_columns.join(", ");
+    detail.appendChild(pairs(el("dl"), [
+      ["Row source type", L.row_source_type],
+      ["Columns", L.columns + (L.columns > 1 ? "; shown: " + shown : "")],
+      ["Bound column", L.bound_column],
+      ["Control source", L.control_source || "none: unbound, the value is not saved to a field"],
+      ["Limit to list", !combo ? "" : L.limit_to_list ? "yes" : "no: a value not in the list is accepted"]
+    ]));
+    if (L.row_source) {
+      detail.appendChild(el("p", {}, "Row source in the definition:"));
+      detail.appendChild(el("pre", {}, L.row_source));
+    }
+    if (L.set_by_code.length) {
+      detail.appendChild(el("p", {"class": "note"}, "Row source assigned in the form's code, in " +
+        L.set_by_code.join(", ") + (L.row_source ? "; it replaces the one above at run time." : ".")));
+    } else if (!L.row_source) {
+      detail.appendChild(el("p", {"class": "note"}, "No row source in the definition or the form's code: the list is empty or filled from elsewhere."));
+    }
+    if (L.values.length) {
+      var table = el("table");
+      L.values.forEach(function (row) {
+        var tr = el("tr");
+        row.forEach(function (cell, k) { if (L.shown_columns.indexOf(k + 1) >= 0) { tr.appendChild(el("td", {}, cell)); } });
+        table.appendChild(tr);
+      });
+      detail.appendChild(table);
+    }
   }
 
   function sectionLabel(s, code) {
@@ -185,8 +239,29 @@
 
   function show(i) {
     current = i;
+    selected = {};
     var s = screens[i];
+    s.controls.forEach(function (c) {
+      if (c.pages && c.pages.length) {
+        selected[c.name] = (c.pages.filter(function (p) { return p.visible; })[0] || c.pages[0]).name;
+      }
+    });
     renderList();
+    draw(s);
+    showScreen(s);
+    try { history.replaceState(null, "", "#" + encodeURIComponent(s.name)); } catch (e) { /* file:// may refuse */ }
+  }
+
+  function onPage(s, c) {
+    if (!c.page) { return true; }
+    for (var tab in selected) {
+      var t = s.controls.filter(function (o) { return o.name === tab; })[0];
+      if (t && t.pages.some(function (p) { return p.name === c.page; })) { return selected[tab] === c.page; }
+    }
+    return true;
+  }
+
+  function draw(s) {
     main.textContent = "";
     var meta = el("div", {"class": "meta"});
     meta.appendChild(el("h2", {}, (s.id ? s.id + " " : "") + s.name));
@@ -213,7 +288,7 @@
       div.appendChild(el("span", {"class": "tag"}, tag));
       if (sec.overflow) { div.style.overflow = "visible"; }
       s.controls.forEach(function (c) {
-        if (c.section !== sec.code) { return; }
+        if (c.section !== sec.code || !onPage(s, c)) { return; }
         var classes = "ctl t" + c.type + (c.visible ? "" : " hidden") +
           (c.type === 102 && c.width === 0 ? " v" : "");
         var text = c.caption || (c.type === 109 || c.type === 110 || c.type === 111 || c.type === 112 || c.type === 119 ? c.name : "");
@@ -226,12 +301,23 @@
         node.addEventListener("click", function () { showControl(s, c, node); });
         node.addEventListener("keydown", function (e) { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); showControl(s, c, node); } });
         div.appendChild(node);
+        if (c.pages && c.pages.length) {
+          // A sibling, not a child: a tab is a control of its own, not part of the box's button.
+          var strip = el("div", {"class": "tabs", role: "tablist", "aria-label": c.name + " pages"});
+          strip.style.left = c.left + "px";
+          strip.style.top = c.top + "px";
+          c.pages.forEach(function (p) {
+            var b = el("button", {type: "button", role: "tab", "aria-selected": String(selected[c.name] === p.name),
+                                  "class": p.visible ? "" : "hidden", title: p.name}, p.caption);
+            b.addEventListener("click", function () { selected[c.name] = p.name; draw(s); });
+            strip.appendChild(b);
+          });
+          div.appendChild(strip);
+        }
       });
       canvas.appendChild(div);
     });
     main.appendChild(canvas);
-    showScreen(s);
-    try { history.replaceState(null, "", "#" + encodeURIComponent(s.name)); } catch (e) { /* file:// may refuse */ }
   }
 
   filter.addEventListener("input", renderList);
