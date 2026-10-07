@@ -12,6 +12,38 @@ that it should now work.
 
 ## Open
 
+### A83 - a wireframe drew every tab page on top of the others and showed nothing of a list
+
+**Found 2026-10-07, running A79's page on a live application.** Two gaps A79 had stated.
+Controls on the pages of a tab control share coordinates, so the drawing stacked them.
+A combo or list box was a box with its name in it, and what it offers lives in its
+definition: the row source, how many columns, which are shown, which is bound, and whether
+a typed value outside the list is accepted.
+
+**Measured on one application's bundle.** It has no tab control. It has 19 combo boxes.
+Nine carry their row source in the definition. The other ten carry none, and each of those
+is assigned one in the form's own code, in the procedure that opens the form. A drawing
+that said "no row source" for those ten would have been wrong ten times. Two row sources
+are SQL longer than one line of the definition, so reading only the first line would give
+a different query.
+
+Change, in `contracts/wireframe.py` and the template:
+
+- `definitions()` reads each named control's properties from the definition text, joining
+  continued lines and unescaping `\"`.
+- `assigned_in_code()` names the procedures in the form's code that assign a control a row
+  source; a comment assigns nothing.
+- A list carries `list`: the row source type and text, the procedures that set it,
+  columns, the shown ones (a zero width hides one), the bound column, the control source,
+  limit-to-list, and a value list split into rows.
+- A control carries `page`, found up its parents, so an option button inside a group on a
+  page is on that page. A tab control carries `pages` in definition order and draws a tab
+  strip; a page is not drawn as a box. The first page an operator can see is shown first,
+  and a hidden page's tab is dashed and drops out of the operator's view.
+
+Not done: what a procedure assigns as a row source (it is the procedure's text, and
+often built from strings); fonts and images; reports.
+
 ### A82 - one evidence item every screen cites put every rule it backs on every screen
 
 **Found 2026-10-07, measuring the scope the modernize pipeline computes per screen.**
@@ -97,9 +129,8 @@ position and size on click; and the open decision-queue items that name the form
 `F-` or as `object:<name>` (the modernize pipeline's direct rule). No date in the page,
 so the same inputs give the same bytes; it will not overwrite a page it did not write.
 
-What it does not do: draw reports; read fonts, colours or images; separate the pages of a
-tab control, whose controls are drawn on top of one another; show what a combo or list
-box offers. A section whose height the definition does not state is sized to its
+What it does not do: draw reports; read fonts, colours or images. Tab pages and what a
+combo or list box offers were added in A83. A section whose height the definition does not state is sized to its
 controls and labelled so; a control past its section's declared height is drawn and
 the section is labelled.
 

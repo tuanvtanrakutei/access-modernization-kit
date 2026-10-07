@@ -155,6 +155,140 @@ def test_a_name_holding_markup_cannot_end_the_data_block(name: str) -> None:
     assert json.loads(data)[0]["name"] == name
 
 
+# --- tab pages and lists ----------------------------------------------------
+
+TABBED_TEXT = """Begin Form
+    Width =6000
+    Begin
+        Begin ComboBox
+            FontName ="Arial"
+        End
+    End
+    Begin Section
+        Height =4500
+        Begin
+            Begin Tab
+                PictureData = Begin
+                    0x6801000068010000
+                End
+                Name ="tabs"
+                Begin
+                    Begin Page
+                        Name ="pgB"
+                        Caption ="Second"
+                    End
+                    Begin Page
+                        Name ="pgA"
+                        Caption ="First"
+                    End
+                End
+            End
+            Begin ComboBox
+                ColumnCount =3
+                ColumnWidths ="1134;0;3402"
+                Name ="cboItem"
+                RowSourceType ="Table/Query"
+                RowSource ="SELECT T_ITEM.CODE, T_ITEM.ID, T_ITEM.NAME FROM T_ITEM WHERE T_ITEM.K"
+                    "IND=1 ORDER BY T_ITEM.CODE;"
+                LimitToList = NotDefault
+                ControlSource ="ITEM_CODE"
+            End
+            Begin ComboBox
+                Name ="cboLine"
+                RowSourceType ="Value List"
+                RowSource ="1;\\"North\\";2;\\"South\\""
+                ColumnCount =2
+                ColumnWidths ="0;1701"
+            End
+            Begin ListBox
+                Name ="lstStaff"
+            End
+        End
+    End
+End
+CodeBehindForm
+Option Compare Database
+
+Private Sub Form_Open(Cancel As Integer)
+    ' Me.cboItem.RowSource = "commented out"
+    Me!lstStaff.RowSource = sql
+End Sub
+
+Private Sub Refill()
+    lstStaff.RowSource = other
+End Sub
+"""
+
+
+def tabbed_controls() -> list[dict]:
+    return [
+        ctl("tabs", 123, width=4500, height=3000),
+        ctl("pgA", 124, parent="tabs"), ctl("pgB", 124, parent="tabs", visible=False),
+        ctl("onA", 109, parent="pgA"), ctl("onB", 109, parent="pgB"),
+        ctl("grp", 107, parent="pgB"), ctl("opt", 105, parent="grp"),
+        ctl("cboItem", 111), ctl("cboLine", 111), ctl("lstStaff", 110),
+    ]
+
+
+def tabbed_screen() -> dict:
+    form = {"name": "F", "kind": "form", "text": TABBED_TEXT}
+    return wireframe.screen(form, tabbed_controls(), "", None)
+
+
+def by_name(s: dict) -> dict[str, dict]:
+    return {c["name"]: c for c in s["controls"]}
+
+
+def test_a_long_property_is_joined_and_a_binary_one_does_not_close_a_block() -> None:
+    """A row source split over lines, read as its first line only, is a different query."""
+    defs = wireframe.definitions(TABBED_TEXT)
+    assert defs["cboItem"]["props"]["RowSource"] == (
+        "SELECT T_ITEM.CODE, T_ITEM.ID, T_ITEM.NAME FROM T_ITEM WHERE T_ITEM.KIND=1 ORDER BY T_ITEM.CODE;")
+    assert defs["tabs"]["block"] == "Tab"
+    assert "FontName" not in defs.get("", {}).get("props", {})
+
+
+def test_a_control_on_a_tab_page_carries_its_page_even_through_an_option_group() -> None:
+    c = by_name(tabbed_screen())
+    assert c["onA"]["page"] == "pgA" and c["onB"]["page"] == "pgB"
+    assert c["opt"]["page"] == "pgB"
+    assert c["cboItem"]["page"] == ""
+
+
+def test_pages_come_in_definition_order_and_are_drawn_as_the_tab_not_as_boxes() -> None:
+    c = by_name(tabbed_screen())
+    assert [p["caption"] for p in c["tabs"]["pages"]] == ["Second", "First"]
+    assert c["tabs"]["pages"][0]["visible"] is False
+    assert "pgA" not in c and "pgB" not in c
+
+
+def test_a_list_shows_the_columns_with_a_width_and_binds_the_first_by_default() -> None:
+    item = by_name(tabbed_screen())["cboItem"]["list"]
+    assert item["columns"] == 3 and item["shown_columns"] == [1, 3]
+    assert item["bound_column"] == 1
+    assert item["limit_to_list"] is True and item["control_source"] == "ITEM_CODE"
+    assert item["set_by_code"] == []
+
+
+def test_a_value_list_is_split_into_rows() -> None:
+    line = by_name(tabbed_screen())["cboLine"]["list"]
+    assert line["values"] == [["1", "North"], ["2", "South"]]
+    assert line["shown_columns"] == [2]
+    assert line["limit_to_list"] is False
+
+
+def test_a_row_source_assigned_in_code_names_its_procedures_and_not_a_comment() -> None:
+    c = by_name(tabbed_screen())
+    assert c["lstStaff"]["list"]["set_by_code"] == ["Form_Open", "Refill"]
+    assert c["lstStaff"]["list"]["row_source"] == ""
+    assert c["cboItem"]["list"]["set_by_code"] == []
+
+
+def test_only_lists_carry_choices_and_only_tab_controls_carry_pages() -> None:
+    c = by_name(tabbed_screen())
+    assert "list" not in c["onA"] and "pages" not in c["onA"]
+
+
 # --- the command ------------------------------------------------------------
 
 def workspace(tmp_path: Path) -> Path:
