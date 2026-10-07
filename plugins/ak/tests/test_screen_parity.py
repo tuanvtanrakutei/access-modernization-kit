@@ -223,3 +223,97 @@ def test_self_check_catches_a_broken_comparator():
     finally:
         sp.compare_bytes = original
     assert not ok and "not detected" in note
+
+
+# ---- fresh inputs: the cases nobody chose in advance
+
+def fresh(cid: str, kind: str = "boundary", **extra: object) -> dict:
+    return case(cid, origin="fresh", kind=kind, input=f"{cid}.in", **extra)
+
+
+def fresh_files(cid: str, data: bytes | None = None, out: bytes = b"ok") -> dict[str, bytes]:
+    return {f"{cid}.in": data if data is not None else cid.encode(), **pair(cid, out, out)}
+
+
+def run_min(tmp_path: Path, cases: list[dict], files: dict[str, bytes], *opts: str) -> tuple[int, dict]:
+    for name, data in files.items():
+        (tmp_path / name).write_bytes(data)
+    (tmp_path / "cases.json").write_text(json.dumps({"cases": cases}), encoding="utf-8")
+    proc = subprocess.run([sys.executable, str(SCRIPT), str(tmp_path / "cases.json"), *opts], capture_output=True, text=True)
+    return proc.returncode, json.loads((tmp_path / "PARITY.json").read_text(encoding="utf-8"))
+
+
+def ten(kinds: list[str]) -> tuple[list[dict], dict[str, bytes]]:
+    cases, files = [], {}
+    for i in range(10):
+        cid = f"F{i:02d}"
+        cases.append(fresh(cid, kinds[i % len(kinds)]))
+        files.update(fresh_files(cid))
+    return cases, files
+
+
+def test_ten_fresh_inputs_of_enough_kinds_pass(tmp_path):
+    cases, files = ten(["boundary", "empty", "malformed", "order"])
+    code, pack = run_min(tmp_path, cases, files, "--min-fresh", "10", "--min-kinds", "4")
+    assert code == 0 and pack["freshInputs"]["counted"] == 10
+    assert pack["freshInputs"]["kinds"] == ["boundary", "empty", "malformed", "order"]
+
+
+def test_too_few_fresh_inputs_fail_even_when_everything_matches(tmp_path):
+    cases, files = ten(["boundary", "empty", "malformed", "order"])
+    code, pack = run_min(tmp_path, cases[:9], files, "--min-fresh", "10")
+    assert code == 1 and "only 9 fresh input(s) counted; 10 needed" in pack["problems"]
+
+
+def test_one_kind_repeated_is_not_variety(tmp_path):
+    cases, files = ten(["boundary"])
+    code, pack = run_min(tmp_path, cases, files, "--min-fresh", "10", "--min-kinds", "3")
+    assert code == 1 and "fresh inputs cover 1 kind(s); 3 needed" in pack["problems"]
+
+
+def test_the_same_input_twice_counts_once(tmp_path):
+    cases, files = ten(["boundary", "empty", "malformed", "order"])
+    files["F01.in"] = files["F00.in"]
+    code, pack = run_min(tmp_path, cases, files, "--min-fresh", "10")
+    assert code == 1 and pack["freshInputs"]["counted"] == 9
+    assert pack["freshInputs"]["notCounted"] == [{"id": "F01", "why": "its input was already used by another case"}]
+
+
+def test_a_fresh_input_equal_to_a_recorded_one_is_not_fresh(tmp_path):
+    recorded = case("R01", input="R01.in")
+    cases = [recorded, fresh("F00")]
+    files = {**fresh_files("F00", b"same bytes"), "R01.in": b"same bytes", **pair("R01", b"ok", b"ok")}
+    code, pack = run_min(tmp_path, cases, files, "--min-fresh", "1")
+    assert code == 1 and pack["freshInputs"]["counted"] == 0
+
+
+def test_a_fresh_case_with_a_missing_input_or_output_does_not_count(tmp_path):
+    cases = [fresh("F00"), fresh("F01")]
+    files = {**fresh_files("F00"), "F01.in": b"x", "F01.old": b"ok"}   # F01 has no new output
+    code, pack = run_min(tmp_path, cases, files, "--min-fresh", "1")
+    assert pack["freshInputs"]["counted"] == 1 and pack["freshInputs"]["notCounted"][0]["id"] == "F01"
+    (tmp_path / "F00.in").unlink()
+    code, pack = run_min(tmp_path, [fresh("F00")], {**pair("F00", b"ok", b"ok")}, "--min-fresh", "1")
+    assert code == 1 and "input: file is absent" in pack["freshInputs"]["notCounted"][0]["why"]
+
+
+def test_a_fresh_input_that_differs_still_fails_the_run(tmp_path):
+    cases, files = ten(["boundary", "empty", "malformed", "order"])
+    files.update(pair("F03", b"legacy", b"new"))
+    code, pack = run_min(tmp_path, cases, files, "--min-fresh", "10")
+    assert code == 1 and "1 case(s) differ" in pack["problems"]
+
+
+def test_the_requirement_is_off_unless_asked_for(tmp_path):
+    code, pack = run_min(tmp_path, [case()], pair("P01", b"a", b"a"))
+    assert code == 0 and pack["freshInputs"]["required"] == 0 and pack["freshInputs"]["counted"] == 0
+
+
+@pytest.mark.parametrize("extra", [
+    {"origin": "other"},                      # not a known origin
+    {"origin": "fresh"},                      # no kind, no input
+    {"origin": "fresh", "kind": "boundary"},  # no input file named
+])
+def test_a_malformed_fresh_case_is_refused(tmp_path, extra):
+    code, pack, _ = run(tmp_path, [case(**extra)], pair("P01", b"a", b"a"))
+    assert code == 2 and pack is None

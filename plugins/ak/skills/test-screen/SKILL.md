@@ -29,6 +29,17 @@ report; do not proceed to 4b to produce a greener-looking summary.
 - **Stage 4b** — write §Frontend, then run `{{FE_E2E_TEST_CMD}}` (and `{{FE_UNIT_TEST_CMD}}`
   if defined), plus the output comparison against the legacy samples.
 
+## Inputs nobody used
+
+Matching the recorded legacy samples proves the new code handles the cases someone picked. After
+they match, invent at least ten more inputs that are not in the sample set: boundaries, the empty
+input, an oversize one, malformed records, rows in another order, the encodings the operator's tools
+produce. Run each through the legacy system and the new one, list them in `cases.json` as
+`"origin": "fresh"` with the `"input"` file and a `"kind"`, and run
+`screen_parity.py --min-fresh 10 --min-kinds 4`. Do not drop a fresh input because its output
+differs: that difference is the finding. If the legacy system cannot run here, say so and do not
+count the case.
+
 ## Reading the result honestly
 
 This is where a run most often lies to itself.

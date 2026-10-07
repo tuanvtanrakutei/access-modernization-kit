@@ -67,6 +67,8 @@ For PARITY tier, do **not** mock the artifact generation. The point of that tier
 
 **Compare the bytes with a script, not by eye.** Save the legacy output once, produce the new output from the same input, list both in a `cases.json` and run `screen_parity.py` on it. It compares every byte, masks only the spans you name (each with a reason), accepts last-digit rounding of decimal numbers only inside a declared tolerance, and records any difference a person accepted with the reason. A missing file, an empty output or a run that compared nothing is a failure, never a pass. Keep `PARITY.json` with the test evidence; the Stage 5 review reads it instead of judging parity from a screenshot or a sample.
 
+**Add inputs nobody used.** A sample set that only matches on the cases its author chose says little. After the recorded cases match, write at least ten more inputs that were not in the sample set and run them through the legacy system and the new one: boundaries (smallest, largest, one past each limit), the empty input, an oversize one, malformed records, rows in a different order, and the encodings the operator's own tools produce. List each as a case with `"origin": "fresh"`, the `"input"` file it ran on and its `"kind"`, and run `screen_parity.py --min-fresh 10 --min-kinds 4`. A fresh case counts once, only when it was compared and no other case ran on the same input bytes; ten inputs of one kind do not meet the minimum of kinds. A fresh input whose output differs is a finding, not a case to drop.
+
 ## Pre-Check: Is The Environment The Problem?
 
 Before writing a single test, or before trusting a batch of failures as defects, rule out the
