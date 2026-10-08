@@ -387,3 +387,157 @@ def test_a_build_context_that_holds_a_refused_folder_stops_the_run_before_any_te
     (root / ".dockerignore").write_text("docs\n", encoding="utf-8")
     code, outcome, out = check(root, cfg)
     assert code == 0, out
+
+
+# ---- a suite that runs against a started service (up / ready / down)
+
+SERVE = '''\
+import pathlib, subprocess, sys
+# starts a small web server in the background, as `docker run -d` would, and returns
+port, here = sys.argv[1], pathlib.Path(__file__).parent
+with open(here / "log.txt", "a") as log:
+    log.write("up" + chr(10))
+proc = subprocess.Popen([sys.executable, "-m", "http.server", port, "--bind", "127.0.0.1"], cwd=here,
+                        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+(here / "pid.txt").write_text(str(proc.pid))
+'''
+
+STOP = '''\
+import os, pathlib, signal, sys
+here = pathlib.Path(__file__).parent
+with open(here / "log.txt", "a") as log:
+    log.write("down" + chr(10))
+pid = here / "pid.txt"
+if pid.exists():
+    os.kill(int(pid.read_text()), signal.SIGTERM)
+    pid.unlink()
+'''
+
+AGAINST = '''\
+import sys, urllib.request
+from pathlib import Path
+out, url = Path(sys.argv[1]), sys.argv[2]
+urllib.request.urlopen(url, timeout=5).read()  # fails the suite when nothing serves the url
+out.write_text('<testsuite tests="1"><testcase classname="e2e" name="BR-SHP-03 shows the total"/></testsuite>', encoding="utf-8")
+'''
+
+
+def free_port() -> int:
+    with socket.socket() as s:
+        s.bind(("127.0.0.1", 0))
+        return s.getsockname()[1]
+
+
+def served(root: Path, two_screens: bool = False, ready: bool = True) -> dict:
+    svc = root / "svc"
+    svc.mkdir(exist_ok=True)
+    (svc / "serve.py").write_text(SERVE, encoding="utf-8")
+    (svc / "stop.py").write_text(STOP, encoding="utf-8")
+    (svc / "against.py").write_text(AGAINST, encoding="utf-8")
+    port = free_port()
+    cfg = config(root, rules=["BR-SHP-01", "BR-SHP-02", "BR-SHP-03"],
+                 tests={"backend": ["tests/test_shop.py"], "image": ["shop"]})
+    cfg["suites"]["image"] = {
+        "root": "svc", "port": port,
+        "up": [sys.executable, "svc/serve.py", str(port)],
+        "down": [sys.executable, "svc/stop.py"],
+        "command": ["{python}", "against.py", "{junit}", f"http://127.0.0.1:{port}/", "{tests}"],
+    }
+    if ready:
+        cfg["suites"]["image"]["ready"] = {"url": f"http://127.0.0.1:{port}/", "timeout": 30}
+    if two_screens:
+        other = dict(cfg["screens"][0], key="shop-2", screen="Shop2")
+        cfg["screens"].append(other)
+    return cfg
+
+
+def test_a_service_is_started_once_for_every_screen_and_stopped_after(tmp_path):
+    root = project(tmp_path)
+    cfg = served(root, two_screens=True)
+    path = root / "screen_check.json"
+    path.write_text(json.dumps(cfg), encoding="utf-8")
+    results = tmp_path / "results"
+    proc = subprocess.run([sys.executable, str(SCRIPT), "--config", str(path), "--results-dir", str(results)],
+                          capture_output=True, text=True, encoding="utf-8")
+    assert proc.returncode == 0, proc.stdout + proc.stderr
+    summary = json.loads((results / "summary.json").read_text(encoding="utf-8"))
+    assert [o["suites"]["image"] for o in summary] == [0, 0]
+    assert (root / "svc" / "log.txt").read_text().split() == ["up", "down"]
+
+
+def test_a_service_that_does_not_start_makes_its_suite_unavailable_and_is_still_stopped(tmp_path):
+    root = project(tmp_path)
+    cfg = served(root)
+    cfg["suites"]["image"]["up"] = [[sys.executable, "svc/serve.py", "1"], [sys.executable, "-c", "import sys; print('pull denied'); sys.exit(5)"]]
+    code, outcome, out = check(root, cfg)
+    assert code == 1 and outcome["suites"]["image"] == "unavailable"
+    assert any("pull denied" in e for e in outcome["errors"])
+    assert (root / "svc" / "log.txt").read_text().split() == ["up", "down"]
+
+
+def test_a_service_that_never_answers_is_a_timeout_not_a_red_suite(tmp_path):
+    root = project(tmp_path)
+    cfg = served(root)
+    cfg["suites"]["image"]["up"] = [sys.executable, "-c", "pass"]  # starts nothing
+    cfg["suites"]["image"]["ready"]["timeout"] = 3
+    code, outcome, _ = check(root, cfg)
+    assert code == 1 and outcome["suites"]["image"] == "unavailable"
+    assert any("did not answer within 3 s" in e for e in outcome["errors"])
+
+
+def test_a_stop_that_fails_is_said(tmp_path):
+    root = project(tmp_path)
+    cfg = served(root)
+    cfg["suites"]["image"]["down"] = [[sys.executable, "svc/stop.py"], [sys.executable, "-c", "import sys; sys.exit(3)"]]
+    code, outcome, _ = check(root, cfg)
+    assert code == 1 and any("may still be running" in e for e in outcome["errors"])
+
+
+@pytest.mark.parametrize("change, words", [
+    (lambda s: s.update(ready={"url": "localhost:1", "timeout": 5}), "ready"),
+    (lambda s: s.update(ready={"url": "http://x/", "timeout": 0}), "ready"),
+    (lambda s: (s.pop("up"), s.pop("down")), "no `up`"),
+    (lambda s: s.update(up="docker run x"), "`up` must be a command"),
+])
+def test_a_service_block_the_run_cannot_use_is_refused(tmp_path, change, words):
+    root = project(tmp_path)
+    cfg = served(root)
+    change(cfg["suites"]["image"])
+    code, _, out = check(root, cfg)
+    assert code == 2 and words in out, out
+
+
+def test_a_canary_on_a_suite_with_a_service_is_refused(tmp_path):
+    root = project(tmp_path)
+    cfg = served(root)
+    cfg["screens"][0]["canaries"].append({"suite": "image", "file": "against.py", "find": "timeout=5", "replace": "timeout=6"})
+    code, _, out = check(root, cfg)
+    assert code == 2 and "rebuilt image" in out, out
+
+
+def test_waiting_for_a_service_treats_a_server_error_as_not_ready_and_a_404_as_ready():
+    import http.server
+    import threading
+    sys.path.insert(0, str(SCRIPT.parent))
+    import screen_check as sc
+
+    class Answer(http.server.BaseHTTPRequestHandler):
+        code = 503
+
+        def do_GET(self):
+            self.send_response(Answer.code)
+            self.end_headers()
+
+        def log_message(self, *args):
+            pass
+
+    server = http.server.HTTPServer(("127.0.0.1", 0), Answer)
+    threading.Thread(target=server.serve_forever, daemon=True).start()
+    url = f"http://127.0.0.1:{server.server_address[1]}/"
+    try:
+        why = sc.wait_ready(url, 3)
+        assert why is not None and "HTTP 503" in why  # still starting: a 5xx is not an answer
+        Answer.code = 404
+        assert sc.wait_ready(url, 3) is None  # up, even if the path is not served
+    finally:
+        server.shutdown()

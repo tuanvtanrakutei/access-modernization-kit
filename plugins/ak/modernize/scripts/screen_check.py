@@ -59,6 +59,17 @@ given instead or as well:
                   runner inside a container, which sees the mounted folder and not the host's results
                   folder. The file is moved to the results folder after the run
 
+  up              a command, or a list, that starts what the suite runs against (a container of the
+                  built image, served as the customer serves it). Run once, before the suite's first
+                  screen; if it fails, every screen's suite is unavailable
+  ready           {"url", "timeout"}: wait until the url answers (anything below 500) before testing
+  down            a command, or a list, run after the suite's last screen whatever happened, so the
+                  next suite finds its port free. A suite with `up` takes no canary: a break would
+                  need a rebuilt image
+
+Suites run one after another, in the config's order, each for every screen that has tests in it;
+the rule check, the canaries and G4 then run per screen over all of its results.
+
 `{root}` in a command is the suite's folder; in a canary it is the scratch copy `screen_canary.py`
 broke, so a container command can mount the copy (`-v {root}:/app`) and never the real code.
 
@@ -95,6 +106,9 @@ import socket
 import subprocess
 import sys
 import tempfile
+import time
+import urllib.error
+import urllib.request
 from pathlib import Path, PureWindowsPath
 from typing import Any
 
@@ -118,7 +132,7 @@ PRESETS: dict[str, dict[str, Any]] = {
     },
 }
 SUITE_FIELDS = {"preset", "root", "command", "env", "canary_command", "canary_env", "link", "requires", "executables", "port", "citations",
-                "junit_file"}
+                "junit_file", "up", "ready", "down"}
 SCREEN_FIELDS = {"key", "screen", "rules", "plan", "coverage_map", "tests", "waive", "canaries", "parity", "output_screen"}
 
 
@@ -132,6 +146,17 @@ def _strings(value: Any) -> bool:
     return isinstance(value, list) and bool(value) and all(isinstance(v, str) and v for v in value)
 
 
+def _commands(value: Any, what: str) -> list[list[str]]:
+    """A command (a list of strings) or a list of commands, as a list of commands; None is none."""
+    if value is None:
+        return []
+    if _strings(value):
+        return [value]
+    if isinstance(value, list) and value and all(_strings(c) for c in value):
+        return value
+    raise Problem(f"{what} must be a command (a list), or a list of commands")
+
+
 def load_suite(name: str, raw: Any, root: Path) -> dict[str, Any]:
     if not isinstance(raw, dict):
         raise Problem(f"suite {name} is not an object")
@@ -141,7 +166,8 @@ def load_suite(name: str, raw: Any, root: Path) -> dict[str, Any]:
     preset = raw.get("preset")
     if preset is not None and preset not in PRESETS:
         raise Problem(f"suite {name}: unknown preset {preset!r} (known: {', '.join(PRESETS)})")
-    suite: dict[str, Any] = {"env": {}, "canary_env": {}, "link": [], "requires": {}, "executables": [], "port": None, "citations": False}
+    suite: dict[str, Any] = {"env": {}, "canary_env": {}, "link": [], "requires": {}, "executables": [], "port": None, "citations": False,
+                             "up": None, "ready": None, "down": None}
     suite.update(json.loads(json.dumps(PRESETS.get(preset, {}))))
     suite.update({k: v for k, v in raw.items() if k != "preset"})
     suite["name"] = name
@@ -170,6 +196,16 @@ def load_suite(name: str, raw: Any, root: Path) -> dict[str, Any]:
             raise Problem(f"suite {name}: `{field}` must be a list of names")
     if suite["port"] is not None and not (isinstance(suite["port"], int) and 0 < suite["port"] < 65536):
         raise Problem(f"suite {name}: `port` must be a port number")
+    suite["up"] = _commands(suite["up"], f"suite {name}: `up`")
+    suite["down"] = _commands(suite["down"], f"suite {name}: `down`")
+    ready = suite["ready"]
+    if ready is not None:
+        if (not isinstance(ready, dict) or set(ready) - {"url", "timeout"} or not isinstance(ready.get("url"), str)
+                or not re.match(r"^https?://", ready["url"]) or not isinstance(ready.get("timeout", 300), int)
+                or ready.get("timeout", 300) <= 0):
+            raise Problem(f"suite {name}: `ready` is {{\"url\": \"http://...\", \"timeout\": seconds}}")
+        if not suite["up"]:
+            raise Problem(f"suite {name}: `ready` waits for what `up` starts, and there is no `up`")
     suite["root"] = (root / str(suite.get("root") or ".")).resolve()
     if not suite["root"].is_dir():
         raise Problem(f"suite {name}: {suite['root']} is not a folder")
@@ -230,6 +266,9 @@ def load_screen(raw: Any, suites: dict[str, dict[str, Any]], root: Path) -> dict
             raise Problem(f"screen {key}: canary {n} needs `suite`, `file`, `find` and `replace`")
         if canary["suite"] not in tests:
             raise Problem(f"screen {key}: canary {n} breaks suite {canary['suite']!r}, which has no tests for this screen")
+        if suites[canary["suite"]]["up"]:
+            raise Problem(f"screen {key}: canary {n} breaks suite {canary['suite']}, which runs against a started service: "
+                          "the break would need a rebuilt image. Break it in a suite that builds from the code")
         if canary["find"] == canary["replace"]:
             raise Problem(f"screen {key}: canary {n} replaces its text with the same text")
     screen = dict(raw)
@@ -266,13 +305,7 @@ def load_config(path: Path) -> dict[str, Any]:
     keys = [s["key"] for s in screens]
     if len(set(keys)) != len(keys):
         raise Problem(f"{path.name}: screen keys repeat: {', '.join(sorted({k for k in keys if keys.count(k) > 1}))}")
-    preflight = raw.get("preflight")
-    if preflight is None:
-        preflight = []
-    elif _strings(preflight):
-        preflight = [preflight]
-    elif not (isinstance(preflight, list) and preflight and all(_strings(c) for c in preflight)):
-        raise Problem("`preflight` must be a command (a list), or a list of commands")
+    preflight = _commands(raw.get("preflight"), "`preflight`")
     context = raw.get("context")
     if context is not None:
         if not isinstance(context, dict) or set(context) - {"dir", "dockerfile", "forbid"}:
@@ -371,43 +404,101 @@ def waiver_arg(rule: str, waiver: dict[str, str]) -> str:
     return text
 
 
-def verify(screen: dict[str, Any], config: dict[str, Any], results: Path, args: argparse.Namespace) -> dict[str, Any]:
-    key = screen["key"]
-    outcome: dict[str, Any] = {"key": key, "screen": screen["screen"], "suites": {}, "canaries": [], "findings": [], "errors": []}
+def new_outcome(screen: dict[str, Any]) -> dict[str, Any]:
+    outcome: dict[str, Any] = {"key": screen["key"], "screen": screen["screen"], "suites": {}, "canaries": [], "findings": [],
+                               "errors": [], "junits": []}
     outcome["plan"], detail = check_plan(screen)
     if outcome["plan"] == "differs":
         outcome["errors"].append(detail)
     elif detail:
         outcome["planNote"] = detail
+    return outcome
 
-    junits: list[str] = []
-    for name, tests in screen["tests"].items():
-        suite = config["suites"][name]
+
+def run_suite(screen: dict[str, Any], name: str, suite: dict[str, Any], results: Path, outcome: dict[str, Any]) -> None:
+    junit = results / f"{screen['key']}.{name}.junit.xml"
+    junit.unlink(missing_ok=True)
+    written = suite["root"] / suite["junit_file"] if suite.get("junit_file") else None
+    if written is not None:
+        written.unlink(missing_ok=True)
+    env = {k: v.replace("{junit}", str(junit)) for k, v in suite["env"].items()}
+    done = run(expand(suite["command"], screen["tests"][name], junit, suite["root"]), suite["root"], env)
+    outcome["suites"][name] = done.returncode
+    if done.returncode:
+        outcome["errors"].append(f"suite {name} exited {done.returncode}\n{tail(done)}")
+    if written is not None and written.is_file():
+        # a runner in a container writes under the mounted root; move the result out of the code
+        shutil.move(str(written), str(junit))
+    if junit.is_file():
+        outcome["junits"].append(str(junit))
+    else:
+        outcome["errors"].append(f"suite {name} wrote no JUnit result, so no rule can be shown to be tested by it")
+
+
+def wait_ready(url: str, timeout: int) -> str | None:
+    """None once `url` answers with anything below 500, else why it never did."""
+    deadline = time.monotonic() + timeout
+    last = "no answer"
+    while time.monotonic() < deadline:
+        try:
+            with urllib.request.urlopen(url, timeout=5):
+                return None  # urlopen raises HTTPError for 4xx and 5xx, so reaching here is an answer
+        except urllib.error.HTTPError as err:
+            if err.code < 500:
+                return None
+            last = f"HTTP {err.code}"
+        except (urllib.error.URLError, OSError) as err:
+            last = str(getattr(err, "reason", err))
+        time.sleep(2)
+    return f"{url} did not answer within {timeout} s (last: {last})"
+
+
+def run_suites(screens: list[dict[str, Any]], config: dict[str, Any], results: Path, args: argparse.Namespace,
+               outcomes: dict[str, dict[str, Any]]) -> None:
+    """Run each suite, in the config's order, for every screen that has tests in it.
+
+    A suite with `up` starts its service once, runs every screen against it, and stops it with `down`
+    whatever happened, so the next suite finds its port free again.
+    """
+    for name, suite in config["suites"].items():
+        mine = [s for s in screens if name in s["tests"]]
+        if not mine:
+            continue
         if name in args.skip_suite:
-            outcome["suites"][name] = "skipped"
+            for s in mine:
+                outcomes[s["key"]]["suites"][name] = "skipped"
             continue
         why = unavailable(suite)
-        if why:
-            outcome["suites"][name] = "unavailable"
-            outcome["errors"].append(why)
-            continue
-        junit = results / f"{key}.{name}.junit.xml"
-        junit.unlink(missing_ok=True)
-        written = suite["root"] / suite["junit_file"] if suite.get("junit_file") else None
-        if written is not None:
-            written.unlink(missing_ok=True)
-        env = {k: v.replace("{junit}", str(junit)) for k, v in suite["env"].items()}
-        done = run(expand(suite["command"], tests, junit, suite["root"]), suite["root"], env)
-        outcome["suites"][name] = done.returncode
-        if done.returncode:
-            outcome["errors"].append(f"suite {name} exited {done.returncode}\n{tail(done)}")
-        if written is not None and written.is_file():
-            # a runner in a container writes under the mounted root; move the result out of the code
-            shutil.move(str(written), str(junit))
-        if junit.is_file():
-            junits.append(str(junit))
-        else:
-            outcome["errors"].append(f"suite {name} wrote no JUnit result, so no rule can be shown to be tested by it")
+        if not why:
+            for command in suite["up"]:
+                done = run(command, config["root"])
+                if done.returncode:
+                    why = f"suite {name}: `{' '.join(command)}` exited {done.returncode}\n{tail(done)}"
+                    break
+            if not why and suite["ready"]:
+                why = wait_ready(suite["ready"]["url"], suite["ready"].get("timeout", 300))
+                why = f"suite {name}: {why}" if why else None
+        try:
+            for s in mine:
+                if why:
+                    outcomes[s["key"]]["suites"][name] = "unavailable"
+                    outcomes[s["key"]]["errors"].append(why)
+                else:
+                    run_suite(s, name, suite, results, outcomes[s["key"]])
+        finally:
+            for command in suite["down"]:
+                done = run(command, config["root"])
+                if done.returncode:
+                    for s in mine:
+                        outcomes[s["key"]]["errors"].append(
+                            f"suite {name}: `{' '.join(command)}` exited {done.returncode}; the service may still be running\n{tail(done)}")
+
+
+def verify(screen: dict[str, Any], config: dict[str, Any], results: Path, args: argparse.Namespace,
+           outcome: dict[str, Any]) -> dict[str, Any]:
+    """The rule check, the canaries and G4 for one screen, over the results its suites wrote."""
+    key = screen["key"]
+    junits = outcome.pop("junits")
     if not junits:
         outcome["errors"].append("no suite produced a result, so nothing was checked")
         return outcome
@@ -542,7 +633,10 @@ def main(argv: list[str] | None = None) -> int:
         print(f"screen_check: {err}", file=sys.stderr)
         return 2
 
-    outcomes = [verify(s, config, results, args) for s in config["screens"] if s["key"] in wanted]
+    screens = [s for s in config["screens"] if s["key"] in wanted]
+    started = {s["key"]: new_outcome(s) for s in screens}
+    run_suites(screens, config, results, args, started)
+    outcomes = [verify(s, config, results, args, started[s["key"]]) for s in screens]
     for o in outcomes:
         print(report(o))
         (results / f"{o['key']}.g4.json").write_text(json.dumps(o, ensure_ascii=False, indent=1) + "\n", encoding="utf-8", newline="\n")

@@ -87,6 +87,12 @@ the tests inside it (`docker run ... -v "{root}:/app" <image> python -m pytest .
 it refuses `.git`, any `.env` and the patterns you name (the documentation folder, whose `input/`
 holds the customer's data). Git ignoring a folder does not keep it out of an image.
 
+**Against the image as it is served.** A test that mounts the code proves the image's tools, not the
+image. Add a suite with `up` (start the built image with no mount, the way the customer serves it,
+its settings passed at run time rather than built in), `ready` (the url to wait for) and `down`
+(stop it whatever happened), and point the end-to-end tests at it. It runs once for every screen and
+after the self-started suite, so the two never share a port; it takes no canary.
+
 ### 1. Which rules do the tests back
 
 ```bash
