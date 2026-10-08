@@ -12,6 +12,80 @@ that it should now work.
 
 ## Open
 
+### A84 - a green test run was read as proof: nothing compared output, showed a test could fail, or tied a passing test to a rule
+
+**Found 2026-10-07, reviewing what the modernize pipeline's test stage (Stage 4) leaves behind.**
+Stage 4 writes tests and runs them, and the traceback gates G1 to G3 check coverage "never
+correctness". So a screen could reach review with a green suite and nothing else: the reviewer
+judged output parity by eye against a sample, the coverage map's Status column was typed from
+memory, no one had shown that the suite could fail, and a rule "proved by a test" was a sentence in
+a table. A pass was a claim.
+
+Five scripts under `modernize/scripts` and a change to the `test-screen` skill, each script computing
+one verdict from files and none writing the project's code (landed 2026-10-07 as #81, #82, #85, #86,
+#88, #90, #91, #93, #94). The design was informed
+by the public `code-modernization` plugin of `anthropics/claude-plugins-official` (its idea of a
+proof built from checkable files); no file of it is used or copied.
+
+- **`screen_parity.py`** (#81, #86): saved legacy output against the new output, byte for byte.
+  A mask names what may vary and why, and keeps the position of a difference; a tolerance covers
+  decimal numbers only, never above 1% relative or 1e-6 absolute; an accepted difference carries a
+  reason and is still listed. A missing file, an empty output or a run that compared nothing is a
+  failure. `--min-fresh N --min-kinds K` demands inputs nobody used before (boundaries, empty,
+  oversize, malformed, reordered), each on bytes no other case ran on.
+- **`screen_canary.py`** (#82, #94): breaks one line in a scratch copy and runs the suite. CAUGHT is
+  the only pass; SURVIVED (no test depends on the line), INCONCLUSIVE (the break stopped the suite
+  running, or made every test fail, which is what a build error does to a whole page) and NO
+  BASELINE are not. `--link` brings a folder the copy skips (`node_modules`) in as a link and takes
+  it out before the scratch folder goes. The runner's summary is read as printed, one line or several.
+- **`screen_rule_tests.py`** (#85, #90): which of a screen's rules a test that ran and passed names,
+  from the runner's JUnit result (backend and front end together). TESTED, FAILING, NOT RUN,
+  CLAIMED (only the coverage map says so), UNTESTED, WAIVED. A test names a rule in its name or
+  title, or in a Python test's docstring, decorator or comment; ids match whole. Citations in files
+  that have no result in the run are not counted. A waiver needs a reason, is a person's decision,
+  and is listed.
+- **`screen_rule_ids.py`** (#93): a screen the register holds no rule for still has rules, written
+  in the plan's mapping table, and every screen numbers its flow from 01. Ids are `BR-<PREFIX>-nn`,
+  the prefix being the screen's optional `rule_prefix` in `Screens_Registry.md`, declared by a
+  person and unique across the registry. Reports the prefix, each row's id, what a bare `BR-nn`
+  should become, and duplicates, another screen's prefix, unknown scopes. A mapping row with no id
+  is a legacy concept and is left alone. `screen_rule_tests.py --plan` reads the rules from those rows.
+- **`screen_verify.py`** (#88, #94): gate G4, end of Stage 4. Reads the results above and files
+  findings on the gate severity ladder: HIGH for no parity, a failed rule test, a surviving canary or
+  a missing rule-test result; MEDIUM for unproved rules and inconclusive or absent canaries; LOW for
+  an accepted difference or a waiver, and for a waiver a test now makes unneeded. A missing result
+  is a finding, never a pass.
+- **`test-screen`** (#91, #94) closes Stage 4 with these in order, and the Test_Instruction
+  template gains a G4 header field and a verification section.
+
+Each tool has its own test file with mutation checks: deliberate breaks of the script that must turn
+a test red. Several first-draft tests let a mutant survive (a guard hidden behind an exit code;
+assertions on the verdict but not the reason) and were tightened. Each tool was then run on the
+maintenance screens of a real application, and the first run of each found a defect the synthetic
+tests could not: rule citations in a file outside the run were counted as "named, not run"; mapping
+rows that are legacy concepts were given rule ids; a scope longer than the pattern allows read as
+"no id"; a front-end runner prints `1 failed` and `12 passed` on two lines and only the last was read.
+
+Not done, and weak:
+
+- **Nothing enforces G4.** It is a step in a skill and a script a project may run by hand. The
+  tools read files and re-run nothing, and do not check how old a result is: run them after the last
+  change to code or tests.
+- **A canary on a constant a test imports survives**, because the test builds its expectation from
+  the constant. The guidance says to break the line that applies a value.
+- **Citations inside a test's source are read for Python only.** Other stacks must put the rule id
+  in the test's name or title.
+- **No rule has a priority.** Every rule in scope is checked, and the ones a screen does not use or
+  cannot assert are set aside by a person with `--waive`; the register has no P0 field to separate them.
+- **Parity needs the legacy output to exist**, and no script can tell that a fresh input was written
+  after the build or by someone other than the author of the recorded cases.
+- **Rule ids minted from a prefix are screen-local.** When the extraction later covers the screen,
+  its register ids should replace them; nothing migrates the old ones.
+- **A front-end canary needs Node, a browser and a free dev-server port**, and the kit script does
+  not check the port: a dev server already running there is reused by an end-to-end config and
+  would serve the real code. A project's wrapper must refuse to start in that case.
+- `validate_docs.py` does not check the registry's `rule_prefix`; `screen_rule_ids.py` does.
+
 ### A83 - a wireframe drew every tab page on top of the others and showed nothing of a list
 
 **Found 2026-10-07, running A79's page on a live application.** Two gaps A79 had stated.
