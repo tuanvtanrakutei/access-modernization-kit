@@ -1,6 +1,6 @@
 ---
 name: triage-suite
-description: "Work out what is actually wrong with a failing test suite by grouping failures by error signature instead of by file, so a wall of red resolves into a few root causes. Trigger when a suite is red and the cause is unclear, when there are more failures than anyone wants to read one at a time, before deciding whether failures belong to your change or predate it, or when the user asks what is failing and why. Examples: \"/triage-suite\", \"why are 48 tests failing\", \"are these failures mine\", \"group the test failures\"."
+description: "Work out what is actually wrong with a failing test suite by grouping failures by error signature instead of by file, so a wall of red resolves into a few root causes. Trigger when a suite is red and the cause is unclear, when there are more failures than anyone wants to read one at a time, before deciding whether failures belong to your change or predate it, or when the user asks what is failing and why. Examples: \"/ak:triage-suite\", \"why are 48 tests failing\", \"are these failures mine\", \"group the test failures\"."
 ---
 
 # Triage A Failing Suite

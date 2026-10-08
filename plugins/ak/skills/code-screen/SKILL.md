@@ -13,13 +13,15 @@ screen plan already froze. `MASTER_WORKFLOW.md` is the authority on both stages.
 This is the whole point of the check. Entering at coding means Stages 1 and 2 were not run
 for you.
 
-0. If no screen was named in the request, stop and ask which screen before checking
-   anything else — do not guess a screen from recent conversation context.
+0. If no screen was named in the request, stop before checking anything else and
+   offer the registry rows whose screen plan exists and whose track status is still
+   `not_started`, by `priority`, as a numbered list, and wait for the choice — do not guess a
+   screen from recent conversation context.
 1. `Screen_plans/{screen}.md` must exist and contain **both** contracts — backend and
-   frontend. If it is missing, or has only one contract, stop and tell the user to run
-   `plan-screen` first. Do not infer a contract from the legacy evidence here; that is
-   Stage 2's job and skipping it is how a screen ends up implemented against nobody's
-   agreement.
+   frontend. If it is missing, or has only one contract, stop and offer to run `plan-screen`
+   for this screen now: on `ok`, run it, and continue here once it closes G2. Do not infer a
+   contract from the legacy evidence here; that is Stage 2's job and skipping it is how a
+   screen ends up implemented against nobody's agreement.
 2. Its gap matrix must be populated. An empty gap matrix means Stage 2 never closed G2.
 3. Read `PROJECT_CONFIG.md`, then the backend, frontend and conventions rule documents.
 4. Resolve and announce `be_mode` and `fe_mode` before editing anything.
@@ -48,3 +50,6 @@ reached a shared branch.
 Report the files you touched, both gate verdicts, and anything you could not implement with
 the reason. A deviation from the frozen contract is a Stage 5 blocker — record it, do not
 quietly adjust the contract to match the code.
+
+End with the next step and offer to run it: `/ak:test-screen <screen>` once both lint gates
+and G3 passed.

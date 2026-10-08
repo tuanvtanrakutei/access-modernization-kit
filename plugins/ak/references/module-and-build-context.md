@@ -7,7 +7,7 @@
 3. Validate that every component is assigned exactly once and that module IDs are acyclic.
 4. Produce a post-order, leaf-first processing order.
 5. When a previous component index exists, compute changed components and refresh affected modules plus their ancestors.
-6. Let `create_tasks.py` fan out SQL, VBA/UI, file-interface, and logic work by affected leaf module. Coordinator-owned gates still publish Phase 1-6 sequentially.
+6. Let `create_tasks.py` fan out SQL, VBA/UI, file-interface, and logic work by affected leaf module. Coordinator-owned gates still publish Phase 1-5 sequentially.
 
 This design adopts useful decomposition and ordering patterns from CodeWiki, but the kit does not install, import, vendor, or execute CodeWiki.
 

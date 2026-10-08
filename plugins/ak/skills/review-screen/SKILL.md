@@ -11,10 +11,12 @@ or downgraded here.
 
 ## Read everything upstream first, in one batch
 
-If no screen was named in the request, stop and ask which screen before reading anything —
-do not guess a screen from recent conversation context.
+If no screen was named in the request, stop before reading anything and
+offer the registry rows that have a `Test_Instruction/{screen}.md` and no
+`Code_Review/{screen}.md`, by `priority`, as a numbered list, and wait for the choice — do not
+guess a screen from recent conversation context.
 
-the Stage 1 scope report (`screen_scope.py`), `Screen_plans/{screen}.md`, `Coding_Records/{screen}.md`,
+Then read the Stage 1 scope report (`screen_scope.py`), `Screen_plans/{screen}.md`, `Coding_Records/{screen}.md`,
 `Test_Instruction/{screen}.md`, the code files the coding record cites, every traceability row
 for the screen, and the open `Known_Issues.md` rows for the screen and module. These reads are
 independent — issue them together. If the screen has a `PARITY.json` from `screen_parity.py`, read it too:
@@ -58,3 +60,7 @@ to believe it has verified work it has only written.
 
 Report findings ranked most severe first, with the failing scenario for each — concrete inputs
 or state leading to the wrong output. A finding without one is a guess.
+
+End with the next step and offer to run it: on `approved`, Stage 6 (`/ak:modernize-screen
+<screen>` with `accept only`); on a blocker, `/ak:code-screen <screen>`; on a business-rule
+ambiguity, the question for the business owner, which no skill answers.
