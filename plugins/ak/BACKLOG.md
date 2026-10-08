@@ -12,6 +12,42 @@ that it should now work.
 
 ## Open
 
+### A88 - a developer had to know which skill came next, and fill seventy config rows the repository already answered
+
+**Found 2026-10-08, reviewing all ten skills for how many questions a developer is asked.** The goal is a
+developer who decides only what a machine cannot. Reading the skills against that, most questions were the
+agent's to answer: which screen comes next (every single-stage skill stopped and asked, with no candidates),
+which skill comes after this one (none said), whether to run the missing upstream stage (they refused and
+told the user to run it), and above all `PROJECT_CONFIG.md`, about seventy rows left to a person although
+the repository's settings, `pyproject.toml`, `package.json` and CI file answer most of them. One rule was
+wrong outright: `modernize-screen` Hard Rule 8 forbade setting `implemented` before review, while
+`MASTER_WORKFLOW.md`'s update gate sets it at the end of coding and keeps `verified` for review.
+
+**Decided by the maintainer (2026-10-08):** the agent is the interviewer and the developer the one who
+submits: a developer supplies input and reviews output. A value the agent can find, it proposes with its
+source; a person accepts or edits it. The first real trial is on a project the maintainer will name.
+
+Changed (skills and READMEs only, no script):
+
+- **`bootstrap-project`** detects its five inputs before asking, proposes every other config row from a
+  file it cites (one `ok`), resolves the copied documents, runs the config's Validation Checklist and
+  `validate-docs` itself, and ends with the one command to paste. A row nothing on disk answers still
+  stays `{{...}}`: a proposal with a source is not a guess, a value without one is.
+- **The single-stage skills** offer the candidate screens from the registry when none is named, offer to
+  run the missing upstream stage, and end by naming the next skill. **`screen-status`** defaults to `all`
+  (it writes nothing) and gives each screen a `Next` column with the command to paste.
+- **`investigate`** gains `$ak next <APP_ID>`: run the next unfinished step of the flow until a person is
+  needed, then say what for. `$ak phase` is `<1-5>`; there is no Phase 6 (A78), and the references,
+  `runtime-capabilities.yaml` and the QA report template that still said "Phase 1-6" now say 1-5.
+- **Hard Rule 8** now reads `verified`. The slash examples all carry the `ak:` prefix.
+- **The root README** leads with one diagram of the whole chain, marks the only places a person is asked,
+  and starts in three steps; the full command table moved into a collapsed section.
+
+**Not yet known:** none of this has been run on a real project. The proposal step's precision on a
+repository that is not Django + React, or whose settings are split across modules, is unmeasured, and
+`$ak next` has no CLI verb behind it — it is the agent reading `$ak status`, so its stopping points are
+only as good as that report.
+
 ### A87 - the kit stops where a developer's machine stops: nothing shows the build runs in the customer's image, or what "ready for stage" means
 
 **Found 2026-10-08, in an interview with the maintainer about deployment and environments.** The goal is a

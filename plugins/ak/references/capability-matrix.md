@@ -5,7 +5,7 @@ Python 3.10 or newer is required, plus PyYAML and jsonschema. Nothing else is in
 | Capability | Required when | Preferred integration | Fallback |
 |---|---|---|---|
 | Multi-agent runtime | More than one worker is requested | Runtime-native subagent tools | Execute task envelopes sequentially |
-| Fact derivation | Any Phase 1-6 or full run is requested | `$ak derive`, deterministic and stdlib-only | No fallback; a phase that cannot enumerate its own relationships is blocked |
+| Fact derivation | Any Phase 1-5 or full run is requested | `$ak derive`, deterministic and stdlib-only | No fallback; a phase that cannot enumerate its own relationships is blocked |
 | XLSX processing | Japanese XLSX sources exist | Spreadsheet skill/runtime | Export worksheets to CSV with cell references preserved |
 | PDF text extraction | Japanese PDF sources exist | Runtime PDF/document reader | Local PDF text extractor |
 | OCR | PDF/image lacks a text layer | Tesseract or runtime OCR | Mark source unreadable and create an open question |

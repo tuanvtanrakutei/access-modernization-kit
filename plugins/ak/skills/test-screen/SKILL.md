@@ -11,10 +11,13 @@ frontend testing document define how to choose test cases; `TRACEBACK_GATES.md` 
 
 ## Refuse to start unless the code exists
 
-0. If no screen was named in the request, stop and ask which screen before checking
-   anything else — do not guess a screen from recent conversation context.
+0. If no screen was named in the request, stop before checking anything else and
+   offer the registry rows whose coding record exists and whose `Test_Instruction/{screen}.md`
+   does not, by `priority`, as a numbered list, and wait for the choice — do not guess a screen
+   from recent conversation context.
 1. `Coding_Records/{screen}.md` must exist with the section for each track you intend to
-   test. No coding record means Stage 3 did not run — stop and say so.
+   test. No coding record means Stage 3 did not run — stop, say so, and offer to run
+   `code-screen` for this screen now.
 2. Read `PROJECT_CONFIG.md` and respect `{{REFERENCE_DB_POLICY}}` for reference data. Never
    read production data to make a test pass.
 3. Announce which suites you will run before running them.
@@ -169,3 +172,4 @@ a finding. G4 reads the files and runs nothing, so run steps 1 to 3 after the la
   rule that was waived, G4 says to drop the waiver.
 
 Report the real numbers, the baseline, every skipped case with its reason, and the G4 findings.
+End with the next step and offer to run it: `/ak:review-screen <screen>` once G4 has no open HIGH.

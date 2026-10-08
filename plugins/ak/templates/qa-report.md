@@ -34,5 +34,5 @@
 
 - Status: PASS / FAIL / BLOCKED
 - Approved evidence snapshot:
-- Approved Phase 1-6 snapshot:
+- Approved Phase 1-5 snapshot:
 - Derived rendering authorized: Yes / No

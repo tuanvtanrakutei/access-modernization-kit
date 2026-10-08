@@ -9,8 +9,10 @@ Runs once, before Stage 1 ever runs for any screen. This is the one moment a wro
 silently writes files into the wrong place, so every write here is defensive: refuse
 rather than guess, and never overwrite an existing project's config.
 
-This skill does not run `validate-docs` itself and does not run any pipeline stage. It
-ends by telling the user to run `validate-docs` next.
+The developer's part is a handful of replies: confirm the detected inputs, accept the
+proposed configuration, accept the registry, accept the `CLAUDE.md` pointer. Everything
+else — detecting, copying, substituting, checking — is this skill's. It runs the
+`validate-docs` checker itself at the end (read-only) and does not run any pipeline stage.
 
 ## Step 0 — Defensive precondition
 
@@ -19,22 +21,31 @@ the target path. If it does, **stop** and report it — this is very likely eith
 repeat invocation or the wrong target path, and both call for the user's eyes, not a
 silent overwrite. Do not proceed past this check on assumption.
 
-## Step 1 — Collect the required inputs
+## Step 1 — Detect the required inputs, then confirm them once
+
+Detect each of the five values below before asking for any of them, and show them as one
+table — value, and the file or search it came from — with one `ok` / `edit field=value`.
+Ask only for a value nothing on disk answers. Where to look:
+
+- `AK_RUN_DIR`: a directory holding a `run-state.json` under the repository or a path the user
+  named. More than one found → list them and ask which; none → ask, as below.
+- `SUBSYSTEM_CODE`, `PROJECT_NAME`, `LEGACY_VARIANT`: the five-phase workspace's `manifest.yaml`
+  (its app id, name and source files) when `AK_RUN_DIR` was found; the legacy file's extension
+  (`.adp`, `.mdb`, `.accdb`, a split pair) otherwise.
+- The docs directory: as point 1 below.
 
 1. **Target docs directory** — where `{{DOCS_DIR}}` will live in the target repo. Ask if
    not given, and offer `docs` at the repository root. Offer a prefixed name
    (`<project>_docs`) only when the repository already has a `docs/` of its own that is not
    this kit's: say that is the reason, so the prefix is not copied as a convention.
 2. **`AK_RUN_DIR`** — the root of a five-phase `ak` run for this project, or the literal
-   `n/a` if Stage 0 will be manual export per `LEGACY_EVIDENCE.md`. Ask if not given. Do
+   `n/a` if Stage 0 will be manual export per `LEGACY_EVIDENCE.md`. Ask if not detected. Do
    not guess `n/a` by default — an unanswered question is not the same as a real "no
    phase output exists yet."
-3. **`PROJECT_NAME`, `SUBSYSTEM_CODE`, `LEGACY_VARIANT`** — ask if not given. These three,
-   plus the two above, are the only values this skill ever writes into
-   `PROJECT_CONFIG.md` on the user's behalf (Step 2) and the only ones the Step 4 CLAUDE.md
-   pointer block needs — everything else in `PROJECT_CONFIG.md` stays hand-authored. Asking
-   for these five up front, rather than the two alone, is what makes Step 4 possible without
-   a second round trip once `PROJECT_CONFIG.md` is filled later.
+3. **`PROJECT_NAME`, `SUBSYSTEM_CODE`, `LEGACY_VARIANT`** — ask if not detected. These three,
+   plus the two above, are written into `PROJECT_CONFIG.md` in Step 2 and are the only ones
+   the Step 4 CLAUDE.md pointer block needs; every other row is proposed in Step 2b and
+   written only on the user's `ok`.
 
 ## Step 2 — Copy templates
 
@@ -79,18 +90,44 @@ one project got. A project holds its own copies so that a plugin upgrade cannot 
 the manual a half-finished screen was planned against.
 
 Copy them **unsubstituted**, like every other template here. They carry `{{...}}` keys that
-resolve from `PROJECT_CONFIG.md`, and at this point only five of its rows are filled — so
-substituting now would resolve five keys and bake the rest in as literal placeholders.
-`validate-docs` reports every one that is still unresolved, which is the signal to
-substitute once the config is filled. Say so in Step 5: the manuals are copied and not yet
-resolved, and the first `validate-docs` run will list what is outstanding.
+resolve from `PROJECT_CONFIG.md`, and at this point only five of its rows are filled. Step 2b
+resolves them once the rest of the config is accepted; a key nobody filled stays as `{{KEY}}`,
+and Step 5's `validate-docs` run lists it.
 
-Create the seven per-screen folders named above if they do not exist. Do not auto-fill
-`PROJECT_CONFIG.md`'s `{{...}}` placeholders beyond the five values collected in Step 1
-(`DOCS_DIR`, `AK_RUN_DIR`, `PROJECT_NAME`, `SUBSYSTEM_CODE`, `LEGACY_VARIANT` — write each
-directly into its own row) — it remains, by design, the one file the user authors by hand
-for everything else. Filling the rest here would silently write a guess into the file whose
-whole job is to never contain one.
+Create the seven per-screen folders named above if they do not exist. Write the five values
+from Step 1 (`DOCS_DIR`, `AK_RUN_DIR`, `PROJECT_NAME`, `SUBSYSTEM_CODE`, `LEGACY_VARIANT`)
+directly into their own rows of `PROJECT_CONFIG.md`. The rest are proposed in Step 2b, never
+written silently: this is the file whose whole job is to never contain a guess.
+
+## Step 2b — Propose the rest of `PROJECT_CONFIG.md` from the repository
+
+Most rows are already answered by the target repository. Read it and propose a value for
+every row it answers, citing the file and line each came from:
+
+| Rows | Where the answer usually is |
+|---|---|
+| `BACKEND_ROOT`, `API_PREFIX`, `USE_TZ`, `TIMEZONE`, `MODEL_BASE_CLASS`, `RESPONSE_CLASS`, `PAGINATION_CLASS`, `PERMISSION_DECORATOR` | `manage.py`, the root `urls.py`, the Django settings module, `REST_FRAMEWORK` in settings, the common base classes the existing apps import |
+| `LINT_CMD`, `TEST_CMD`, `MAX_LINE_LENGTH` | `pyproject.toml` / `setup.cfg` / `tox.ini` (ruff, flake8, black, pytest), a `scripts/` folder, a `Makefile`, the CI file |
+| `FRONTEND_ROOT`, `PACKAGE_MANAGER`, `FE_LINT_CMD`, `FE_UNIT_TEST_CMD`, `FE_E2E_TEST_CMD`, `FE_*_LIB`, `I18N_LIB` | `package.json` scripts and dependencies, the lock file present, `playwright.config.*`, `vite.config.*` |
+| `SOURCE_ENCODING`, `EVIDENCE_*_DIR` | the five-phase workspace's `manifest.yaml` and `input/` folders |
+| Modules table (§3) | the Django apps under `BACKEND_ROOT` |
+
+Show the proposal as one table — row, proposed value, source — then, separately, the rows
+nothing on disk answers (policy rows such as `MIGRATIONS_POLICY`, `REFERENCE_DB_POLICY`,
+`MISSING_MODEL_ESCALATION`, `SCHEMA_OWNED` usually are), each with the template's own example
+as the suggested answer. Wait for one reply:
+
+- `ok` — write every proposed value; the unanswered rows keep their `{{...}}`.
+- `edit ROW=value ...` — change those, show the table again.
+- `cancel` — write nothing from this step; the user fills the file by hand.
+
+Never write a row the repository did not answer and the user did not give: an unfilled
+`{{...}}` makes a later stage stop and ask, a wrong value makes it write to the wrong place.
+
+**Then resolve the copied documents.** For every row now filled, replace its `{{KEY}}` in
+the documents this skill copied (not in `PROJECT_CONFIG.md`, and not in the plugin's own
+templates). A key still unfilled stays as `{{KEY}}`, and Step 5's `validate-docs` run lists
+it.
 
 ## Step 3 — Seed `Screens_Registry.md`
 
@@ -242,9 +279,15 @@ State plainly, in one place:
   — do not just give a count).
 - Whether `CLAUDE.md`/`AGENTS.md` were created, appended to, updated, or left untouched
   (`cancel`), per file.
-- The `PROJECT_CONFIG.md` Validation Checklist, unchanged from the template, as the
-  user's next concrete action.
-- That `validate-docs` should be run next, once `PROJECT_CONFIG.md` is filled.
+- The `PROJECT_CONFIG.md` Validation Checklist, **run, not handed over**: run `LINT_CMD`,
+  `TEST_CMD` and `FE_E2E_TEST_CMD` once each when they are filled, check each §3 module
+  directory and each evidence directory exists, count the registry rows. Report every item
+  as passed, failed (with the output line), or not checkable yet (its row is unfilled). A
+  command that fails here is reported, not fixed.
+- The `validate-docs` result: run `validate_docs.py` as the `validate-docs` skill does (it
+  only reads) and give the finding counts by severity, with the report's path.
+- The one next action, as a line to paste: the rows still unfilled if any, otherwise
+  `/ak:modernize-screen <first screen by priority>`.
 - Whether the docs directory would be sent to a Docker build. If the repository has a
   Dockerfile or a compose file whose build context contains the docs directory, and its
   `.dockerignore` does not leave the directory out, say so: git ignoring the directory does
@@ -253,6 +296,8 @@ State plainly, in one place:
 
 ## Do not
 
+- Do not write a `PROJECT_CONFIG.md` row from a guess. A value comes from a file on disk
+  that you cite, or from the user; anything else stays `{{...}}`.
 - Do not overwrite an existing `PROJECT_CONFIG.md`. Step 0 exists precisely so this
   never becomes an agent judgment call under time pressure.
 - Do not silently pick a module for an `UNASSIGNED` row. Writing the sentinel is

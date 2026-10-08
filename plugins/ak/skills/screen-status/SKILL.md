@@ -8,8 +8,9 @@ description: "Read-only status for one screen or the whole registry - artifacts 
 Report status. **Write nothing** — not an artifact, not a registry row, not an issue row. This
 skill exists so a user can ask "where is this" without a run starting as a side effect.
 
-If the request named neither a specific screen nor `all`, stop and ask which one — do not
-default to `all` silently, and do not guess a screen from recent conversation context.
+If the request named neither a specific screen nor `all`, report `all` and say so in the
+first line. This skill writes nothing, so reading more than was asked costs nothing; do not
+guess one screen from recent conversation context.
 
 ## Gather, in one batch
 
@@ -23,10 +24,16 @@ default to `all` silently, and do not guess a screen from recent conversation co
 
 One row per screen:
 
-| Screen | Module | status_be | status_fe | Artifacts present | Open findings |
-|---|---|---|---|---|---|
+| Screen | Module | status_be | status_fe | Artifacts present | Open findings | Next |
+|---|---|---|---|---|---|---|
 
-Then, for a single screen, add what the next stage would be and what would block it.
+`Next` is the one skill that would move the screen forward, as a command a developer can
+paste: no plan → `/ak:plan-screen <screen>`; plan, no coding record → `/ak:code-screen`;
+coding record, no test instruction → `/ak:test-screen`; tests, no review → `/ak:review-screen`;
+`verified`, no `Final_Acceptance/{screen}.md` → `/ak:modernize-screen <screen>` with
+`accept only`; accepted → none. An open HIGH row names the decision instead of a skill.
+
+Then, for a single screen, add what would block that next stage.
 
 ## Say what the status does not tell you
 

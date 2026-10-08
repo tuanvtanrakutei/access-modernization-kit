@@ -1,6 +1,6 @@
 ---
 name: modernize-screen
-description: "Run the end-to-end legacy Access modernization pipeline for one screen or several in parallel — computed scope, screen plan, backend coding, frontend coding, tests, and review. Trigger when the user wants to implement, refresh, test, or review a screen of a legacy Access application being rebuilt as Django REST plus React. Examples: \"/modernize-screen OrderInquiry\", \"implement screen X\", \"refresh the pipeline for screen Y\", \"implement the frontend for screen Z\", \"review screen W\", \"implement X and Y in parallel\"."
+description: "Run the end-to-end legacy Access modernization pipeline for one screen or several in parallel — computed scope, screen plan, backend coding, frontend coding, tests, and review. Trigger when the user wants to implement, refresh, test, or review a screen of a legacy Access application being rebuilt as Django REST plus React. Examples: \"/ak:modernize-screen OrderInquiry\", \"continue screen X\", \"implement the next screen\", \"implement screen X\", \"refresh the pipeline for screen Y\", \"implement the frontend for screen Z\", \"review screen W\", \"implement X and Y in parallel\"."
 ---
 
 # Modernize One Screen
@@ -19,14 +19,16 @@ Identify three things:
 
 1. **Screens.** One or many. Match them against `Screens_Registry.md` using the `screen` column verbatim.
 2. **Intent.**
-   - `implement` (default) — run the full pipeline
+   - `implement` (default) — run the full pipeline. On a screen that already has artifacts this resumes: the run modes (Step 4) decide what each stage does, so "continue screen X" needs no other intent
    - `refresh` — Refresh mode; reconcile artifacts against current code
    - `review only` — Stage 5 alone, after verifying upstream gates passed
    - `test only` — Stage 4 alone, after verifying upstream gates passed
    - `accept only` — Stage 6 alone, requiring an approved Stage 5 verdict
 3. **Track.** `both` (default), `backend only` (Stages 3a and 4a), or `frontend only` (Stages 3b and 4b, which require the backend artifacts to already exist).
 
-If the request is ambiguous — a screen name that does not match, no screen named, an unclear track — stop and ask before doing any work.
+If no screen was named ("implement the next screen"), read `Screens_Registry.md` and offer the first few rows by `priority` whose `status_be` or `status_fe` is not `verified`, as a numbered list, and wait for the choice. Choosing which screen is the user's decision; listing the candidates is yours.
+
+If the request is otherwise ambiguous — a screen name that does not match, an unclear track — stop and ask before doing any work, offering the closest registry names when a name does not match.
 
 ## Step 3 — Read The Orchestrator
 
@@ -107,7 +109,7 @@ On an abort, follow the cleanup policy for the stage you were in, then report ex
 5. **Never parallelize screens sharing a module**, or sharing frontend layout or state.
 6. **Never write the registry or the issue log outside the defined update gates.**
 7. **Never close an issue row** without naming the change or review that resolved it.
-8. **Never set a track status to `implemented`** before review approves it.
+8. **Never set a track status to `verified`** before Stage 5 approves it. `implemented` is set at the end of a coding stage and means only that code exists (`MASTER_WORKFLOW.md` §Update Gates For Registry And Issue Log).
 9. **Stop rather than invent a model or a migration** when the target schema lacks something. Follow the project's escalation rule and record it.
 10. **Stop rather than proceed without evidence.** Implementing a screen with no legacy evidence is redesign, which is outside this pipeline.
 11. **Do not weaken a test to make it pass**, and do not report an environment blocker as a functional failure.
