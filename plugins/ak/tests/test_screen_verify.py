@@ -9,6 +9,8 @@ and `rules[].state` for the rule tests. The tests are the ways a gate lies:
   a failing, unrun or unproved rule is not raised, or is raised at the wrong severity
   a canary the tests did not notice is read as fine
   a difference a person accepted, or a waiver, disappears instead of being listed
+  a waiver names no one who accepted it, or no date, and is still only LOW
+  a coverage map cites a test that does not exist and nothing says so
   an unreadable file stops the gate instead of becoming a finding
 
 Run as a process, the way the stage runs it.
@@ -96,7 +98,8 @@ def test_an_accepted_difference_is_listed_as_low(tmp_path):
 def test_each_rule_state_has_its_severity(tmp_path):
     rules = {"rules": [{"rule": f"BR-ORD-0{i}", "state": s} for i, s in
                        enumerate(["TESTED", "FAILING", "NOT RUN", "CLAIMED", "UNTESTED"], start=1)]
-             + [{"rule": "BR-ORD-06", "state": "WAIVED", "wouldBe": "UNTESTED", "waived": "display only"}]}
+             + [{"rule": "BR-ORD-06", "state": "WAIVED", "wouldBe": "UNTESTED", "waived": "display only",
+                                                  "waivedBy": "A. Reviewer", "waivedOn": "2026-10-01"}]}
     _, findings, _ = gate(tmp_path, rules=rules, canaries=[GOOD_CANARY])
     by_rule = {f["text"].split()[1]: f["severity"] for f in findings}
     assert by_rule == {"BR-ORD-02": "HIGH", "BR-ORD-03": "MEDIUM", "BR-ORD-04": "MEDIUM", "BR-ORD-05": "MEDIUM", "BR-ORD-06": "LOW"}
@@ -153,7 +156,56 @@ def test_writes_nothing(tmp_path):
 
 
 def test_a_waiver_that_a_test_now_makes_unneeded_is_said_so(tmp_path):
-    rules = {"rules": [{"rule": "BR-ORD-01", "state": "WAIVED", "wouldBe": "TESTED", "waived": "covered by construction"}]}
+    rules = {"rules": [{"rule": "BR-ORD-01", "state": "WAIVED", "wouldBe": "TESTED", "waived": "covered by construction",
+                        "waivedBy": "A. Reviewer", "waivedOn": "2026-10-01"}]}
     code, findings, _ = gate(tmp_path, rules=rules, canaries=[GOOD_CANARY])
     assert code == 1 and severities(findings) == ["LOW"]
     assert "drop the waiver" in findings[0]["text"] and "covered by construction" in findings[0]["text"]
+
+
+def waived(**extra):
+    return {"rules": [{"rule": "BR-ORD-01", "state": "WAIVED", "wouldBe": "UNTESTED", "waived": "display only", **extra}]}
+
+
+def test_a_waiver_with_a_reviewer_and_a_date_is_low_and_says_who(tmp_path):
+    _, findings, _ = gate(tmp_path, rules=waived(waivedBy="A. Reviewer", waivedOn="2026-10-01"), canaries=[GOOD_CANARY])
+    assert severities(findings) == ["LOW"]
+    assert "A. Reviewer" in findings[0]["text"] and "2026-10-01" in findings[0]["text"]
+
+
+def test_a_waiver_missing_the_reviewer_or_the_date_is_medium_and_says_which(tmp_path):
+    for extra, said in ((dict(waivedOn="2026-10-01"), "reviewer"), (dict(waivedBy="A. Reviewer"), "date"), ({}, "reviewer")):
+        _, findings, _ = gate(tmp_path, rules=waived(**extra), canaries=[GOOD_CANARY])
+        assert severities(findings) == ["MEDIUM"], extra
+        assert said in findings[0]["text"] and "BR-ORD-01" in findings[0]["text"]
+
+
+def test_a_blank_reviewer_counts_as_none(tmp_path):
+    _, findings, _ = gate(tmp_path, rules=waived(waivedBy="  ", waivedOn="2026-10-01"), canaries=[GOOD_CANARY])
+    assert severities(findings) == ["MEDIUM"]
+
+
+def test_a_waiver_that_a_test_now_covers_still_needs_its_reviewer(tmp_path):
+    rules = {"rules": [{"rule": "BR-ORD-01", "state": "WAIVED", "wouldBe": "TESTED", "waived": "by construction"}]}
+    _, findings, _ = gate(tmp_path, rules=rules, canaries=[GOOD_CANARY])
+    assert severities(findings) == ["MEDIUM"] and "drop the waiver" in findings[0]["text"]
+
+
+def test_a_coverage_map_test_that_does_not_exist_is_medium_with_the_rule_and_the_name(tmp_path):
+    pack = {**GOOD_RULES, "coverageMap": {"file": "m.md", "namesChecked": True,
+                                          "unknownTests": [{"rule": "BR-ORD-01", "test": "test_wrong_name"}]}}
+    code, findings, _ = gate(tmp_path, rules=pack, canaries=[GOOD_CANARY])
+    assert code == 1 and severities(findings) == ["MEDIUM"]
+    assert "BR-ORD-01" in findings[0]["text"] and "test_wrong_name" in findings[0]["text"]
+
+
+def test_a_coverage_map_with_nothing_to_check_it_against_is_medium(tmp_path):
+    pack = {**GOOD_RULES, "coverageMap": {"file": "m.md", "namesChecked": False, "unknownTests": []}}
+    _, findings, _ = gate(tmp_path, rules=pack, canaries=[GOOD_CANARY])
+    assert severities(findings) == ["MEDIUM"] and "not checked" in findings[0]["text"]
+
+
+def test_a_coverage_map_whose_names_all_exist_is_no_finding(tmp_path):
+    pack = {**GOOD_RULES, "coverageMap": {"file": "m.md", "namesChecked": True, "unknownTests": []}}
+    code, findings, _ = gate(tmp_path, rules=pack, canaries=[GOOD_CANARY])
+    assert code == 0 and findings == []

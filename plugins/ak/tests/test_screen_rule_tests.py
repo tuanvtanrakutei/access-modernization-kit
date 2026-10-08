@@ -7,6 +7,8 @@ The tests are the ways a rule is wrongly called tested:
   a rule named only in the coverage map, or only in a test nobody ran, counts
   a run that executed nothing, or a count typed into a document, proves anything
   a waiver hides a gap without a reason, or a rule that was never checked
+  a waiver's reviewer or date is dropped, or a reason containing ';' is cut
+  a coverage map names a test that no test file defines, and nothing says so
 
 Run as a process, the way the test stage runs it.
 """
@@ -253,3 +255,75 @@ def test_a_citation_in_a_file_that_was_not_run_is_not_a_test_with_no_result(tmp_
     assert rec["BR-ORD-05"]["state"] == "UNTESTED" and rec["BR-ORD-05"]["citedOutsideRun"] == ["test_other_screen"]
     # a citation in a file that did run, with no result for that test, is still NOT RUN
     assert rec["BR-ORD-02"]["state"] == "NOT RUN" and "citedOutsideRun" not in rec["BR-ORD-02"]
+
+
+def waiver_rec(tmp_path: Path, waive: str) -> dict:
+    res = junit(tmp_path, [("t.test_o", "test_br_ord_01_ok", "passed")])
+    code, pack, err = check(tmp_path, res, "BR-ORD-01,BR-ORD-02", "--waive", waive)
+    assert code == 0, err
+    return next(r for r in pack["rules"] if r["rule"] == "BR-ORD-02")
+
+
+def test_a_waiver_carries_who_accepted_it_and_when(tmp_path):
+    rec = waiver_rec(tmp_path, "BR-ORD-02=display only;by=A. Reviewer;on=2026-10-01")
+    assert rec["waived"] == "display only" and rec["waivedBy"] == "A. Reviewer" and rec["waivedOn"] == "2026-10-01"
+
+
+def test_the_old_waiver_form_is_still_read_and_records_no_reviewer(tmp_path):
+    rec = waiver_rec(tmp_path, "BR-ORD-02=display only")
+    assert rec["waived"] == "display only" and "waivedBy" not in rec and "waivedOn" not in rec
+
+
+def test_a_semicolon_inside_the_reason_is_kept_and_one_field_may_be_given_alone(tmp_path):
+    rec = waiver_rec(tmp_path, "BR-ORD-02=shown; never stored;by=A. Reviewer")
+    assert rec["waived"] == "shown; never stored" and rec["waivedBy"] == "A. Reviewer" and "waivedOn" not in rec
+
+
+def test_a_malformed_waiver_field_is_an_input_error(tmp_path):
+    res = junit(tmp_path, [("t.test_o", "test_br_ord_01_ok", "passed")])
+    for bad in ("BR-ORD-02=why;on=1 Oct", "BR-ORD-02=why;on=2026-02-30", "BR-ORD-02=why;on=20261001", "BR-ORD-02=why;by=", "BR-ORD-02=why;by=A;by=B",
+                "BR-ORD-02=;by=A;on=2026-10-01"):
+        assert check(tmp_path, res, "BR-ORD-01,BR-ORD-02", "--waive", bad)[0] == 2, bad
+
+
+MAP = """| Rule | Test | Role | Status |
+|---|---|---|---|
+| BR-ORD-01 total | `test_total`, `test_no_such_thing` | rounds | pass |
+| BR-ORD-03 shipping | `TestShipping::test_free_over_limit`, `test_total[param]` | free | pass |
+| BR-ORD-04 other | `test_gone()` and `test_total` | x | pass |
+| none | `test_orphan` | no rule on this row | pass |
+Prose naming `test_in_prose` is not a table row.
+
+| # | Known issue `test_in_a_header` | Where |
+|---|---|---|
+| 1 | `test_in_another_screen` fails | elsewhere |
+"""
+
+
+def mapped(tmp_path: Path, *extra: str) -> dict:
+    res = junit(tmp_path, [("tests.test_order", "test_total", "passed")])
+    cmap = tmp_path / "map.md"
+    cmap.write_text(MAP, encoding="utf-8")
+    return check(tmp_path, res, "BR-ORD-01", "--coverage-map", str(cmap), *extra)[1]
+
+
+def test_a_coverage_map_test_that_no_file_defines_is_listed_with_its_rule(tmp_path):
+    pack = mapped(tmp_path, "--tests", str(source(tmp_path)))
+    assert pack["coverageMap"]["namesChecked"] is True
+    assert pack["coverageMap"]["unknownTests"] == [
+        {"rule": "BR-ORD-01", "test": "test_no_such_thing"},
+        {"rule": "BR-ORD-04", "test": "test_gone"},
+        {"rule": "none", "test": "test_orphan"},
+    ]
+
+
+def test_a_coverage_map_that_cannot_be_checked_says_so(tmp_path):
+    assert mapped(tmp_path)["coverageMap"] == {"file": "map.md", "namesChecked": False, "unknownTests": []}
+    empty = tmp_path / "empty"
+    empty.mkdir()
+    assert mapped(tmp_path, "--tests", str(empty))["coverageMap"]["namesChecked"] is False
+
+
+def test_no_coverage_map_means_no_coverage_entry(tmp_path):
+    res = junit(tmp_path, [("t.test_o", "test_br_ord_01_ok", "passed")])
+    assert "coverageMap" not in check(tmp_path, res, "BR-ORD-01")[1]
