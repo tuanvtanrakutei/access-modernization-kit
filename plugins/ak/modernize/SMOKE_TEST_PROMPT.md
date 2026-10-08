@@ -110,7 +110,7 @@ Note the exact directory this output lands in — that is your `AK_RUN_DIR` for 
 In a **separate** scratch directory (e.g. `<scratch>/modernize-target/`), invoke the
 `bootstrap-project` skill (`plugins/ak/skills/bootstrap-project/SKILL.md`) with:
 
-- `DOCS_DIR` = e.g. `<scratch>/modernize-target/demo_docs`
+- `DOCS_DIR` = e.g. `<scratch>/modernize-target/docs`
 - `AK_RUN_DIR` = the directory from Step 3
 - `PROJECT_NAME` = `Synthetic Order Demo`, `SUBSYSTEM_CODE` = `DEMO`, `LEGACY_VARIANT` = `split-mdb` or whatever matches the fixture's actual shape (check `manifest.yaml` / the source files — do not guess this either)
 
@@ -131,7 +131,7 @@ Verify concretely, don't just trust the skill's own "done" claim:
    - Add unrelated hand-written content to that `CLAUDE.md`, then re-run bootstrap (or
      just re-invoke this step): confirm the unrelated content is untouched and only the
      text between the markers changes — not appended a second time, not duplicated.
-5. Run the `validate-docs` skill against `<scratch>/modernize-target/demo_docs`. It will
+5. Run the `validate-docs` skill against `<scratch>/modernize-target/docs`. It will
    report real findings (this is a fresh, mostly-unfilled project) — read them, confirm
    they are the *expected* kind (unfilled `PROJECT_CONFIG.md` placeholders, not a crash or
    a nonsensical finding), not that the count is zero.

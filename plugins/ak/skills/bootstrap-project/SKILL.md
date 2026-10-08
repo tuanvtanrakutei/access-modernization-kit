@@ -22,7 +22,9 @@ silent overwrite. Do not proceed past this check on assumption.
 ## Step 1 — Collect the required inputs
 
 1. **Target docs directory** — where `{{DOCS_DIR}}` will live in the target repo. Ask if
-   not given.
+   not given, and offer `docs` at the repository root. Offer a prefixed name
+   (`<project>_docs`) only when the repository already has a `docs/` of its own that is not
+   this kit's: say that is the reason, so the prefix is not copied as a convention.
 2. **`AK_RUN_DIR`** — the root of a five-phase `ak` run for this project, or the literal
    `n/a` if Stage 0 will be manual export per `LEGACY_EVIDENCE.md`. Ask if not given. Do
    not guess `n/a` by default — an unanswered question is not the same as a real "no
@@ -243,6 +245,11 @@ State plainly, in one place:
 - The `PROJECT_CONFIG.md` Validation Checklist, unchanged from the template, as the
   user's next concrete action.
 - That `validate-docs` should be run next, once `PROJECT_CONFIG.md` is filled.
+- Whether the docs directory would be sent to a Docker build. If the repository has a
+  Dockerfile or a compose file whose build context contains the docs directory, and its
+  `.dockerignore` does not leave the directory out, say so: git ignoring the directory does
+  not keep it out of an image, and its `input/` holds the customer's data. Suggest the
+  `.dockerignore` line; do not edit the file, it belongs to the project.
 
 ## Do not
 
