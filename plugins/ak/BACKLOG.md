@@ -137,6 +137,10 @@ suite with a JUnit result, the rule check, the canaries and G4, and writes the r
   the same probe database: identical G4 findings, identical rule states, identical canary verdicts (13
   canaries) on all three; both reported the same configuration fault (a canary whose `find` text now
   occurs twice in the code). The kit's run took 674 s, the project script's 763 s.
+- **CI found a canary bug the machines here did not**: on a fast runner, a break of the same length written
+  in the same second as the file's last change was read from Python's bytecode cache (keyed on whole-second
+  mtime and size), so the tests passed and the canary SURVIVED. `screen_canary.py` now moves the broken
+  file's mtime at least two seconds past the original; a test checks that guarantee and fails without it.
 
 **Found by the real run, not the kit's to fix**: the project's config now gives every one of its nine
 waivers `by=agent`. G4 reads that as a named reviewer and lists them at LOW. The reviewer is typed, not

@@ -41,6 +41,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import time
 import xml.etree.ElementTree as ET
 from pathlib import Path
 from typing import Any
@@ -209,7 +210,14 @@ def build(args: argparse.Namespace) -> tuple[dict[str, Any], Path | None]:
         line = text[: text.index(args.find)].count("\n") + 1
         if green(clean):
             # bytes in, bytes out: the file keeps its own line endings
-            (work / args.file).write_bytes(text.replace(args.find, args.replace).encode("utf-8"))
+            broken_file = work / args.file
+            before = broken_file.stat().st_mtime
+            broken_file.write_bytes(text.replace(args.find, args.replace).encode("utf-8"))
+            # A cache keyed on the source's mtime and size (Python's .pyc keeps whole seconds) still holds the
+            # old line when a break of the same length lands in the same second as the file's last change,
+            # and the break then SURVIVES unseen. Move the mtime clearly past both.
+            stamp = max(time.time(), before + 2)
+            os.utime(broken_file, (stamp, stamp))
             broken = run_tests(args.cmd, work, args.junit, args.timeout)
         else:
             broken = {"state": "skipped", "exit": None, "counts": None, "tail": ""}
