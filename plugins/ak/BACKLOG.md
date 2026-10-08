@@ -73,11 +73,21 @@ Docker. So "green" and "runs at the customer" are two different claims, and the 
   built today already contains it, and a database copy placed in its `input/` would be in the image too. The
   folder must be added to `.dockerignore` (a change to the project's repository, so a merge request a person
   approves) and the kit's command must refuse to build while the build context would include it, checked on
-  the context, not assumed from the ignore file. The customer's database copies were already in that folder,
-  so images built on that machine before the change may hold them. The one-line change was proposed to the
-  application's repository on 2026-10-08 and is not merged; no image was built to confirm either state.
-  The same holds for the other gitignored folders at the root (local agent worktrees, an output folder):
-  in the context, not decided.
+  the context, not assumed from the ignore file. The customer's database copies were already in that folder;
+  no image of the application was on the machine when this was checked. The same held for `.git`, the local
+  agent folders and their worktrees, an output folder, logs, and the local `.env` files. A list of exclusions
+  keeps missing the next tool's folder, so the change proposed on 2026-10-08 (not merged) is an allow-list:
+  exclude everything, allow the two application folders, drop caches and `.env` inside them. The kit's check
+  should read the context the same way: list what would be sent, not trust the ignore file's intent.
+- **The back-end image does not hold the code it runs.** `COPY . .` puts the repository root at the
+  application folder, so the code lands one level down (`backend/`), and compose then mounts the host's
+  back-end folder over that same application folder. At run time the code and `.env` come from the
+  developer's checkout; what the image copied is hidden and only adds size. Stage's compose file is the same.
+  So "the image is the reference" is not yet true of this project: a G4 run "in the container" would test
+  the mounted checkout inside the image's interpreter and system packages, which is still worth proving,
+  but it is not proof that a built image runs on its own. The build context was made an allow-list of the
+  two application folders on 2026-10-08 (proposed, not merged; measured 473 MB down to 82 MB); the mount is
+  unchanged and is the project's to decide.
 - A pipeline file on the trial branch **travels with every merge into stage**. If stage then holds a different
   file at the same path, the merge conflicts or silently replaces the deploy job. So the proposed file cannot
   be assumed safe by `only:`/`rules:` alone: it needs either another path (a pipeline can include a file from a
