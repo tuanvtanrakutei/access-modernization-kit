@@ -55,9 +55,21 @@ given instead or as well:
                   and serve the real code, not the copy a canary breaks
   citations       true: the suite's test files are read for rule ids in docstrings and comments
                   (Python only). Default true for `pytest`
+  junit_file      in place of `{junit}`: where the runner writes its result, relative to `root`. For a
+                  runner inside a container, which sees the mounted folder and not the host's results
+                  folder. The file is moved to the results folder after the run
 
-`preflight` runs once from `root` before anything else; if it fails the run stops there with its
-output, so a missing database reads as that and not as every test failing.
+`{root}` in a command is the suite's folder; in a canary it is the scratch copy `screen_canary.py`
+broke, so a container command can mount the copy (`-v {root}:/app`) and never the real code.
+
+Before anything else, once:
+
+  context         {"dir", "dockerfile", "forbid"}: `screen_context.py` asks Docker what the build
+                  would send and the run stops if it holds `.git`, a `.env`, or a `forbid` pattern
+                  (the documentation folder, data exports). Checked before the image is built
+  preflight       a command, or a list of commands, run in order from `root` (build the image, check
+                  the database); the first that fails stops the run with its output, so a missing
+                  database reads as that and not as every test failing
 
 A waiver is a person's decision. Give it as `{"reason", "by", "on"}`; a reason alone is passed on
 and gate G4 reports it at MEDIUM, as it reports any waiver no one is recorded as accepting.
@@ -83,7 +95,7 @@ import socket
 import subprocess
 import sys
 import tempfile
-from pathlib import Path
+from pathlib import Path, PureWindowsPath
 from typing import Any
 
 HERE = Path(__file__).resolve().parent
@@ -105,7 +117,8 @@ PRESETS: dict[str, dict[str, Any]] = {
         "executables": ["node"],
     },
 }
-SUITE_FIELDS = {"preset", "root", "command", "env", "canary_command", "canary_env", "link", "requires", "executables", "port", "citations"}
+SUITE_FIELDS = {"preset", "root", "command", "env", "canary_command", "canary_env", "link", "requires", "executables", "port", "citations",
+                "junit_file"}
 SCREEN_FIELDS = {"key", "screen", "rules", "plan", "coverage_map", "tests", "waive", "canaries", "parity", "output_screen"}
 
 
@@ -134,8 +147,15 @@ def load_suite(name: str, raw: Any, root: Path) -> dict[str, Any]:
     suite["name"] = name
     if not _strings(suite.get("command")) or "{tests}" not in suite["command"]:
         raise Problem(f"suite {name} needs a `command` (a list) with a `{{tests}}` argument")
-    if not any("{junit}" in part for part in suite["command"]) and not any("{junit}" in v for v in suite["env"].values()):
-        raise Problem(f"suite {name}: nothing in `command` or `env` names `{{junit}}`, so no result could be read")
+    junit_file = suite.get("junit_file")
+    if junit_file is not None:
+        if (not isinstance(junit_file, str) or not junit_file or junit_file[0] in "/\\" or Path(junit_file).is_absolute()
+                or PureWindowsPath(junit_file).drive or ".." in PureWindowsPath(junit_file).parts):
+            raise Problem(f"suite {name}: `junit_file` must be a path under the suite's root")
+        if any("{junit}" in part for part in suite["command"]):
+            raise Problem(f"suite {name}: give `{{junit}}` or `junit_file`, not both")
+    elif not any("{junit}" in part for part in suite["command"]) and not any("{junit}" in v for v in suite["env"].values()):
+        raise Problem(f"suite {name}: nothing in `command` or `env` names `{{junit}}` and no `junit_file` is given, so no result could be read")
     if "canary_command" not in suite:
         suite["canary_command"] = [part for part in suite["command"] if "{junit}" not in part]
     if not _strings(suite["canary_command"]) or "{tests}" not in suite["canary_command"]:
@@ -247,16 +267,30 @@ def load_config(path: Path) -> dict[str, Any]:
     if len(set(keys)) != len(keys):
         raise Problem(f"{path.name}: screen keys repeat: {', '.join(sorted({k for k in keys if keys.count(k) > 1}))}")
     preflight = raw.get("preflight")
-    if preflight is not None and not _strings(preflight):
-        raise Problem("`preflight` must be a command, as a list")
+    if preflight is None:
+        preflight = []
+    elif _strings(preflight):
+        preflight = [preflight]
+    elif not (isinstance(preflight, list) and preflight and all(_strings(c) for c in preflight)):
+        raise Problem("`preflight` must be a command (a list), or a list of commands")
+    context = raw.get("context")
+    if context is not None:
+        if not isinstance(context, dict) or set(context) - {"dir", "dockerfile", "forbid"}:
+            raise Problem("`context` takes `dir`, `dockerfile` and `forbid`")
+        forbid = context.get("forbid") or []
+        if not isinstance(forbid, list) or not all(isinstance(f, str) and f for f in forbid):
+            raise Problem("`context.forbid` must be a list of patterns")
+        context = {"dir": root / str(context.get("dir") or "."), "forbid": forbid,
+                   "dockerfile": (root / context["dockerfile"]) if context.get("dockerfile") else None}
     results = raw.get("results_dir")
-    return {"root": root, "suites": suites, "screens": screens, "preflight": preflight,
+    return {"root": root, "suites": suites, "screens": screens, "preflight": preflight, "context": context,
             "results_dir": (root / results) if isinstance(results, str) and results else None}
 
 
 # --- running -----------------------------------------------------------------------------------
 
-def expand(parts: list[str], tests: list[str], junit: Path | None) -> list[str]:
+def expand(parts: list[str], tests: list[str], junit: Path | None, root: Path | None) -> list[str]:
+    """Fill the placeholders. A canary passes `root=None`: `screen_canary.py` puts its scratch copy there."""
     out: list[str] = []
     for part in parts:
         if part == "{tests}":
@@ -265,6 +299,8 @@ def expand(parts: list[str], tests: list[str], junit: Path | None) -> list[str]:
         part = part.replace("{python}", sys.executable)
         if junit is not None:
             part = part.replace("{junit}", str(junit))
+        if root is not None:
+            part = part.replace("{root}", str(root))
         out.append(part)
     return out
 
@@ -357,11 +393,17 @@ def verify(screen: dict[str, Any], config: dict[str, Any], results: Path, args: 
             continue
         junit = results / f"{key}.{name}.junit.xml"
         junit.unlink(missing_ok=True)
+        written = suite["root"] / suite["junit_file"] if suite.get("junit_file") else None
+        if written is not None:
+            written.unlink(missing_ok=True)
         env = {k: v.replace("{junit}", str(junit)) for k, v in suite["env"].items()}
-        done = run(expand(suite["command"], tests, junit), suite["root"], env)
+        done = run(expand(suite["command"], tests, junit, suite["root"]), suite["root"], env)
         outcome["suites"][name] = done.returncode
         if done.returncode:
             outcome["errors"].append(f"suite {name} exited {done.returncode}\n{tail(done)}")
+        if written is not None and written.is_file():
+            # a runner in a container writes under the mounted root; move the result out of the code
+            shutil.move(str(written), str(junit))
         if junit.is_file():
             junits.append(str(junit))
         else:
@@ -405,10 +447,12 @@ def verify(screen: dict[str, Any], config: dict[str, Any], results: Path, args: 
             out.unlink(missing_ok=True)
             cmd = [sys.executable, str(HERE / "screen_canary.py"), "--root", str(suite["root"]), "--file", canary["file"],
                    "--find", canary["find"], "--replace", canary["replace"],
-                   "--cmd", shell_line(expand(suite["canary_command"], screen["tests"][name], None)),
+                   "--cmd", shell_line(expand(suite["canary_command"], screen["tests"][name], None, None)),
                    "--timeout", str(args.timeout), "--out", str(out)]
             for folder in suite["link"]:
                 cmd += ["--link", folder]
+            if suite.get("junit_file"):
+                cmd += ["--junit", suite["junit_file"]]
             done = run(cmd, config["root"], suite["canary_env"] or None)
             if done.returncode == 2 or not out.is_file():
                 outcome["errors"].append(f"canary {out.name} could not run:\n{tail(done)}")
@@ -480,10 +524,20 @@ def main(argv: list[str] | None = None) -> int:
         results = args.results_dir or config["results_dir"] or Path(tempfile.mkdtemp(prefix="screen-check-"))
         results = results.resolve()
         results.mkdir(parents=True, exist_ok=True)
-        if config["preflight"]:
-            done = run(config["preflight"], config["root"])
+        if config["context"] is not None:
+            ctx = config["context"]
+            cmd = [sys.executable, str(HERE / "screen_context.py"), "--context", str(ctx["dir"])]
+            if ctx["dockerfile"] is not None:
+                cmd += ["--dockerfile", str(ctx["dockerfile"])]
+            for pattern in ctx["forbid"]:
+                cmd += ["--forbid", pattern]
+            done = run(cmd, config["root"])
             if done.returncode:
-                raise Problem(f"the preflight `{' '.join(config['preflight'])}` exited {done.returncode}:\n{tail(done)}")
+                raise Problem(f"the build context check stopped the run (screen_context.py exited {done.returncode}):\n{tail(done, 60)}")
+        for command in config["preflight"]:
+            done = run(command, config["root"])
+            if done.returncode:
+                raise Problem(f"the preflight `{' '.join(command)}` exited {done.returncode}:\n{tail(done)}")
     except Problem as err:
         print(f"screen_check: {err}", file=sys.stderr)
         return 2

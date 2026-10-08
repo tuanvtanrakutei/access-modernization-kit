@@ -280,3 +280,31 @@ def test_one_line_summaries_still_read_as_before():
 def test_a_title_that_mentions_a_count_is_not_a_summary_line():
     # an indented test title is not at the start of a count, so it adds nothing
     assert counts_of("  12 passed (1s)\n    [chrome] > x > the 3 failed rows are listed\n") == {"failed": 0, "errors": 0, "passed": 12}
+
+
+RUN_IN_ROOT = '''\
+import os, subprocess, sys
+# stands in for `docker run -v {root}:/app`: the tests run in the folder the command was given
+here = sys.argv[1]
+if not os.path.isdir(here):
+    sys.exit(f"{here!r} is not a folder: the placeholder was not filled")
+sys.exit(subprocess.call([sys.executable, "-m", "pytest", "-q", "-p", "no:cacheprovider"], cwd=here))
+'''
+
+
+def test_root_in_the_command_is_the_scratch_copy_never_the_real_code(tmp_path):
+    root = project(tmp_path)
+    (root / "run_in.py").write_text(RUN_IN_ROOT, encoding="utf-8", newline="\n")
+    cmd = f'"{sys.executable}" run_in.py "{{root}}"'
+    code, pack, err = canary(tmp_path, root, "qty * price", "qty / price", cmd, "--keep")
+    kept = Path(pack["scratch"])
+    try:
+        assert code == 0 and pack["verdict"] == "CAUGHT", (pack, err)
+        assert pack["command"] == cmd  # the template is recorded, not one run's path
+        assert "qty * price" in (root / "mod.py").read_text(encoding="utf-8")
+    finally:
+        import shutil
+        shutil.rmtree(kept, ignore_errors=True)
+    # pointed at the real code instead, the break is invisible: that is what the placeholder prevents
+    code, pack, _ = canary(tmp_path, root, "qty * price", "qty / price", f'"{sys.executable}" run_in.py "{root}"')
+    assert pack["verdict"] == "SURVIVED"

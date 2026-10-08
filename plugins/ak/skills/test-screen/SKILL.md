@@ -80,6 +80,13 @@ run here (a missing program, an uninstalled package, a taken port) is an error o
 that need it, not a skip. Parity (step 3) is not run by it: give the screen's `parity` result file
 in the config and G4 reads it. The steps below are what it runs, and how to run one alone.
 
+**In the image the customer runs.** When the project ships a container image, add a suite that runs
+the tests inside it (`docker run ... -v "{root}:/app" <image> python -m pytest ...` with a
+`junit_file`), so a canary mounts its broken copy and never the real code. Give the config a
+`context` block so `screen_context.py` checks what the build would send before the image is built:
+it refuses `.git`, any `.env` and the patterns you name (the documentation folder, whose `input/`
+holds the customer's data). Git ignoring a folder does not keep it out of an image.
+
 ### 1. Which rules do the tests back
 
 ```bash
