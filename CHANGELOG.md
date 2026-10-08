@@ -1,5 +1,33 @@
 # Changelog
 
+## [2.13.0] - 2026-10-08
+
+Two pull requests (#102, #103), one question: **does it run in the image the customer
+runs?** Gate G4 used to stop at a host virtual environment. It now runs the tests inside the
+built image, and the browser tests against the front-end image served the way the customer
+serves it. Before any image is built, the kit checks what the build would send.
+
+### Added
+
+- **`screen_context.py`** asks Docker what a build would send (a throwaway `FROM scratch`
+  stage, exported and listed; nothing pulled, no image kept) and refuses `.git`, any `.env`
+  and the patterns a project names, such as its documentation folder. It reads the context
+  as the build does, including a Dockerfile's own `.dockerignore`, instead of re-implementing
+  the ignore rules. Git ignoring a folder does not keep it out of an image (A87).
+- **`screen_check.py` runs G4 in containers.** A `context` block is checked first;
+  `preflight` may be several commands (build the images); `junit_file` reads a result a runner
+  writes inside the mounted folder; `{root}` in a command is the suite's folder, and in a
+  canary the scratch copy, so a container mounts the broken copy and never the real code.
+- **Suites against a served image.** `up` starts a service once for every screen, `ready`
+  waits for its url (a 5xx is not ready), `down` stops it whatever happened. Suites run one
+  after another, then the rule check, canaries and G4 per screen, so a service and a
+  self-started server never share a port. A canary on such a suite is refused (A87).
+
+### Changed
+
+- `screen_canary.py` fills `{root}` in its command with the scratch copy.
+- `test-screen` says how to run the tests in the image, and against it as it is served.
+
 ## [2.12.0] - 2026-10-08
 
 Fifty-four pull requests (#44–#100), and one direction: **a person decides, the machine
