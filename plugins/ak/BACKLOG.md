@@ -12,6 +12,166 @@ that it should now work.
 
 ## Open
 
+### A87 - the kit stops where a developer's machine stops: nothing shows the build runs in the customer's image, or what "ready for stage" means
+
+**Found 2026-10-08, in an interview with the maintainer about deployment and environments; recorded only,
+nothing is built.** The goal is a developer who decides only what a machine cannot. Today the chain ends at a
+merge request whose tests ran in a host virtual environment against a probe database. The customer runs
+Docker. So "green" and "runs at the customer" are two different claims, and the kit proves only the first.
+
+**Decided by the maintainer (2026-10-08):**
+
+- **Where the kit's automation ends**: the trial branch (the project's pre-develop branch). From there to
+  stage and to production is a person's step. The kit does not deploy to either.
+- **The trial branch has no server**: every trial run is local, on the developer's machine. "The trial
+  environment" in this entry means the compose stack built from that branch on that machine, nothing hosted.
+- **Environments the project has**: a developer's machine, the trial branch, stage, production. The customer
+  runs containers, so the container image is the reference; a virtual environment stays a faster option for
+  the developer, not the proof.
+- **The database the container tests use**: a throwaway one the kit clones for the run, as the host runs do
+  now; not the database the compose stack keeps.
+- **Who approves stage**: a person, the maintainer or another; there is no fixed list. The kit records the
+  name and the date given at approval, as it does for a waiver (A85), and checks neither.
+- **What the kit must show about the image**: it builds from a clean checkout; gate G4 (A84, A86) runs inside
+  the container, not only in a virtual environment; and each screen runs on the full compose stack, with the
+  front-end browser tests pointed at it.
+- **Old data is in scope**: the kit produces a migration script and compares old and new output (parity, A84)
+  on the customer's real database copy. That copy is supplied by the customer and must never enter this
+  repository (it is public); the run takes its path as an argument.
+- **"Ready for stage" means all of**: G4 green with no waiver lacking a reviewer and a date (A85); parity on the
+  real data; the customer has looked at the screens on the trial environment. The last is a person's step: the
+  kit prepares the screen list and the questions for the customer, nothing more.
+- **No pipeline file**: the trial branch has no server and so nothing a pipeline could run on. The kit gives
+  one local command that runs the whole chain (build the image, G4 in the container, the compose stack,
+  parity) on the developer's machine, and puts no pipeline file in the project. An earlier answer, a pipeline
+  file proposed for the trial branch only, set to do nothing on the production branches, in a separate merge
+  request a person reviews, was given before it was known that no server exists. It stands as the rule if a
+  pipeline is ever proposed: a pipeline file the kit writes must not overwrite the customer's.
+- **Browser tests, split in two**: canaries keep the self-started front-end server (each break on the compose
+  stack would need a rebuilt image); one extra pass of the browser tests runs against the compose stack's front
+  end, as the proof that the image works.
+- **Where the customer's database copy lives**: in the project's documentation folder, under `input/`, which
+  git ignores. The run mounts it into the container read-only.
+- **The documentation folder is `docs/`** in every project. A prefixed name (`<app>_docs/`) is only for a
+  project that already had a `docs/` folder of its own; the one application that has one got its prefix that
+  way, by accident, not by design. The kit's template still gives `app_docs` as the example `DOCS_DIR`;
+  it should give `docs`, and say when to prefix. Whatever the name, it goes in `.dockerignore`.
+- **The throwaway database is a clone of the probe database** the host runs already use; the probe database
+  itself can be built by migrating the customer's database copy.
+- **The compose pass and the self-started server take turns**: both want the front end's port, so they run
+  one after the other, never side by side.
+
+**What was read in the one application's repository (2026-10-08, branches fetched):**
+
+- Only the `stage` branch has a pipeline file: one `deploy` job, `only: stage`, that pulls the branch on the
+  server and runs compose with a rebuild. The trial and development branches have the container files (a
+  compose file and a Dockerfile each for back end and front end) and no pipeline. The `main` branch holds a
+  README only.
+- **Ignored by git is not ignored by Docker.** Compose builds the back end with the repository root as its
+  context, the back-end Dockerfile ends with `COPY . .`, and `.dockerignore` lists caches and `node_modules`
+  only. The documentation folder sits under the repository root, so on a machine that has it every image
+  built today already contains it, and a database copy placed in its `input/` would be in the image too. The
+  folder must be added to `.dockerignore` (a change to the project's repository, so a merge request a person
+  approves) and the kit's command must refuse to build while the build context would include it, checked on
+  the context, not assumed from the ignore file. The customer's database copies were already in that folder,
+  so images built on that machine before the change may hold them. The one-line change was proposed to the
+  application's repository on 2026-10-08 and is not merged; no image was built to confirm either state.
+  The same holds for the other gitignored folders at the root (local agent worktrees, an output folder):
+  in the context, not decided.
+- A pipeline file on the trial branch **travels with every merge into stage**. If stage then holds a different
+  file at the same path, the merge conflicts or silently replaces the deploy job. So the proposed file cannot
+  be assumed safe by `only:`/`rules:` alone: it needs either another path (a pipeline can include a file from a
+  named path) or a check, before the merge request is opened, that no other branch holds a file there. That
+  check is the one the maintainer's earlier rule already requires, and it must be done by the kit's tool,
+  not remembered.
+
+**Not known, to decide when built.**
+
+- Whether one clone of the probe database serves the whole run or each screen gets its own.
+- Whether a second project's container files follow the same shape (a build context at the repository root, a
+  copy of everything). The `.dockerignore` check must work for any context, not this layout.
+
+**Order.** After A86: running G4 in a container is the same orchestration with a different command and
+environment, so it should be a runner setting there, not a second script.
+
+### A86 - gate G4 is a step a project script performs, so a project that has no such script never runs it
+
+**Found 2026-10-08, reading the script one application keeps to run G4 (A84) over its screens.** The kit
+holds the pieces (`screen_rule_tests.py`, `screen_canary.py`, `screen_verify.py`) and the `test-screen` skill
+says to run them, but the part that runs them in order for each screen (the tests with a JUnit result, the rule
+check, each canary, then G4) is not in the kit. One application wrote it for itself, kept it out of its own
+repository on purpose, and it is the only place that order is written down. Another project would have to
+write it again, and a run that skips a step (the canaries are slow) looks the same as one that did not.
+
+**Recorded only. Nothing is built.** The proposal: move the orchestration into the kit as one script under
+`modernize/scripts/`, called by the `test-screen` skill, and leave the project a configuration file. The name
+of the script and of the file are not fixed.
+
+**What the project script is, read in full (298 lines, plus a 191-line JSON file).** Checked against the
+claim that it is generic:
+
+- **Generic already**: the order of the four steps; the per-screen loop; `--screen` (pick screens),
+  `--skip-canary`, `--skip-frontend`, `--timeout`, `--results-dir`; the config check (unique screen keys, a
+  waiver needs a rule that exists and a reason); the exit codes (0 / 1 / 2); a canary is broken in a copy,
+  never the real code; the rule list in the config is compared with the ids the screen plan carries (it calls
+  the kit's `screen_rule_ids.py`); a skipped canary run is not reported as a finding about the screen.
+- **Tied to the project, and so config or a runner setting in the kit**:
+  - the folder layout: two fixed roots (`backend/`, `frontend/`) and the tests resolved from the first test's
+    folder;
+  - the runners: `python -m pytest` and Playwright, hard-coded, including `--junitxml`, Playwright's
+    `--reporter=junit`, its JUnit output variable, `CI=1`, and the path of its command-line entry in
+    `node_modules`. A project on another test runner has nothing to plug in;
+  - the front end's preconditions: a fixed port (3006), the check that nothing already listens on it (a
+    server already running would be reused and would serve the real code, not the copy a canary breaks),
+    node on the path, `pnpm install` named in a message. The port check is a real safeguard and should stay,
+    but the port is the project's;
+  - the environment the backend tests need (a reachable database, its variables, the interpreter that has
+    the project's packages): named in the docstring, not checked, and what it takes to satisfy lives outside
+    the script;
+  - how the kit's tools are found: `AK_PLUGIN_DIR`, or a pinned revision fetched from GitHub into the results
+    folder. Inside the kit that whole step disappears: the tools are the script's neighbours;
+  - the paths and a few words in the docstring and messages (an unversioned documentation folder, the name of
+    a test script) which belong in the project's own README, not the kit.
+- **Coupled to the kit's wording**: with `--skip-canary` it drops the one G4 finding whose text contains
+  "no canary was run". Moved into the kit it must ask G4 not to raise it, not filter a sentence.
+- **Data, not code**: the 191-line JSON is almost all the project's: per screen a key, a name, test files,
+  rule ids, canaries (file, text to find, text to put), the plan path, front-end specs and canaries.
+  The kit needs only the shape and a check of it.
+
+**What the kit script should do, and what the project keeps.**
+
+- The kit owns: the order, the flags, the results folder and `summary.json`, the exit codes, the port and
+  tool-availability checks, the config check, and calling G4. Test commands are config: a command template
+  per suite with the JUnit path given to it, so pytest and Playwright are two presets of the same thing,
+  not two code paths.
+- The project keeps one file: the screens (name, tests, rules, canaries, plan path), the test commands, the
+  paths, the front-end port, and the waivers. **A waiver carries who accepted it and on what date**
+  (A85); the script passes `by` and `on` through to `screen_rule_tests.py`. The project's current file has
+  neither, so G4 would raise all of its waivers at MEDIUM until a person adds them. That is the right
+  outcome, and it needs a person's name, not mine.
+- The environment (database, packages, a free port) stays the project's. The script may run an optional
+  project-named check first and stop with its output, so a missing database is reported as that, not as
+  every test failing.
+- The kit's copy must carry no application name, screen name or rule id: it is a public repository and
+  the plugin stays project-neutral. Its tests use a synthetic project.
+
+**Not known, to decide when it is built.**
+
+- Whether a second application's layout is a single root with no front end (a config with one suite must
+  work) or something the two-root shape does not fit. One application has been read.
+- Whether the orchestration should also run `screen_parity.py` where a legacy output exists, or only what
+  the current script runs.
+- How a project that cannot run a canary in a copy (a build that needs its whole tree) says so without it
+  reading as a pass: `INCONCLUSIVE` exists, a config switch that reports "not run, by choice" does not.
+- Whether the result of a run should be stored, so a later review can ask "was G4 run on this commit".
+  Nothing enforces G4 today (A84, A85); a stored result is the least a pipeline needs to enforce it, and
+  enforcing it is a separate decision for the project's pipeline.
+- The first run of the moved script on the real application is the proof; synthetic tests will not find
+  what the real one does (A84).
+
+**Order.** A85 (merged) supplies the waiver fields the config carries; the project's own script stays as it is,
+untouched, until the kit's version has run on the same three screens and given the same verdicts.
+
 ### A85 - a waiver named no one who accepted it, and a coverage map could cite a test nobody wrote
 
 **Found 2026-10-08, reading what gate G4 (A84) does with the two things a person types into the verification.**
