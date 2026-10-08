@@ -60,6 +60,23 @@ and after the last change to code or tests. Each step writes one file beside the
 `Test_Instruction/{screen}.md`; `screen_verify.py` reads all of them. Write each file with the
 script, never by hand: a count or a `Canary:` line typed into a document is a claim.
 
+### Run it all at once (`screen_check.py`)
+
+When the project keeps a screen-check file (its suites, and per screen the tests, rules, waivers
+with who accepted them and when, canaries, plan and coverage map), one command runs steps 1, 2 and
+4 for every listed screen, in this order, and writes each result file into its results folder:
+
+```bash
+python "${CLAUDE_PLUGIN_ROOT}/modernize/scripts/screen_check.py" --config <project>/screen_check.json [--screen <key>]
+```
+
+The file's shape is in the script's own help. Prefer it to running the steps by hand: a step left
+out is then said, not silent. `--skip-canary "<reason>"` leaves the canaries out of a quick pass,
+and G4 lists that at LOW with the reason; never close Stage 4 on such a pass. A suite that cannot
+run here (a missing program, an uninstalled package, a taken port) is an error of the screens
+that need it, not a skip. Parity (step 3) is not run by it: give the screen's `parity` result file
+in the config and G4 reads it. The steps below are what it runs, and how to run one alone.
+
 ### 1. Which rules do the tests back
 
 ```bash

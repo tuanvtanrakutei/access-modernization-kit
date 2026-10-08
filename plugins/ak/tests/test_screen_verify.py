@@ -209,3 +209,20 @@ def test_a_coverage_map_whose_names_all_exist_is_no_finding(tmp_path):
     pack = {**GOOD_RULES, "coverageMap": {"file": "m.md", "namesChecked": True, "unknownTests": []}}
     code, findings, _ = gate(tmp_path, rules=pack, canaries=[GOOD_CANARY])
     assert code == 0 and findings == []
+
+
+def test_canaries_left_out_on_purpose_are_low_with_the_reason(tmp_path):
+    rules = put(tmp_path, "RULE_TESTS.json", GOOD_RULES)
+    base = [sys.executable, str(SCRIPT), "--screen", "OrderEntry", "--json", "--rule-tests", str(rules)]
+    proc = subprocess.run(base + ["--canaries-skipped", "a quick pass"], capture_output=True, text=True, encoding="utf-8")
+    findings = json.loads(proc.stdout)["findings"]
+    assert proc.returncode == 1 and severities(findings) == ["LOW"] and "a quick pass" in findings[0]["text"]
+
+
+def test_a_skip_needs_a_reason_and_cannot_come_with_canary_results(tmp_path):
+    rules = put(tmp_path, "RULE_TESTS.json", GOOD_RULES)
+    base = [sys.executable, str(SCRIPT), "--screen", "OrderEntry", "--rule-tests", str(rules)]
+    assert subprocess.run(base + ["--canaries-skipped", " "], capture_output=True).returncode == 2
+    canary = put(tmp_path, "CANARY.json", GOOD_CANARY)
+    both = base + ["--canaries-skipped", "why", "--canary", str(canary)]
+    assert subprocess.run(both, capture_output=True).returncode == 2

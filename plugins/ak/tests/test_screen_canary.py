@@ -97,6 +97,22 @@ def test_the_scratch_copy_is_removed_unless_kept(tmp_path):
         shutil.rmtree(kept, ignore_errors=True)
 
 
+def test_a_same_length_break_on_a_file_just_written_is_not_hidden_by_a_bytecode_cache(tmp_path):
+    # Python's .pyc is keyed on the source's whole-second mtime and size. The baseline run caches the
+    # untouched module; a break of the same length written in the same second used to be read from that
+    # cache, so the tests passed and the canary SURVIVED. Seen on a fast CI runner, not on a slow machine.
+    root = project(tmp_path)  # written just now, so the break lands in the same second when the run is fast
+    _, pack, _ = canary(tmp_path, root, "qty * price", "qty / price", CMD, "--keep")
+    kept = Path(pack["scratch"])
+    try:
+        assert pack["verdict"] == "CAUGHT", pack
+        # the guarantee itself, independent of how fast this machine is
+        assert (kept / "copy" / "mod.py").stat().st_mtime >= (root / "mod.py").stat().st_mtime + 2
+    finally:
+        import shutil
+        shutil.rmtree(kept, ignore_errors=True)
+
+
 def test_find_must_occur_exactly_once(tmp_path):
     root = project(tmp_path, module=MODULE + "\n\ndef again(a):\n    return a + 1\n")
     code, pack, err = canary(tmp_path, root, "+ 1", "+ 9")

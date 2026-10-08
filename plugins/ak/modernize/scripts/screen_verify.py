@@ -2,7 +2,7 @@
 """Gate G4: read the three verification results of one screen and say what they leave unproved.
 
     python3 screen_verify.py --screen <name> [--parity PARITY.json] [--canary CANARY.json ...]
-        [--rule-tests RULE_TESTS.json] [--output-screen] [--json]
+        [--canaries-skipped REASON] [--rule-tests RULE_TESTS.json] [--output-screen] [--json]
 
 Stage 4 writes tests and runs them. Gates G1 to G3 check coverage; this one checks that the
 verification itself is evidence and not a claim. It reads what the other scripts wrote and adds
@@ -22,7 +22,8 @@ Findings, with the severity ladder of `TRACEBACK_GATES.md`:
           waiver names no reviewer or no date (`by=` and `on=`); the coverage map names a test no
           test file defines, or could not be checked against one
   LOW     a difference a person accepted (differs-approved); a rule a person waived, by a named
-          reviewer on a date
+          reviewer on a date; no canary was run because the run was told to leave them out, with
+          the reason it was given (`--canaries-skipped`)
 
 A result file that is missing is a finding, not a pass: the gate exists so that "verified" is never
 inferred from silence. The file's own verdict is trusted only as far as the file says: this script
@@ -121,7 +122,9 @@ def build(args: argparse.Namespace) -> dict[str, Any]:
         check_parity(parity, findings)
     if rules is not None:
         check_rules(rules, findings)
-    if not args.canary:
+    if not args.canary and args.canaries_skipped:
+        findings.append(finding(LOW, f"no canary was run in this pass, by choice: {args.canaries_skipped.strip()}"))
+    elif not args.canary:
         findings.append(finding(MEDIUM, "no canary was run: nothing shows the tests can fail"))
     for path in args.canary:
         data = load(path, "canary", findings, "")
@@ -152,6 +155,7 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--parity", type=Path)
     ap.add_argument("--rule-tests", type=Path)
     ap.add_argument("--canary", type=Path, nargs="*", default=[])
+    ap.add_argument("--canaries-skipped", metavar="REASON", help="no canary was run on purpose: G4 lists the reason at LOW, not MEDIUM")
     ap.add_argument("--output-screen", action="store_true", help="the screen produces a file or a response, so a parity result is required")
     ap.add_argument("--json", action="store_true")
     args = ap.parse_args(argv)
@@ -160,6 +164,12 @@ def main(argv: list[str] | None = None) -> int:
             stream.reconfigure(encoding="utf-8")
     if not args.screen.strip():
         print("error: --screen is empty", file=sys.stderr)
+        return 2
+    if args.canaries_skipped is not None and not args.canaries_skipped.strip():
+        print("error: --canaries-skipped needs a reason", file=sys.stderr)
+        return 2
+    if args.canaries_skipped is not None and args.canary:
+        print("error: --canaries-skipped with canary results: either canaries ran or they did not", file=sys.stderr)
         return 2
     report = build(args)
     sys.stdout.write(json.dumps(report, ensure_ascii=False, indent=1) + "\n" if args.json else render(report))
