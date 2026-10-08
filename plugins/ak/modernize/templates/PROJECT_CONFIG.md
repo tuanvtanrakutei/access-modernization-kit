@@ -12,7 +12,7 @@ Copy this file to your project's documentation root. Keep it under version contr
 |---|---|---|
 | `PROJECT_NAME` | `{{PROJECT_NAME}}` | Human-readable, e.g. "Legacy Replacement — Order Receiving" |
 | `SUBSYSTEM_CODE` | `{{SUBSYSTEM_CODE}}` | Short code used in paths and identifiers, e.g. `A99` |
-| `DOCS_DIR` | `{{DOCS_DIR}}` | Where per-screen artifacts live, e.g. `app_docs` |
+| `DOCS_DIR` | `{{DOCS_DIR}}` | Where per-screen artifacts live: `docs`, or `<project>_docs` only if the repository already has a `docs/` of its own. Keep it out of any Docker build context (`.dockerignore`) |
 | `SCREEN_NAME_LANG` | `{{SCREEN_NAME_LANG}}` | Language of screen names used as filenames, e.g. `ja`, `en` |
 
 ## 2. Legacy Source

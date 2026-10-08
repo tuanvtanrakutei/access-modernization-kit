@@ -54,8 +54,11 @@ Docker. So "green" and "runs at the customer" are two different claims, and the 
   git ignores. The run mounts it into the container read-only.
 - **The documentation folder is `docs/`** in every project. A prefixed name (`<app>_docs/`) is only for a
   project that already had a `docs/` folder of its own; the one application that has one got its prefix that
-  way, by accident, not by design. The kit's template still gives `app_docs` as the example `DOCS_DIR`;
-  it should give `docs`, and say when to prefix. Whatever the name, it goes in `.dockerignore`.
+  way, by accident, not by design. Whatever the name, it goes in `.dockerignore`. **Done in the kit
+  (2026-10-08)**: `PROJECT_CONFIG.md`, `bootstrap-project` and `validate-docs` give `docs` and say when to
+  prefix; bootstrap's report says when the docs directory would be in a Docker build context, and suggests
+  the `.dockerignore` line without editing it. Not done: nothing checks an existing project's context;
+  that is the build-context check above, still to build.
 - **The throwaway database is a clone of the probe database** the host runs already use; the probe database
   itself can be built by migrating the customer's database copy.
 - **The compose pass and the self-started server take turns**: both want the front end's port, so they run
