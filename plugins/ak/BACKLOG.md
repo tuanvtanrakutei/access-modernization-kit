@@ -73,8 +73,28 @@ tests ran in a host virtual environment against a probe database. The customer r
   states and 13 canary verdicts were identical to the host run; the result file did not stay in the checkout.
 - **What this does not prove**: the project's compose file mounts the checkout's back end over the image's
   code, and the container run does the same, so it proves the code passes with the image's interpreter and
-  packages, not that the image runs without the mount. Not built yet: the browser-test pass against the
-  compose stack (the second part).
+  packages, not that the image runs without the mount.
+
+**Second part built (2026-10-08): the browser tests against the served image.**
+
+- `screen_check.py` suites take `up` (start a service once, before the suite's first screen), `ready` (wait
+  for a url to answer) and `down` (stop it after the last screen, whatever happened). Suites now run one after
+  another for every screen, then the rule check, canaries and G4 run per screen, so a service starts once and
+  its port is free again before a self-started suite or a canary needs it. A canary on a suite with `up` is
+  refused: the break would need a rebuilt image.
+- **On the real application the served image is not the compose stack.** Compose mounts the front-end folder
+  and runs the package install inside the container, which would write Linux binaries over the developer's
+  own installed packages and break the host suite. The suite instead runs the built front-end image with no
+  mount (its production build and preview server, settings passed at run time, not built in) and points the
+  browser tests at it through the variable the project's test config already honours.
+- **Proved**: tests for each part (a service started once for two screens and stopped once; a failed start or
+  a service that never answers makes the suite unavailable and is still stopped; a failed stop is said; bad
+  blocks refused). On the real application, the full run of its three screens: back end in its image,
+  browser tests against the self-started server and then against the front-end image served with no mount,
+  all green; G4 unchanged (0 HIGH, 0 MEDIUM, the reviewed waivers at LOW); 13 canaries CAUGHT; the image
+  started once and no container was left running (845 s in all).
+- This proves the front-end image builds and serves on its own. The back end still runs with the checkout
+  mounted (the first part); its image running without the mount is unproved.
 
 **Decided by the maintainer (2026-10-08):**
 
