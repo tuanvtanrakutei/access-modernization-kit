@@ -289,3 +289,101 @@ def test_a_suite_that_passes_but_writes_no_result_is_an_error_not_a_pass(tmp_pat
     code, outcome, _ = check(root, cfg)
     assert code == 1 and outcome["suites"]["e2e"] == 0
     assert any("suite e2e wrote no JUnit result" in e for e in outcome["errors"])
+
+
+# A runner that, like a test container, gets its folder as {root} and writes its result inside it.
+IN_ROOT = '''\
+import os, sys
+from pathlib import Path
+here = Path(sys.argv[1])
+if not here.is_dir():
+    sys.exit(f"{here} is not a folder: the placeholder was not filled")
+case = '<testcase classname="e2e" name="BR-SHP-03 shows the total"/>'
+(here / "out" / "result.xml").parent.mkdir(exist_ok=True)
+(here / "out" / "result.xml").write_text('<testsuite tests="1">' + case + '</testsuite>', encoding="utf-8")
+'''
+
+
+def container_like(root: Path, cfg: dict) -> dict:
+    (root / "e2e" / "in_root.py").write_text(IN_ROOT, encoding="utf-8")
+    cfg["suites"]["e2e"] = {"root": "e2e", "command": ["{python}", "in_root.py", "{root}", "{tests}"],
+                            "junit_file": "out/result.xml"}
+    cfg["screens"][0]["rules"] = ["BR-SHP-01", "BR-SHP-02", "BR-SHP-03"]
+    cfg["screens"][0]["tests"] = {"backend": ["tests/test_shop.py"], "e2e": ["shop"]}
+    return cfg
+
+
+def test_a_result_written_inside_the_suite_folder_is_read_and_moved_out_of_the_code(tmp_path):
+    root = project(tmp_path)
+    code, outcome, out = check(root, container_like(root, config(root)))
+    assert code == 0, out
+    assert outcome["suites"]["e2e"] == 0
+    assert (tmp_path / "results" / "shop.e2e.junit.xml").is_file()
+    assert not (root / "e2e" / "out" / "result.xml").exists()
+
+
+def test_a_stale_result_inside_the_suite_folder_is_not_read(tmp_path):
+    root = project(tmp_path)
+    cfg = container_like(root, config(root))
+    (root / "e2e" / "out").mkdir()
+    (root / "e2e" / "out" / "result.xml").write_text('<testsuite tests="1"><testcase classname="e2e" name="BR-SHP-03 x"/></testsuite>',
+                                                    encoding="utf-8")
+    cfg["suites"]["e2e"]["command"] = ["{python}", "-c", "pass", "{tests}"]  # writes nothing this time
+    code, outcome, _ = check(root, cfg)
+    assert code == 1 and any("suite e2e wrote no JUnit result" in e for e in outcome["errors"])
+
+
+@pytest.mark.parametrize("change, words", [
+    ({"junit_file": "/abs/result.xml"}, "under the suite's root"),
+    ({"junit_file": "../result.xml"}, "under the suite's root"),
+    ({"junit_file": "r.xml", "command": ["{python}", "run.py", "{junit}", "{tests}"]}, "not both"),
+])
+def test_a_junit_file_the_run_cannot_use_is_refused(tmp_path, change, words):
+    root = project(tmp_path)
+    cfg = config(root)
+    cfg["suites"]["e2e"].update(change)
+    code, _, out = check(root, cfg)
+    assert code == 2 and words in out, out
+
+
+def test_preflight_commands_run_in_order_and_the_first_failure_stops_the_run(tmp_path):
+    root = project(tmp_path)
+    cfg = config(root)
+    marker = root / "first-ran.txt"
+    cfg["preflight"] = [[sys.executable, "-c", f"open(r'{marker}', 'w').write('1')"],
+                        [sys.executable, "-c", "import sys; print('image build failed'); sys.exit(4)"],
+                        [sys.executable, "-c", "raise SystemExit('the third must not run')"]]
+    code, outcome, out = check(root, cfg)
+    assert code == 2 and outcome is None and marker.is_file()
+    assert "image build failed" in out and "the third must not run" not in out
+
+
+@pytest.mark.parametrize("context", [{"dir": ".", "colour": "x"}, {"forbid": "docs"}, "."])
+def test_a_context_block_the_run_cannot_use_is_refused(tmp_path, context):
+    root = project(tmp_path)
+    cfg = config(root)
+    cfg["context"] = context
+    code, _, out = check(root, cfg)
+    assert code == 2 and "context" in out, out
+
+
+def _docker_linux() -> bool:
+    import shutil as _sh
+    if not _sh.which("docker"):
+        return False
+    done = subprocess.run(["docker", "info", "--format", "{{.OSType}}"], capture_output=True, text=True)
+    return done.returncode == 0 and done.stdout.strip() == "linux"
+
+
+@pytest.mark.skipif(not _docker_linux(), reason="needs a Docker engine that builds Linux stages")
+def test_a_build_context_that_holds_a_refused_folder_stops_the_run_before_any_test(tmp_path):
+    root = project(tmp_path)
+    (root / "docs" / "input").mkdir(parents=True)
+    (root / "docs" / "input" / "customer.mdb").write_bytes(b"\0")
+    cfg = config(root)
+    cfg["context"] = {"dir": ".", "forbid": ["docs"]}
+    code, outcome, out = check(root, cfg)
+    assert code == 2 and outcome is None and "docs/input/customer.mdb" in out, out
+    (root / ".dockerignore").write_text("docs\n", encoding="utf-8")
+    code, outcome, out = check(root, cfg)
+    assert code == 0, out

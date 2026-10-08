@@ -14,10 +14,31 @@ that it should now work.
 
 ### A87 - the kit stops where a developer's machine stops: nothing shows the build runs in the customer's image, or what "ready for stage" means
 
-**Found 2026-10-08, in an interview with the maintainer about deployment and environments; recorded only,
-nothing is built.** The goal is a developer who decides only what a machine cannot. Today the chain ends at a
-merge request whose tests ran in a host virtual environment against a probe database. The customer runs
-Docker. So "green" and "runs at the customer" are two different claims, and the kit proves only the first.
+**Found 2026-10-08, in an interview with the maintainer about deployment and environments.** The goal is a
+developer who decides only what a machine cannot. Until this entry the chain ended at a merge request whose
+tests ran in a host virtual environment against a probe database. The customer runs Docker. So "green" and
+"runs at the customer" are two different claims, and the kit proved only the first.
+
+**First part built (2026-10-08): gate G4 in the image.**
+
+- `screen_context.py` asks Docker what a build would send (a throwaway `FROM scratch` stage that copies the
+  context and exports it; nothing pulled, no image kept) and refuses `.git`, any `.env` and the patterns a
+  project names. It asks Docker rather than re-implementing the ignore rules, so it reads the context exactly
+  as the build will, including a Dockerfile's own `<name>.dockerignore`.
+- `screen_check.py` gained a `context` block (checked first), a `preflight` that may be several commands (build
+  the image, then anything else), a `junit_file` for a runner that writes its result under the mounted folder
+  (moved out of the code after the run; a stale one is deleted before it), and `{root}` in commands.
+  `screen_canary.py` fills `{root}` with its scratch copy, so a container command mounts the broken copy and
+  never the real code.
+- **Proved**: tests for each part, one running Docker (skipped where no Linux engine exists); 11 mutations of
+  the new code, all caught. **Run on the real application**: its backend image built for the first time on
+  this machine, the context check passed (only the two application folders, 80 MB), and gate G4 ran with the
+  backend tests inside the image on the shared database network. On all three screens the findings, rule
+  states and 13 canary verdicts were identical to the host run; the result file did not stay in the checkout.
+- **What this does not prove**: the project's compose file mounts the checkout's back end over the image's
+  code, and the container run does the same, so it proves the code passes with the image's interpreter and
+  packages, not that the image runs without the mount. Not built yet: the browser-test pass against the
+  compose stack (the second part).
 
 **Decided by the maintainer (2026-10-08):**
 

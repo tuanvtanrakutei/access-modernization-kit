@@ -22,6 +22,10 @@ project it is what a syntax error does when the dev server cannot build the page
 about the line. `--link` puts a folder the copy skips (`node_modules`, which the test command needs)
 into the scratch copy as a link, never as a second copy; the link is removed before the scratch folder is.
 
+`{root}` in `--cmd` is replaced by the scratch copy's path, so a command that runs the tests in a
+container can mount the copy (`docker run -v "{root}:/app" ...`) instead of the real code. The tests
+run with the copy as their working folder either way.
+
 The code under `--root` is never written. `--find` must occur exactly once in `--file`. Counts
 come from a JUnit result file when `--junit` is given (deleted before each run so a stale one is
 never read) and otherwise from the runner's summary line (`3 failed, 10 passed`, as pytest, jest
@@ -206,7 +210,8 @@ def build(args: argparse.Namespace) -> tuple[dict[str, Any], Path | None]:
         copy_tree(root, work)
         for name in args.link:
             make_link(root, work, name)
-        clean = run_tests(args.cmd, work, args.junit, args.timeout)
+        command = args.cmd.replace("{root}", str(work))
+        clean = run_tests(command, work, args.junit, args.timeout)
         line = text[: text.index(args.find)].count("\n") + 1
         if green(clean):
             # bytes in, bytes out: the file keeps its own line endings
@@ -218,7 +223,7 @@ def build(args: argparse.Namespace) -> tuple[dict[str, Any], Path | None]:
             # and the break then SURVIVES unseen. Move the mtime clearly past both.
             stamp = max(time.time(), before + 2)
             os.utime(broken_file, (stamp, stamp))
-            broken = run_tests(args.cmd, work, args.junit, args.timeout)
+            broken = run_tests(command, work, args.junit, args.timeout)
         else:
             broken = {"state": "skipped", "exit": None, "counts": None, "tail": ""}
         name, why = verdict(clean, broken)
