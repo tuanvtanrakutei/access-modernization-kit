@@ -1,5 +1,76 @@
 # Changelog
 
+## [2.12.0] - 2026-10-08
+
+Fifty-four pull requests (#44–#100), and one direction: **a person decides, the machine
+does the rest.** The investigation now ends in a list of decisions instead of a sixth
+document to read; the modernize pipeline now ends Stage 4 with evidence a test run cannot
+fake; and the skills ask a developer only what nothing on disk answers.
+
+### Added
+
+- **The decision queue (A75).** `$ak decisions` turns the identifier register into
+  `{APP}_QuestionList.md` and `{APP}_DecisionQueue.json`: one agenda per party, blocking
+  items first, what is already with the customer, what the bundle answered on its own.
+  Risks become dispositions a decided policy settles by class (`input/decisions/policy.yaml`);
+  `--decide` records the decider's answers as TARGET_INTENT evidence; `--assume` lets an
+  open question proceed on a stated assumption (A80); `--place` puts a rule or risk on the
+  screens it belongs to (A82). `$ak backfill-needs` gives older registers the block the
+  queue reads. A question the kit already holds the answer to is flagged before it is asked (A58).
+- **The modernize pipeline reads it.** Pre-flight reads the queue per screen and stops only
+  on an unanswered item with no default; Stage 1 is computed from the extraction
+  (`screen_scope.py`, gate G1) instead of written.
+- **Stage 4 proves instead of claims (A84–A86).** `screen_parity.py` compares legacy and new
+  output byte for byte and demands fresh inputs nobody picked; `screen_canary.py` breaks one
+  line in a scratch copy to show a test can fail; `screen_rule_tests.py` says which rules a
+  test that ran and passed actually names; `screen_rule_ids.py` mints rule ids where the
+  register holds none; `screen_verify.py` is gate G4; `screen_check.py` runs it for every
+  screen a project lists. The front end joins G4. A waiver names who accepted it and when.
+- **`$ak errata`** renders the errata register as the page a reader opens first (A81).
+- **`$ak wireframes`** draws every legacy form from its definition, one tab page at a time,
+  with what each list offers (A79, A83).
+- **`DATA_STATE`**, an evidence class for a measurement of the live data (A74).
+- **`$ak next <APP_ID>`** runs the next unfinished step until a person is needed (A88).
+
+### Changed
+
+- **The agent interviews, the developer submits (A88).** `bootstrap-project` detects its
+  inputs and proposes the rest of `PROJECT_CONFIG.md` from files it cites, one `ok`, then
+  runs the Validation Checklist and `validate-docs` itself. The single-stage skills offer
+  candidate screens, offer to run a missing upstream stage, and name the next skill;
+  `screen-status` gives the command to paste.
+- **The README** leads with one diagram of the whole chain, marking the only places a person
+  is asked, and a four-step quick start.
+- **Diagram-first writing rules** and a readability group in the phase gate (A76); every
+  artefact says whether a person or an agent reads it (A60).
+- **The plugin is project-neutral**: no application ids, counts or names in its code, tests
+  or docs; real customer and Q&A names replaced with synthetic ones.
+- **The documentation folder defaults to `docs/`.**
+- `$ak clean` removes by what nothing cites, not by what looks old (A61).
+- `scripts/bump_version.py` also bumps `CITATION.cff` and writes LF on Windows.
+
+### Removed
+
+- **Phase 6 and the PPTX (A78).** The synthesis restated phases 1–5; what it carried now
+  lives where it is found — risks and unknowns in the register (`$ak decisions`),
+  corrections in the errata, enumeration in the catalogues. A workspace published before
+  keeps its Phase 6 document; nothing checks it.
+
+### Fixed
+
+- An inventory of names was taken for the definitions, and an error handler replaced 154
+  findings (A36, A37); 188 table objects were reported as 188 tables (A39–A42).
+- Feeds the code declares, and paths it declares as constants, are now read as such (A46, A65).
+- Gates that could not fail, a glossary section that could not compose, separator and
+  substring traps, and malformed identifiers the identifier check could not see (A48–A54).
+- A screen published under a name no object carries (A56); the bilingual annotator naming
+  things that are not names (A62); `$ak glossary` overwriting the sections a person wrote.
+- The kit's own tool exported as the application's code (A51).
+- Errata could not be written by the phase that found the error (A67).
+- Three bootstrap gaps and two extraction gaps found by real runs (A69–A73).
+- Control type 119 is a custom (ActiveX) control; the toggle button is 122.
+- `modernize-screen` forbade `implemented` where the workflow means `verified` (A88).
+
 ## [2.11.0] - 2026-09-09
 
 Seventy-one commits, and the shape of the release is worth stating before the detail:
