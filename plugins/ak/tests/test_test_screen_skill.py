@@ -21,7 +21,8 @@ SKILL = PACKAGE / "skills" / "test-screen" / "SKILL.md"
 SCRIPTS = PACKAGE / "modernize" / "scripts"
 COMMAND = re.compile(r'python "\$\{CLAUDE_PLUGIN_ROOT\}/modernize/scripts/(?P<script>\w+\.py)"(?P<args>(?:[^\n]*\\\n)*[^\n]*)')
 FLAG = re.compile(r"(?<![\w-])(--[a-z][a-z-]*)")
-PLAIN = ("screen_rule_tests.py", "screen_canary.py", "screen_parity.py", "screen_verify.py")
+# the four gate scripts, and screen_check.py, which runs three of them in order for every screen
+PLAIN = ("screen_rule_tests.py", "screen_canary.py", "screen_parity.py", "screen_verify.py", "screen_check.py")
 
 
 def commands() -> list[tuple[str, str]]:
@@ -48,7 +49,7 @@ def required_flags(script: str) -> set[str]:
     return set(FLAG.findall(outside)) - {"--help"}
 
 
-def test_the_skill_closes_the_stage_with_all_four_scripts():
+def test_the_skill_closes_the_stage_with_all_its_scripts():
     named = {script for script, _ in commands()}
     assert named == set(PLAIN), named
 

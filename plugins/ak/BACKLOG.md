@@ -113,9 +113,36 @@ check, each canary, then G4) is not in the kit. One application wrote it for its
 repository on purpose, and it is the only place that order is written down. Another project would have to
 write it again, and a run that skips a step (the canaries are slow) looks the same as one that did not.
 
-**Recorded only. Nothing is built.** The proposal: move the orchestration into the kit as one script under
-`modernize/scripts/`, called by the `test-screen` skill, and leave the project a configuration file. The name
-of the script and of the file are not fixed.
+**Built 2026-10-08: `modernize/scripts/screen_check.py`**, named in the `test-screen` skill and in
+`TRACEBACK_GATES.md`. The project keeps one JSON file (suites, and per screen the tests, rules, plan,
+coverage map, waivers as `{reason, by, on}`, canaries, parity result); the script runs the plan check, each
+suite with a JUnit result, the rule check, the canaries and G4, and writes the results and `summary.json`.
+
+- **Suites are command templates**, `{tests}`, `{junit}`, `{python}`; `pytest` and `playwright` are presets of
+  the same thing, not two code paths. A suite may name required files, programs and a port nothing may be
+  listening on; a suite that cannot run is an error of the screens that need it, not a skip.
+- **A skipped step is said.** `--skip-canary REASON` passes the reason to G4, which now lists it at LOW
+  (`screen_verify.py --canaries-skipped`), instead of the project script dropping a finding by its wording.
+  `--skip-suite NAME` is recorded per screen. An optional `preflight` command stops the run with its own
+  output (a missing database reads as that).
+- **A config the run cannot honour is refused before anything runs**: unknown fields, a waiver of a rule the
+  screen does not list, an undated or malformed waiver, a canary on a suite with no tests, a suite with no
+  `{junit}`.
+- **Proved**: 32 tests on a synthetic project running the real scripts; 11 mutations, 9 caught at once, one
+  guard found redundant and removed, one gap (a suite that passes and writes no result) closed by a new
+  test that catches it. **Run on the real application's three screens beside its own script**, against
+  the same probe database: identical G4 findings, identical rule states, identical canary verdicts (13
+  canaries) on all three; both reported the same configuration fault (a canary whose `find` text now
+  occurs twice in the code). The kit's run took 674 s, the project script's 763 s.
+
+**Found by the real run, not the kit's to fix**: the project's config now gives every one of its nine
+waivers `by=agent`. G4 reads that as a named reviewer and lists them at LOW. The reviewer is typed, not
+authenticated (A85), so nothing stops a name that is not a person's; whether the kit should refuse names
+like `agent` is open.
+
+**Still open**: the project script is untouched and still the one its project runs; replacing it with a
+config for the kit's script is the project's decision. Parity is read, not run. Citations are read from one
+suite's test folder only (the rule check reads one).
 
 **What the project script is, read in full (298 lines, plus a 191-line JSON file).** Checked against the
 claim that it is generic:
@@ -180,7 +207,7 @@ claim that it is generic:
   what the real one does (A84).
 
 **Order.** A85 (merged) supplies the waiver fields the config carries; the project's own script stays as it is,
-untouched, until the kit's version has run on the same three screens and given the same verdicts.
+untouched; the kit's version has now run on the same three screens and given the same verdicts.
 
 ### A85 - a waiver named no one who accepted it, and a coverage map could cite a test nobody wrote
 
