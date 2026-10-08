@@ -3,7 +3,7 @@
 
     python3 screen_rule_tests.py (--ak <dir> --screen <name> | --plan <screen plan> | --rules BR-A,BR-B)
         --junit <result file or folder> [--tests <test source folder>]
-        [--coverage-map Test_Instruction/<screen>.md] [--waive BR-X=reason] [--out RULE_TESTS.json]
+        [--coverage-map Test_Instruction/<screen>.md] [--waive "BR-X=reason;by=NAME;on=YYYY-MM-DD"] [--out RULE_TESTS.json]
 
 A coverage map that says "BR-014 is proved by test X" is a claim. This script reads the claim
 against the runner's own result files and gives each rule one state:
@@ -26,8 +26,18 @@ screen: it is listed as `citedOutsideRun` on a rule that is otherwise CLAIMED or
 The rules come from the extraction (`--ak` and `--screen`, as `screen_scope.py` reads them, so a
 superset of what the screen uses), from the rows of a screen plan's Legacy-To-New Mapping table
 (`--plan`: the id each row carries, as `screen_rule_ids.py` mints them, for a screen the register
-holds no rule for), or from `--rules`. Results come from JUnit-style XML only:
-a count typed into a document, or a log, shows no test names, so it backs nothing. A run that
+holds no rule for), or from `--rules`.
+
+A waiver names who accepted it and when, as two trailing fields: `BR-X=reason;by=NAME;on=YYYY-MM-DD`.
+A waiver without both is still honoured here and recorded as given; gate G4 reports it.
+
+A coverage map also names tests, in backticks. With `--tests`, every test name a table row of the map
+gives is looked up among the test functions and classes of the Python files read; a name no file
+defines is listed as `coverageMap.unknownTests` with the rule of its row, because a map that cites a
+test nobody wrote is a claim about nothing. A map read with no Python test to look in is recorded as
+not checked. This does not change the exit status; gate G4 reports it.
+
+Results come from JUnit-style XML only: a count typed into a document, or a log, shows no test names, so it backs nothing. A run that
 executed no test at all is an input error: nothing was proved.
 
 Exit status: 0 when every rule is TESTED or WAIVED; 1 otherwise; 2 when the input cannot be
@@ -41,6 +51,7 @@ import json
 import re
 import sys
 import xml.etree.ElementTree as ET
+from datetime import date
 from pathlib import Path
 from typing import Any
 
@@ -50,6 +61,10 @@ RULE_ID = re.compile(r"(?<![A-Za-z0-9_-])BR-[A-Z0-9]{1,6}(?:-[0-9]{2})?[a-z]?(?!
 SEPARATED = re.compile(r"(?:(?<![A-Za-z0-9])|(?<=Test))(?P<id>BR[-_. ][A-Za-z0-9]{1,6}(?:[-_. ][0-9]{2}[A-Za-z]?)?)(?![A-Za-z0-9])", re.IGNORECASE)
 SKIP_DIRS = {".git", "node_modules", "__pycache__", ".venv", "venv", "dist", "build"}
 MAX_BYTES = 8 << 20
+WAIVER_FIELD = re.compile(r"\s*(by|on)\s*=(.*)", re.IGNORECASE | re.DOTALL)
+WAIVER_DATE = re.compile(r"[0-9]{4}-[0-9]{2}-[0-9]{2}")
+TEST_SPAN = re.compile(r"`([^`\n]+)`")
+TEST_SUFFIX = re.compile(r"(?:\[[^\]]*\])?(?:\(\))?$")
 ORDER = ("FAILING", "TESTED", "NOT RUN", "CLAIMED", "UNTESTED")
 
 
@@ -142,7 +157,7 @@ def key_of(case: dict[str, str]) -> list[tuple[str, str | None, str]]:
 
 
 def judge(rules: list[str], cases: list[dict[str, str]], cited: dict[tuple[str, str | None, str], set[str]],
-          mapped: set[str], waived: dict[str, str]) -> list[dict[str, Any]]:
+          mapped: set[str], waived: dict[str, dict[str, str]]) -> list[dict[str, Any]]:
     by_rule: dict[str, dict[str, list[str]]] = {canon(r): {"passed": [], "failed": [], "error": [], "skipped": []} for r in rules}
     for case in cases:
         label = f"{case['classname']}::{case['name']}"
@@ -182,7 +197,10 @@ def judge(rules: list[str], cases: list[dict[str, str]], cited: dict[tuple[str, 
         if state in ("CLAIMED", "UNTESTED") and outside.get(canon(rule)):
             rec["citedOutsideRun"] = sorted(outside[canon(rule)])
         if rule in waived:
-            rec["waived"] = waived[rule]
+            rec["waived"] = waived[rule]["reason"]
+            for key, field in (("by", "waivedBy"), ("on", "waivedOn")):
+                if key in waived[rule]:
+                    rec[field] = waived[rule][key]
             rec["state"] = "WAIVED"
             rec["wouldBe"] = state
         out.append(rec)
@@ -226,17 +244,77 @@ def rules_from(args: argparse.Namespace) -> list[str]:
     return list(dict.fromkeys(ids))
 
 
-def parse_waivers(items: list[str], rules: list[str]) -> dict[str, str]:
-    waived: dict[str, str] = {}
+def parse_waivers(items: list[str], rules: list[str]) -> dict[str, dict[str, str]]:
+    waived: dict[str, dict[str, str]] = {}
     for item in items:
         rid, _, why = item.partition("=")
-        rid, why = rid.strip(), why.strip()
+        rid = rid.strip()
         if rid not in rules:
             raise InputError(f"--waive {rid!r} is not one of the rules checked")
-        if not why:
+        parts = why.split(";")
+        fields: dict[str, str] = {}
+        # Trailing `by=` and `on=` fields only: a `;` inside the reason is the reason's own.
+        while len(parts) > 1 and (m := WAIVER_FIELD.fullmatch(parts[-1])):
+            key = m.group(1).lower()
+            if key in fields:
+                raise InputError(f"--waive {rid} gives {key}= twice")
+            fields[key] = m.group(2).strip()
+            parts.pop()
+        reason = ";".join(parts).strip()
+        if not reason:
             raise InputError(f"--waive {rid} needs a reason after '='")
-        waived[rid] = why[:300]
+        if "by" in fields and not fields["by"]:
+            raise InputError(f"--waive {rid} has an empty by=")
+        if "on" in fields and not WAIVER_DATE.fullmatch(fields["on"]):
+            raise InputError(f"--waive {rid} has on={fields['on']!r}: write the date as YYYY-MM-DD")
+        if "on" in fields:
+            try:
+                date.fromisoformat(fields["on"])
+            except ValueError:
+                raise InputError(f"--waive {rid} has on={fields['on']!r}: not a calendar date")
+        waived[rid] = {"reason": reason[:300], **fields}
     return waived
+
+
+def test_names(tests: Path) -> set[str]:
+    """Every function and class name defined in the Python files under `tests`."""
+    names: set[str] = set()
+    for f in sorted(tests.rglob("*.py")):
+        if SKIP_DIRS & set(f.parts) or f.stat().st_size > MAX_BYTES:
+            continue
+        try:
+            tree = ast.parse(f.read_text(encoding="utf-8"))
+        except (OSError, SyntaxError, UnicodeDecodeError):
+            continue
+        names |= {n.name for n in ast.walk(tree) if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef))}
+    return names
+
+
+def unknown_tests(map_text: str, known: set[str]) -> list[dict[str, str]]:
+    """Test names a coverage map gives, in backticks inside a row of a table whose first column is the rule,
+    that no read test file defines. Other tables of the same document (known issues, commands) are not read."""
+    out: list[dict[str, str]] = []
+    head: list[str] = []
+    in_rule_table = False
+    for line in map_text.splitlines():
+        if "|" not in line:
+            head, in_rule_table = [], False
+            continue
+        cells = [c.strip() for c in line.strip().strip("|").split("|")]
+        if all(re.fullmatch(r":?-{3,}:?", c) for c in cells):
+            in_rule_table = bool(head) and "rule" in head[0].lower()
+            continue
+        if not in_rule_table:
+            head = cells
+            continue
+        found = RULE_ID.search(cells[0])
+        rule = found.group(0) if found else cells[0][:40]
+        for cell in cells[1:]:
+            for span in TEST_SPAN.findall(cell):
+                name = TEST_SUFFIX.sub("", re.split(r"::|\.", span.strip())[-1]) if " " not in span.strip() else ""
+                if name.lower().startswith("test") and name not in known and {"rule": rule, "test": name} not in out:
+                    out.append({"rule": rule, "test": name})
+    return out
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -260,11 +338,16 @@ def main(argv: list[str] | None = None) -> int:
         cases = read_results(args.junit)
         cited = source_citations(args.tests) if args.tests else {}
         mapped: set[str] = set()
+        coverage: dict[str, Any] | None = None
         if args.coverage_map:
             try:
-                mapped = ids_in(args.coverage_map.read_text(encoding="utf-8"))
+                map_text = args.coverage_map.read_text(encoding="utf-8")
             except (OSError, UnicodeDecodeError) as err:
                 raise InputError(f"cannot read --coverage-map: {err}")
+            mapped = ids_in(map_text)
+            known = test_names(args.tests) if args.tests else set()
+            coverage = {"file": args.coverage_map.name, "namesChecked": bool(known),
+                        "unknownTests": unknown_tests(map_text, known) if known else []}
         results = judge(rules, cases, cited, mapped, waived)
     except InputError as err:
         print(f"screen_rule_tests: {err}", file=sys.stderr)
@@ -272,9 +355,13 @@ def main(argv: list[str] | None = None) -> int:
     counts = {s: sum(1 for r in results if r["state"] == s) for s in (*ORDER, "WAIVED")}
     ok = all(r["state"] in ("TESTED", "WAIVED") for r in results)
     pack = {"verdict": "BACKED" if ok else "GAPS", "counts": counts, "testsRead": len(cases), "rules": results}
+    if coverage is not None:
+        pack["coverageMap"] = coverage
     args.out.write_text(json.dumps(pack, indent=2, ensure_ascii=False) + "\n", encoding="utf-8", newline="\n")
     for r in results:
         print(f"{r['state']:<9}{r['rule']}" + (f"  (waived: {r['waived']})" if "waived" in r else ""))
+    for u in (coverage or {}).get("unknownTests", []):
+        print(f"NO SUCH TEST  {u['rule']}: the coverage map names {u['test']}")
     print(f"{pack['verdict']}: " + ", ".join(f"{n} {s}" for s, n in counts.items() if n))
     return 0 if ok else 1
 

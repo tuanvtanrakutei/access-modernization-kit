@@ -34,7 +34,7 @@ Traceback Gates catch **coverage** gaps between stages, while the context is sti
 
 G3 has two sub-checks because the pipeline now covers both tracks. Report them separately — a screen can be fully covered on API and badly covered on UI, and a single combined number hides that.
 
-G4 reads files that other scripts wrote. Where a rule is not in scope for the screen, the person waives it in `screen_rule_tests.py` with a reason; the gate lists the waiver at LOW and does not re-judge it.
+G4 reads files that other scripts wrote. Where a rule is not in scope for the screen, the person waives it in `screen_rule_tests.py` with a reason, who accepted it and the date (`--waive "BR-X=reason;by=NAME;on=YYYY-MM-DD"`); the gate lists the waiver at LOW and does not re-judge it. A waiver with no reviewer or no date is MEDIUM: nothing records who accepted it. The coverage map's test names are looked up in the test files (`--coverage-map` with `--tests`); a name no file defines is MEDIUM.
 
 ## Severity Ladder
 

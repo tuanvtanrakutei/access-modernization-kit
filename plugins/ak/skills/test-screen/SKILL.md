@@ -75,8 +75,10 @@ record the gap in section 6. Point `--tests` and `--junit` at this screen's test
 extraction's register holds no rule for the screen, use `--plan Screen_plans/{screen}.md` in place of `--ak` and
 `--screen`: the rules are the ids its mapping rows carry (`BR-<PREFIX>-nn`, see `Screen_plans/README.md` §5).
 The rules in scope are a superset of what the screen uses, so a rule that is not the screen's, or
-cannot be asserted, may be set aside with `--waive BR-X="reason"`: a waiver is a person's decision,
-never yours, so ask for it and record the reason. Copy each rule's state into the coverage map's
+cannot be asserted, may be set aside with `--waive "BR-X=reason;by=NAME;on=YYYY-MM-DD"`: a waiver is a person's decision,
+never yours, so ask for it and record the reason, who accepted it and the date. Never invent the
+name: without `by=` and `on=` G4 reports the waiver as MEDIUM. Pass `--coverage-map` with `--tests`
+so a test name the map cites that no file defines is caught. Copy each rule's state into the coverage map's
 Status column from the result file, never from memory.
 
 ### 2. Can the tests fail (the canary)

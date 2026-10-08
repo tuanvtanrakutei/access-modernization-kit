@@ -12,6 +12,47 @@ that it should now work.
 
 ## Open
 
+### A85 - a waiver named no one who accepted it, and a coverage map could cite a test nobody wrote
+
+**Found 2026-10-08, reading what gate G4 (A84) does with the two things a person types into the verification.**
+`screen_rule_tests.py --waive RULE=reason` set a rule aside and G4 listed it at LOW, so a gap could be
+closed by anyone, on any day, with nothing recording who. And the coverage map's Test column was prose:
+the rule-test result judged a rule by the JUnit files and the tests' own citations, and never opened the map
+to see whether the tests it names exist. A map line naming a test that was renamed, never written, or
+abbreviated with an ellipsis read as proof and was caught by nothing.
+
+- **A waiver carries who and when**: `--waive "RULE=reason;by=NAME;on=YYYY-MM-DD"`. Only trailing `by=`
+  and `on=` fields are read, so a `;` inside the reason stays in it. The old form still works and is
+  recorded without a reviewer. A malformed field (an empty `by=`, a date that is not `YYYY-MM-DD` or not a
+  calendar date, a field given twice) is an input error, exit 2. The result records `waivedBy` and `waivedOn`.
+- **G4 reads them**: a waiver missing either is MEDIUM, saying which; a complete one is LOW as before,
+  with the reviewer and date in the text. A waiver a passing test now covers ("drop the waiver") needs its
+  reviewer too.
+- **The coverage map's test names are looked up.** With `--coverage-map` and `--tests`, each backticked name in
+  a row of a table whose first column is the rule (other tables of the document are not read, so a
+  known-issues table is not mistaken for the map) is looked up among the functions and classes of the
+  Python test files read. `Class::test` and `test[param]` and `test()` are reduced to the name. A name
+  no file defines goes to `coverageMap.unknownTests` with its row's rule, and G4 raises it at MEDIUM.
+  A map given with no Python test to look in is `namesChecked: false` and G4 raises that at MEDIUM too:
+  silence is not a pass. The exit status of the script is unchanged.
+- **Proved by mutation**: 27 deliberate breaks of the two scripts, each of which must turn a test red; the
+  first draft let two survive (a guard that was redundant, a date format that the parser happened to accept)
+  and was tightened. Run on the saved results of a real application's three screens, the new check
+  flagged all 9 existing waivers at MEDIUM and one coverage-map line naming a truncated test name; its
+  first draft also flagged a test named in a known-issues table, which is how the table scope was found.
+
+Not done, and weak:
+
+- **The reviewer is typed, not authenticated.** `by=` is a name a person writes; nothing checks that
+  it is a person with the authority, or that the date is today.
+- **Names are checked for Python test files only**, as rule citations are. Another stack's coverage map is
+  `namesChecked: false` and so MEDIUM; there is no way to say "checked by other means".
+- **A name in a table whose first column is not called "rule" is not read**, so a project that titles it
+  differently gets no check, and no message saying so.
+- **A name is looked up by its last segment**, not by its class, so `Other::test_total` passes if any file
+  defines `test_total`.
+- **Nothing enforces G4** (A84): the finding exists, and nothing stops a screen from reaching review with it.
+
 ### A84 - a green test run was read as proof: nothing compared output, showed a test could fail, or tied a passing test to a rule
 
 **Found 2026-10-07, reviewing what the modernize pipeline's test stage (Stage 4) leaves behind.**

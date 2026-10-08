@@ -18,8 +18,11 @@ Findings, with the severity ladder of `TRACEBACK_GATES.md`:
           cannot see a line that matters); the rule-test result is missing; the screen produces
           output (`--output-screen`) and has no parity result
   MEDIUM  a rule is NOT RUN, CLAIMED or UNTESTED; a canary is INCONCLUSIVE or had NO BASELINE; no
-          canary was run; the fresh-input minimum was not met; a result file cannot be read
-  LOW     a difference a person accepted (differs-approved); a rule a person waived
+          canary was run; the fresh-input minimum was not met; a result file cannot be read; a
+          waiver names no reviewer or no date (`by=` and `on=`); the coverage map names a test no
+          test file defines, or could not be checked against one
+  LOW     a difference a person accepted (differs-approved); a rule a person waived, by a named
+          reviewer on a date
 
 A result file that is missing is a finding, not a pass: the gate exists so that "verified" is never
 inferred from silence. The file's own verdict is trusted only as far as the file says: this script
@@ -75,16 +78,29 @@ def check_parity(data: dict[str, Any], findings: list[dict[str, str]]) -> None:
 
 
 def check_rules(data: dict[str, Any], findings: list[dict[str, str]]) -> None:
+    coverage = data.get("coverageMap")
+    if isinstance(coverage, dict):
+        if not coverage.get("namesChecked"):
+            findings.append(finding(MEDIUM, f"coverage map {coverage.get('file')} was read but no Python test file was, so the tests it names were not checked"))
+        for item in coverage.get("unknownTests") or []:
+            if isinstance(item, dict):
+                findings.append(finding(MEDIUM, f"coverage map names test {item.get('test')} for {item.get('rule')}, and no test file read defines it"))
     for rule in data.get("rules") or []:
         if not isinstance(rule, dict):
             continue
         state, rid = rule.get("state"), rule.get("rule")
         if state in RULE_SEVERITY:
             findings.append(finding(RULE_SEVERITY[state], f"rule {rid} is {state}: no test that ran and passed names it"))
-        elif state == "WAIVED" and rule.get("wouldBe") == "TESTED":
-            findings.append(finding(LOW, f"rule {rid} is waived, but a test that ran and passed now names it: drop the waiver ({rule.get('waived')})"))
         elif state == "WAIVED":
-            findings.append(finding(LOW, f"rule {rid} was waived ({rule.get('wouldBe')}): {rule.get('waived')}"))
+            missing = [what for what, key in (("reviewer", "waivedBy"), ("date", "waivedOn")) if not str(rule.get(key) or "").strip()]
+            if rule.get("wouldBe") == "TESTED":
+                text = f"rule {rid} is waived, but a test that ran and passed now names it: drop the waiver ({rule.get('waived')})"
+            else:
+                text = f"rule {rid} was waived ({rule.get('wouldBe')}): {rule.get('waived')}"
+            if missing:
+                findings.append(finding(MEDIUM, f"{text}; the waiver names no {' and no '.join(missing)} (by= and on=), so no one is recorded as accepting it"))
+            else:
+                findings.append(finding(LOW, f"{text} (accepted by {rule['waivedBy']} on {rule['waivedOn']})"))
 
 
 def check_canary(data: dict[str, Any], name: str, findings: list[dict[str, str]]) -> None:
