@@ -3,7 +3,7 @@ name: investigate
 description: "Analyze Microsoft Access VBA applications and MDB/ACCDB/ADP projects connected to SQL Server through a mandatory five-phase, evidence-backed legacy-system investigation with Access extraction, deterministic module planning, and provider-neutral multi-agent orchestration. Use when an agent must package, initialize, analyze, review, or continue investigation of an Access-family satellite app and produce Phase documents, E2E traces, boundary maps, question lists, errata, or QA. Examples: \"$ak help\", \"$ak init A99\", \"$ak assess A99\", \"$ak run A99\", \"$ak next A99\", \"continue A99\", \"initialize a workspace for A99\"."
 ---
 
-# Access Modernization Kit V2.11.0
+# Access Modernization Kit V2.12.0
 
 Use one shared investigation method while keeping every app's sources, graph, decisions, sessions, and outputs isolated.
 
