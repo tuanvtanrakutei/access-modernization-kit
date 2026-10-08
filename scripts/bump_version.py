@@ -13,6 +13,7 @@ from __future__ import annotations
 import argparse
 import re
 import sys
+from datetime import date
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
@@ -28,6 +29,7 @@ JSON_MANIFESTS = [
 DOCS = [
     "docs/first-access-mdb-investigation.md",  # "version X.Y.Z or later"
 ]
+CITATION = "CITATION.cff"  # "version: X.Y.Z" and "date-released: YYYY-MM-DD"
 
 SEMVER = re.compile(r"^\d+\.\d+\.\d+$")
 CURRENT_VERSION = re.compile(r'"version"\s*:\s*"([^"]+)"')
@@ -48,11 +50,17 @@ def replace_in_file(rel_path: str, old: str, new: str, *, dry_run: bool) -> int:
     text = path.read_text(encoding="utf-8")
     if rel_path.endswith(".json"):
         needle, repl = f'"version": "{old}"', f'"version": "{new}"'
+    elif rel_path == CITATION:
+        needle, repl = f"version: {old}", f"version: {new}"
     else:
         needle, repl = f"version {old}", f"version {new}"
     count = text.count(needle)
     if count and not dry_run:
-        path.write_text(text.replace(needle, repl), encoding="utf-8")
+        text = text.replace(needle, repl)
+        if rel_path == CITATION:
+            text = re.sub(r"(?m)^date-released: .*$", f"date-released: {date.today().isoformat()}", text)
+        # bytes, not write_text: on Windows write_text turns every LF into CRLF in an LF-only repo
+        path.write_bytes(text.encode("utf-8"))
     return count
 
 
@@ -78,7 +86,7 @@ def main() -> int:
     print(f"Bumping {old} -> {new}{' (check only)' if args.check else ''}\n")
     total = 0
     missing: list[str] = []
-    for rel_path in JSON_MANIFESTS + DOCS:
+    for rel_path in JSON_MANIFESTS + DOCS + [CITATION]:
         hits = replace_in_file(rel_path, old, new, dry_run=args.check)
         total += hits
         status = f"{hits} occurrence(s)" if hits else "NOT FOUND"
