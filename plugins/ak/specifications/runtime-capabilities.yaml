@@ -11,7 +11,7 @@ required:
     minimum_instances: 1
     purpose: "Execute specialist tasks from a task envelope."
   - id: "derived-facts"
-    when: "Phase 1-6 analysis is requested"
+    when: "Phase 1-5 analysis is requested"
     purpose: "Derive the relationships the sealed bundle states literally, once, before the first phase. Deterministic: no managed runtime, no network, no model."
 conditional:
   - id: "spreadsheets"
@@ -47,7 +47,7 @@ conditional:
 principles:
   - "Do not install optional capabilities until source detection proves they are needed."
   - "Prefer exported SQL scripts and metadata over live database access."
-  - "A missing rendering capability blocks only the derived artifact, not Phase 1-6 analysis."
+  - "A missing rendering capability blocks only the derived artifact, not Phase 1-5 analysis."
   - "Fact derivation runs once against the sealed bundle; a phase blocks only when the derivation itself failed, not when a separate runtime is unavailable."
   - "Derivation reads normalized text and bundle metadata only; never MDB, ACCDB, ADP, lock files, or disposable snapshots."
   - "Never open or modify the original Access database; extraction operates on a copied snapshot."

@@ -3,136 +3,200 @@
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
 [![Release](https://img.shields.io/github/v/release/tuanvtanrakutei/access-modernization-kit?color=green&label=release)](https://github.com/tuanvtanrakutei/access-modernization-kit/releases/latest)
 
-An agent skill for investigating legacy Microsoft Access, VBA, and SQL Server applications. It turns source material into 6 Analyst Phase documents, Evidence trace, Boundary Maps, QA reports, and Modernization System Specs.
+An agent plugin that takes a legacy **Microsoft Access / VBA / SQL Server** application to a
+working **Django REST + React** implementation. The agent does the reading, extracting,
+planning, coding, testing and checking; a person only makes the decisions a machine cannot.
 
-Also ships a second, independently invokable pipeline — [`plugins/ak/modernize/`](plugins/ak/modernize/README.md)
-— that carries a project from those Phase outputs to a working Django REST + React
-implementation, one screen at a time. One install below covers both.
-
----
-
-## I. Quick Install
-
-Run in **Codex CLI**:
-
-```powershell
-codex plugin marketplace add tuanvtanrakutei/access-modernization-kit --sparse .agents/plugins --sparse plugins/ak
-codex plugin add ak@access-modernization-kit
-```
-
-*(For **Claude Code**, run `/plugin marketplace add tuanvtanrakutei/access-modernization-kit` and `/plugin install ak@access-modernization-kit`).*
-
-Then install the two Python packages the commands need. **Installing the plugin does not
-install them** — there is no dependency declaration or install hook, so this is a real
-step:
-
-```powershell
-pip install -r plugins/ak/requirements.txt
-```
-
-`$ak init` is deliberately stdlib-only and works without them; everything from
-`$ak acquire` onward does not. `$ak assess` reports them as required and fails when
-either is missing, so run it before anything else if you are unsure. Optional local
-document readers (spreadsheets, PDF, Word, PowerPoint for Phase 5) live in
-`plugins/ak/requirements-documents.txt` and are only needed when your agent runtime does
-not already provide them.
+**Machine detects, human decides, agent executes.** Every step below either runs on its own or
+stops with one short question — never with a blank page.
 
 ---
 
-## II. Streamlined Workflow
+## How it works
 
-### **Scenario A: You have exported sources (.bas, .sql, .csv, or .zip archive)**
-*(No Microsoft Access runtime required!)*
+```mermaid
+flowchart LR
+    SRC[("Legacy app<br/>.mdb / .accdb / .adp<br/>or exported .bas .sql .zip")]
 
-```text
-1. Initialize & auto-discover sources:  $ak init MYAPP --source D:/Path/To/Source_Or_Zip
-2. Validate & assemble bundle:          $ak acquire MYAPP
-3. Run 6-Phase Analysis:                $ak run MYAPP
+    subgraph INV["1 · Investigate"]
+        direction TB
+        I0["$ak next APP"] --> I1["init → assess → acquire"] --> I2["derive → documents"]
+        I2 --> I3["Phases 1–5<br/>data · screens · logic · workflow · documents"]
+        I3 --> I4["QA → catalogues · wireframes<br/>decision queue · errata"]
+    end
+
+    subgraph BOOT["2 · Bootstrap (once)"]
+        B1["/ak:bootstrap-project<br/>docs · config · screen registry"]
+    end
+
+    subgraph SCR["3 · Modernize (per screen)"]
+        direction TB
+        S1["Plan<br/>G1 · G2"] --> S2["Code<br/>backend → frontend · G3"]
+        S2 --> S3["Test<br/>rules · canary · parity · G4"]
+        S3 --> S4["Review → Accept"]
+    end
+
+    SRC --> INV --> BOOT --> SCR --> DONE(["Ready to merge"])
+
+    H1{{"Authorize extraction<br/>Answer the decision agenda"}}:::human -.-> INV
+    H2{{"ok the detected config<br/>and registry"}}:::human -.-> BOOT
+    H3{{"HIGH gate findings<br/>waivers · verdict"}}:::human -.-> SCR
+
+    classDef human fill:#fff4d6,stroke:#d9a400,color:#333
 ```
 
-### **Scenario B: You have a live .mdb / .accdb database file**
-*(Requires Microsoft Access or ACE OLEDB/DAO registered on a Windows host)*
-
-```text
-1. Initialize workspace:                $ak init MYAPP
-2. Assess readiness, gaps & approvals:  $ak assess MYAPP
-3. Extract safely from snapshot:        $ak acquire MYAPP --authorize access_snapshot_extract
-4. Run 6-Phase Analysis:                $ak run MYAPP
-```
+Yellow boxes are the only places a person is asked anything. Everything else is the agent.
 
 ---
 
-## III. Command Guide — Five-Phase Investigation
+## Quick start
 
-Not literal CLI syntax — `$ak ...` is this skill's own recognized phrasing, matched by
-the agent from your chat message, the same as any natural-language request. Typing the
-exact form below always works; describing the same intent in plain English (e.g.
-"initialize a workspace for MYAPP") is understood the same way. In Claude Code, this whole
-skill (registered as `investigate`) also appears in the `/` slash-command picker as
-`/ak:investigate` — selecting it opens the skill, then type the verb phrase below as your
-message (e.g. `$ak init MYAPP`). Only the skill's own name changed for clarity; the `$ak`
-phrasing itself is unchanged, since it is the plugin's own brand, not this one skill's name.
+**1. Install the plugin** — pick your agent:
 
-**Typical flow for one app, in order:** `init` → `assess` → `acquire` → `phase`/`run` →
-`status` → `render`. Each later step depends on the one before it. `help` and `install ...`
-are one-time housekeeping, not part of this per-app sequence.
-
-| Command | Action |
+| Agent | Run |
 | :--- | :--- |
-| `$ak init <APP_ID> [--source <PATH>]` | Scaffold app workspace. If `--source` is provided (folder or .zip), auto-discovers artifacts into `manifest.yaml`. |
-| `$ak assess <APP_ID>` | Report bundle/phase readiness, gaps, and required approvals (includes host capability checks) before running a phase. |
-| `$ak acquire <APP_ID>` | Plan and assemble the canonical bundle in 1 step. |
-| `$ak phase <1-6> <APP_ID>` | Run a specific phase (Phases 1 to 6). |
-| `$ak run <APP_ID>` | Run all permitted phases sequentially. |
-| `$ak status <APP_ID>` | View investigation status and QA reports. |
-| `$ak derive --app-root <PATH>` | Derive the relationships the sealed bundle states literally. Once, after `acquire`, before Phase 1. |
-| `$ak documents --app-root <PATH>` | Normalize XLSX/DOCX/PPTX/PDF and legacy-encoded text into citable UTF-8. Required before Phase 5. |
-| `$ak catalogues --app-root <PATH>` | Generate the exhaustive per-entity catalogues from the bundle — what a narrative cannot carry. |
-| `$ak glossary` / `$ak bilingual` | Propose an English name for every production name; print it beside the production name in the narratives. |
-| `$ak meanings --app-root <PATH>` | List every table and column still needing a business meaning, for a person to fill. |
-| `$ak interviews --app-root <PATH>` | Read the Q&A register against the pages it indexes and report where they disagree. |
-| `$ak samples --app-root <PATH>` | Compare each supplied sample with the import specification its link names. |
-| `$ak completeness --app-root <PATH>` | Record each object's definition-text shape and compare it with the last record. |
-| `$ak references --app-root <PATH>` | List every source this analysis read, with the digest that says which copy. |
-| `$ak citations` / `$ak conformance` | Fail on a citation to an evidence id that does not exist; check a document carries what its phase contract promises. |
-| `$ak import-sources --source <DIR>` | Write the producer manifest an already-exported source tree needs before it can be imported. |
-| `$ak clean --app-root <PATH>` | Report what a workspace no longer needs, and remove it with `--delete`. |
-| `$ak render <APP_ID> [LANG]` | Generate final approved deliverables (English, Japanese, or Vietnamese). |
-| `$ak help` | Show this command guide; no workspace change. |
-| `$ak install codex` | One-time; skip if already installed via `codex plugin add`. N/A — already installed as a Codex plugin. |
-| `$ak install claude <PROJECT_PATH>` | One-time; skip if already installed via `/plugin install`. Pins this package into one project without the marketplace. |
+| Claude Code | `/plugin marketplace add tuanvtanrakutei/access-modernization-kit` then `/plugin install ak@access-modernization-kit` |
+| Codex CLI | `codex plugin marketplace add tuanvtanrakutei/access-modernization-kit --sparse .agents/plugins --sparse plugins/ak` then `codex plugin add ak@access-modernization-kit` |
+
+**2. Install the two Python packages** (the plugin install does not do this):
+
+```bash
+pip install "PyYAML>=6.0.3,<7" "jsonschema>=4.26.0,<5"
+```
+
+Skipped it? Not a problem: the first `$ak next` notices they are missing and offers to install them.
+
+**3. Point it at your app and let it run:**
+
+```text
+$ak init MYAPP --source D:/path/to/exported-sources-or-zip
+$ak next MYAPP
+```
+
+`$ak next` keeps running the next step until something needs you, then tells you in one line
+what it needs. Say `$ak next MYAPP` (or just "continue MYAPP") again after answering.
+
+> Have a live `.mdb` / `.accdb` instead of exports? Use `$ak init MYAPP` without `--source`;
+> `$ak next` will ask for the `access_snapshot_extract` authorization before it touches it.
+> It never opens the original file — only a hash-verified disposable copy (Windows with
+> Microsoft Access or the ACE engine).
+
+**4. When the investigation is published, modernize:**
+
+```text
+/ak:bootstrap-project          once — detects your repo's settings, asks you to ok them
+/ak:modernize-screen           once per screen — offers the next screen by priority
+```
 
 ---
 
-## IV. Command Guide — Modernization Pipeline
+## What you decide (the 5%)
 
-Full detail: [`plugins/ak/modernize/README.md`](plugins/ak/modernize/README.md#command-guide).
-All nine rows below are skills — pick one from the `/` slash-command picker as `/ak:<name>`,
-or describe the same request in plain language instead; both trigger the same skill.
-Example: `/ak:plan-screen OrderEntry` runs Stages 1–2 for the `OrderEntry` screen.
-
-| Skill | Or say something like ... | Action |
+| When | The agent asks | You answer |
 | :--- | :--- | :--- |
-| `/ak:bootstrap-project` | "Bootstrap a new project for {app}" | One-time setup: templates, folders, registry seed, `CLAUDE.md`/`AGENTS.md` pointer |
-| `/ak:modernize-screen` | "Implement screen {screen}" | Full pipeline, Stages 1–6, for one screen |
-| `/ak:validate-docs` | "Validate the docs" / "check the docs set" | Check a bootstrapped project's documentation set for defects |
-| `/ak:triage-suite` | "Why are 48 tests failing" / "triage the test suite" | Group test failures by cause instead of by file |
-| `/ak:plan-screen {screen}` | "Just plan out screen {screen}, don't code it yet" | Stages 1–2 only — documents, no code |
-| `/ak:code-screen {screen}` | "Code screen {screen} from its existing plan" | Stages 3a–3b — backend and frontend coding |
-| `/ak:test-screen {screen}` | — slash only | Stages 4a–4b — write and run tests |
-| `/ak:review-screen {screen}` | "Review screen {screen} against its artifacts" | Stage 5 — review verdict |
-| `/ak:screen-status {screen\|all}` | "Where does screen {screen} stand" | Read-only status — always safe to run |
+| Extracting from a live database | May I extract from a snapshot copy? | `ok` |
+| A phase needs evidence nobody supplied | The exact file or command that would supply it | supply it, or waive with a reason |
+| After each phase gate | The decision agenda (`$ak decisions`) — one list per person to ask | `ok` to accept defaults, or override one |
+| Bootstrap | Detected config values, each with the file it came from; the seeded screen registry | `ok` / `edit ROW=value` |
+| A HIGH gate finding on a screen | The finding and its options | `examine` / `defer` / `cancel` |
+| A rule that cannot be tested | Waive it? (your name and date are recorded) | reason + name |
+| Review verdict | Approve, or send back | — |
+
+Everything not in this table — extraction, catalogues, plans, code, tests, canaries, parity
+checks, docs validation, status — runs without a question.
+
+---
+
+## Day-to-day: one screen
+
+```mermaid
+flowchart LR
+    ST["/ak:screen-status<br/>(read-only)"] -->|Next column| P
+    P["/ak:plan-screen"] --> C["/ak:code-screen"] --> T["/ak:test-screen"] --> R["/ak:review-screen"]
+    R -->|approved| A["accept<br/>(Stage 6)"]
+    R -->|blocker| C
+    M["/ak:modernize-screen"] -. runs all of these in order .-> A
+```
+
+Use **`/ak:modernize-screen`** for the whole thing. Use a single-stage skill to enter in the
+middle. Each one ends by naming the next skill and offering to run it, and refuses — with an
+offer to run the missing step — when its input is not there yet.
+
+| Skill | Or just say | Does |
+| :--- | :--- | :--- |
+| `/ak:screen-status` | "where do we stand" | Every screen, its status, and the **next command to paste**. Writes nothing. |
+| `/ak:modernize-screen` | "implement screen X", "continue screen X", "implement the next screen" | The full pipeline for one screen, or several in parallel |
+| `/ak:plan-screen` | "just plan screen X" | Stages 1–2: scope and screen plan, no code |
+| `/ak:code-screen` | "code screen X from its plan" | Stages 3a–3b: backend, then frontend |
+| `/ak:test-screen` | "test screen X" | Stages 4a–4b and gate G4: rule tests, canaries, output parity |
+| `/ak:review-screen` | "review screen X" | Stage 5: one verdict, every finding with its failing scenario |
+| `/ak:bootstrap-project` | "bootstrap a new project for MYAPP" | One-time setup of the project's docs, config and registry |
+| `/ak:validate-docs` | "check the docs" | Finds unfilled config, dangling references, broken issue rows. Fixes nothing. |
+| `/ak:triage-suite` | "why are 48 tests failing" | Groups failures by cause, against a baseline |
+
+Details: [`plugins/ak/modernize/README.md`](plugins/ak/modernize/README.md).
 
 ---
 
 <details>
-<summary>V. Prerequisites &amp; Safety Contract</summary>
+<summary><b>Investigation commands — full reference</b></summary>
 
-- **Imported Sources**: Exported text sources (.bas, .cls, .sql, .csv) or ZIP packages do not require Microsoft Access to be installed.
-- **Managed Access Live Extraction**: Requires host Microsoft Access or ACE Database Engine registered in Windows registry. `$ak assess` checks bitness and required approvals automatically.
-- **Safety Guarantee**: The kit **never** opens or modifies live original `.mdb`/`.accdb` files. Live extraction executes strictly against a byte-for-byte verified disposable snapshot.
+You rarely need these by name: `$ak next <APP_ID>` picks the right one. They are agent
+commands, typed into the chat (in Claude Code also reachable as `/ak:investigate`), and plain
+language works the same ("initialize a workspace for MYAPP").
+
+Order for one app: `init` → `assess` → `acquire` → `derive` → `documents` → `phase`/`run` →
+`citations`/`conformance` → `status` → `render`.
+
+| Command | Action |
+| :--- | :--- |
+| `$ak next <APP_ID>` | Run the next unfinished step, and keep going until a person is needed. |
+| `$ak init <APP_ID> [--source <PATH>]` | Scaffold the app workspace. With `--source` (folder or .zip), discover the artifacts into `manifest.yaml`. |
+| `$ak assess <APP_ID>` | Readiness, gaps, required approvals and host checks, before any phase. |
+| `$ak acquire <APP_ID>` | Plan and assemble the canonical bundle. |
+| `$ak derive --app-root <PATH>` | Derive the relationships the bundle states literally. Once, before Phase 1. |
+| `$ak documents --app-root <PATH>` | Normalize XLSX/DOCX/PPTX/PDF into citable UTF-8. Required before Phase 5. |
+| `$ak phase <1-5> <APP_ID>` | Run one phase. |
+| `$ak run <APP_ID>` | Run every permitted phase in order. |
+| `$ak status <APP_ID>` | Investigation status and QA reports. |
+| `$ak decisions --app-root <PATH>` | The question list and decision queue: one agenda per person, blocking items first. |
+| `$ak errata --app-root <PATH>` | Render every correction to a published claim. |
+| `$ak catalogues --app-root <PATH>` | Every table, column, form, report and query, generated from the bundle. |
+| `$ak wireframes --app-root <PATH>` | Draw every legacy form on one HTML page. |
+| `$ak glossary` / `$ak bilingual` | Propose an English name for every production name; print it beside the original. |
+| `$ak meanings --app-root <PATH>` | Tables and columns still needing a business meaning. |
+| `$ak interviews --app-root <PATH>` | Where the Q&A register and its pages disagree. |
+| `$ak samples --app-root <PATH>` | Supplied samples against their import specification. |
+| `$ak completeness --app-root <PATH>` | Whether every object's definition text arrived. |
+| `$ak references --app-root <PATH>` | Every source read, with its digest. |
+| `$ak citations` / `$ak conformance` | Fail on a citation to a missing evidence id; check a document carries what its phase contract promises. |
+| `$ak backfill-needs --app-root <PATH>` | Give open questions the block the decision queue reads. |
+| `$ak import-sources --source <DIR>` | Write the manifest an already-exported source tree needs. |
+| `$ak clean --app-root <PATH>` | Report what a workspace no longer needs; remove it with `--delete`. |
+| `$ak render <APP_ID> [LANG]` | Final deliverables (EN, JA or VI), after QA passes. |
+| `$ak help` | This guide. |
+| `$ak install claude <PROJECT_PATH>` | Pin the package into one project without the marketplace. Not needed after `/plugin install`. |
+
+Optional document readers for Phase 5, only when your agent has none of its own:
+`pip install -r plugins/ak/requirements-documents.txt`.
+
 </details>
 
-## VI. License & Contributing
+<details>
+<summary><b>Safety contract</b></summary>
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) and [SECURITY.md](SECURITY.md). Licensed under [Apache License 2.0](LICENSE). Copyright 2026 Vo Ta Tuan.
+- **Exported sources** (.bas, .cls, .sql, .csv, .zip) need no Microsoft Access.
+- **Live extraction** needs Microsoft Access or the ACE engine on Windows; `$ak assess` checks bitness and approvals.
+- **The original `.mdb` / `.accdb` is never opened or modified.** Extraction runs only against a byte-for-byte verified disposable snapshot, and only after you authorize it.
+- `run` and `next` never authorize live Access, ADP, SQL Server, backup restore or network access.
+- Validation skills report and stop; nothing is fixed, formatted or deleted without your `ok`.
+
+</details>
+
+## More
+
+- First investigation, step by step: [docs/first-access-mdb-investigation.md](docs/first-access-mdb-investigation.md)
+- The modernization pipeline in detail: [plugins/ak/modernize/README.md](plugins/ak/modernize/README.md)
+- [CONTRIBUTING.md](CONTRIBUTING.md) · [SECURITY.md](SECURITY.md) · [CHANGELOG.md](CHANGELOG.md)
+
+Licensed under [Apache License 2.0](LICENSE). Copyright 2026 Vo Ta Tuan.

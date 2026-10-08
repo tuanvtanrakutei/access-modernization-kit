@@ -5,7 +5,7 @@
 - Parallelize evidence collection, not canonical phase publication.
 - Give each task explicit read and write paths.
 - Keep sources immutable and isolate every run.
-- Let only the coordinator merge evidence and publish Phase 1-6 files.
+- Let only the coordinator merge evidence and publish Phase 1-5 files.
 - Keep QA independent from synthesis and rendering.
 - Stop dependent waves when a required handoff fails validation.
 

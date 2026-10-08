@@ -13,8 +13,10 @@ authority for what each stage does and what closes it.
 
 ## Before starting
 
-0. If no screen was named in the request, stop and ask which screen before reading anything
-   else — do not guess a screen from recent conversation context.
+0. If no screen was named in the request, stop before reading anything else and
+   offer the registry rows that have no `Screen_plans/{screen}.md` yet, by `priority`, as a
+   numbered list, and wait for the choice — do not guess a screen from recent conversation
+   context.
 1. Read `PROJECT_CONFIG.md`. An unfilled `{{...}}` stops the run — ask, do not substitute a
    plausible default.
 2. Resolve the screen in `Screens_Registry.md`. If absent, run Agent-Assisted Registration:
@@ -44,3 +46,6 @@ plan, because it looks finished.
 
 Report what you wrote, both gate verdicts, and any HIGH finding with its options. Do not
 update `Screens_Registry.md` status to anything beyond what documents alone justify.
+
+End with the next step and offer to run it: `/ak:code-screen <screen>` once G2 closed, or
+the HIGH finding that has to be decided first.

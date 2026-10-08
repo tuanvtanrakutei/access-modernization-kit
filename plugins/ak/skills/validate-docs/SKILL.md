@@ -1,6 +1,6 @@
 ---
 name: validate-docs
-description: "Check a bootstrapped modernization project's documentation set for defects a reader will not notice — unfilled config keys, unresolved placeholders, dangling document references, malformed or duplicated issue rows, issue numbers cited by code with no row, resolved rows citing files that no longer exist, an unparseable screen registry, and missing artifact folders. Trigger when the user wants to validate, check, audit or lint the docs, before or after bootstrapping a project, before a release, or when a document seems out of step with the code. Examples: \"/validate-docs\", \"check the docs set\", \"is the registry still valid\", \"did we leave any placeholder unfilled\"."
+description: "Check a bootstrapped modernization project's documentation set for defects a reader will not notice — unfilled config keys, unresolved placeholders, dangling document references, malformed or duplicated issue rows, issue numbers cited by code with no row, resolved rows citing files that no longer exist, an unparseable screen registry, and missing artifact folders. Trigger when the user wants to validate, check, audit or lint the docs, before or after bootstrapping a project, before a release, or when a document seems out of step with the code. Examples: \"/ak:validate-docs\", \"check the docs set\", \"is the registry still valid\", \"did we leave any placeholder unfilled\"."
 ---
 
 # Validate The Documentation Set

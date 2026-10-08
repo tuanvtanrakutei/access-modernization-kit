@@ -39,9 +39,6 @@ one manual step named under "Bootstrapping A New Project" below.
 
 ## Command Guide
 
-Not covered by the repository root README — that one documents `$ak`'s own five-phase
-commands only, a separate, optional upstream step (see "At A Glance" above).
-
 All nine entries below are skills, all using one mechanism: pick one from the `/ak:<name>`
 slash-command picker, or describe the same request in plain language — both trigger the same
 skill. The first four have been skills since 2.8.0 and are confirmed working this way on both
@@ -110,15 +107,16 @@ Bootstrap a new project for {app}
 
 | Step | What happens |
 |---|---|
-| 1. Collect inputs | Asks for `{{DOCS_DIR}}`, `AK_RUN_DIR`, `PROJECT_NAME`, `SUBSYSTEM_CODE`, `LEGACY_VARIANT` |
+| 1. Detect inputs | Finds `{{DOCS_DIR}}`, `AK_RUN_DIR`, `PROJECT_NAME`, `SUBSYSTEM_CODE`, `LEGACY_VARIANT` on disk; one `ok`, asks only for what it could not find |
 | 2. Copy templates | Every template, every per-screen folder |
+| 2b. Propose the config | Reads the repository (settings, `pyproject.toml`, `package.json`, CI) and proposes the rest of `PROJECT_CONFIG.md`, each value with its source; one `ok`. Then resolves the copied documents |
 | 3. Seed the registry | If Phase 2 is `PUBLISHED`: detects `Screens_Registry.md` rows, one `ok`/`cancel` for the whole table |
 | 4. Wire `CLAUDE.md` / `AGENTS.md` | Created if missing, or updated in place — one more `ok`/`cancel`, so a fresh session already knows where the pipeline lives |
+| 5. Check and report | Runs the config's Validation Checklist (lint, tests, folders) and `validate-docs`, then prints the one next command |
 
-**The one manual step:** fill every remaining `{{...}}` value in `PROJECT_CONFIG.md`. An
-unfilled placeholder makes the agent stop and ask, rather than guess a path. Nothing else
-here is done by hand — not the folders, not the per-folder `README.md`s, not the registry,
-not the `CLAUDE.md`/`AGENTS.md` pointer.
+**What is left by hand:** the policy rows no file answers (`MIGRATIONS_POLICY`,
+`REFERENCE_DB_POLICY`, ...) — Step 2b lists them with a suggested answer each. An unfilled
+placeholder makes the agent stop and ask, rather than guess a path.
 
 **No `AK_RUN_DIR` yet?** Run `$ak run <APP_ID>` first — documented in `ak`'s own top-level
 `README.md`, a separate command, not part of this one. Or skip it: bootstrap still works
