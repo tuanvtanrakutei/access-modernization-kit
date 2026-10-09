@@ -406,7 +406,9 @@ Not done, and weak:
 - **A front-end canary needs Node, a browser and a free dev-server port**, and the kit script does
   not check the port: a dev server already running there is reused by an end-to-end config and
   would serve the real code. A project's wrapper must refuse to start in that case.
-- `validate_docs.py` does not check the registry's `rule_prefix`; `screen_rule_ids.py` does.
+- ~~`validate_docs.py` does not check the registry's `rule_prefix`~~ **Done 2026-10-09**: it reports a prefix of the
+  wrong shape and one two screens declare, both HIGH (`registry-rule-prefix-invalid`, `-duplicate`), with the shape
+  `screen_rule_ids.py` reads back. Checked on a real registry: clean as it is, both caught when broken in a copy.
 
 ### A83 - a wireframe drew every tab page on top of the others and showed nothing of a list
 
