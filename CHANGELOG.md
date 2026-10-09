@@ -8,6 +8,16 @@
   screens declare, minted rule ids nothing could read back or two screens shared, and nothing said so. Both are
   now HIGH findings (`registry-rule-prefix-invalid`, `registry-rule-prefix-duplicate`), using the shape
   `screen_rule_ids.py` reads back. The column stays optional.
+- **Generated legends describe the bundle they were made from** (#107, A89). The data, logic and screen
+  catalogue legends carried another application's database id, connection sentence and object names; they are
+  now read from the bundle or left as placeholders. `acquire run` returns the failures and an exclusion count
+  when the bundle is not valid, instead of a bare PARTIAL; `init` classifies files under `input/documents/` and
+  `input/shared-docs/` as documents whatever their extension; `preflight` counts `input/shared-docs/`.
+- **An application acquired from its database file alone gets its screens** (#108, A90). The managed route
+  inlines each form, report and macro definition and reads its controls, so the screen catalogue and wireframes
+  carry captions and controls. File-interface inventories are derived from the transfer and output calls in the
+  acquired code; record sources wrapped onto continuation lines are joined; a form named like a table no longer
+  takes the table's references; the screen catalogue reads screen ids from `output/registers/`.
 
 ## [2.13.0] - 2026-10-08
 
