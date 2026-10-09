@@ -231,6 +231,17 @@ def read_page(path: Path) -> dict[str, Any] | None:
     }
 
 
+def page_row(page: dict[str, Any]) -> dict[str, Any]:
+    """A register row built from one exported page's own properties."""
+    columns = _column_map(list(page["properties"]))
+    row: dict[str, Any] = {"id": page["id"], "source": "page"}
+    for field, column in columns.items():
+        if field != "id":
+            row[field] = page["properties"].get(column, "").strip()
+    row.setdefault("title", page.get("title", ""))
+    return row
+
+
 def _looks_answered(status: str) -> bool:
     return status.strip().casefold() == "answered"
 
@@ -266,7 +277,9 @@ def compare(register: list[dict[str, Any]], pages: list[dict[str, Any]]) -> list
                     # cause is the difference between a finding and an accusation.
                     "The commonest cause is not that nobody answered: a Notion "
                     "\"Markdown & CSV\" export drops comments, and a Notion Q&A is "
-                    "answered in the comments. Paste the comment thread into any `.md` "
+                    "answered in the comments. The next commonest is an answer typed into "
+                    "the page body with no dated marker, which no reader can tell from the "
+                    "question. Paste the comment thread into any `.md` "
                     "beside the page - `answers.md` will do - leading each answer with "
                     "a dated marker, and re-run. If it really was answered somewhere "
                     "unexportable, transcribe it and say so in the file."
@@ -345,6 +358,13 @@ def observe(space: Any) -> dict[str, Any]:
             if row["id"] not in seen:
                 seen.add(row["id"])
                 merged.append(row)
+    # A90. Exported one page at a time, a register has no CSV, and every page carries
+    # the same properties a database row would: ID, Status, Respondent, both dates. With
+    # no CSV the pages are the register, so an item linked to one is not reported as
+    # naming a register that does not exist.
+    from_pages = not registers and bool(pages)
+    if from_pages:
+        merged = [page_row(page) for page in pages]
     _merge_sidecar_answers(pages, sidecars)
     findings = compare(merged, pages)
     # Ordered so the two findings about a specific question are read before the notes
@@ -355,6 +375,7 @@ def observe(space: Any) -> dict[str, Any]:
     return {
         "registers": [{"path": r["path"], "sha256": r["sha256"], "rows": len(r["rows"])}
                       for r in registers],
+        "register_from_pages": from_pages,
         "pages": [{"path": p["relative"], "sha256": p["sha256"], "id": p["id"],
                    "answers": p["answers"]} for p in pages],
         "register": merged,

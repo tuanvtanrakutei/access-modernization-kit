@@ -104,6 +104,23 @@ def test_the_kits_own_export_layout_is_recognized(tmp_path: Path) -> None:
     assert classification["backend_kinds"] == ["embedded_access"]
 
 
+def test_the_evidence_directory_decides_what_a_document_is(tmp_path: Path) -> None:
+    """A89. A setup guide (.txt) and a legacy workbook (.xls) were filed as samples."""
+    app_root = tmp_path / "A97"
+    for relative in ("input/documents/setup-guide.txt", "input/shared-docs/system-list.xls",
+                     "input/samples/order-sheet.xls"):
+        path = app_root / relative
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text("x", encoding="utf-8")
+
+    _, artifacts = init_app.discover_sources(app_root)
+
+    kinds = {item["source_ref"]["value"]: (item["kind"], item["format"]) for item in artifacts}
+    assert kinds["input/documents/setup-guide.txt"] == ("document", "txt")
+    assert kinds["input/shared-docs/system-list.xls"] == ("document", "xls")
+    assert kinds["input/samples/order-sheet.xls"] == ("sample", "xls")
+
+
 def test_sql_outside_a_queries_folder_still_implies_a_server(tmp_path: Path) -> None:
     app_root = tmp_path / "A98"
     sources = _sources(app_root / "sources")

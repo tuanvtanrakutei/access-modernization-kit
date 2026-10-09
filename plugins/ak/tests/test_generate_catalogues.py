@@ -322,8 +322,7 @@ def test_table_location_and_unmatched_names_are_explained(workspace: Path) -> No
     assert "### Column Detail columns" in data
     assert "### Status markers and special values" in data
     assert "### Indexed abbreviated column names" in data
-    assert "`ピ1` → `picking_1`" in data
-    assert "`欠品配送データ` is named from its Japanese terms" in data
+    assert "`<prefix>1` → `<english>_1`" in data
     assert "updated from Phase 2 screen evidence" in data
     assert "identifies a local table whose rows and definition are stored" in data
     assert "`Linked` | `yes` or `no`" in data
@@ -331,6 +330,28 @@ def test_table_location_and_unmatched_names_are_explained(workspace: Path) -> No
     assert "`_not extracted_` means the object is linked" in data
     assert "no dictionary term matched" in data
     assert "it is not a missing object" in data
+
+
+def test_the_legend_describes_this_bundle_not_another_application(workspace: Path) -> None:
+    """A89. The legend named another application's database id, said every application
+    reaches two SQL Server databases over ODBC, and the logic catalogue retold another
+    application's errata entry by its procedure names. A legend is generated; nothing in
+    it may be true of one application only."""
+    outputs = build(workspace)
+    data, logic = outputs["T01_DataCatalogue.md"], outputs["T01_LogicCatalogue.md"]
+    assert f"Database ID such as `{BE}`" in data or f"Database ID such as `{FE}`" in data
+    assert "two SQL Server" not in data
+    assert "reaches no ODBC target" in data
+    assert "E-16" not in logic
+    assert "`Call <procedure>`" in logic
+
+
+def test_the_legend_counts_the_odbc_targets_it_names(workspace: Path) -> None:
+    links = workspace / ".ak" / "bundles" / "bundle-abc" / "interfaces" / "linked-tables.json"
+    rows = json.loads(links.read_text(encoding="utf-8"))
+    rows.append({"database_id": FE, "name": "dbo_商品", "connect": "ODBC;DSN=server_dsn;DATABASE=SALES"})
+    write(links, rows)
+    assert "reaches 1 ODBC target(s)" in build(workspace)["T01_DataCatalogue.md"]
 
 
 def test_zero_declared_relationships_is_stated_as_a_finding(workspace: Path) -> None:
@@ -719,3 +740,12 @@ def test_custom_and_toggle_controls_are_listed_under_their_own_type(tmp_path: Pa
     assert custom.split(" | ")[2] == "custom control (ActiveX)"
     assert toggle.split(" | ")[2] == "toggle"
     assert lines[0] == "## Interactive controls (2 of 2 controls)"
+
+
+def test_the_screen_index_is_read_from_the_registers_directory(tmp_path: Path) -> None:
+    """A90. The register lives in output/registers/, and only output/ was searched."""
+    registers = tmp_path / "registers"
+    registers.mkdir()
+    write(registers / "T01_Identifiers.json",
+          {"entries": [{"id": "F-001", "namespace": "F-", "title": "メイン"}]})
+    assert catalogues.screen_indices(tmp_path) == {"メイン": "F-001"}

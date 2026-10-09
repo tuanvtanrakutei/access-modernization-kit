@@ -12,6 +12,82 @@ that it should now work.
 
 ## Open
 
+### A90 - the managed route sealed a bundle of names: no form text, no controls, and a capability nothing could produce
+
+**Found 2026-10-09, writing Phases 2 and 3 of a new application acquired from its `.mdb` alone.** The extractor
+wrote every form and report with `SaveAsText`, and the bundle carried none of it. Phase 2 had to read the staging
+folder by hand, and Phase 4 stayed `BLOCKED` on a capability no adapter in the kit ever reports.
+
+Changed:
+
+- **Definition text reaches the bundle on the managed route.** The adapter now inlines each form, report and macro
+  definition into its component record, as the imported route already did, and reads the control inventory out of
+  the definition (`adapters/definition_controls.py`) into `ui/controls.json`. On the run that found it, the screen
+  catalogue went from no caption and no control to every caption, and the wireframes from no form drawn to every
+  form with its controls.
+- **`spreadsheet_interface_inventory` and `file_interface_inventory` had no producer.** The spreadsheet and text
+  backend profiles required one of them, and the only remedy printed was to supply files. Acquisition now derives
+  them from the `TransferSpreadsheet`, `TransferText` and `OutputTo` calls in the acquired code, the same calls the
+  logic catalogue lists as files crossing the boundary.
+- **A record source wrapped onto continuation lines was cut at the first line.** Long SELECTs were published
+  ending mid-word. The pieces are now joined.
+- **A form named like a table took every reference the table earned.** SQL cannot name a form, and elsewhere a line
+  now points at the screen only when it opens or embeds it.
+- **The screen catalogue's `Phase 2` column read `—` everywhere**, because it searched `output/` for the identifier
+  register, which lives in `output/registers/`.
+- **Q&A pages exported one at a time were "not in the register"**, and an item linked to one was reported as naming
+  a register that does not exist. With no CSV, the pages' own properties are the register now. The finding for an
+  answered page with no dated marker names the second common cause: an answer typed into the body.
+- **`$ak design-view`** captures every form and report in design view from a temporary copy whose startup form is
+  removed, for an application nobody can start on the analyst's machine. It needs `access_snapshot_extract`.
+- **`investigate` tells the agent to sort a handed-over folder into `input/` itself** and show the operator why.
+
+**Not yet done:**
+
+- The catalogue keys a screen's `F-` by name alone, so a form and a report of the same name share one.
+- Phase 4's `trigger_effect_output_trace` still needs SAMPLE_DATA, and an application whose input files no longer
+  exist can only waive it, even when its last batch survives in the database.
+- `init` still cannot tell an export template from a sample before extraction; the agent sorts it (above).
+
+### A89 - the first run of a new application through the easy path: generated text described another application, and three steps hid what they knew
+
+**Found 2026-10-09, taking a new split-file application from an empty folder to a published Phase 1.** The
+operator supplied one folder of mixed files and did not know which inputs the kit needs. Every defect below
+was met on that run, not reasoned about.
+
+Changed:
+
+- **Generated legends carried facts about one earlier application.** The data catalogue named that
+  application's database id as its example and told every reader the application "reaches two SQL Server
+  databases over ODBC", which was false for an Access-only application; the logic catalogue retold an errata
+  entry by that application's procedure and module names; the screen catalogue's built-name example used
+  one of its report names. The database id is now read from the bundle, the target-type sentence counts the
+  ODBC targets the bundle's links actually name, and the examples are placeholders. Test: the legend of a
+  bundle with no ODBC link says so, and with one link counts one.
+- **`acquire run` printed `PARTIAL` and nothing else.** The reason was one linked table whose target drive
+  was absent, listed in the bundle among hundreds of exclusion lines. The run result now carries the non-exclusion
+  failures and an exclusion count whenever the bundle is not `VALID`.
+- **`init` filed documents as samples by extension.** A setup guide and a scope note (`.txt`) and two legacy
+  workbooks (`.xls`) became `kind: sample`. Under `input/documents/` and `input/shared-docs/` the directory
+  now decides; elsewhere the extension still does.
+- **`preflight` reported no shared documents beside a `shared-docs/` holding two.** A V2.2 manifest has no
+  `japanese_documents` key, so the list was always empty. The directory is now the declaration.
+- **`preflight` printed every installed skill**, about a hundred names, ahead of the input preconditions it
+  is run for. It now prints a count and the names a check looks for.
+
+**Not yet done (seen on the same run):**
+
+- A link whose target is a database the manifest also declares is not resolved against that artifact, so
+  the bundle shows the link with no columns and the run is `PARTIAL` although the target was read.
+- Two databases leave both roles `unknown`; the links inside the frontend already say which file is the
+  backend, and `init` could propose it with that link as its source.
+- The bundle carries no row counts and no last-written values, so "how current is this copy" needed a
+  hand-written DAO probe. On that run it found that the supplied backend was years older than the data in
+  the frontend.
+- There is no screenshot route for an application nobody can start: forms can be opened in design view on
+  the snapshot without running code, and captured.
+- `$ak assess` has no CLI verb; it is `preflight` plus `acquire plan`.
+
 ### A88 - a developer had to know which skill came next, and fill seventy config rows the repository already answered
 
 **Found 2026-10-08, reviewing all ten skills for how many questions a developer is asked.** The goal is a

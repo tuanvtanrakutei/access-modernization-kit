@@ -460,6 +460,16 @@ def data_catalogue(app_id: str, bundle: Path, types: dict[int, dict[str, str]],
 
     linked_by_name = {(r.get("database_id", ""), r.get("name", r.get("table", ""))): r
                       for r in linked}
+    # The legend printed a database id and a sentence about SQL Server that were true of
+    # one application and false of the next (A89). Both are now read from this bundle.
+    example_database = min((t.get("database_id", "") for t in tables), default="") or "APP"
+    odbc_targets = [row for row in link_contract.connections(linked) if row["kind"] == "odbc"]
+    if odbc_targets:
+        target_rule = (f"This application reaches {len(odbc_targets)} ODBC target(s), so "
+                       "check the target's rule once before applying this column.")
+    else:
+        target_rule = ("This application reaches no ODBC target, so the rule that matters "
+                       "is the one of the target you choose.")
 
     out: list[str] = [
         f"# {app_id} — Data Catalogue",
@@ -485,7 +495,7 @@ def data_catalogue(app_id: str, bundle: Path, types: dict[int, dict[str, str]],
         "| `No.` | Positive integer | Generated display row number. It is not a permanent identifier and may change when the bundle changes. |",
         "| `Table (production name)` | Exact Japanese object name in backticks | Authoritative name extracted from Access. Keep it unchanged when referring to the legacy object. |",
         "| `English (proposed)` | Backticked alias, `_partial_`, `_no term matched_`, or blank | English cross-reference composed from the JP-to-EN dictionary. It is not a business meaning or replacement table name. `_partial_` means only part of the Japanese matched. `_no term matched_` means the object exists but no dictionary term matched; it is not a missing object. |",
-        "| `Database` | Database ID such as `2003DATA2003_B12705FD` | Acquisition-bundle identity of the database that contains this table object. It answers where the object was found, not which system owns the business meaning. |",
+        f"| `Database` | Database ID such as `{escape(example_database)}` | Acquisition-bundle identity of the database that contains this table object. It answers where the object was found, not which system owns the business meaning. |",
         "| `Linked` | `yes` or `no` | `yes` means the Access object is a link to another database or an ODBC target. `no` means it is a local table object in the database named by `Database`. |",
         "| `Source table` | Source name, sometimes qualified as `dbo.name`, `—`, or `_not extracted_` | The table name at the other end of a link. `—` means not applicable because the object is local; `_not extracted_` means the object is linked but the target table name was not captured. |",
         "| `Columns` | Non-negative integer | Number of column records extracted for this table object. It is a structural count, not a count of business fields confirmed by an owner. |",
@@ -508,9 +518,7 @@ def data_catalogue(app_id: str, bundle: Path, types: dict[int, dict[str, str]],
         "PostgreSQL and MySQL, which also size in characters. On SQL Server `varchar` "
         "or Oracle's default `VARCHAR2`, which size in bytes, the same column needs up "
         "to three times that many bytes for CP932 Japanese text, and re-declaring it at "
-        "the character figure truncates real data. This application reaches two SQL "
-        "Server databases over ODBC, so check the target's rule once before applying "
-        "this column. |",
+        f"the character figure truncates real data. {target_rule} |",
         "| `PK` | `PK` or `—` | `PK` means this column participates in the declared primary key of this table object. `—` means it does not. |",
         "| `FK` | `—` or a future declared marker | Foreign-key status from extracted schema. `—` currently means no foreign key is declared in the acquired schema; application joins may still exist. |",
         "| `Required` | `yes` or `no` | Access field-required attribute observed during extraction. It is not the same as a business rule that rejects every blank input. |",
@@ -534,10 +542,8 @@ def data_catalogue(app_id: str, bundle: Path, types: dict[int, dict[str, str]],
         "",
         "Some legacy tables use an abbreviated Japanese prefix followed by a sequence "
         "number instead of a descriptive field name. An accepted glossary prefix may "
-        "produce aliases such as `サ1` → `sample_1`, `他1` → `other_1`, "
-        "`ピ1` → `picking_1`, or `欠1` → `stockout_1`. For example, "
-        "`欠品配送データ` is named from its Japanese terms as `stockout_delivery_data`, "
-        "and its numbered columns inherit the `欠` prefix. The number is "
+        "produce an alias such as `<prefix>1` → `<english>_1`, and the numbered "
+        "columns of a table inherit the prefix its own name carries. The number is "
         "an ordinal slot only: the alias identifies position and origin, but does not "
         "establish the business meaning of that column. `Business meaning` therefore "
         "remains evidence-controlled.",
@@ -935,7 +941,11 @@ def screen_indices(output: Path) -> dict[str, str]:
     find the row, and a reader holding a row could not find the analysis. The index is
     allocated by the phase, so the catalogue reads it rather than inventing one.
     """
-    matches = sorted(output.glob("*_Identifiers.json")) if output.is_dir() else []
+    # The register lives in `output/registers/` (output-contract `registers_subdirectory`),
+    # and only `output/` was searched, so every `Phase 2` cell read `—` (A90). Both
+    # places are read, as the contract says a checker must.
+    matches = sorted([*output.glob("*_Identifiers.json"),
+                      *output.glob("registers/*_Identifiers.json")]) if output.is_dir() else []
     if len(matches) != 1:
         return {}
     try:
@@ -1032,7 +1042,7 @@ def _interactive_controls(bundle: Path, forms: list, reports: list,
         "",
         f"**`Offers`** expands the {groups_seen} option group(s) into the choices each "
         "presents, as `value` = label, with the default where one is declared. The value "
-        "is what the code receives: a screen opening `\"出荷数確認リスト\" & <group>` opens "
+        "is what the code receives: a screen opening `\"<name>\" & <group>` opens "
         "exactly the objects these values name, and nothing else. A `DefaultValue` "
         "beginning `=` is an Access expression and is printed as the definition writes it.",
         "",
@@ -1270,8 +1280,8 @@ def _per_object_behaviour(bundle: Path, forms: list[dict], reports: list[dict],
         "The name is never written down, so no reference search finds it and the object "
         "it opens appears in *Objects referenced by nothing* below while being in use. "
         "The target is what the expression produces, never the quoted fragment before the "
-        "`&`: `\"出荷数確認リスト\" & Me.fraレポート` opens `出荷数確認リスト1` or "
-        "`出荷数確認リスト2`, and no object is called `出荷数確認リスト`. Which of them a "
+        "`&`: `\"<name>\" & Me.<option group>` opens `<name>1` or `<name>2`, and no "
+        "object is called `<name>`. Which of them a "
         "given run produces depends on a control's value and is a question for an "
         "operator, not a fact in the code.",
         "",
@@ -1394,11 +1404,9 @@ def logic_catalogue(app_id: str, bundle: Path, derived: dict | None,
         f"## VBA modules ({len(modules)})",
         "",
         "`Referenced by` counts text naming the **module**, and VBA calls a "
-        "**procedure**: code writes `Call S色設定`, never `共通ルーチン.S色設定`. So a "
+        "**procedure**: code writes `Call <procedure>`, never `<module>.<procedure>`. So a "
         "module referenced by nothing may hold procedures called from everywhere, and "
-        "this column is not evidence about the module's contents. Reading it as such "
-        "is what produced `E-16` — a published finding that `S色設定` is never "
-        "called, when it is the first statement of the main menu's `Form_Open`.",
+        "this column is not evidence about the module's contents.",
         "",
         "| No. | Module | English (proposed) | Database | Module name referenced by |",
         "|---:|---|---|---|---:|",

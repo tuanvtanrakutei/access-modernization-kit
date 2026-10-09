@@ -271,6 +271,14 @@ def parse_args() -> argparse.Namespace:
     wireframes.add_argument("--replace-handwritten", action="store_true",
                             help="Overwrite a _Wireframes.html this command did not write.")
 
+    design = commands.add_parser(
+        "design-view",
+        help="Capture every form and report of a disposable copy in design view (no code runs).",
+    )
+    design.add_argument("--app-root", required=True)
+    design.add_argument("--database", help="One Access file, relative to the app root.")
+    design.add_argument("--authorize", action="append", default=[])
+
     migrate = commands.add_parser(
         "migrate-workspace",
         help="Move a workspace laid out before 2.10.0 into input/, output/ and .ak/.",
@@ -805,6 +813,14 @@ def main() -> int:
             if wanted:
                 wireframe_args.append(flag)
         return run("build_wireframes.py", *wireframe_args)
+
+    if args.command == "design-view":
+        design_args = ["--app-root", args.app_root]
+        if args.database:
+            design_args += ["--database", args.database]
+        for granted in args.authorize:
+            design_args += ["--authorize", granted]
+        return run("capture_design_view.py", *design_args)
 
     if args.command == "migrate-workspace":
         migrate_args = ["--workspace", args.workspace]
