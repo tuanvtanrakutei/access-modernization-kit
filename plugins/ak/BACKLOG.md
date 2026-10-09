@@ -12,6 +12,43 @@ that it should now work.
 
 ## Open
 
+### A90 - the managed route sealed a bundle of names: no form text, no controls, and a capability nothing could produce
+
+**Found 2026-10-09, writing Phases 2 and 3 of a new application acquired from its `.mdb` alone.** The extractor
+wrote every form and report with `SaveAsText`, and the bundle carried none of it. Phase 2 had to read the staging
+folder by hand, and Phase 4 stayed `BLOCKED` on a capability no adapter in the kit ever reports.
+
+Changed:
+
+- **Definition text reaches the bundle on the managed route.** The adapter now inlines each form, report and macro
+  definition into its component record, as the imported route already did, and reads the control inventory out of
+  the definition (`adapters/definition_controls.py`) into `ui/controls.json`. On the run that found it, the screen
+  catalogue went from no caption and no control to every caption, and the wireframes from no form drawn to every
+  form with its controls.
+- **`spreadsheet_interface_inventory` and `file_interface_inventory` had no producer.** The spreadsheet and text
+  backend profiles required one of them, and the only remedy printed was to supply files. Acquisition now derives
+  them from the `TransferSpreadsheet`, `TransferText` and `OutputTo` calls in the acquired code, the same calls the
+  logic catalogue lists as files crossing the boundary.
+- **A record source wrapped onto continuation lines was cut at the first line.** Long SELECTs were published
+  ending mid-word. The pieces are now joined.
+- **A form named like a table took every reference the table earned.** SQL cannot name a form, and elsewhere a line
+  now points at the screen only when it opens or embeds it.
+- **The screen catalogue's `Phase 2` column read `—` everywhere**, because it searched `output/` for the identifier
+  register, which lives in `output/registers/`.
+- **Q&A pages exported one at a time were "not in the register"**, and an item linked to one was reported as naming
+  a register that does not exist. With no CSV, the pages' own properties are the register now. The finding for an
+  answered page with no dated marker names the second common cause: an answer typed into the body.
+- **`$ak design-view`** captures every form and report in design view from a temporary copy whose startup form is
+  removed, for an application nobody can start on the analyst's machine. It needs `access_snapshot_extract`.
+- **`investigate` tells the agent to sort a handed-over folder into `input/` itself** and show the operator why.
+
+**Not yet done:**
+
+- The catalogue keys a screen's `F-` by name alone, so a form and a report of the same name share one.
+- Phase 4's `trigger_effect_output_trace` still needs SAMPLE_DATA, and an application whose input files no longer
+  exist can only waive it, even when its last batch survives in the database.
+- `init` still cannot tell an export template from a sample before extraction; the agent sorts it (above).
+
 ### A89 - the first run of a new application through the easy path: generated text described another application, and three steps hid what they knew
 
 **Found 2026-10-09, taking a new split-file application from an empty folder to a published Phase 1.** The

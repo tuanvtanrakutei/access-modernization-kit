@@ -7,6 +7,7 @@ import sys
 from pathlib import Path
 from typing import Any
 
+from adapters import definition_controls
 from adapters.base import (
     AcquisitionPlan, AcquisitionRequest, AcquisitionResult, BundleContribution,
     CapabilityReport, empty_sections, producer_version, validate_contribution,
@@ -25,6 +26,7 @@ ADAPTER_ID = "managed_access"
 # assembly side.
 _PRODUCER_SOURCES = (
     "adapters/managed_access/adapter.py",
+    "adapters/definition_controls.py",
     "scripts/extract_access.ps1",
 )
 ADAPTER_VERSION = producer_version(_PRODUCER_SOURCES)
@@ -119,6 +121,7 @@ class ManagedAccessAdapter:
             # BOM, which json.loads rejects. Every real extraction failed here while
             # the tests passed, because a Python-written fixture has no BOM.
             data = json.loads(extraction.read_text(encoding="utf-8-sig"))
+            _inline_definitions(data, extraction.parent)
             records.append(data)
             hashes[artifact["id"]] = data["source"]["sha256"]
         status = "BLOCKED" if failures and not records else ("PARTIAL" if failures or any(r["status"] == "PARTIAL" for r in records) else "VALID")
@@ -138,6 +141,12 @@ class ManagedAccessAdapter:
         for extraction in result.records:
             for component in extraction.get("components", []):
                 _route_component(sections, extraction["database_id"], component)
+                if component.get("kind") in ("form", "report") and component.get("text"):
+                    sections["ui"]["controls"].append({
+                        "database_id": extraction["database_id"], "object": component.get("name", ""),
+                        "kind": component["kind"],
+                        "controls": definition_controls.controls(component["text"]),
+                    })
             _route_table_detail(sections, extraction["database_id"], extraction.get("tables", []))
             # The specification tables a text link points at, carried through with the
             # database that declared them so a consumer can tell whose layout it is.
@@ -311,6 +320,36 @@ def _route_table_detail(sections: dict[str, Any], database_id: str, tables: list
 def _tail(stream: str | None, limit: int = 800) -> str:
     text = (stream or "").strip()
     return text[-limit:] if text else ""
+
+
+def _inline_definitions(data: dict[str, Any], root: Path) -> None:
+    """Carry each form, report and macro definition into its component record.
+
+    A90. The extractor writes these with `SaveAsText` beside `access-extraction.json` and
+    records only the path, so the bundle sealed an inventory of names: the screen
+    catalogue read no definition, listed no control or caption, and a VBA import in a
+    form module was invisible to every reader of the bundle. The imported route already
+    carries the text in the record; this makes the managed route do the same.
+    """
+    for component in data.get("components", []):
+        if component.get("kind") not in ("form", "report", "macro") or component.get("text"):
+            continue
+        for relative in component.get("source_paths") or []:
+            try:
+                raw = (root / str(relative)).read_bytes()
+            except OSError:
+                continue
+            # UTF-16 only behind its BOM: any even-length byte string decodes as UTF-16,
+            # so trying it blind turns a CP932 definition into plausible-looking garbage.
+            encodings = ("utf-16",) if raw[:2] in (b"\xff\xfe", b"\xfe\xff") else ("utf-8-sig", "cp932")
+            for encoding in encodings:
+                try:
+                    component["text"] = raw.decode(encoding).replace("\r\n", "\n")
+                    break
+                except UnicodeDecodeError:
+                    continue
+            if component.get("text"):
+                break
 
 
 def _find_extraction(root: Path, database_id: str, acquisition_id: str) -> Path:

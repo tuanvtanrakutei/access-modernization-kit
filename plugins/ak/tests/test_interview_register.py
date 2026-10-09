@@ -290,3 +290,19 @@ def test_the_finding_names_the_cause_and_the_remedy(tmp_path: Path) -> None:
     assert "not that nobody answered" in detail
     assert "drops comments" in detail
     assert "answers.md" in detail
+
+
+def test_pages_exported_one_by_one_are_the_register(tmp_path: Path) -> None:
+    """A90. With no CSV, every page was NOT_IN_REGISTER and a linked item had nowhere
+    to be found."""
+    page = ("# Question 7\n\nID: 7\nAsk date: 2026/10/02\nAsker: Asker One\n"
+            "Respondent: Respondent One\nAnswer date: 2026/10/02\nStatus: In Progress\n\nbody\n")
+    space = _workspace(tmp_path, {"q7.md": page}, register=None)
+    result = checker.observe(space)
+    assert result["register_from_pages"] is True
+    assert [row["id"] for row in result["register"]] == ["7"]
+    assert result["register"][0]["status"] == "In Progress"
+    assert result["register"][0]["respondent"] == "Respondent One"
+    codes = {f["code"] for f in result["findings"]}
+    assert "NOT_IN_REGISTER" not in codes
+    assert "NOT_ANSWERED" in codes
