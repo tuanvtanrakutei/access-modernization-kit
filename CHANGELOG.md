@@ -1,5 +1,14 @@
 # Changelog
 
+## [2.13.1] - 2026-10-09
+
+### Fixed
+
+- **`validate-docs` checks the registry's `rule_prefix`** (#105). A prefix of the wrong shape, or one two
+  screens declare, minted rule ids nothing could read back or two screens shared, and nothing said so. Both are
+  now HIGH findings (`registry-rule-prefix-invalid`, `registry-rule-prefix-duplicate`), using the shape
+  `screen_rule_ids.py` reads back. The column stays optional.
+
 ## [2.13.0] - 2026-10-08
 
 Two pull requests (#102, #103), one question: **does it run in the image the customer

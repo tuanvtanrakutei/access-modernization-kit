@@ -6,6 +6,6 @@ authors:
   - family-names: "Vo"
     given-names: "Ta Tuan"
     email: "vo-ta-tuan@anrakutei.vn"
-version: 2.13.0
-date-released: 2026-10-08
+version: 2.13.1
+date-released: 2026-10-09
 license: Apache-2.0
