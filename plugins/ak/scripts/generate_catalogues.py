@@ -941,7 +941,11 @@ def screen_indices(output: Path) -> dict[str, str]:
     find the row, and a reader holding a row could not find the analysis. The index is
     allocated by the phase, so the catalogue reads it rather than inventing one.
     """
-    matches = sorted(output.glob("*_Identifiers.json")) if output.is_dir() else []
+    # The register lives in `output/registers/` (output-contract `registers_subdirectory`),
+    # and only `output/` was searched, so every `Phase 2` cell read `—` (A90). Both
+    # places are read, as the contract says a checker must.
+    matches = sorted([*output.glob("*_Identifiers.json"),
+                      *output.glob("registers/*_Identifiers.json")]) if output.is_dir() else []
     if len(matches) != 1:
         return {}
     try:

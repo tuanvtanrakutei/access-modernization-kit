@@ -7,6 +7,7 @@ from typing import Any
 import acquisition_preview
 import bundle_assembly
 import evidence_classes
+import feed_samples
 import phase_readiness as phase_readiness_contract
 from adapters.base import AcquisitionRequest
 from adapters.imported_sources.adapter import ImportedSourcesAdapter
@@ -165,7 +166,8 @@ def run_acquisition(
     _flag_export_drift(contributions)
     with_rows = _database_ids_with_rows(contributions)
     declared = _declaration_capabilities(manifest.artifacts, with_rows)
-    capabilities = _capabilities(contributions) | declared
+    from_code = code_feed_capabilities(contributions)
+    capabilities = _capabilities(contributions) | declared | from_code
     # Both optional arguments are passed deliberately. `compute_readiness` skips the
     # evidence-class half when `package_root` is absent, and this call - the one whose
     # answer is written into the bundle as `phase-readiness.json` and read by every
@@ -227,7 +229,10 @@ def run_acquisition(
         output_root=Path(output_root),
         # Attributed to the manifest, because no adapter extracted it: it is a
         # statement the project makes about which store is authoritative.
-        declared_capabilities={name: ["manifest"] for name in sorted(declared)},
+        declared_capabilities={
+            **{name: ["manifest"] for name in sorted(declared)},
+            **{name: ["code"] for name in sorted(from_code)},
+        },
     )
     # A89. A sealed PARTIAL bundle printed its status and nothing else, so an operator had
     # to open `failures/extraction-failures.json` to learn that one unreachable link was
@@ -413,6 +418,36 @@ def _declaration_capabilities(
             continue
         capabilities.add("backend_authority_declared")
     return capabilities
+
+
+def code_feed_capabilities(contributions: list[dict[str, Any]]) -> set[str]:
+    """The file-interface capabilities the acquired code itself establishes.
+
+    A90. `spreadsheet_interface_inventory` and `file_interface_inventory` had no producer
+    at all: the profile a spreadsheet or text backend selects required one of them, and
+    the only remedy printed was to supply files. Yet every `TransferSpreadsheet` and
+    `TransferText` call in a module or form is an inventory entry the code states - the
+    same calls the logic catalogue already lists as files crossing the boundary. A call
+    counts here whatever its direction, because the capability is the inventory of what
+    the application reads and writes, not proof of either file's format.
+    """
+    records = [
+        record
+        for contribution in contributions
+        for section, key in (("code", "vba"), ("ui", "forms"), ("ui", "reports"), ("ui", "macros"))
+        for record in contribution.get(section, {}).get(key, [])
+        if record.get("text")
+    ]
+    found: set[str] = set()
+    for feed in feed_samples.code_feeds(records):
+        if feed.origin != "code":
+            continue
+        # `OutputTo` names its format rather than its verb: `acFormatXLS` or
+        # "Microsoft Excel" writes a spreadsheet, every other format a file.
+        spreadsheet = feed.declared_format == "Spreadsheet" or any(
+            word in feed.declared_format.casefold() for word in ("xls", "excel"))
+        found.add("spreadsheet_interface_inventory" if spreadsheet else "file_interface_inventory")
+    return found
 
 
 def _capabilities(contributions: list[dict[str, Any]]) -> set[str]:

@@ -159,3 +159,39 @@ def test_staging_is_still_read_when_the_bundle_carries_nothing(tmp_path: Path) -
     labels = {node["id"]: node["label"] for node in derived["nodes"]}
     edges = [(labels[e["source"]], labels[e["target"]]) for e in derived["edges"]]
     assert ("メインメニュー", "受注データ") in edges
+
+
+def test_a_record_source_wrapped_onto_continuation_lines_is_read_whole() -> None:
+    """A90. SaveAsText wraps a long value onto quoted lines; only the first was read."""
+    text = (
+        'Begin Form\n'
+        '    RecordSource ="SELECT 受注.日付, 受注.店舗 FROM 受注 GROUP BY 受注.日付, 受注.店"\n'
+        '        "舗;"\n'
+        '    Caption ="受注"\n'
+    )
+    assert deriver.distil_object(text, "form")["record_source"] == (
+        "SELECT 受注.日付, 受注.店舗 FROM 受注 GROUP BY 受注.日付, 受注.店舗;")
+
+
+def test_a_form_named_like_a_table_is_referenced_only_where_it_is_opened(tmp_path: Path) -> None:
+    """A90. Every line naming the table also counted as a reference to the form."""
+    menu = ('Private Sub cmd_Click()\n'
+            '    CurrentDb.Execute "delete * from 受注データ"\n'
+            'End Sub\n'
+            'Private Sub cmdShow_Click()\n'
+            '    DoCmd.OpenForm "受注データ"\n'
+            'End Sub\n')
+    root = _workspace(tmp_path, staging_text="", bundle_text=menu)
+    inventory = (root / ".ak" / "bundles" / "2026-09-04-abcdef12" / "ui" / "forms"
+                 / "inventory.json")
+    rows = json.loads(inventory.read_text(encoding="utf-8"))
+    rows.append({"kind": "form", "object_name": "受注データ",
+                 "logical_id": "FRONTEND:form:forms/受注データ.txt", "text": "Begin Form\nEnd\n"})
+    inventory.write_text(json.dumps(rows, ensure_ascii=False), encoding="utf-8")
+
+    derived = _derive(root)
+    kinds = {node["id"]: (node["id"].split("_", 1)[0], node["label"]) for node in derived["nodes"]}
+    edges = [(kinds[e["source"]][1], kinds[e["target"]], e["source_location"])
+             for e in derived["edges"]]
+    to_form = [e for e in edges if e[1] == ("form", "受注データ")]
+    assert to_form == [("メインメニュー", ("form", "受注データ"), "line 5")]

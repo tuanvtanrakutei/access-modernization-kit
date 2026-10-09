@@ -45,9 +45,19 @@ import workspace as workspace_contract  # noqa: E402
 # `IN` clause was truncated away on 35 of 51 forms in one project, and the boundary it declares
 # was invisible to every later reader. The symptom was visible in the catalogue as a
 # record source ending in `IN \` and was not chased.
+#
+# SaveAsText also wraps a long value onto quoted continuation lines, and a pattern that
+# stopped at the end of the first line published every long SELECT cut off mid-word
+# (A90). The pieces are joined, as Access joins them when it loads the definition.
 RECORD_SOURCE_RE = re.compile(
-    r'(?<![A-Za-z])RecordSource\s*=\s*"((?:[^"\\]|\\.)*)"'
+    r'(?<![A-Za-z])RecordSource\s*=\s*("(?:[^"\\]|\\.)*"(?:[ \t]*\r?\n[ \t]*"(?:[^"\\]|\\.)*")*)'
 )
+_QUOTED_PIECE = re.compile(r'"((?:[^"\\]|\\.)*)"')
+
+
+def record_sources(text: str) -> list[str]:
+    """Every RecordSource value in a definition, continuation lines joined."""
+    return ["".join(_QUOTED_PIECE.findall(value)) for value in RECORD_SOURCE_RE.findall(text)]
 CONTROL_SOURCE_RE = re.compile(r'(?<![A-Za-z])ControlSource\s*=\s*"([^"]*)"')
 # Not preceded by a letter: SaveAsText writes OLEClass ="<display name>" beside the
 # real Class ="<ProgID>", and matching both reports a caption as a control.
@@ -137,13 +147,13 @@ def _clip(text: str, limit: int) -> str:
 
 def distil_object(text: str, kind: str) -> dict[str, Any]:
     """Keep the facts that are relationships; drop the geometry."""
-    record_sources = [v for v in RECORD_SOURCE_RE.findall(text) if v.strip()]
+    sources = [v for v in record_sources(text) if v.strip()]
     control_sources = sorted({v for v in CONTROL_SOURCE_RE.findall(text) if v.strip()})
     classes = sorted({v for v in CLASS_RE.findall(text) if v.strip()})
     events = sorted(set(EVENT_RE.findall(text)))
     return {
         "kind": kind,
-        "record_source": record_sources[0] if record_sources else "",
+        "record_source": sources[0] if sources else "",
         "control_sources": control_sources,
         "activex_classes": classes,
         "event_procedures": events,
@@ -350,6 +360,17 @@ def main() -> int:
                 # the line says the name and both objects bear it. Both edges are
                 # recorded rather than one guessed at.
                 targets = [t for t in by_label.get((database, other), []) if t != holder]
+                # A90. A form named like a table collected every edge the table earned:
+                # SQL cannot name a form or report, so a query's line points at one only
+                # as a table or query; and where a table bears the name too, any other
+                # line points at the screen only when it opens or embeds it.
+                if kind == "query" or other in table_node:
+                    opens_it = re.search(
+                        r'Open(?:Form|Report)\s+"' + re.escape(other) + r'"'
+                        r'|SourceObject\s*=\s*"(?:Form|Report)\.' + re.escape(other) + r'"', line)
+                    targets = [t for t in targets
+                               if not t.startswith(("form_", "report_"))
+                               or (kind != "query" and opens_it)]
                 if targets:
                     seen_objects.add(other)
                     for target in targets:

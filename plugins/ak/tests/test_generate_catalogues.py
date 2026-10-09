@@ -740,3 +740,12 @@ def test_custom_and_toggle_controls_are_listed_under_their_own_type(tmp_path: Pa
     assert custom.split(" | ")[2] == "custom control (ActiveX)"
     assert toggle.split(" | ")[2] == "toggle"
     assert lines[0] == "## Interactive controls (2 of 2 controls)"
+
+
+def test_the_screen_index_is_read_from_the_registers_directory(tmp_path: Path) -> None:
+    """A90. The register lives in output/registers/, and only output/ was searched."""
+    registers = tmp_path / "registers"
+    registers.mkdir()
+    write(registers / "T01_Identifiers.json",
+          {"entries": [{"id": "F-001", "namespace": "F-", "title": "メイン"}]})
+    assert catalogues.screen_indices(tmp_path) == {"メイン": "F-001"}
