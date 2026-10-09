@@ -160,3 +160,53 @@ def test_the_scan_does_not_walk_into_dot_claude(tmp_path: Path) -> None:
                                str(source))
 
     assert [r for r in findings.rows if r[1] == "dangling-issue-ref"] == []
+
+
+def _registry(tmp_path: Path, *rows: str) -> list:
+    docs = tmp_path / "docs"
+    docs.mkdir(exist_ok=True)
+    path = docs / "Screens_Registry.md"
+    path.write_text(
+        "| screen | screen_key | status_be | status_fe | rule_prefix |\n"
+        "|---|---|---|---|---|\n" + "".join(r + "\n" for r in rows),
+        encoding="utf-8",
+    )
+    findings = validate_docs.Findings()
+    validate_docs.check_registry(findings, str(docs), str(path))
+    return [(sev, kind) for sev, kind, _where, _why in findings.rows]
+
+
+def test_a_rule_prefix_must_have_the_shape_rule_ids_are_read_back_by(tmp_path: Path) -> None:
+    rows = _registry(
+        tmp_path,
+        "| Order entry | order-entry | verified | verified | ORD |",
+        "| Stock | stock | verified | verified | stk |",
+        "| Location | location | verified | verified | LOC-1 |",
+        "| Reason | reason | verified | verified | TOOLONGX |",
+    )
+    assert rows == [("HIGH", "registry-rule-prefix-invalid")] * 3
+
+
+def test_two_screens_may_not_declare_the_same_rule_prefix(tmp_path: Path) -> None:
+    rows = _registry(
+        tmp_path,
+        "| Order entry | order-entry | verified | verified | ORD |",
+        "| Order list | order-list | verified | verified | `ORD` |",
+    )
+    assert rows == [("HIGH", "registry-rule-prefix-duplicate")]
+
+
+def test_an_empty_rule_prefix_or_no_column_is_not_a_finding(tmp_path: Path) -> None:
+    assert _registry(
+        tmp_path,
+        "| Order entry | order-entry | verified | verified |  |",
+        "| Order list | order-list | verified | verified | — |",
+        "| Template | {{SCREEN_KEY}} | verified | verified | {{RULE_PREFIX}} |",
+    ) == []
+    docs = tmp_path / "plain"
+    docs.mkdir()
+    path = docs / "Screens_Registry.md"
+    path.write_text("| screen | screen_key | status_be | status_fe |\n|---|---|---|---|\n| A | a | verified | verified |\n", encoding="utf-8")
+    findings = validate_docs.Findings()
+    validate_docs.check_registry(findings, str(docs), str(path))
+    assert findings.rows == []

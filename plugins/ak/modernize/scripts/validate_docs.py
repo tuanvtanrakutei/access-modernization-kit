@@ -21,7 +21,9 @@ real project, not because it seemed plausible:
                           exists, which is how a row came to describe code that
                           had been reverted
   registry-*              the registry is the single source of truth for screen
-                          identity; a parse failure there silently mis-scopes work
+                          identity; a parse failure there silently mis-scopes work,
+                          and a malformed or repeated rule_prefix mints rule ids
+                          two screens share or nothing can read back
   missing-folder/readme   a per-screen artifact folder or its README is absent
 
 Output is written as UTF-8 to a report file; the console summary stays ASCII so a
@@ -314,6 +316,10 @@ def _exists_under(root: str, needle: str) -> bool:
 
 # ------------------------------------------------------------- registry checks
 
+# The shape screen_rule_ids.py accepts for a declared prefix (BR-<PREFIX>-nn).
+RULE_PREFIX = re.compile(r"[A-Z][A-Z0-9]{0,5}")
+
+
 
 def check_registry(f: Findings, docs_dir: str, registry_path: str) -> None:
     text = read(registry_path)
@@ -340,12 +346,14 @@ def check_registry(f: Findings, docs_dir: str, registry_path: str) -> None:
 
     i_screen, i_key = col("screen"), col("screen_key")
     i_be, i_fe = col("status_be"), col("status_fe")
+    i_prefix = col("rule_prefix")
     if i_be is None or i_fe is None:
         f.add("HIGH", "registry-unparseable", where_base,
               "expected both status_be and status_fe columns; header is %s" % header)
         return
 
     keys: dict[str, int] = {}
+    prefixes: dict[str, int] = {}
     for line_no, line in enumerate(text.split("\n"), 1):
         if not line.startswith("|") or set(line.strip()) <= set("|- "):
             continue
@@ -367,6 +375,19 @@ def check_registry(f: Findings, docs_dir: str, registry_path: str) -> None:
                           "screen_key %r also appears at line %d" % (key, keys[key]))
                 else:
                     keys[key] = line_no
+        if i_prefix is not None and len(cells) > i_prefix:
+            prefix = cells[i_prefix].strip("*` ")
+            if prefix and prefix not in ("-", "—") and "{{" not in prefix:
+                if not RULE_PREFIX.fullmatch(prefix):
+                    f.add("HIGH", "registry-rule-prefix-invalid", "%s:%d" % (where_base, line_no),
+                          "rule_prefix %r is not one to six capitals or digits starting with a capital, "
+                          "so the rule ids BR-<PREFIX>-nn built from it cannot be read back" % prefix)
+                elif prefix in prefixes:
+                    f.add("HIGH", "registry-rule-prefix-duplicate", "%s:%d" % (where_base, line_no),
+                          "rule_prefix %r is also declared at line %d: two screens would mint the same rule ids"
+                          % (prefix, prefixes[prefix]))
+                else:
+                    prefixes[prefix] = line_no
 
 
 # -------------------------------------------------------------- layout checks
