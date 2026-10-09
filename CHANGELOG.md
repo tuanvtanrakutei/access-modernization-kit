@@ -1,5 +1,45 @@
 # Changelog
 
+## [2.14.0] - 2026-10-09
+
+Two pull requests (#107, #108), found by taking a new application from one folder of mixed
+files to Phase 3 the easy way. **What the kit knew, it now says.** Generated legends describe
+this bundle, not an earlier application. A partial acquisition names its cause. And an
+application acquired from its database alone now carries its screens' definitions, its controls
+and its file interfaces.
+
+### Added
+
+- **`$ak design-view`** captures every form and report in design view, for an application
+  nobody can start on the analyst's machine. It works on a temporary copy whose startup form
+  is removed, so no event code runs. It needs `access_snapshot_extract` (A90).
+- **The managed route carries definition text and controls.** Each form, report and macro
+  definition goes into the bundle, and its controls into `ui/controls.json`. The screen catalogue
+  then lists captions and controls, and the wireframes draw every form (A90).
+- **`spreadsheet_interface_inventory` and `file_interface_inventory` have a producer.**
+  Acquisition derives them from the `TransferSpreadsheet`, `TransferText` and `OutputTo` calls in
+  the acquired code. Before, a spreadsheet or text backend left Phase 4 blocked with no way
+  through but supplying files (A90).
+- **Q&A pages exported one at a time are the register** when no CSV is supplied (A90).
+
+### Changed
+
+- **Generated legends are read from the bundle.** The data catalogue's example database id and
+  its target-type sentence (which now counts this bundle's ODBC targets) no longer describe an
+  earlier application. The logic and screen catalogues' examples are placeholders (A89).
+- `acquire run` lists the failures behind a non-`VALID` bundle and counts the exclusions (A89).
+- `init` classifies files under `input/documents/` and `input/shared-docs/` as documents,
+  whatever their extension (A89).
+- `preflight` counts `input/shared-docs/` for a V2.2 manifest, and prints a skill count plus the
+  names its checks use instead of every installed skill (A89).
+- `investigate` tells the agent to sort a handed-over folder into `input/` and show why (A90).
+
+### Fixed
+
+- A `RecordSource` wrapped onto continuation lines is read whole (A90).
+- A form named like a table no longer collects the table's references (A90).
+- The screen catalogue's `Phase 2` column reads `F-` ids from `output/registers/` (A90).
+
 ## [2.13.0] - 2026-10-08
 
 Two pull requests (#102, #103), one question: **does it run in the image the customer
