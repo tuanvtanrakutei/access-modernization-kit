@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from adapters.base import empty_sections
-from acquisition_orchestrator import _capabilities, _flag_export_drift
+from acquisition_orchestrator import _capabilities, _flag_export_drift, failure_summary
 
 
 def _contribution(adapter_id: str, capabilities: list[str]) -> dict:
@@ -187,3 +187,16 @@ def test_a_backend_nobody_could_read_is_not_a_declared_authority() -> None:
     # And once there is a run to check against.
     assert _declaration_capabilities(artifacts, {"FE", "BE"}) == {"backend_authority_declared"}
     assert _declaration_capabilities(artifacts, {"FE"}) == set()
+
+
+def test_a_partial_bundle_says_why_without_listing_exclusions() -> None:
+    """A89. The run printed PARTIAL and nothing else; the reason was one unreachable link."""
+    contribution = _contribution("managed_access", [])
+    contribution["status"] = "PARTIAL"
+    contribution["failures"] = [
+        {"logical_id": "APP", "reason": "Could not read table T: path is not valid"},
+        *({"logical_id": "APP", "kind": "exclusion", "reason": f"EXCLUDED table X{n}"} for n in range(3)),
+    ]
+    summary = failure_summary([contribution])
+    assert summary["failures"] == [{"logical_id": "APP", "reason": "Could not read table T: path is not valid"}]
+    assert summary["excluded"] == 3

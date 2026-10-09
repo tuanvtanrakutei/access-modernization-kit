@@ -259,6 +259,10 @@ def manifest_source_paths(manifest: Path | None) -> dict[str, list[str]]:
                     values["sql"].append(value)
                 elif kind == "document":
                     values["documents"].append(value)
+            # A89. A V2.2 manifest has no `japanese_documents` key, so this list stayed
+            # empty and preflight reported no shared documents beside a shared-docs/
+            # directory holding two. The directory is the declaration.
+            values["japanese_documents"] = ["input/shared-docs", "shared-docs"]
             return values
         sources = data.get("sources", {})
         sql_server = sources.get("sql_server", {}) or {}
@@ -501,7 +505,14 @@ def main() -> int:
         "modules": modules,
         "executables": executables,
         "access": access,
-        "discovered_skills": skills,
+        # A89. Every installed skill was printed, about a hundred names on a developer's
+        # machine, ahead of the input preconditions a person runs this to read. Only the
+        # names a check above looks for decide anything.
+        "discovered_skills": {
+            "count": len(skills),
+            "relevant": [name for name in skills
+                         if any(word in name.lower() for word in ("spreadsheet", "playwright"))],
+        },
         "manifest_needs": needs,
         "input_preconditions": preconditions,
         "recommendations": recommendations,

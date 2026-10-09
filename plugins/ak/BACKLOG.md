@@ -12,6 +12,45 @@ that it should now work.
 
 ## Open
 
+### A89 - the first run of a new application through the easy path: generated text described another application, and three steps hid what they knew
+
+**Found 2026-10-09, taking a new split-file application from an empty folder to a published Phase 1.** The
+operator supplied one folder of mixed files and did not know which inputs the kit needs. Every defect below
+was met on that run, not reasoned about.
+
+Changed:
+
+- **Generated legends carried facts about one earlier application.** The data catalogue named that
+  application's database id as its example and told every reader the application "reaches two SQL Server
+  databases over ODBC", which was false for an Access-only application; the logic catalogue retold an errata
+  entry by that application's procedure and module names; the screen catalogue's built-name example used
+  one of its report names. The database id is now read from the bundle, the target-type sentence counts the
+  ODBC targets the bundle's links actually name, and the examples are placeholders. Test: the legend of a
+  bundle with no ODBC link says so, and with one link counts one.
+- **`acquire run` printed `PARTIAL` and nothing else.** The reason was one linked table whose target drive
+  was absent, listed in the bundle among hundreds of exclusion lines. The run result now carries the non-exclusion
+  failures and an exclusion count whenever the bundle is not `VALID`.
+- **`init` filed documents as samples by extension.** A setup guide and a scope note (`.txt`) and two legacy
+  workbooks (`.xls`) became `kind: sample`. Under `input/documents/` and `input/shared-docs/` the directory
+  now decides; elsewhere the extension still does.
+- **`preflight` reported no shared documents beside a `shared-docs/` holding two.** A V2.2 manifest has no
+  `japanese_documents` key, so the list was always empty. The directory is now the declaration.
+- **`preflight` printed every installed skill**, about a hundred names, ahead of the input preconditions it
+  is run for. It now prints a count and the names a check looks for.
+
+**Not yet done (seen on the same run):**
+
+- A link whose target is a database the manifest also declares is not resolved against that artifact, so
+  the bundle shows the link with no columns and the run is `PARTIAL` although the target was read.
+- Two databases leave both roles `unknown`; the links inside the frontend already say which file is the
+  backend, and `init` could propose it with that link as its source.
+- The bundle carries no row counts and no last-written values, so "how current is this copy" needed a
+  hand-written DAO probe. On that run it found that the supplied backend was years older than the data in
+  the frontend.
+- There is no screenshot route for an application nobody can start: forms can be opened in design view on
+  the snapshot without running code, and captured.
+- `$ak assess` has no CLI verb; it is `preflight` plus `acquire plan`.
+
 ### A88 - a developer had to know which skill came next, and fill seventy config rows the repository already answered
 
 **Found 2026-10-08, reviewing all ten skills for how many questions a developer is asked.** The goal is a

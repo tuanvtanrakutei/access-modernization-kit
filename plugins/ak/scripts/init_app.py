@@ -18,6 +18,12 @@ import yaml
 APP_ID_RE = re.compile(r"^[A-Z][A-Z0-9_-]{1,15}$")
 # Folder names this kit's own extractor writes object definitions into.
 _EXPORT_CONTAINERS = {"forms": "form", "reports": "report", "macros": "macro", "vba": "vba"}
+# A89. The directory a person (or the agent sorting their folder) put a file in says what
+# it is, and the extension does not: a setup guide is `.txt`, a scope note is `.txt`, a
+# legacy workbook is `.xls`, and all three were filed as samples. Under these directories
+# the directory decides; everywhere else the extension still does.
+_DOCUMENT_DIRECTORIES = {"documents", "shared-docs"}
+_ACCESS_SUFFIXES = (".mdb", ".accdb", ".adp")
 
 
 # Organised by who owns it, not by which stage of the pipeline produced it. An
@@ -119,7 +125,10 @@ def discover_sources(app_root: Path) -> tuple[dict[str, Any], list[dict[str, Any
         # extension alone dropped all of it into the catch-all "sample" bucket, so the
         # package did not recognize the output it had produced itself.
         container = file_path.parent.name.lower()
-        if suffix == ".txt" and container in _EXPORT_CONTAINERS:
+        evidence_dir = file_path.relative_to(sources_dir).parts[0].lower()
+        if evidence_dir in _DOCUMENT_DIRECTORIES and suffix not in _ACCESS_SUFFIXES:
+            kind, fmt, role, acq = "document", suffix[1:] if suffix else "text", "documentation", "imported"
+        elif suffix == ".txt" and container in _EXPORT_CONTAINERS:
             kind, fmt, role, acq = "source_export", _EXPORT_CONTAINERS[container], "frontend", "imported"
         elif suffix == ".txt" and container == "schema":
             kind, fmt, role, acq = "source_export", "table_schema", "backend", "imported"
