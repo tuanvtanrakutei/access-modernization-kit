@@ -307,3 +307,19 @@ def test_manifest_read_without_yaml_is_marked_as_unparsed(tmp_path: Path, monkey
     # The text-scan fallback still answers, so the flag is the only thing that
     # distinguishes a guess from a parse.
     assert needs["access"] is True
+
+
+def test_a_v22_workspace_counts_its_shared_documents(tmp_path: Path) -> None:
+    """A89. A V2.2 manifest declared no `japanese_documents`, so a shared-docs/ holding
+    two documents was reported as holding none."""
+    manifest = tmp_path / "manifest.yaml"
+    manifest.write_text(
+        "version: '2.2'\nartifacts:\n- id: OVERVIEW\n  kind: document\n  format: pdf\n"
+        "  source_ref: {type: local_path, value: input/shared-docs/overview.pdf}\n",
+        encoding="utf-8",
+    )
+    shared = tmp_path / "input" / "shared-docs"
+    shared.mkdir(parents=True)
+    (shared / "overview.pdf").write_bytes(b"%PDF")
+    present = preflight.scan_app_sources(tmp_path, preflight.manifest_source_paths(manifest))
+    assert present["shared_docs"] is True

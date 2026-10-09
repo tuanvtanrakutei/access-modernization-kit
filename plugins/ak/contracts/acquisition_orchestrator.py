@@ -211,7 +211,7 @@ def run_acquisition(
                 f"required to: {', '.join(missing)}. Reasons are in the bundle's "
                 "phase-readiness.json; add the missing sources and acquire again."
             )
-    return bundle_assembly.assemble_bundle(
+    result = bundle_assembly.assemble_bundle(
         app_id=manifest.app["id"],
         classification=classification_dict,
         rule_versions=resolved.rule_versions,
@@ -229,6 +229,26 @@ def run_acquisition(
         # statement the project makes about which store is authoritative.
         declared_capabilities={name: ["manifest"] for name in sorted(declared)},
     )
+    # A89. A sealed PARTIAL bundle printed its status and nothing else, so an operator had
+    # to open `failures/extraction-failures.json` to learn that one unreachable link was
+    # the whole reason - among hundreds of exclusion lines that are not failures at all.
+    if result.get("status") != "VALID":
+        result.update(failure_summary(contributions))
+    return result
+
+
+def failure_summary(contributions: list[dict[str, Any]]) -> dict[str, Any]:
+    """The failures that made a sealed bundle less than VALID, apart from exclusions.
+
+    An exclusion is the extractor declining a generated object on purpose; it is listed
+    with the failures in the bundle, and on one application outnumbered the real failure
+    hundreds to one. It is counted here, not listed.
+    """
+    failures = _contribution_failures(contributions)
+    return {
+        "failures": [f for f in failures if f.get("kind") != "exclusion"],
+        "excluded": sum(1 for f in failures if f.get("kind") == "exclusion"),
+    }
 
 
 def _flag_export_drift(contributions: list[dict[str, Any]]) -> None:
