@@ -80,16 +80,35 @@ adjusts and the pipeline re-reads; the proposal does not yet read a recorded dis
 
 ### A93 - the runtime mockup's fidelity is not measured by the kit
 
-**Found 2026-10-12, with A92.** The measurement above ran from scratch scripts. Running an application needs what
+**Found 2026-10-12, with A92.** The measurement in A92 ran from scratch scripts. Running an application needs what
 its production host had (a mapped drive, a master on a share), and on an analysis host its VBA may not load at all
 (an Access runtime whose VBA environment is not its own: every form with a module is cancelled on opening, error
-48). The scratch run worked around both on a disposable copy: the drive substituted to a scratch tree holding copies,
-the start-up form removed, and each form's code-behind removed by a SaveAsText / LoadFromText round trip, which is
-safe for a static capture only where the form's opening code changes nothing an operator sees (here it sized the
-window). Proposed: `$ak runtime-view` doing that on a copy with `access_snapshot_extract`, capturing each form in
-form view with its runtime properties, and `$ak wireframes --check-runtime` reporting agreement per property and
-per form, so a drift in the mockup is caught by a number rather than by eye. Open: forms whose opening code does
-change what is shown cannot be captured this way, and must say so.
+48). Two more gaps showed on review of the scratch captures: a pop-up form is its own window, so a capture of the
+Access window showed it empty, and a datasheet form opened as a form showed one row.
+
+Changed:
+
+- **`$ak runtime-view`** (`scripts/capture_runtime_view.py` / `.ps1`) works on copies with
+  `access_snapshot_extract`.
+  - It re-points every link whose target has a supplied backend's name at that backend's copy. This
+    replaces substituting a drive: the application reads the supplied data and the host's drives stay as
+    they are.
+  - It removes the start-up form and opens each form in its default view, a datasheet as a datasheet.
+  - It captures the Access window with every pop-up window of the process drawn where it sits, and reads
+    each control's runtime properties through `Eval`.
+  - With `--code auto` it detects a host that cannot load the VBA from the first form with a module, and
+    removes the code-behind of every form on the copy by a SaveAsText / LoadFromText round trip.
+  - Each form records the opening procedures (`Form_Open`, `Form_Load`, `Form_Activate`, `Form_Current`) that
+    went with its code. Such a form is captured as its definition and data show it, and the report says so.
+    Access is closed whatever fails.
+  - The capture log carries each form's `F-` id.
+- **`$ak wireframes --check-runtime`** sets each drawn control against its runtime properties
+  (`contracts/runtime_fidelity.py`, whose `drawn()` mirrors the template's rules). It reports agreement per
+  property and per form, groups the disagreements by cause, writes `registers/{APP}_RuntimeFidelity.json`, and
+  exits 1 on any disagreement. A system colour is compared as written on both sides.
+
+**Not yet done:** the capture does not follow a form's opening code where it changes what is shown (a filter or a
+record source set in `Form_Open`): such a form is named, not reproduced. Reports are not captured at runtime.
 
 ### A91 - a wireframe drew the design view: one row of a list, and a locked field looked like an input
 

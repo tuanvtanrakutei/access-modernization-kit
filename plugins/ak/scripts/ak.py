@@ -270,6 +270,8 @@ def parse_args() -> argparse.Namespace:
     wireframes.add_argument("--dry-run", action="store_true")
     wireframes.add_argument("--replace-handwritten", action="store_true",
                             help="Overwrite a _Wireframes.html this command did not write.")
+    wireframes.add_argument("--check-runtime", action="store_true",
+                            help="Compare the runtime mockup with `$ak runtime-view`'s capture; fail on any disagreement.")
 
     design = commands.add_parser(
         "design-view",
@@ -278,6 +280,14 @@ def parse_args() -> argparse.Namespace:
     design.add_argument("--app-root", required=True)
     design.add_argument("--database", help="One Access file, relative to the app root.")
     design.add_argument("--authorize", action="append", default=[])
+
+    runtime_view = commands.add_parser(
+        "runtime-view",
+        help="Open every form of a disposable copy as it runs, capture it and read its controls' runtime properties.",
+    )
+    runtime_view.add_argument("--app-root", required=True)
+    runtime_view.add_argument("--authorize", action="append", default=[])
+    runtime_view.add_argument("--code", choices=("auto", "keep", "strip"), default="auto")
 
     mockup = commands.add_parser(
         "mockup-data",
@@ -817,7 +827,8 @@ def main() -> int:
         if args.app_id:
             wireframe_args += ["--app-id", args.app_id]
         for flag, wanted in (("--dry-run", args.dry_run),
-                             ("--replace-handwritten", args.replace_handwritten)):
+                             ("--replace-handwritten", args.replace_handwritten),
+                             ("--check-runtime", args.check_runtime)):
             if wanted:
                 wireframe_args.append(flag)
         return run("build_wireframes.py", *wireframe_args)
@@ -829,6 +840,12 @@ def main() -> int:
         for granted in args.authorize:
             design_args += ["--authorize", granted]
         return run("capture_design_view.py", *design_args)
+
+    if args.command == "runtime-view":
+        runtime_args = ["--app-root", args.app_root, "--code", args.code]
+        for granted in args.authorize:
+            runtime_args += ["--authorize", granted]
+        return run("capture_runtime_view.py", *runtime_args)
 
     if args.command == "mockup-data":
         mockup_args = ["--app-root", args.app_root, "--rows", str(args.rows)]
