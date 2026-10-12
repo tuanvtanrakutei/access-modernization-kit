@@ -143,8 +143,9 @@
   .tobe td { border-bottom: 1px solid #eeede8; padding: 3px 6px; white-space: nowrap; }
   .tobe td.num { text-align: right; font-variant-numeric: tabular-nums; }
   .tobe td input, .tobe td select { font: inherit; padding: 1px 4px; border: 1px solid #b9b8b2; border-radius: 4px; width: 100%; min-width: 60px; background: #fff; color: #1d1d1b; }
-  .tobe .md { display: grid; grid-template-columns: minmax(180px, 1fr) 2fr; gap: 12px; }
+  .tobe .md { display: grid; grid-template-columns: minmax(180px, max-content) minmax(0, 1fr); gap: 16px; align-items: start; }
   .tobe .md > div { overflow-x: auto; min-width: 0; }
+  .tobe .md td { white-space: normal; }
   .tobe .made-up { color: #8a5a00; }
   .tobe .note { margin: 0 0 4px; font-size: 11px; font-style: italic; color: #8c8b85; border-left: 2px dashed #d4d3cd; padding-left: 6px; }
   .about { color: var(--muted); font-size: 12px; margin: 10px 0; max-width: 900px; }
@@ -693,7 +694,16 @@
     if (page) { rows = rows.slice(0, page.page_size); }
     var table = el("table");
     var head = el("tr");
-    region.columns.forEach(function (c) { head.appendChild(el("th", {title: c.field + " — " + c.component + (c.editable ? ", editable" : "")}, c.label)); });
+    region.columns.forEach(function (c, i) {
+      var prev = region.columns[i - 1];
+      if (prev && c.shared_heading && prev.label === c.label) {
+        var th = head.lastChild;
+        th.colSpan = (th.colSpan || 1) + 1;
+        th.title += " / " + c.field;
+        return;
+      }
+      head.appendChild(el("th", {title: c.field + " — " + c.component + (c.editable ? ", editable" : "")}, c.label));
+    });
     if (region.allow_delete) { head.appendChild(el("th", {}, "Actions")); }
     table.appendChild(head);
     (rows.length ? rows : [null]).forEach(function (r) {
@@ -808,6 +818,8 @@
           var viaSub = String(item.link_master || "").match(/^(.+?)\.form\.(.+)$/i);
           if (viaSub && firstMaster) { f = {field: item.link_child, value: firstMaster[viaSub[2]]}; }
           var cell = el("div");
+          // The legacy caption over this list, where it was.
+          if (item.caption) { cell.appendChild(look(el("p", {"class": "text"}, item.caption.text), item.caption)); }
           // Which legacy form fills this part: a note for the reviewer, not a heading on the screen.
           cell.appendChild(el("p", {"class": "note"}, "Note: embedded list from " + (item.id ? item.id + " " : "") + item.form));
           cell.appendChild(toBeView(inner, f, true));

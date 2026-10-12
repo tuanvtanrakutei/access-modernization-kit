@@ -324,15 +324,16 @@ def propose(screen: dict[str, Any], text: str, ids: dict[str, str],
             embedded.append({"form": target, "id": ids.get(target, ""), "from": c["name"],
                              "link_child": (c.get("style") or {}).get("LinkChildFields", ""),
                              "link_master": (c.get("style") or {}).get("LinkMasterFields", ""),
-                             "place": _place(c)})
+                             "place": _place(c), "box": c})
             mapping.append({"legacy": c["name"], "role": role, "to_be": f"embedded {target}",
                             "status": "kept", "reason": "its own screen is proposed separately"})
             continue
         mapping.append({"legacy": c["name"], "role": role, "to_be": "—", "status": "needs a decision",
                         "reason": "no neutral component for this role"})
 
-    # The form's own title found as a field's label says nothing about the field, and a
-    # heading shared by two columns (code and name under one heading) is told apart.
+    # The form's own title found as a field's label says nothing about the field. A heading
+    # shared by two columns (code and name under one heading) stays as the operator reads
+    # it, over both; the mapping names each column's field.
     title = screen.get("caption") or screen["name"]
     for f in fields:
         # A heading that reads like the screen's title (the caption, or the name of the
@@ -345,7 +346,7 @@ def propose(screen: dict[str, Any], text: str, ids: dict[str, str],
         seen[f["label"]] = seen.get(f["label"], 0) + 1
     for f in fields:
         if seen[f["label"]] > 1 and f["label"] != f["field"]:
-            f["label"] = f"{f['label']}（{f['field']}）"
+            f["shared_heading"] = True
 
     # Words on the screen that are not a field's label: headings and instructions. They
     # stay, in place; one that tells the operator to put a file on their own PC cannot,
@@ -377,6 +378,14 @@ def propose(screen: dict[str, Any], text: str, ids: dict[str, str],
                             "reason": "technical: it names a folder on the operator's PC, which a browser "
                                       "application cannot read; the file is uploaded instead"})
         else:
+            over = [e for e in embedded if e["box"]["section"] == c["section"] and _overlap(e["box"], c) > 0
+                    and 0 <= e["box"]["top"] - c["top"] <= 3 * max(c.get("height", 0), 16)]
+            if over:
+                target = min(over, key=lambda e: e["box"]["top"] - c["top"])
+                target["caption"] = {"text": c["caption"], **_look(c)}
+                mapping.append({"legacy": c["name"], "role": "text", "to_be": f"caption over {target['form']}",
+                                "status": "kept", "reason": "same words, over the same list"})
+                continue
             texts.append({"kind": "text", "text": c["caption"], "from": c["name"], "place": _place(c), **_look(c)})
             mapping.append({"legacy": c["name"], "role": "text", "to_be": "page text", "status": "kept",
                             "reason": "same words, same place"})
@@ -454,10 +463,12 @@ def propose(screen: dict[str, Any], text: str, ids: dict[str, str],
         changed = f["label"] == f["field"] and f["label"] != f["from"]
         mapping.append({
             "legacy": f["from"], "role": "editable field" if f["editable"] else "read-only value",
-            "to_be": f"{where} 「{f['label']}」 ({f['component']}{', editable' if f['editable'] else ''})",
+            "to_be": f"{where} 「{f['label']}」 field {f['field']} ({f['component']}{', editable' if f['editable'] else ''})",
             "status": "kept",
             "reason": "no label found; the field name is used" if changed else
-                      "same field, same role" + (", same colour" if f.get("color") or f.get("background") else ""),
+                      ("same heading, over this column and its neighbour as in the legacy screen"
+                       if f.get("shared_heading") else "same field, same role")
+                      + (", same colour" if f.get("color") or f.get("background") else ""),
         })
     for b in buttons:
         mapping.append({"legacy": b["from"], "role": "button", "to_be": f"action 「{b['label']}」",
@@ -482,6 +493,7 @@ def propose(screen: dict[str, Any], text: str, ids: dict[str, str],
         b.pop("place", None)
     for e in embedded:
         e.pop("place", None)
+        e.pop("box", None)
     for t in texts:
         t.pop("place", None)
     return {"screen": screen["name"], "id": screen.get("id", ""),

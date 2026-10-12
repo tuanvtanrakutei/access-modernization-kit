@@ -121,3 +121,29 @@ def test_a_list_that_fits_on_one_page_is_not_paged() -> None:
     proposal = to_be.propose(screen, "", {}, ())
     assert "pagination" not in next(r for r in proposal["regions"] if r["kind"] == "table")
     assert not any(m["role"] == "navigation" for m in proposal["mapping"])
+
+
+def test_a_heading_over_two_columns_stays_the_legacy_heading() -> None:
+    screen = {"name": "Lines", "caption": "Lines", "mode": {"view": "continuous"},
+              "data": {"rows": [], "total": 1},
+              "controls": [_c("lblItem", "text", section=1, left=0, width=130, caption="Item"),
+                           _c("txtCode", "display", left=0, source="CODE"),
+                           _c("txtName", "display", left=0, top=20, source="NAME")]}
+    proposal = to_be.propose(screen, "", {}, ())
+    columns = next(r for r in proposal["regions"] if r["kind"] == "table")["columns"]
+    assert [(c["label"], c.get("shared_heading")) for c in columns] == [("Item", True), ("Item", True)]
+    rows = {m["legacy"]: m["to_be"] for m in proposal["mapping"]}
+    assert "field CODE" in rows["txtCode"] and "field NAME" in rows["txtName"]
+
+
+def test_a_caption_above_an_embedded_list_goes_with_that_list() -> None:
+    sub = {"SourceObject": "Form.Shops"}
+    screen = {"name": "Orders", "caption": "Orders", "mode": {"view": "single"}, "controls": [
+        _c("lblShops", "text", left=0, top=0, width=100, caption="Shops"),
+        _c("lblLines", "text", left=200, top=0, width=100, caption="Lines"),
+        _c("subShops", "embedded list", left=0, top=20, width=180, style=sub),
+        _c("subLines", "embedded list", left=200, top=20, width=300, style={"SourceObject": "Form.Lines"})]}
+    proposal = to_be.propose(screen, "", {}, ())
+    items = next(r for r in proposal["regions"] if r["kind"] == "embedded")["items"]
+    assert {i["form"]: i["caption"]["text"] for i in items} == {"Shops": "Shops", "Lines": "Lines"}
+    assert not any(r["kind"] == "text" for r in proposal["regions"])
