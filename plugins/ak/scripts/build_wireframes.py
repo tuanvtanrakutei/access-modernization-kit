@@ -29,6 +29,7 @@ for _path in (PACKAGE / "contracts", PACKAGE / "scripts"):
 
 import decision_register as dr  # noqa: E402
 import generate_catalogues as catalogues  # noqa: E402
+import runtime_fidelity  # noqa: E402
 import to_be  # noqa: E402
 import wireframe  # noqa: E402
 import workspace as workspace_contract  # noqa: E402
@@ -55,6 +56,9 @@ def main() -> int:
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--replace-handwritten", action="store_true",
                         help="Overwrite a _Wireframes.html this command did not write.")
+    parser.add_argument("--check-runtime", action="store_true",
+                        help="Compare the runtime mockup with `$ak runtime-view`'s capture (A93); "
+                             "exit 1 on any disagreement.")
     args = parser.parse_args()
 
     space = workspace_contract.Workspace(args.app_root)
@@ -126,7 +130,23 @@ def main() -> int:
     if not same:
         dr.atomic_write(path, text)
     print(f"{'unchanged' if same else 'wrote'} {path} ({len(text):,} bytes)")
+    if args.check_runtime:
+        return check_runtime(space.root, registers, app_id, screens)
     return 0
+
+
+def check_runtime(root: Path, registers: Path, app_id: str, screens: list[dict]) -> int:
+    """A93. Set the mockup against the forms as they ran, and say where it misdraws."""
+    capture = root / ".ak" / "extracted" / "runtime-view.json"
+    if not capture.is_file():
+        print("no runtime capture; run `$ak runtime-view` first", file=sys.stderr)
+        return 2
+    result = runtime_fidelity.compare(screens, catalogues.read_json(capture))
+    for line in runtime_fidelity.summary(result):
+        print(line)
+    dr.atomic_write(registers / f"{app_id}_RuntimeFidelity.json",
+                    json.dumps(result, ensure_ascii=False, indent=2) + "\n")
+    return 0 if result["agreed"] == result["compared"] else 1
 
 
 if __name__ == "__main__":

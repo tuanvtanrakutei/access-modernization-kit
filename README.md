@@ -165,6 +165,7 @@ Order for one app: `init` → `assess` → `acquire` → `derive` → `documents
 | `$ak wireframes --app-root <PATH>` | Draw every legacy form on one HTML page. |
 | `$ak mockup-data --app-root <PATH> --authorize access_snapshot_extract` | Read each form's first rows from copies, so the wireframes draw a runtime mockup with real data. |
 | `$ak design-view --app-root <PATH> --authorize access_snapshot_extract` | Capture every form and report in design view when nobody can screenshot the running app. |
+| `$ak runtime-view --app-root <PATH> --authorize access_snapshot_extract` | Run every form of a copy as an operator sees it, capture it, and read its controls; `$ak wireframes --check-runtime` then measures the mockup against it. |
 | `$ak glossary` / `$ak bilingual` | Propose an English name for every production name; print it beside the original. |
 | `$ak meanings --app-root <PATH>` | Tables and columns still needing a business meaning. |
 | `$ak interviews --app-root <PATH>` | Where the Q&A register and its pages disagree. |
