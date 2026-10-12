@@ -1,5 +1,28 @@
 # Changelog
 
+## [2.16.0] - 2026-10-12
+
+One pull request (#113). **The runtime mockup is measured, not judged by eye.** The kit now runs
+each form of a copy as an operator sees it, captures it, and reads its controls. The wireframes then
+report how far the mockup agrees.
+
+### Added
+
+- **`$ak runtime-view`** opens every form of a disposable copy in the view it opens in, a datasheet
+  as a datasheet. It needs `access_snapshot_extract` (A93).
+  - It re-points links at the supplied backends instead of substituting a drive, and removes the
+    start-up form.
+  - It captures the Access window with every pop-up window drawn where it sits, and reads each
+    control's runtime properties.
+  - On a host that cannot load the application's VBA, `--code auto` removes the forms' code-behind on
+    the copy and names the opening procedures that went with it.
+  - It writes `input/screenshots/runtime/`, whose capture log carries each form's `F-` id, and
+    `.ak/extracted/runtime-view.json`.
+- **`$ak wireframes --check-runtime`** sets each drawn control against its runtime properties
+  (`contracts/runtime_fidelity.py`). It reports agreement per property and per form, groups
+  disagreements by cause, writes `registers/{APP}_RuntimeFidelity.json`, and exits 1 on any
+  disagreement (A93).
+
 ## [2.15.0] - 2026-10-12
 
 Two pull requests (#110, #111), from reviewing an application's wireframes before its Phase 4.
