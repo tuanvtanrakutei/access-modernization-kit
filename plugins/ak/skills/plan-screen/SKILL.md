@@ -41,7 +41,8 @@ authority for what each stage does and what closes it.
   and copy its mapping into the plan: every legacy control kept, changed or dropped, with the
   reason. A row the proposal marks `needs a decision` is a question for the decider, not a
   choice to make here. Where the plan departs from the proposal, say so and why. Point the
-  reviewer at `{APP}_Wireframes.html`, whose Compare view shows the legacy screen beside it.
+  reviewer at `{APP}_Wireframes.html`: its As-is runtime and To-be views draw the same screen, and the
+  mapping under the to-be lists every difference.
 
 Mark the backend contract frozen only if the user says 3a and 3b will run concurrently.
 

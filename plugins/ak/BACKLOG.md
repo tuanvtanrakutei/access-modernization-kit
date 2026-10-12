@@ -30,8 +30,7 @@ Changed:
   embedded lists with the master first), and a mapping row for every legacy control - kept, changed, dropped,
   out of scope, or needs a decision - with its reason. Column types come from the sample values, not from names.
   Scope comes from the TARGET_INTENT records' decision tables.
-- **`$ak wireframes`** adds To-be and Compare views (the legacy runtime window beside the proposal, with the
-  mapping), and writes `output/registers/{APP}_ScreenModel.json` and `{APP}_ToBe.json` as the contract the
+- **`$ak wireframes`** adds a To-be view (the proposal, with the mapping under it), and writes `output/registers/{APP}_ScreenModel.json` and `{APP}_ToBe.json` as the contract the
   modernize side reads. Neither carries a row of data.
 - **`plan-screen`** starts the frontend contract from the proposal, copies its mapping, and records every departure.
 
@@ -44,10 +43,9 @@ retraining - and departs only where a technical gap leaves no choice; and a list
   for a recorded decision or a technical gap, and its mapping row says `technical:`. Two gaps are recognised: an
   instruction naming a folder on the operator's PC (`C:\...`, or `C:¥...` on a Japanese system) becomes a file
   upload, the words around the path with it; and an unpaged list.
-- **Pagination.** A list's table pages by what the legacy window showed at once (its saved window height less
-  header, footer and navigator, at least ten rows), shows the total as the legacy navigator did, and the mapping
-  records the legacy navigator as changed. The total is the record source's own count, which `$ak mockup-data`
-  now reads (`total`), not the rows sampled.
+- **Pagination.** A list's table pages as a current web list does (range and total, page numbers, 20/50/100 rows
+  a page); the mapping records the legacy navigator and how many rows its window showed as what changed. The total
+  is the record source's own count, which `$ak mockup-data` now reads (`total`), not the rows sampled.
 - A caption on the line above a field is its label when none sits beside it.
 
 **Measured against the running application (2026-10-12).** One application was run on a disposable copy, its
@@ -65,6 +63,12 @@ now fixed, and all agree after:
 The mockup also drew every sampled row and counted only the sample: a list now scrolls inside its saved window
 (`wireframe.window`, which also notes a form whose own `Form_Open` maximizes it) and counts its whole record source.
 Form-level properties (view, record selectors, navigation buttons, pop-up) already agreed on every form.
+
+**Third review (2026-10-12):** no Compare view (the As-is and To-be views draw the same screen, and the mapping
+lists every difference, so a side-by-side page added width and nothing else); the design view no longer prints each
+control's role on it (the side panel shows it on click); the to-be's description sits under it, over the mapping;
+a to-be button carries its label only, what it does being in the mapping; pagination follows current web practice
+rather than the legacy navigator.
 
 **Not yet done:** a design-system renderer for the to-be (it is plain components); an editable to-be that a person
 adjusts and the pipeline re-reads; the proposal does not yet read a recorded disposition to change a control

@@ -78,7 +78,6 @@
                            color: var(--muted); border-style: dashed; }
   .ctl.r-link { border: 0; background: transparent; color: var(--accent); text-decoration: underline; }
   .ctl.r-embedded-list { border: 1px dashed var(--accent); }
-  .ctl .role { position: absolute; right: 1px; bottom: 0; font-size: 9px; color: var(--muted); font-style: normal; }
   .section.ghost { opacity: .35; margin-top: 2px; pointer-events: none; }
   .section.ghost .ctl { cursor: default; }
   .legend { display: flex; flex-wrap: wrap; gap: 4px 10px; font-size: 11px; color: var(--muted); margin: 0 0 8px; }
@@ -145,6 +144,7 @@
   .tobe .md { display: grid; grid-template-columns: minmax(180px, 1fr) 2fr; gap: 12px; }
   .tobe .md > div { overflow-x: auto; min-width: 0; }
   .tobe .made-up { color: #8a5a00; }
+  .about { color: var(--muted); font-size: 12px; margin: 10px 0; max-width: 900px; }
   .tobe .stack { display: flex; flex-direction: column; gap: 6px; max-width: 420px; margin: 0 0 10px; }
   .tobe .stack .btn { text-align: center; }
   .tobe .text { margin: 0 0 8px; }
@@ -155,10 +155,12 @@
   .tobe .tbs [role=tab] { font: inherit; border: 1px solid #d4d3cd; border-bottom: 0; background: #f6f6f4; color: #1d1d1b; padding: 3px 12px; border-radius: 6px 6px 0 0; cursor: pointer; }
   .tobe .tbs [role=tab][aria-selected=true] { background: #fff; font-weight: 600; }
   .tobe .tbs .panel { border: 1px solid #d4d3cd; border-top: 0; padding: 10px; }
-  .tobe .pager { display: flex; gap: 8px; align-items: center; justify-content: flex-end; font-size: 12px; color: #6b6b66; margin: 6px 0 0; }
-  .tobe .pager .btn { width: auto; display: inline-block; padding: 1px 8px; margin: 0; }
-  .compare { display: grid; grid-template-columns: max-content minmax(360px, 1fr); gap: 16px; align-items: start; }
-  .compare h4 { margin: 0 0 6px; font-size: 13px; color: var(--muted); }
+  .tobe .pager { display: flex; gap: 12px; align-items: center; justify-content: space-between; font-size: 12px; color: #6b6b66; margin: 8px 0 0; flex-wrap: wrap; }
+  .tobe .pager .nums { display: flex; gap: 4px; align-items: center; }
+  .tobe .pager .pg { min-width: 24px; text-align: center; padding: 2px 6px; border: 1px solid #d4d3cd; border-radius: 6px; color: #1d1d1b; background: #fff; }
+  .tobe .pager .pg.on { background: #1d1d1b; color: #fff; border-color: #1d1d1b; }
+  .tobe .pager .pg.off { color: #b9b8b2; }
+  .tobe .pager select { font: inherit; padding: 1px 4px; border: 1px solid #b9b8b2; border-radius: 4px; background: #fff; color: #1d1d1b; }
   table.mapping { border-collapse: collapse; font-size: 12px; margin-top: 16px; background: var(--panel); }
   table.mapping th, table.mapping td { border: 1px solid var(--line); padding: 3px 6px; text-align: left; vertical-align: top; }
   table.mapping td.st-kept { color: #2f7d32; } table.mapping td.st-changed { color: var(--accent); }
@@ -371,6 +373,7 @@
   // ---- Runtime mockup ---------------------------------------------------------------
   var mode = "runtime";
   try { mode = localStorage.getItem("ak-wireframe-mode") || "runtime"; } catch (e) { /* storage may be blocked */ }
+  if (["runtime", "tobe", "design"].indexOf(mode) < 0) { mode = "runtime"; }
   var SYS = {2: "#99b4d1", 5: "#ffffff", 8: "#000000", 13: "#0078d7", 14: "#ffffff", 15: "#f0f0f0",
              16: "#a0a0a0", 17: "#6d6d6d", 18: "#000000", 20: "#ffffff", 22: "#e3e3e3", 24: "#ffffe1"};
   function color(v, fallback) {
@@ -664,9 +667,8 @@
     return node;
   }
   function toBeButton(a) {
-    var b = look(el("span", {"class": "btn" + (a.disabled ? " off" : ""), title: a.does.join("; ")}, a.label + (a.disabled ? " (disabled in legacy)" : "")), a.disabled ? {} : a);
-    b.appendChild(el("small", {}, a.does.join("; ")));
-    return b;
+    // What it does is in the mapping; the button carries its label, as the legacy one did.
+    return look(el("span", {"class": "btn" + (a.disabled ? " off" : ""), title: a.does.join("; ")}, a.label + (a.disabled ? " (disabled in legacy)" : "")), a.disabled ? {} : a);
   }
   function toBeTable(s, region, filter) {
     var wrap = el("div");
@@ -713,12 +715,19 @@
     wrap.appendChild(table);
     if (!rows.length) { wrap.appendChild(el("p", {"class": "sub"}, "No rows in the sample.")); }
     if (page) {
-      // Paged, with the total on screen as the legacy navigator showed it.
-      var pager = el("div", {"class": "pager", title: page.legacy_rows ? "The legacy window showed " + page.legacy_rows + " rows at a time" : ""});
-      pager.appendChild(el("span", {}, (rows.length ? "1–" + rows.length : "0") + " / " + total + " 件"));
-      pager.appendChild(el("span", {"class": "btn"}, "‹"));
-      pager.appendChild(el("span", {}, "1 / " + Math.max(1, Math.ceil(total / page.page_size))));
-      pager.appendChild(el("span", {"class": "btn"}, "›"));
+      // A current-day pager: the range and total, page numbers, and rows per page.
+      var pages = Math.max(1, Math.ceil(total / page.page_size));
+      var pager = el("div", {"class": "pager"});
+      pager.appendChild(el("span", {"class": "range"}, (rows.length ? "1–" + rows.length : "0") + " of " + total));
+      var nums = el("span", {"class": "nums"});
+      nums.appendChild(el("span", {"class": "pg off", "aria-label": "Previous page"}, "‹"));
+      for (var n = 1; n <= Math.min(pages, 5); n++) { nums.appendChild(el("span", {"class": "pg" + (n === 1 ? " on" : "")}, String(n))); }
+      if (pages > 5) { nums.appendChild(el("span", {}, "… " + pages)); }
+      nums.appendChild(el("span", {"class": "pg" + (pages === 1 ? " off" : ""), "aria-label": "Next page"}, "›"));
+      pager.appendChild(nums);
+      var size = el("select", {"aria-label": "Rows per page"});
+      (page.sizes || [page.page_size]).forEach(function (v) { var o = el("option", {}, v + " / page"); if (v === page.page_size) { o.selected = true; } size.appendChild(o); });
+      pager.appendChild(size);
       wrap.appendChild(pager);
     }
     return wrap;
@@ -753,8 +762,6 @@
       var h = el("h3", {}, p.title || s.name);
       h.appendChild(el("span", {"class": "badge"}, "proposal · " + p.pattern));
       box.appendChild(h);
-      box.appendChild(el("p", {"class": "sub"}, "Neutral to-be for " + (s.id ? s.id + " " : "") + s.name +
-        ". Familiar first: the legacy words, order, tabs and colours are kept; it changes only for a recorded decision or a technical gap. Plain components, no design system yet; the mapping below says what happened to each legacy control."));
     }
     if (p.pattern === "out of scope") {
       box.appendChild(el("p", {}, "Out of scope by a recorded decision: not rebuilt."));
@@ -831,30 +838,22 @@
     main.appendChild(bar);
   }
   function drawToBe(s) {
-    viewHead(s, "To-be proposal (" + ((s.to_be || {}).pattern || "") + "), generated from the legacy model. Review it before code; a project's design system replaces the neutral styling.");
+    viewHead(s, "");
     main.appendChild(toBeView(s, null, false));
+    // What the proposal is, under it and over the mapping that explains it.
+    main.appendChild(el("p", {"class": "about"}, "Neutral to-be for " + (s.id ? s.id + " " : "") + s.name +
+      ". Familiar first: the legacy words, order, tabs and colours are kept; it changes only for a recorded decision or a technical gap. Plain components, no design system yet; the mapping below says what happened to each legacy control and what each action does."));
     main.appendChild(mappingTable(s));
   }
-  function drawCompare(s) {
-    viewHead(s, "As-is runtime mockup beside the to-be proposal. Every difference is a row in the mapping, with its reason.");
-    var grid = el("div", {"class": "compare"});
-    var left = el("div"); left.appendChild(el("h4", {}, "As-is (legacy, runtime mockup)")); left.appendChild(runtimeWindow(s, true, null, 0));
-    var right = el("div"); right.appendChild(el("h4", {}, "To-be (proposal)")); right.appendChild(toBeView(s, null, false));
-    grid.appendChild(left); grid.appendChild(right);
-    main.appendChild(grid);
-    main.appendChild(mappingTable(s));
-  }
-
   function draw(s) {
     if (mode === "runtime") { drawRuntimeView(s); return; }
     if (mode === "tobe") { drawToBe(s); return; }
-    if (mode === "compare") { drawCompare(s); return; }
     drawDesign(s);
   }
 
   function viewSwitch(s) {
     var bar = el("div", {"class": "viewbar", role: "group", "aria-label": "View"});
-    [["runtime", "As-is runtime"], ["tobe", "To-be"], ["compare", "Compare"], ["design", "Design"]].forEach(function (pair) {
+    [["runtime", "As-is runtime"], ["tobe", "To-be"], ["design", "Design"]].forEach(function (pair) {
       var b = el("button", {type: "button", "aria-pressed": String(mode === pair[0])}, pair[1]);
       b.addEventListener("click", function () {
         mode = pair[0];
@@ -956,9 +955,6 @@
         var node = el("div", {"class": classes, tabindex: copy ? "-1" : "0", role: "button",
                               title: c.name + " — " + c.role + " (" + c.kind + ")",
                               "aria-label": c.name + ", " + c.role}, text);
-        if (c.role && ["text", "decoration", "tab page", "tabs"].indexOf(c.role) < 0 && c.height >= 14) {
-          node.appendChild(el("span", {"class": "role"}, c.role));
-        }
         node.style.left = c.left + "px";
         node.style.top = c.top + "px";
         node.style.width = Math.max(c.width, 1) + "px";

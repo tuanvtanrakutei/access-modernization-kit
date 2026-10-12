@@ -101,7 +101,7 @@ def test_an_instruction_naming_a_folder_on_the_pc_becomes_an_upload() -> None:
     assert status["lblFar"] == "kept"
 
 
-def test_a_list_is_paged_by_what_its_legacy_window_showed() -> None:
+def test_a_list_is_paged_as_a_web_list_and_the_mapping_says_what_the_legacy_one_did() -> None:
     screen = {"name": "Stores", "caption": "Stores", "mode": {"view": "continuous"},
               "window": {"height": 420, "maximized": False}, "form": {},
               "sections": [{"code": 1, "height": 20}, {"code": 0, "height": 25}],
@@ -109,7 +109,6 @@ def test_a_list_is_paged_by_what_its_legacy_window_showed() -> None:
               "controls": [_c("txtCode", "display", source="CODE")]}
     proposal = to_be.propose(screen, "", {}, ())
     page = next(r for r in proposal["regions"] if r["kind"] == "table")["pagination"]
-    assert (page["page_size"], page["legacy_rows"], page["total"]) == (15, 15, 54)
+    # A current-day pager, not the legacy navigator: the legacy rows only explain the change.
+    assert (page["page_size"], page["sizes"], page["legacy_rows"], page["total"]) == (20, [20, 50, 100], 15, 54)
     assert any(m["role"] == "navigation" and m["status"] == "changed" for m in proposal["mapping"])
-    small = dict(screen, window={"height": 100})
-    assert to_be.pagination(small)["page_size"] == 10

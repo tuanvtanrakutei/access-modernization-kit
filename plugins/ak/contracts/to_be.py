@@ -223,12 +223,16 @@ def _place(c: dict[str, Any]) -> tuple[int, int, int]:
             c.get("top", 0), c.get("left", 0))
 
 
+PAGE_SIZES = (20, 50, 100)
+
+
 def pagination(screen: dict[str, Any]) -> dict[str, Any]:
     """How a list is paged in the to-be, and what the legacy screen did instead.
 
-    The legacy window scrolled one recordset and showed `Record n of N`. A browser pages
-    it: the page holds what the legacy window showed at once (at least ten rows), so the
-    operator scans the same amount, and the total stays on screen."""
+    The legacy window scrolled one recordset and showed `Record n of N`. The to-be pages it
+    the way a current web list does - a range and total, page numbers, a choice of rows per
+    page - rather than imitating the navigator; how many rows the legacy window showed is
+    kept only to say, in the mapping, what changed."""
     window = screen.get("window") or {}
     sections = {s["code"]: s.get("height", 0) for s in screen.get("sections") or []}
     detail = max(sections.get(0, 0), 1)
@@ -239,7 +243,7 @@ def pagination(screen: dict[str, Any]) -> dict[str, Any]:
         other = sum(h for code, h in sections.items() if code in (1, 2))
         visible = max(int((window["height"] - other - (20 if navigator else 0)) // detail), 1)
     data = screen.get("data") or {}
-    return {"page_size": max(visible or DEFAULT_PAGE, 10), "legacy_rows": visible,
+    return {"page_size": PAGE_SIZES[0], "sizes": list(PAGE_SIZES), "legacy_rows": visible,
             "total": data.get("total"), "legacy_navigator": navigator,
             "maximized": bool(window.get("maximized"))}
 
@@ -464,11 +468,11 @@ def propose(screen: dict[str, Any], text: str, ids: dict[str, str],
             + (", maximized on opening" if page["maximized"] else "") \
             + (", scrolled, with `Record n of N`" if page["legacy_navigator"] else ", scrolled")
         mapping.append({"legacy": "record navigator" if page["legacy_navigator"] else "scroll bar",
-                        "role": "navigation", "to_be": f"pagination, {page['page_size']} rows a page, total shown",
+                        "role": "navigation",
+                        "to_be": f"pagination: range and total, page numbers, {'/'.join(map(str, page['sizes']))} rows a page",
                         "status": "changed",
                         "reason": f"technical: the legacy list showed {legacy}; a browser list is paged so the "
-                                  "page stays fast however many rows there are. The page holds about what the "
-                                  "legacy window showed, and the total stays on screen"})
+                                  "page stays fast however many rows there are, in the usual web form"})
     for f in fields:
         f.pop("place", None)
     for b in buttons:
