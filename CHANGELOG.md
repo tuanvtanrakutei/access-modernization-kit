@@ -1,5 +1,48 @@
 # Changelog
 
+## [2.15.0] - 2026-10-12
+
+Two pull requests (#110, #111), from reviewing an application's wireframes before its Phase 4.
+**A wireframe now looks like the screen an operator uses, and the screen that replaces it sits
+beside it.** The legacy view draws each form as it runs, with its own rows, measured against the
+application running in form view. The to-be proposes the replacement from the same model, and a
+mapping row explains every difference.
+
+### Added
+
+- **`$ak mockup-data`** reads the rows each screen shows, and its whole record count, from a
+  disposable copy. The wireframes then draw each form with the application's own data (A91).
+- **A to-be view per screen** (`contracts/to_be.py`, A92). It proposes a menu, list, editable list,
+  form or master-detail, with a mapping row for every legacy control: kept, changed, dropped, out of
+  scope, or needs a decision, with the reason.
+  - It keeps what operators know. Words, order, tabs, colours and column headings stay as they
+    were, so the move needs little retraining.
+  - It changes a control only for a recorded scope decision or a technical gap. An instruction
+    naming a folder on the operator's PC becomes an upload, and list pages get a current web pager.
+- **`output/registers/{APP}_ScreenModel.json` and `{APP}_ToBe.json`**, the contract the
+  modernize side reads. `plan-screen` starts the frontend contract from the to-be (A92).
+
+### Changed
+
+- **The wireframe draws what an operator sees, not the design view** (A91).
+  - SaveAsText omits `DefaultView` at Continuous, so list forms now repeat their rows.
+  - Each control is drawn by its role, such as an editable field, a read-only value or a disabled
+    button.
+  - Default control sizes apply where a definition omits them.
+- The wireframe page has two views, As-is and To-be (A92).
+  - In As-is, clicking a control opens its definition.
+  - A "Definition layout" toggle replaces the separate design view.
+  - A list scrolls inside its saved window, and the navigator counts the whole record source.
+
+### Fixed
+
+- Measured against an application running in form view, three causes made the mockup differ from
+  the screen. They are fixed (A92):
+  - Controls now take the form's default style block.
+  - `OldBorderStyle` is read as the border style.
+  - Special effects are drawn as Access draws them.
+- A backslash escaped by the export reads single in captions (A91).
+
 ## [2.14.0] - 2026-10-09
 
 Two pull requests (#107, #108), found by taking a new application from one folder of mixed
