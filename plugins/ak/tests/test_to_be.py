@@ -114,13 +114,15 @@ def test_a_list_is_paged_as_a_web_list_and_the_mapping_says_what_the_legacy_one_
     assert any(m["role"] == "navigation" and m["status"] == "changed" for m in proposal["mapping"])
 
 
-def test_a_list_that_fits_on_one_page_is_not_paged() -> None:
+def test_a_list_page_is_paged_even_when_the_sample_is_short() -> None:
+    """Today's three rows say nothing about tomorrow's; the pager is the list page's."""
     screen = {"name": "Shops", "caption": "Shops", "mode": {"view": "continuous"}, "form": {},
               "sections": [{"code": 0, "height": 20}], "data": {"rows": [], "total": 3},
               "controls": [_c("txtCode", "display", source="CODE")]}
     proposal = to_be.propose(screen, "", {}, ())
-    assert "pagination" not in next(r for r in proposal["regions"] if r["kind"] == "table")
-    assert not any(m["role"] == "navigation" for m in proposal["mapping"])
+    page = next(r for r in proposal["regions"] if r["kind"] == "table")["pagination"]
+    assert (page["page_size"], page["total"]) == (20, 3)
+    assert any(m["role"] == "navigation" for m in proposal["mapping"])
 
 
 def test_a_heading_over_two_columns_stays_the_legacy_heading() -> None:

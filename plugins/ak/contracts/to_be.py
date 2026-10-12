@@ -427,10 +427,9 @@ def propose(screen: dict[str, Any], text: str, ids: dict[str, str],
             body = {"kind": "table", "columns": detail,
                     "allow_add": bool(mode.get("additions")) and pattern == "editable list",
                     "allow_delete": bool(mode.get("deletions")) and pattern == "editable list"}
-            paging = pagination(screen)
-            # Only a list that can outgrow a page is paged: a short master list is not.
-            if paging["total"] is None or paging["total"] > paging["page_size"]:
-                body["pagination"] = paging
+            # A list page is paged whatever the sample holds: today's few rows say nothing
+            # about tomorrow's. A list shown inside another screen draws no pager there.
+            body["pagination"] = pagination(screen)
             where = (SECTION_ORDER.index(0), 0, 0)
         else:
             pattern = "form"

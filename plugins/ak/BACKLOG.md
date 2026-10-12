@@ -68,8 +68,8 @@ Form-level properties (view, record selectors, navigation buttons, pop-up) alrea
 lists every difference, so a side-by-side page added width and nothing else); the design view no longer prints each
 control's role on it (the side panel shows it on click); the to-be's description sits under it, over the mapping;
 a to-be button carries its label only, what it does being in the mapping; pagination follows current web practice
-rather than the legacy navigator. Fourth review: only a list longer than one page is paged (a
-short master list is not); the delete column is labelled and its cell says Delete; menu buttons outside the tabs line
+rather than the legacy navigator. Fourth and fifth reviews: every list page is paged, whatever the sample holds; a list shown inside
+another screen (a master-detail part) draws no pager; the delete column is labelled and its cell says Delete; menu buttons outside the tabs line
 up with those inside; the legacy form behind an embedded list is a reviewer's note, not a heading; and the design
 view is no longer a view of its own - the As-is view's controls open their definition in the side panel on click, and
 a "Definition layout" toggle shows hidden controls and every section.

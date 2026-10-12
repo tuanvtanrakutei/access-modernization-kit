@@ -678,7 +678,7 @@
     // What it does is in the mapping; the button carries its label, as the legacy one did.
     return look(el("span", {"class": "btn" + (a.disabled ? " off" : ""), title: a.does.join("; ")}, a.label + (a.disabled ? " (disabled in legacy)" : "")), a.disabled ? {} : a);
   }
-  function toBeTable(s, region, filter) {
+  function toBeTable(s, region, filter, nested) {
     var wrap = el("div");
     var data = rowsOf(s);
     var rows = data.rows;
@@ -688,7 +688,8 @@
       tb.appendChild(el("span", {"class": "btn"}, "+ Add row"));
       wrap.appendChild(tb);
     }
-    var page = region.pagination || null;
+    // Paged on its own page; inside another screen (a master-detail part) it is not.
+    var page = nested ? null : region.pagination || null;
     var total = rows.length;
     if (page && !filter && page.total != null) { total = page.total; }
     if (page) { rows = rows.slice(0, page.page_size); }
@@ -801,7 +802,7 @@
       } else if (r.kind === "tabs") {
         box.appendChild(toBeTabs(r));
       } else if (r.kind === "table") {
-        box.appendChild(toBeTable(s, r, filter));
+        box.appendChild(toBeTable(s, r, filter, nested));
       } else if (r.kind === "actions") {
         box.appendChild(toBeActions(r.actions, r.stack));
       } else if (r.kind === "form") {
