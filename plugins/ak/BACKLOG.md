@@ -12,6 +12,85 @@ that it should now work.
 
 ## Open
 
+### A92 - the modernize pipeline had no picture of the screen it was about to build
+
+**Found 2026-10-12, reviewing the legacy runtime mockup with the maintainer.** A mockup of the legacy screen is
+useful only beside the screen that replaces it, and there was none: `plan-screen` described the new screen in
+prose, a developer imagined it, and nothing could be compared with the legacy one before code existed.
+
+**Decided by the maintainer (2026-10-12):** one screen model, three views on one page per screen - as-is
+(runtime mockup, the evidence), to-be (the proposal the developer implements), and the mapping between them;
+the design view is a debugging toggle. The to-be is neutral until a project has a design system.
+
+Changed:
+
+- **`contracts/to_be.py`** proposes a to-be per screen from the legacy model: the pattern (menu, list, editable
+  list, form, master-detail, out of scope), regions in neutral components (summary, menu groups by tab page,
+  table with typed columns headed by the labels above them, actions with what each button opens or runs,
+  embedded lists with the master first), and a mapping row for every legacy control - kept, changed, dropped,
+  out of scope, or needs a decision - with its reason. Column types come from the sample values, not from names.
+  Scope comes from the TARGET_INTENT records' decision tables.
+- **`$ak wireframes`** adds a To-be view (the proposal, with the mapping under it), and writes `output/registers/{APP}_ScreenModel.json` and `{APP}_ToBe.json` as the contract the
+  modernize side reads. Neither carries a row of data.
+- **`plan-screen`** starts the frontend contract from the proposal, copies its mapping, and records every departure.
+
+**Reviewed by the maintainer (2026-10-12), second pass:** the to-be keeps the legacy behaviour, structure and
+colours as far as it can - an operator who finds every word, button and status colour where it was needs little
+retraining - and departs only where a technical gap leaves no choice; and a list must say how it pages.
+
+- **Familiar first.** Regions are placed where their legacy controls sat (section, then top, then left); tabs stay
+  tabs in their legacy order; buttons, values and instructions keep their colour and weight. A change is made only
+  for a recorded decision or a technical gap, and its mapping row says `technical:`. Two gaps are recognised: an
+  instruction naming a folder on the operator's PC (`C:\...`, or `C:¥...` on a Japanese system) becomes a file
+  upload, the words around the path with it; and an unpaged list.
+- **Pagination.** A list's table pages as a current web list does (range and total, page numbers, 20/50/100 rows
+  a page); the mapping records the legacy navigator and how many rows its window showed as what changed. The total
+  is the record source's own count, which `$ak mockup-data` now reads (`total`), not the rows sampled.
+- A caption on the line above a field is its label when none sits beside it.
+
+**Measured against the running application (2026-10-12).** One application was run on a disposable copy, its
+master on a substituted drive as production names it, every form opened in form view, and each control's runtime
+properties (visibility, geometry, colours, back style, border and effect, font size and weight, enabled) set against
+what the runtime mockup draws. Nearly all property values agreed; every disagreement was one of three causes,
+now fixed, and all agree after:
+
+- a control omits every property at its form's default, and the form's unnamed `Begin TextBox` (and so on) block
+  holds that default - a form whose text boxes are all transparent wrote it once there (`wireframe.type_defaults`);
+- SaveAsText writes BorderStyle as `OldBorderStyle`, which was not read;
+- a special effect draws its own edge whatever the border style, an unstated effect on a text box whose border is
+  transparent is flat, and a label's own effect was ignored.
+
+The mockup also drew every sampled row and counted only the sample: a list now scrolls inside its saved window
+(`wireframe.window`, which also notes a form whose own `Form_Open` maximizes it) and counts its whole record source.
+Form-level properties (view, record selectors, navigation buttons, pop-up) already agreed on every form.
+
+**Third review (2026-10-12):** no Compare view (the As-is and To-be views draw the same screen, and the mapping
+lists every difference, so a side-by-side page added width and nothing else); the design view no longer prints each
+control's role on it (the side panel shows it on click); the to-be's description sits under it, over the mapping;
+a to-be button carries its label only, what it does being in the mapping; pagination follows current web practice
+rather than the legacy navigator. Fourth and fifth reviews: every list page is paged, whatever the sample holds; a list shown inside
+another screen (a master-detail part) draws no pager; the delete column is labelled and its cell says Delete; menu buttons outside the tabs line
+up with those inside; the legacy form behind an embedded list is a reviewer's note, not a heading; and the design
+view is no longer a view of its own - the As-is view's controls open their definition in the side panel on click, and
+a "Definition layout" toggle shows hidden controls and every section.
+
+**Not yet done:** a design-system renderer for the to-be (it is plain components); an editable to-be that a person
+adjusts and the pipeline re-reads; the proposal does not yet read a recorded disposition to change a control
+(only scope), nor reports. The runtime measurement above was a one-off: see A93.
+
+### A93 - the runtime mockup's fidelity is not measured by the kit
+
+**Found 2026-10-12, with A92.** The measurement above ran from scratch scripts. Running an application needs what
+its production host had (a mapped drive, a master on a share), and on an analysis host its VBA may not load at all
+(an Access runtime whose VBA environment is not its own: every form with a module is cancelled on opening, error
+48). The scratch run worked around both on a disposable copy: the drive substituted to a scratch tree holding copies,
+the start-up form removed, and each form's code-behind removed by a SaveAsText / LoadFromText round trip, which is
+safe for a static capture only where the form's opening code changes nothing an operator sees (here it sized the
+window). Proposed: `$ak runtime-view` doing that on a copy with `access_snapshot_extract`, capturing each form in
+form view with its runtime properties, and `$ak wireframes --check-runtime` reporting agreement per property and
+per form, so a drift in the mockup is caught by a number rather than by eye. Open: forms whose opening code does
+change what is shown cannot be captured this way, and must say so.
+
 ### A91 - a wireframe drew the design view: one row of a list, and a locked field looked like an input
 
 **Found 2026-10-12, reviewing the wireframes of an application before its Phase 4.** The drawing matched the

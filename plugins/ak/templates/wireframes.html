@@ -78,7 +78,6 @@
                            color: var(--muted); border-style: dashed; }
   .ctl.r-link { border: 0; background: transparent; color: var(--accent); text-decoration: underline; }
   .ctl.r-embedded-list { border: 1px dashed var(--accent); }
-  .ctl .role { position: absolute; right: 1px; bottom: 0; font-size: 9px; color: var(--muted); font-style: normal; }
   .section.ghost { opacity: .35; margin-top: 2px; pointer-events: none; }
   .section.ghost .ctl { cursor: default; }
   .legend { display: flex; flex-wrap: wrap; gap: 4px 10px; font-size: 11px; color: var(--muted); margin: 0 0 8px; }
@@ -103,7 +102,9 @@
   .win .rsec.current { outline: 1px dotted #555; outline-offset: -1px; }
   .win .nav { border-top: 1px solid #a0a0a0; padding: 2px 6px; font-size: 11px; background: #f0f0f0; display: flex; gap: 6px; align-items: center; }
   .win .nav b { font-weight: normal; border: 1px solid #a0a0a0; background: #fff; padding: 0 6px; }
-  .rc { position: absolute; overflow: hidden; white-space: nowrap; line-height: 1.25; padding: 1px 2px; }
+  .rc { position: absolute; overflow: hidden; white-space: nowrap; line-height: 1.25; padding: 1px 2px; cursor: pointer; }
+  .rc:hover { outline: 1px dashed var(--accent); }
+  .rc.sel, .rc:focus-visible { outline: 2px solid var(--accent); z-index: 5; }
   .rc.fx1 { border: 2px outset #f4f4f4; }
   .rc.fx2 { border: 2px inset #e0e0e0; }
   .rc.fx3 { border: 2px groove #e0e0e0; }
@@ -120,6 +121,57 @@
   table.ds { border-collapse: collapse; background: #fff; font-size: 12px; }
   table.ds th { background: #f0f0f0; border: 1px solid #a0a0a0; font-weight: normal; padding: 1px 6px; }
   table.ds td { border: 1px solid #d0d0d0; padding: 1px 6px; white-space: nowrap; }
+  /* A92. The neutral to-be: plain web components, no design system yet. */
+  .tobe { background: #fff; color: #1d1d1b; border: 1px solid #d4d3cd; border-radius: 8px; padding: 14px 16px;
+          max-width: 920px; font: 13px/1.5 system-ui, "Segoe UI", "Hiragino Sans", "Meiryo", sans-serif; color-scheme: light; }
+  .tobe h3 { margin: 0 0 2px; font-size: 17px; }
+  .tobe .sub { color: #6b6b66; font-size: 12px; margin: 0 0 12px; }
+  .tobe .badge { display: inline-block; font-size: 11px; padding: 0 6px; border-radius: 10px; background: #fbf0d9; color: #8a5a00; margin-left: 6px; vertical-align: middle; }
+  .tobe .summary { display: flex; flex-wrap: wrap; gap: 4px 20px; margin: 0 0 12px; }
+  .tobe .summary span { color: #6b6b66; margin-right: 6px; }
+  .tobe .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; }
+  .tobe .card { border: 1px solid #e3e2dc; border-radius: 8px; padding: 10px; }
+  .tobe .card h4 { margin: 0 0 8px; font-size: 13px; }
+  .tobe .btn { display: block; width: 100%; text-align: left; border: 1px solid #c9d6ee; background: #f3f7fd; color: #1d1d1b;
+               border-radius: 6px; padding: 6px 8px; margin: 0 0 6px; font: inherit; cursor: default; }
+  .tobe .btn small { display: block; color: #6b6b66; font-size: 11px; }
+  .tobe .btn.off { border-style: dashed; background: #fafafa; color: #8c8b85; }
+  .tobe .toolbar2 { display: flex; gap: 8px; margin: 0 0 8px; flex-wrap: wrap; }
+  .tobe .toolbar2 .btn { width: auto; display: inline-block; }
+  .tobe table { border-collapse: collapse; width: 100%; font-size: 12px; }
+  .tobe th { text-align: left; background: #f6f6f4; border-bottom: 1px solid #d4d3cd; padding: 4px 6px; font-weight: 600; white-space: nowrap; }
+  .tobe td { border-bottom: 1px solid #eeede8; padding: 3px 6px; white-space: nowrap; }
+  .tobe td.num { text-align: right; font-variant-numeric: tabular-nums; }
+  .tobe td input, .tobe td select { font: inherit; padding: 1px 4px; border: 1px solid #b9b8b2; border-radius: 4px; width: 100%; min-width: 60px; background: #fff; color: #1d1d1b; }
+  .tobe .md { display: grid; grid-template-columns: minmax(180px, max-content) minmax(0, 1fr); gap: 16px; align-items: start; }
+  .tobe .md > div { overflow-x: auto; min-width: 0; }
+  .tobe .md td { white-space: normal; }
+  .tobe .made-up { color: #8a5a00; }
+  .tobe .note { margin: 0 0 4px; font-size: 11px; font-style: italic; color: #8c8b85; border-left: 2px dashed #d4d3cd; padding-left: 6px; }
+  .about { color: var(--muted); font-size: 12px; margin: 10px 0; max-width: 900px; }
+  .tobe .stack { display: flex; flex-direction: column; gap: 6px; max-width: 460px; padding: 0 11px; box-sizing: border-box; margin: 0 0 10px; }
+  .tobe .tbs .panel .stack { padding: 0; margin: 0; max-width: none; }
+  .tobe .rowbtn { font-size: 11px; padding: 1px 6px; border: 1px solid #e3b7b0; border-radius: 4px; color: #9a2a1a; background: #fff; cursor: pointer; }
+  .tobe .stack .btn { text-align: center; }
+  .tobe .text { margin: 0 0 8px; }
+  .tobe .upload { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; border: 1px dashed #b9b8b2; border-radius: 8px; padding: 8px 10px; margin: 0 0 10px; }
+  .tobe .upload small { color: #6b6b66; }
+  .tobe .tbs { margin: 0 0 12px; max-width: 460px; }
+  .tobe .tbs [role=tablist] { display: flex; gap: 2px; border-bottom: 1px solid #d4d3cd; }
+  .tobe .tbs [role=tab] { font: inherit; border: 1px solid #d4d3cd; border-bottom: 0; background: #f6f6f4; color: #1d1d1b; padding: 3px 12px; border-radius: 6px 6px 0 0; cursor: pointer; }
+  .tobe .tbs [role=tab][aria-selected=true] { background: #fff; font-weight: 600; }
+  .tobe .tbs .panel { border: 1px solid #d4d3cd; border-top: 0; padding: 10px; }
+  .tobe .pager { display: flex; gap: 12px; align-items: center; justify-content: space-between; font-size: 12px; color: #6b6b66; margin: 8px 0 0; flex-wrap: wrap; }
+  .tobe .pager .nums { display: flex; gap: 4px; align-items: center; }
+  .tobe .pager .pg { min-width: 24px; text-align: center; padding: 2px 6px; border: 1px solid #d4d3cd; border-radius: 6px; color: #1d1d1b; background: #fff; }
+  .tobe .pager .pg.on { background: #1d1d1b; color: #fff; border-color: #1d1d1b; }
+  .tobe .pager .pg.off { color: #b9b8b2; }
+  .tobe .pager select { font: inherit; padding: 1px 4px; border: 1px solid #b9b8b2; border-radius: 4px; background: #fff; color: #1d1d1b; }
+  table.mapping { border-collapse: collapse; font-size: 12px; margin-top: 16px; background: var(--panel); }
+  table.mapping th, table.mapping td { border: 1px solid var(--line); padding: 3px 6px; text-align: left; vertical-align: top; }
+  table.mapping td.st-kept { color: #2f7d32; } table.mapping td.st-changed { color: var(--accent); }
+  table.mapping td.st-dropped, table.mapping td.st-out-of-scope { color: var(--muted); }
+  table.mapping td.st-needs-a-decision { color: var(--warn); font-weight: 600; }
   .databar { margin: 0 0 8px; font-size: 12px; }
   .databar.warn { color: var(--warn); }
   body.operator .ctl.hidden, body.operator .tabs button.hidden { display: none; }
@@ -236,7 +288,7 @@
   }
 
   function showControl(s, c, node) {
-    Array.prototype.forEach.call(main.querySelectorAll(".ctl.sel"), function (n) { n.classList.remove("sel"); });
+    Array.prototype.forEach.call(main.querySelectorAll(".ctl.sel, .rc.sel"), function (n) { n.classList.remove("sel"); });
     node.classList.add("sel");
     detail.textContent = "";
     detail.appendChild(el("h3", {}, c.name));
@@ -327,6 +379,7 @@
   // ---- Runtime mockup ---------------------------------------------------------------
   var mode = "runtime";
   try { mode = localStorage.getItem("ak-wireframe-mode") || "runtime"; } catch (e) { /* storage may be blocked */ }
+  if (["runtime", "tobe", "design"].indexOf(mode) < 0) { mode = "runtime"; }
   var SYS = {2: "#99b4d1", 5: "#ffffff", 8: "#000000", 13: "#0078d7", 14: "#ffffff", 15: "#f0f0f0",
              16: "#a0a0a0", 17: "#6d6d6d", 18: "#000000", 20: "#ffffff", 22: "#e3e3e3", 24: "#ffffe1"};
   function color(v, fallback) {
@@ -435,8 +488,10 @@
 
   function runtimeControl(s, c, row, madeUp, holder, depth) {
     var st = c.style || {};
-    var node = el("div", {"class": "rc", title: c.name + " — " + c.role});
+    var node = el("div", {"class": "rc", title: c.name + " — " + c.role, tabindex: "0"});
     node.style.left = c.left + "px"; node.style.top = c.top + "px";
+    // Click a control for its definition, in the side panel, as the definition layout does.
+    node.addEventListener("click", function (e) { e.stopPropagation(); showControl(s, c, node); });
     node.style.width = Math.max(c.width, 1) + "px"; node.style.height = Math.max(c.height, 1) + "px";
     var size = parseFloat(st.FontSize || "9");
     node.style.fontSize = Math.round(size * 96 / 72) + "px";
@@ -461,8 +516,10 @@
       return node;
     }
     if (!transparent && t !== 102) { node.style.background = color(st.BackColor, t === 109 || t === 111 || t === 110 ? "#fff" : "transparent"); }
-    var effect = st.SpecialEffect !== undefined ? String(st.SpecialEffect) : (t === 109 || t === 111 || t === 110 ? "2" : "0");
-    if (effect !== "0" && st.BorderStyle !== "0" && t !== 100) { node.className += " fx" + (effect === "1" ? "1" : effect === "3" ? "3" : "2"); }
+    // Unstated, a text box is sunken - unless its border is transparent, which makes it flat.
+    var effect = st.SpecialEffect !== undefined ? String(st.SpecialEffect) : ((t === 109 || t === 111 || t === 110) && st.BorderStyle !== "0" ? "2" : "0");
+    // A special effect draws its own edge whatever the border style, as Access does.
+    if (effect !== "0" && (t !== 100 || st.SpecialEffect !== undefined)) { node.className += " fx" + (effect === "1" ? "1" : effect === "3" ? "3" : "2"); }
     else if (st.BorderStyle && st.BorderStyle !== "0") { node.style.border = "1px solid " + color(st.BorderColor, "#000"); }
     if (t === 100) { node.textContent = c.caption; node.style.textAlign = align || "left"; return node; }
     if (t === 102) { node.style.border = "0"; node.style.borderTop = "1px solid " + color(st.BorderColor, "#000"); node.style.height = "0"; return node; }
@@ -587,25 +644,241 @@
     if (showSelectors) { body.appendChild(selectors); }
     body.appendChild(column);
     win.appendChild(body);
+    // A list shows what its window holds and scrolls the rest, as the operator sees it.
+    var saved = s.window || {};
+    if (chrome && repeating && saved.height) {
+      body.style.maxHeight = Math.max(saved.height - (f.NavigationButtons !== "NotDefault" ? 20 : 0), 40) + "px";
+      body.style.overflowY = "auto";
+    }
     if (f.NavigationButtons !== "NotDefault") {
       var nav = el("div", {"class": "nav"});
       nav.appendChild(document.createTextNode("レコード: |◀ ◀"));
+      // The count is the whole record source's, not the rows read for the mockup.
+      var total = !filter && s.data && s.data.read && s.data.total != null ? s.data.total : rows.length;
       nav.appendChild(el("b", {}, rows.length ? "1" : ""));
-      nav.appendChild(document.createTextNode("▶ ▶| ▶* / " + rows.length));
+      nav.appendChild(document.createTextNode("▶ ▶| ▶* / " + total));
       win.appendChild(nav);
     }
     return win;
   }
 
+  // ---- To-be (A92) ------------------------------------------------------------------
+  function toBeValue(f, row, madeUp) {
+    var v = row ? row[f.field] : null;
+    return formatValue(v, {Format: f.format});
+  }
+  function look(node, x) {
+    // The legacy colour and weight, kept: an operator recognises a control by them.
+    if (x.color) { node.style.color = x.color; }
+    if (x.background) { node.style.background = x.background; }
+    if (x.bold) { node.style.fontWeight = "bold"; }
+    return node;
+  }
+  function toBeButton(a) {
+    // What it does is in the mapping; the button carries its label, as the legacy one did.
+    return look(el("span", {"class": "btn" + (a.disabled ? " off" : ""), title: a.does.join("; ")}, a.label + (a.disabled ? " (disabled in legacy)" : "")), a.disabled ? {} : a);
+  }
+  function toBeTable(s, region, filter, nested) {
+    var wrap = el("div");
+    var data = rowsOf(s);
+    var rows = data.rows;
+    if (filter) { rows = rows.filter(function (r) { return String(r[filter.field]) === String(filter.value); }); }
+    if (region.allow_add) {
+      var tb = el("div", {"class": "toolbar2"});
+      tb.appendChild(el("span", {"class": "btn"}, "+ Add row"));
+      wrap.appendChild(tb);
+    }
+    // Paged on its own page; inside another screen (a master-detail part) it is not.
+    var page = nested ? null : region.pagination || null;
+    var total = rows.length;
+    if (page && !filter && page.total != null) { total = page.total; }
+    if (page) { rows = rows.slice(0, page.page_size); }
+    var table = el("table");
+    var head = el("tr");
+    region.columns.forEach(function (c, i) {
+      var prev = region.columns[i - 1];
+      if (prev && c.shared_heading && prev.label === c.label) {
+        var th = head.lastChild;
+        th.colSpan = (th.colSpan || 1) + 1;
+        th.title += " / " + c.field;
+        return;
+      }
+      head.appendChild(el("th", {title: c.field + " — " + c.component + (c.editable ? ", editable" : "")}, c.label));
+    });
+    if (region.allow_delete) { head.appendChild(el("th", {}, "Actions")); }
+    table.appendChild(head);
+    (rows.length ? rows : [null]).forEach(function (r) {
+      var tr = el("tr");
+      region.columns.forEach(function (c) {
+        var value = r ? toBeValue(c, r, data.madeUp) : "";
+        var td = look(el("td", {"class": (c.component === "number" ? "num" : "") + (data.madeUp ? " made-up" : "")}), c);
+        if (c.editable && c.component === "select") {
+          var sel = el("select", {"aria-label": c.label});
+          var opts = (s.row_sources || {})[c.from];
+          var values = opts && opts.length ? opts.map(function (o) { return String(o[Object.keys(o)[0]]); }) :
+            String(((s.controls.filter(function (x) { return x.name === c.from; })[0] || {}).style || {}).RowSource || "").split(";").filter(Boolean);
+          if (value && values.indexOf(value) < 0) { values.unshift(value); }
+          // An empty value stays empty: a select would otherwise show its first option.
+          if (!value) { values.unshift(""); }
+          values.forEach(function (o) { var op = el("option", {}, o); if (o === value) { op.selected = true; } sel.appendChild(op); });
+          td.appendChild(sel);
+        } else if (c.editable) {
+          td.appendChild(el("input", {value: value, "aria-label": c.label, type: c.component === "date" ? "text" : "text"}));
+        } else { td.textContent = value; }
+        tr.appendChild(td);
+      });
+      // The legacy form lets an operator delete a record; the row says so in words.
+      if (region.allow_delete) { var del = el("td"); del.appendChild(el("span", {"class": "rowbtn", title: "Delete this row"}, "Delete")); tr.appendChild(del); }
+      table.appendChild(tr);
+    });
+    wrap.appendChild(table);
+    if (!rows.length) { wrap.appendChild(el("p", {"class": "sub"}, "No rows in the sample.")); }
+    if (page) {
+      // A current-day pager: the range and total, page numbers, and rows per page.
+      var pages = Math.max(1, Math.ceil(total / page.page_size));
+      var pager = el("div", {"class": "pager"});
+      pager.appendChild(el("span", {"class": "range"}, (rows.length ? "1–" + rows.length : "0") + " of " + total));
+      var nums = el("span", {"class": "nums"});
+      nums.appendChild(el("span", {"class": "pg off", "aria-label": "Previous page"}, "‹"));
+      for (var n = 1; n <= Math.min(pages, 5); n++) { nums.appendChild(el("span", {"class": "pg" + (n === 1 ? " on" : "")}, String(n))); }
+      if (pages > 5) { nums.appendChild(el("span", {}, "… " + pages)); }
+      nums.appendChild(el("span", {"class": "pg" + (pages === 1 ? " off" : ""), "aria-label": "Next page"}, "›"));
+      pager.appendChild(nums);
+      var size = el("select", {"aria-label": "Rows per page"});
+      (page.sizes || [page.page_size]).forEach(function (v) { var o = el("option", {}, v + " / page"); if (v === page.page_size) { o.selected = true; } size.appendChild(o); });
+      pager.appendChild(size);
+      wrap.appendChild(pager);
+    }
+    return wrap;
+  }
+  function toBeActions(actions, stack) {
+    var bar = el("div", {"class": stack ? "stack" : "toolbar2"});
+    actions.forEach(function (a) { bar.appendChild(toBeButton(a)); });
+    return bar;
+  }
+  function toBeTabs(r) {
+    var box = el("div", {"class": "tbs"});
+    var list = el("div", {role: "tablist"});
+    var panel = el("div", {"class": "panel", role: "tabpanel"});
+    function show(i) {
+      Array.prototype.forEach.call(list.children, function (b, j) { b.setAttribute("aria-selected", String(i === j)); });
+      panel.textContent = "";
+      panel.appendChild(toBeActions(r.tabs[i].actions, true));
+    }
+    r.tabs.forEach(function (tab, i) {
+      var b = el("button", {type: "button", role: "tab", "aria-selected": "false"}, tab.title);
+      b.addEventListener("click", function () { show(i); });
+      list.appendChild(b);
+    });
+    box.appendChild(list); box.appendChild(panel);
+    if (r.tabs.length) { show(0); }
+    return box;
+  }
+  function toBeView(s, filter, nested) {
+    var p = s.to_be || {};
+    var box = el("div", {"class": "tobe"});
+    if (!nested) {
+      var h = el("h3", {}, p.title || s.name);
+      h.appendChild(el("span", {"class": "badge"}, "proposal · " + p.pattern));
+      box.appendChild(h);
+    }
+    if (p.pattern === "out of scope") {
+      box.appendChild(el("p", {}, "Out of scope by a recorded decision: not rebuilt."));
+      return box;
+    }
+    var row0 = rowsOf(s).rows[0];
+    (p.regions || []).forEach(function (r) {
+      if (r.kind === "summary") {
+        var sum = el("div", {"class": "summary"});
+        r.fields.forEach(function (f) { var d = el("div"); d.appendChild(el("span", {}, f.label)); d.appendChild(look(el("b", {}, toBeValue(f, row0)), f)); sum.appendChild(d); });
+        box.appendChild(sum);
+      } else if (r.kind === "text") {
+        [r].concat(r.more || []).forEach(function (x) { box.appendChild(look(el("p", {"class": "text"}, x.text), x)); });
+      } else if (r.kind === "upload") {
+        var up = el("div", {"class": "upload"});
+        up.appendChild(el("input", {type: "file", multiple: "multiple", "aria-label": "Upload"}));
+        up.appendChild(look(el("small", {}, "Replaces: " + r.note), r));
+        box.appendChild(up);
+      } else if (r.kind === "tabs") {
+        box.appendChild(toBeTabs(r));
+      } else if (r.kind === "table") {
+        box.appendChild(toBeTable(s, r, filter, nested));
+      } else if (r.kind === "actions") {
+        box.appendChild(toBeActions(r.actions, r.stack));
+      } else if (r.kind === "form") {
+        var dl = el("dl", {"class": "summary"});
+        r.fields.forEach(function (f) { var d = el("div"); d.appendChild(el("span", {}, f.label)); d.appendChild(f.editable ? el("input", {value: toBeValue(f, row0)}) : document.createTextNode(toBeValue(f, row0))); dl.appendChild(d); });
+        box.appendChild(dl);
+      } else if (r.kind === "embedded") {
+        var grid = el("div", {"class": "md"});
+        var firstMaster = null;
+        r.items.forEach(function (item, i) {
+          var inner = screenByName(item.form);
+          if (!inner) { grid.appendChild(el("div", {}, item.form)); return; }
+          var f = null;
+          var viaSub = String(item.link_master || "").match(/^(.+?)\.form\.(.+)$/i);
+          if (viaSub && firstMaster) { f = {field: item.link_child, value: firstMaster[viaSub[2]]}; }
+          var cell = el("div");
+          // The legacy caption over this list, where it was.
+          if (item.caption) { cell.appendChild(look(el("p", {"class": "text"}, item.caption.text), item.caption)); }
+          // Which legacy form fills this part: a note for the reviewer, not a heading on the screen.
+          cell.appendChild(el("p", {"class": "note"}, "Note: embedded list from " + (item.id ? item.id + " " : "") + item.form));
+          cell.appendChild(toBeView(inner, f, true));
+          grid.appendChild(cell);
+          if (i === 0) { firstMaster = rowsOf(inner).rows[0] || null; }
+        });
+        box.appendChild(grid);
+      }
+    });
+    return box;
+  }
+  function mappingTable(s) {
+    var p = s.to_be || {};
+    var table = el("table", {"class": "mapping"});
+    var head = el("tr");
+    ["Legacy control", "Role", "To-be", "Status", "Why"].forEach(function (h) { head.appendChild(el("th", {}, h)); });
+    table.appendChild(head);
+    (p.mapping || []).forEach(function (m) {
+      var tr = el("tr");
+      tr.appendChild(el("td", {}, m.legacy));
+      tr.appendChild(el("td", {}, m.role));
+      tr.appendChild(el("td", {}, m.to_be));
+      tr.appendChild(el("td", {"class": "st-" + String(m.status).replace(/\s+/g, "-")}, m.status));
+      tr.appendChild(el("td", {}, m.reason));
+      table.appendChild(tr);
+    });
+    return table;
+  }
+  function viewHead(s, note) {
+    main.textContent = "";
+    var meta = el("div", {"class": "meta"});
+    meta.appendChild(el("h2", {}, (s.id ? s.id + " " : "") + s.name));
+    if (note) { meta.appendChild(el("p", {"class": "mode"}, note)); }
+    main.appendChild(meta);
+    var bar = el("div", {"class": "toolbar"});
+    bar.appendChild(viewSwitch(s));
+    main.appendChild(bar);
+  }
+  function drawToBe(s) {
+    viewHead(s, "");
+    main.appendChild(toBeView(s, null, false));
+    // What the proposal is, under it and over the mapping that explains it.
+    main.appendChild(el("p", {"class": "about"}, "Neutral to-be for " + (s.id ? s.id + " " : "") + s.name +
+      ". Familiar first: the legacy words, order, tabs and colours are kept; it changes only for a recorded decision or a technical gap. Plain components, no design system yet; the mapping below says what happened to each legacy control and what each action does."));
+    main.appendChild(mappingTable(s));
+  }
   function draw(s) {
     if (mode === "runtime") { drawRuntimeView(s); return; }
+    if (mode === "tobe") { drawToBe(s); return; }
     drawDesign(s);
   }
 
   function viewSwitch(s) {
     var bar = el("div", {"class": "viewbar", role: "group", "aria-label": "View"});
-    [["runtime", "Runtime mockup"], ["design", "Design"]].forEach(function (pair) {
-      var b = el("button", {type: "button", "aria-pressed": String(mode === pair[0])}, pair[1]);
+    [["runtime", "As-is"], ["tobe", "To-be"]].forEach(function (pair) {
+      // The definition layout is a toggle of the As-is view, not a view of its own.
+      var on = mode === pair[0] || (pair[0] === "runtime" && mode === "design");
+      var b = el("button", {type: "button", "aria-pressed": String(on)}, pair[1]);
       b.addEventListener("click", function () {
         mode = pair[0];
         try { localStorage.setItem("ak-wireframe-mode", mode); } catch (e) { /* ignore */ }
@@ -616,6 +889,19 @@
     return bar;
   }
 
+  function layoutToggle(s) {
+    var label = el("label", {"class": "toggle"});
+    var box = el("input", {type: "checkbox"});
+    box.checked = mode === "design";
+    box.addEventListener("change", function () {
+      mode = box.checked ? "design" : "runtime";
+      try { localStorage.setItem("ak-wireframe-mode", mode); } catch (e) { /* ignore */ }
+      draw(s);
+    });
+    label.appendChild(box);
+    label.appendChild(document.createTextNode(" Definition layout (hidden controls, every section)"));
+    return label;
+  }
   function drawRuntimeView(s) {
     main.textContent = "";
     var meta = el("div", {"class": "meta"});
@@ -625,10 +911,14 @@
     main.appendChild(meta);
     var bar = el("div", {"class": "toolbar"});
     bar.appendChild(viewSwitch(s));
+    bar.appendChild(layoutToggle(s));
     main.appendChild(bar);
     var data = s.data || {};
     var note = !s.record_source ? "An unbound form: it shows no record of its own, only its controls and any embedded lists, which are filled from their own rows." :
-      data.read ? "Rows read from the application (" + data.rows.length + " shown). Hidden controls are not drawn, as an operator never sees them." :
+      data.read ? "Rows read from the application (" + data.rows.length + " shown" +
+        (data.total != null && data.total > data.rows.length ? " of " + data.total : "") +
+        "). Hidden controls are not drawn, as an operator never sees them. Click a control for its definition." +
+        ((s.window || {}).maximized ? " The form maximizes itself on opening, so on the operator's screen the list shows more rows than this window." : "") :
       data.error ? "Its record source could not be read (" + data.error + "); values are made up from field names and drawn in brown." :
       "No rows were read from the application; values are made up from field names and drawn in brown. Run `$ak mockup-data`.";
     main.appendChild(el("p", {"class": "databar" + (data.read || !s.record_source ? "" : " warn")}, note));
@@ -663,6 +953,7 @@
     main.appendChild(legend);
     var bar = el("div", {"class": "toolbar"});
     bar.appendChild(viewSwitch(s));
+    bar.appendChild(layoutToggle(s));
     var label = el("label");
     var box = el("input", {type: "checkbox"});
     box.checked = document.body.classList.contains("operator");
@@ -703,9 +994,6 @@
         var node = el("div", {"class": classes, tabindex: copy ? "-1" : "0", role: "button",
                               title: c.name + " — " + c.role + " (" + c.kind + ")",
                               "aria-label": c.name + ", " + c.role}, text);
-        if (c.role && ["text", "decoration", "tab page", "tabs"].indexOf(c.role) < 0 && c.height >= 14) {
-          node.appendChild(el("span", {"class": "role"}, c.role));
-        }
         node.style.left = c.left + "px";
         node.style.top = c.top + "px";
         node.style.width = Math.max(c.width, 1) + "px";

@@ -163,6 +163,49 @@ def definitions(text: str) -> dict[str, dict[str, Any]]:
     return found
 
 
+def type_defaults(text: str) -> dict[str, dict[str, str]]:
+    """The form's default properties for each control type: the unnamed `Begin TextBox`
+    (and so on) blocks a definition opens with. A control omits every property at its
+    form's default, so a style read only from the control misses, for instance, a form
+    whose text boxes are all transparent (A92)."""
+    head = CODE_BEHIND.split(text or "", 1)[0]
+    found: dict[str, dict[str, str]] = {}
+    stack: list[dict[str, Any]] = []
+    for line in head.splitlines():
+        indent = len(line) - len(line.lstrip())
+        begin = BEGIN.match(line)
+        if begin or line.strip() == "Begin":
+            stack.append({"block": begin.group(2) if begin else "", "indent": indent, "props": {}})
+            continue
+        if END.match(line):
+            if stack and stack[-1]["indent"] == indent:
+                done = stack.pop()
+                if done["block"] and "Name" not in done["props"] and done["block"] not in found:
+                    found[done["block"]] = done["props"]
+            continue
+        prop = PROPERTY.match(line)
+        if stack and prop and indent == stack[-1]["indent"] + 4:
+            stack[-1]["props"][prop.group(2)] = _unquote(prop.group(3))
+    return found
+
+
+def window(text: str) -> dict[str, Any]:
+    """The window a form opens in, as its definition saved it, and whether its own code
+    maximizes it on opening. A list shows as many rows as this window holds and scrolls
+    the rest; a maximized window holds as many as the operator's screen does."""
+    props = form_properties(text)
+    size = {}
+    try:
+        size = {"width": pixels(int(props["Right"]) - int(props["Left"])),
+                "height": pixels(int(props["Bottom"]) - int(props["Top"]))}
+    except (KeyError, ValueError):
+        pass
+    code = CODE_BEHIND.split(text or "", 1)[1] if CODE_BEHIND.search(text or "") else ""
+    opening = re.search(r"Sub\s+Form_(?:Open|Load)\s*\(.*?End\s+Sub", code, re.S | re.I)
+    size["maximized"] = bool(opening and re.search(r"DoCmd\.Maximize", opening.group(0), re.I))
+    return size
+
+
 def assigned_in_code(text: str) -> dict[str, list[str]]:
     """Control name -> the procedures in the form's own code that assign it a row source.
 
@@ -453,6 +496,7 @@ def screen(item: dict[str, Any], controls: Iterable[dict[str, Any]], ident: str,
     shape = layout(text)
     mode = form_mode(text)
     defs = definitions(text)
+    defaults = type_defaults(text)
     drawn = sorted(_enrich([control(c) for c in controls], defs, assigned_in_code(text)),
                    key=lambda c: (SECTION_ORDER.index(c["section"]) if c["section"] in SECTION_ORDER
                                   else len(SECTION_ORDER), c["top"], c["left"], c["name"]))
@@ -477,7 +521,12 @@ def screen(item: dict[str, Any], controls: Iterable[dict[str, Any]], ident: str,
         c["repeats"] = repeating and c["section"] == 0
         own = (defs.get(c["name"]) or {}).get("props") or {}
         c["source"] = str(own.get("ControlSource", ""))
-        c["style"] = {k: own[k] for k in STYLE_KEYS if k in own and len(str(own[k])) < 2000}
+        # The form's default for the type first, the control's own value over it.
+        # SaveAsText writes BorderStyle as `OldBorderStyle`.
+        merged = {**defaults.get((defs.get(c["name"]) or {}).get("block", ""), {}), **own}
+        if "OldBorderStyle" in merged:
+            merged.setdefault("BorderStyle", merged["OldBorderStyle"])
+        c["style"] = {k: merged[k] for k in STYLE_KEYS if k in merged and len(str(merged[k])) < 2000}
     width = max([shape["width"]] + [c["left"] + c["width"] for c in drawn])
     name = str(item.get("name") or "")
     return {
@@ -492,6 +541,7 @@ def screen(item: dict[str, Any], controls: Iterable[dict[str, Any]], ident: str,
         "hidden": sum(1 for c in drawn if not c["visible"]),
         "mode": mode,
         "form": {k: v for k, v in form_properties(text).items() if k in FORM_KEYS},
+        "window": window(text),
         "section_style": {SECTION_BLOCKS[d["block"]]: {k: d["props"][k] for k in ("BackColor", "Height")
                                                        if k in d["props"]}
                           for d in defs.values() if d.get("block") in SECTION_BLOCKS},
@@ -520,7 +570,8 @@ def build(forms: Iterable[dict[str, Any]], controls_by_object: dict[str, list[di
         database = str(item.get("database_id") or "")
         entry = results.get(f"{database}::form::{s['name']}") or {}
         s["data"] = {"rows": entry.get("rows") or [], "error": entry.get("error") or "",
-                     "read": bool(entry) and not entry.get("error")}
+                     "read": bool(entry) and not entry.get("error"),
+                     "total": entry.get("total")}
         prefix = f"{database}::rows::{s['name']}::"
         s["row_sources"] = {key[len(prefix):]: value.get("rows") or []
                             for key, value in results.items() if key.startswith(prefix)}
