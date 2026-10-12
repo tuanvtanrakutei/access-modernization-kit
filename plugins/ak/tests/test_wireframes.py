@@ -428,3 +428,52 @@ def test_a_backslash_escaped_by_the_export_reads_single() -> None:
     doubled = chr(92) * 2
     text = "Begin Form\n    Caption =\"C:" + doubled + "data" + doubled + "\"\nEnd\n"
     assert wireframe.layout(text)["caption"] == "C:" + chr(92) + "data" + chr(92)
+
+
+STYLED_LIST = """Begin Form
+    Left =300
+    Top =150
+    Right =6300
+    Bottom =4650
+    RecordSource ="T"
+    Begin
+        Begin TextBox
+            BackStyle =0
+            FontSize =9
+        End
+    End
+    Begin Section
+        Height =400
+        Begin
+            Begin TextBox
+                OldBorderStyle =0
+                FontSize =14
+                Name ="txtCode"
+                ControlSource ="CODE"
+            End
+        End
+    End
+End
+CodeBehindForm
+Private Sub Form_Open(Cancel As Integer)
+    DoCmd.Maximize
+End Sub
+"""
+
+
+def test_a_control_takes_its_forms_default_style_and_the_exported_border_name() -> None:
+    """A92. Measured against the running application: a form whose text boxes are all
+    transparent wrote that once, in its default block, and each box drew white and sunken."""
+    controls = [{"name": "txtCode", "type": 109, "section": 0, "visible": True}]
+    style = wireframe.screen({"name": "List", "text": STYLED_LIST}, controls, "", None)["controls"][0]["style"]
+    assert style["BackStyle"] == "0"
+    assert style["FontSize"] == "14"
+    assert style["BorderStyle"] == "0"
+
+
+def test_the_window_a_form_opens_in_is_its_saved_size_and_its_own_maximize() -> None:
+    """A92. A list shows what its window holds; the rest scrolls."""
+    shape = wireframe.window(STYLED_LIST)
+    assert (shape["width"], shape["height"]) == (400, 300)
+    assert shape["maximized"] is True
+    assert wireframe.window("Begin Form\nEnd\n") == {"maximized": False}

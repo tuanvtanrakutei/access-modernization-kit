@@ -120,6 +120,50 @@
   table.ds { border-collapse: collapse; background: #fff; font-size: 12px; }
   table.ds th { background: #f0f0f0; border: 1px solid #a0a0a0; font-weight: normal; padding: 1px 6px; }
   table.ds td { border: 1px solid #d0d0d0; padding: 1px 6px; white-space: nowrap; }
+  /* A92. The neutral to-be: plain web components, no design system yet. */
+  .tobe { background: #fff; color: #1d1d1b; border: 1px solid #d4d3cd; border-radius: 8px; padding: 14px 16px;
+          max-width: 920px; font: 13px/1.5 system-ui, "Segoe UI", "Hiragino Sans", "Meiryo", sans-serif; color-scheme: light; }
+  .tobe h3 { margin: 0 0 2px; font-size: 17px; }
+  .tobe .sub { color: #6b6b66; font-size: 12px; margin: 0 0 12px; }
+  .tobe .badge { display: inline-block; font-size: 11px; padding: 0 6px; border-radius: 10px; background: #fbf0d9; color: #8a5a00; margin-left: 6px; vertical-align: middle; }
+  .tobe .summary { display: flex; flex-wrap: wrap; gap: 4px 20px; margin: 0 0 12px; }
+  .tobe .summary span { color: #6b6b66; margin-right: 6px; }
+  .tobe .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; }
+  .tobe .card { border: 1px solid #e3e2dc; border-radius: 8px; padding: 10px; }
+  .tobe .card h4 { margin: 0 0 8px; font-size: 13px; }
+  .tobe .btn { display: block; width: 100%; text-align: left; border: 1px solid #c9d6ee; background: #f3f7fd; color: #1d1d1b;
+               border-radius: 6px; padding: 6px 8px; margin: 0 0 6px; font: inherit; cursor: default; }
+  .tobe .btn small { display: block; color: #6b6b66; font-size: 11px; }
+  .tobe .btn.off { border-style: dashed; background: #fafafa; color: #8c8b85; }
+  .tobe .toolbar2 { display: flex; gap: 8px; margin: 0 0 8px; flex-wrap: wrap; }
+  .tobe .toolbar2 .btn { width: auto; display: inline-block; }
+  .tobe table { border-collapse: collapse; width: 100%; font-size: 12px; }
+  .tobe th { text-align: left; background: #f6f6f4; border-bottom: 1px solid #d4d3cd; padding: 4px 6px; font-weight: 600; white-space: nowrap; }
+  .tobe td { border-bottom: 1px solid #eeede8; padding: 3px 6px; white-space: nowrap; }
+  .tobe td.num { text-align: right; font-variant-numeric: tabular-nums; }
+  .tobe td input, .tobe td select { font: inherit; padding: 1px 4px; border: 1px solid #b9b8b2; border-radius: 4px; width: 100%; min-width: 60px; background: #fff; color: #1d1d1b; }
+  .tobe .md { display: grid; grid-template-columns: minmax(180px, 1fr) 2fr; gap: 12px; }
+  .tobe .md > div { overflow-x: auto; min-width: 0; }
+  .tobe .made-up { color: #8a5a00; }
+  .tobe .stack { display: flex; flex-direction: column; gap: 6px; max-width: 420px; margin: 0 0 10px; }
+  .tobe .stack .btn { text-align: center; }
+  .tobe .text { margin: 0 0 8px; }
+  .tobe .upload { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; border: 1px dashed #b9b8b2; border-radius: 8px; padding: 8px 10px; margin: 0 0 10px; }
+  .tobe .upload small { color: #6b6b66; }
+  .tobe .tbs { margin: 0 0 12px; max-width: 460px; }
+  .tobe .tbs [role=tablist] { display: flex; gap: 2px; border-bottom: 1px solid #d4d3cd; }
+  .tobe .tbs [role=tab] { font: inherit; border: 1px solid #d4d3cd; border-bottom: 0; background: #f6f6f4; color: #1d1d1b; padding: 3px 12px; border-radius: 6px 6px 0 0; cursor: pointer; }
+  .tobe .tbs [role=tab][aria-selected=true] { background: #fff; font-weight: 600; }
+  .tobe .tbs .panel { border: 1px solid #d4d3cd; border-top: 0; padding: 10px; }
+  .tobe .pager { display: flex; gap: 8px; align-items: center; justify-content: flex-end; font-size: 12px; color: #6b6b66; margin: 6px 0 0; }
+  .tobe .pager .btn { width: auto; display: inline-block; padding: 1px 8px; margin: 0; }
+  .compare { display: grid; grid-template-columns: max-content minmax(360px, 1fr); gap: 16px; align-items: start; }
+  .compare h4 { margin: 0 0 6px; font-size: 13px; color: var(--muted); }
+  table.mapping { border-collapse: collapse; font-size: 12px; margin-top: 16px; background: var(--panel); }
+  table.mapping th, table.mapping td { border: 1px solid var(--line); padding: 3px 6px; text-align: left; vertical-align: top; }
+  table.mapping td.st-kept { color: #2f7d32; } table.mapping td.st-changed { color: var(--accent); }
+  table.mapping td.st-dropped, table.mapping td.st-out-of-scope { color: var(--muted); }
+  table.mapping td.st-needs-a-decision { color: var(--warn); font-weight: 600; }
   .databar { margin: 0 0 8px; font-size: 12px; }
   .databar.warn { color: var(--warn); }
   body.operator .ctl.hidden, body.operator .tabs button.hidden { display: none; }
@@ -461,8 +505,10 @@
       return node;
     }
     if (!transparent && t !== 102) { node.style.background = color(st.BackColor, t === 109 || t === 111 || t === 110 ? "#fff" : "transparent"); }
-    var effect = st.SpecialEffect !== undefined ? String(st.SpecialEffect) : (t === 109 || t === 111 || t === 110 ? "2" : "0");
-    if (effect !== "0" && st.BorderStyle !== "0" && t !== 100) { node.className += " fx" + (effect === "1" ? "1" : effect === "3" ? "3" : "2"); }
+    // Unstated, a text box is sunken - unless its border is transparent, which makes it flat.
+    var effect = st.SpecialEffect !== undefined ? String(st.SpecialEffect) : ((t === 109 || t === 111 || t === 110) && st.BorderStyle !== "0" ? "2" : "0");
+    // A special effect draws its own edge whatever the border style, as Access does.
+    if (effect !== "0" && (t !== 100 || st.SpecialEffect !== undefined)) { node.className += " fx" + (effect === "1" ? "1" : effect === "3" ? "3" : "2"); }
     else if (st.BorderStyle && st.BorderStyle !== "0") { node.style.border = "1px solid " + color(st.BorderColor, "#000"); }
     if (t === 100) { node.textContent = c.caption; node.style.textAlign = align || "left"; return node; }
     if (t === 102) { node.style.border = "0"; node.style.borderTop = "1px solid " + color(st.BorderColor, "#000"); node.style.height = "0"; return node; }
@@ -587,24 +633,228 @@
     if (showSelectors) { body.appendChild(selectors); }
     body.appendChild(column);
     win.appendChild(body);
+    // A list shows what its window holds and scrolls the rest, as the operator sees it.
+    var saved = s.window || {};
+    if (chrome && repeating && saved.height) {
+      body.style.maxHeight = Math.max(saved.height - (f.NavigationButtons !== "NotDefault" ? 20 : 0), 40) + "px";
+      body.style.overflowY = "auto";
+    }
     if (f.NavigationButtons !== "NotDefault") {
       var nav = el("div", {"class": "nav"});
       nav.appendChild(document.createTextNode("レコード: |◀ ◀"));
+      // The count is the whole record source's, not the rows read for the mockup.
+      var total = !filter && s.data && s.data.read && s.data.total != null ? s.data.total : rows.length;
       nav.appendChild(el("b", {}, rows.length ? "1" : ""));
-      nav.appendChild(document.createTextNode("▶ ▶| ▶* / " + rows.length));
+      nav.appendChild(document.createTextNode("▶ ▶| ▶* / " + total));
       win.appendChild(nav);
     }
     return win;
   }
 
+  // ---- To-be (A92) ------------------------------------------------------------------
+  function toBeValue(f, row, madeUp) {
+    var v = row ? row[f.field] : null;
+    return formatValue(v, {Format: f.format});
+  }
+  function look(node, x) {
+    // The legacy colour and weight, kept: an operator recognises a control by them.
+    if (x.color) { node.style.color = x.color; }
+    if (x.background) { node.style.background = x.background; }
+    if (x.bold) { node.style.fontWeight = "bold"; }
+    return node;
+  }
+  function toBeButton(a) {
+    var b = look(el("span", {"class": "btn" + (a.disabled ? " off" : ""), title: a.does.join("; ")}, a.label + (a.disabled ? " (disabled in legacy)" : "")), a.disabled ? {} : a);
+    b.appendChild(el("small", {}, a.does.join("; ")));
+    return b;
+  }
+  function toBeTable(s, region, filter) {
+    var wrap = el("div");
+    var data = rowsOf(s);
+    var rows = data.rows;
+    if (filter) { rows = rows.filter(function (r) { return String(r[filter.field]) === String(filter.value); }); }
+    if (region.allow_add) {
+      var tb = el("div", {"class": "toolbar2"});
+      tb.appendChild(el("span", {"class": "btn"}, "+ Add row"));
+      wrap.appendChild(tb);
+    }
+    var page = region.pagination || null;
+    var total = rows.length;
+    if (page && !filter && page.total != null) { total = page.total; }
+    if (page) { rows = rows.slice(0, page.page_size); }
+    var table = el("table");
+    var head = el("tr");
+    region.columns.forEach(function (c) { head.appendChild(el("th", {title: c.field + " — " + c.component + (c.editable ? ", editable" : "")}, c.label)); });
+    if (region.allow_delete) { head.appendChild(el("th", {}, "")); }
+    table.appendChild(head);
+    (rows.length ? rows : [null]).forEach(function (r) {
+      var tr = el("tr");
+      region.columns.forEach(function (c) {
+        var value = r ? toBeValue(c, r, data.madeUp) : "";
+        var td = look(el("td", {"class": (c.component === "number" ? "num" : "") + (data.madeUp ? " made-up" : "")}), c);
+        if (c.editable && c.component === "select") {
+          var sel = el("select", {"aria-label": c.label});
+          var opts = (s.row_sources || {})[c.from];
+          var values = opts && opts.length ? opts.map(function (o) { return String(o[Object.keys(o)[0]]); }) :
+            String(((s.controls.filter(function (x) { return x.name === c.from; })[0] || {}).style || {}).RowSource || "").split(";").filter(Boolean);
+          if (value && values.indexOf(value) < 0) { values.unshift(value); }
+          // An empty value stays empty: a select would otherwise show its first option.
+          if (!value) { values.unshift(""); }
+          values.forEach(function (o) { var op = el("option", {}, o); if (o === value) { op.selected = true; } sel.appendChild(op); });
+          td.appendChild(sel);
+        } else if (c.editable) {
+          td.appendChild(el("input", {value: value, "aria-label": c.label, type: c.component === "date" ? "text" : "text"}));
+        } else { td.textContent = value; }
+        tr.appendChild(td);
+      });
+      if (region.allow_delete) { tr.appendChild(el("td", {title: "Delete row"}, "🗑")); }
+      table.appendChild(tr);
+    });
+    wrap.appendChild(table);
+    if (!rows.length) { wrap.appendChild(el("p", {"class": "sub"}, "No rows in the sample.")); }
+    if (page) {
+      // Paged, with the total on screen as the legacy navigator showed it.
+      var pager = el("div", {"class": "pager", title: page.legacy_rows ? "The legacy window showed " + page.legacy_rows + " rows at a time" : ""});
+      pager.appendChild(el("span", {}, (rows.length ? "1–" + rows.length : "0") + " / " + total + " 件"));
+      pager.appendChild(el("span", {"class": "btn"}, "‹"));
+      pager.appendChild(el("span", {}, "1 / " + Math.max(1, Math.ceil(total / page.page_size))));
+      pager.appendChild(el("span", {"class": "btn"}, "›"));
+      wrap.appendChild(pager);
+    }
+    return wrap;
+  }
+  function toBeActions(actions, stack) {
+    var bar = el("div", {"class": stack ? "stack" : "toolbar2"});
+    actions.forEach(function (a) { bar.appendChild(toBeButton(a)); });
+    return bar;
+  }
+  function toBeTabs(r) {
+    var box = el("div", {"class": "tbs"});
+    var list = el("div", {role: "tablist"});
+    var panel = el("div", {"class": "panel", role: "tabpanel"});
+    function show(i) {
+      Array.prototype.forEach.call(list.children, function (b, j) { b.setAttribute("aria-selected", String(i === j)); });
+      panel.textContent = "";
+      panel.appendChild(toBeActions(r.tabs[i].actions, true));
+    }
+    r.tabs.forEach(function (tab, i) {
+      var b = el("button", {type: "button", role: "tab", "aria-selected": "false"}, tab.title);
+      b.addEventListener("click", function () { show(i); });
+      list.appendChild(b);
+    });
+    box.appendChild(list); box.appendChild(panel);
+    if (r.tabs.length) { show(0); }
+    return box;
+  }
+  function toBeView(s, filter, nested) {
+    var p = s.to_be || {};
+    var box = el("div", {"class": "tobe"});
+    if (!nested) {
+      var h = el("h3", {}, p.title || s.name);
+      h.appendChild(el("span", {"class": "badge"}, "proposal · " + p.pattern));
+      box.appendChild(h);
+      box.appendChild(el("p", {"class": "sub"}, "Neutral to-be for " + (s.id ? s.id + " " : "") + s.name +
+        ". Familiar first: the legacy words, order, tabs and colours are kept; it changes only for a recorded decision or a technical gap. Plain components, no design system yet; the mapping below says what happened to each legacy control."));
+    }
+    if (p.pattern === "out of scope") {
+      box.appendChild(el("p", {}, "Out of scope by a recorded decision: not rebuilt."));
+      return box;
+    }
+    var row0 = rowsOf(s).rows[0];
+    (p.regions || []).forEach(function (r) {
+      if (r.kind === "summary") {
+        var sum = el("div", {"class": "summary"});
+        r.fields.forEach(function (f) { var d = el("div"); d.appendChild(el("span", {}, f.label)); d.appendChild(look(el("b", {}, toBeValue(f, row0)), f)); sum.appendChild(d); });
+        box.appendChild(sum);
+      } else if (r.kind === "text") {
+        [r].concat(r.more || []).forEach(function (x) { box.appendChild(look(el("p", {"class": "text"}, x.text), x)); });
+      } else if (r.kind === "upload") {
+        var up = el("div", {"class": "upload"});
+        up.appendChild(el("input", {type: "file", multiple: "multiple", "aria-label": "Upload"}));
+        up.appendChild(look(el("small", {}, "Replaces: " + r.note), r));
+        box.appendChild(up);
+      } else if (r.kind === "tabs") {
+        box.appendChild(toBeTabs(r));
+      } else if (r.kind === "table") {
+        box.appendChild(toBeTable(s, r, filter));
+      } else if (r.kind === "actions") {
+        box.appendChild(toBeActions(r.actions, r.stack));
+      } else if (r.kind === "form") {
+        var dl = el("dl", {"class": "summary"});
+        r.fields.forEach(function (f) { var d = el("div"); d.appendChild(el("span", {}, f.label)); d.appendChild(f.editable ? el("input", {value: toBeValue(f, row0)}) : document.createTextNode(toBeValue(f, row0))); dl.appendChild(d); });
+        box.appendChild(dl);
+      } else if (r.kind === "embedded") {
+        var grid = el("div", {"class": "md"});
+        var firstMaster = null;
+        r.items.forEach(function (item, i) {
+          var inner = screenByName(item.form);
+          if (!inner) { grid.appendChild(el("div", {}, item.form)); return; }
+          var f = null;
+          var viaSub = String(item.link_master || "").match(/^(.+?)\.form\.(.+)$/i);
+          if (viaSub && firstMaster) { f = {field: item.link_child, value: firstMaster[viaSub[2]]}; }
+          var cell = el("div");
+          cell.appendChild(el("h4", {}, (item.id ? item.id + " " : "") + item.form));
+          cell.appendChild(toBeView(inner, f, true));
+          grid.appendChild(cell);
+          if (i === 0) { firstMaster = rowsOf(inner).rows[0] || null; }
+        });
+        box.appendChild(grid);
+      }
+    });
+    return box;
+  }
+  function mappingTable(s) {
+    var p = s.to_be || {};
+    var table = el("table", {"class": "mapping"});
+    var head = el("tr");
+    ["Legacy control", "Role", "To-be", "Status", "Why"].forEach(function (h) { head.appendChild(el("th", {}, h)); });
+    table.appendChild(head);
+    (p.mapping || []).forEach(function (m) {
+      var tr = el("tr");
+      tr.appendChild(el("td", {}, m.legacy));
+      tr.appendChild(el("td", {}, m.role));
+      tr.appendChild(el("td", {}, m.to_be));
+      tr.appendChild(el("td", {"class": "st-" + String(m.status).replace(/\s+/g, "-")}, m.status));
+      tr.appendChild(el("td", {}, m.reason));
+      table.appendChild(tr);
+    });
+    return table;
+  }
+  function viewHead(s, note) {
+    main.textContent = "";
+    var meta = el("div", {"class": "meta"});
+    meta.appendChild(el("h2", {}, (s.id ? s.id + " " : "") + s.name));
+    if (note) { meta.appendChild(el("p", {"class": "mode"}, note)); }
+    main.appendChild(meta);
+    var bar = el("div", {"class": "toolbar"});
+    bar.appendChild(viewSwitch(s));
+    main.appendChild(bar);
+  }
+  function drawToBe(s) {
+    viewHead(s, "To-be proposal (" + ((s.to_be || {}).pattern || "") + "), generated from the legacy model. Review it before code; a project's design system replaces the neutral styling.");
+    main.appendChild(toBeView(s, null, false));
+    main.appendChild(mappingTable(s));
+  }
+  function drawCompare(s) {
+    viewHead(s, "As-is runtime mockup beside the to-be proposal. Every difference is a row in the mapping, with its reason.");
+    var grid = el("div", {"class": "compare"});
+    var left = el("div"); left.appendChild(el("h4", {}, "As-is (legacy, runtime mockup)")); left.appendChild(runtimeWindow(s, true, null, 0));
+    var right = el("div"); right.appendChild(el("h4", {}, "To-be (proposal)")); right.appendChild(toBeView(s, null, false));
+    grid.appendChild(left); grid.appendChild(right);
+    main.appendChild(grid);
+    main.appendChild(mappingTable(s));
+  }
+
   function draw(s) {
     if (mode === "runtime") { drawRuntimeView(s); return; }
+    if (mode === "tobe") { drawToBe(s); return; }
+    if (mode === "compare") { drawCompare(s); return; }
     drawDesign(s);
   }
 
   function viewSwitch(s) {
     var bar = el("div", {"class": "viewbar", role: "group", "aria-label": "View"});
-    [["runtime", "Runtime mockup"], ["design", "Design"]].forEach(function (pair) {
+    [["runtime", "As-is runtime"], ["tobe", "To-be"], ["compare", "Compare"], ["design", "Design"]].forEach(function (pair) {
       var b = el("button", {type: "button", "aria-pressed": String(mode === pair[0])}, pair[1]);
       b.addEventListener("click", function () {
         mode = pair[0];
@@ -628,7 +878,10 @@
     main.appendChild(bar);
     var data = s.data || {};
     var note = !s.record_source ? "An unbound form: it shows no record of its own, only its controls and any embedded lists, which are filled from their own rows." :
-      data.read ? "Rows read from the application (" + data.rows.length + " shown). Hidden controls are not drawn, as an operator never sees them." :
+      data.read ? "Rows read from the application (" + data.rows.length + " shown" +
+        (data.total != null && data.total > data.rows.length ? " of " + data.total : "") +
+        "). Hidden controls are not drawn, as an operator never sees them." +
+        ((s.window || {}).maximized ? " The form maximizes itself on opening, so on the operator's screen the list shows more rows than this window." : "") :
       data.error ? "Its record source could not be read (" + data.error + "); values are made up from field names and drawn in brown." :
       "No rows were read from the application; values are made up from field names and drawn in brown. Run `$ak mockup-data`.";
     main.appendChild(el("p", {"class": "databar" + (data.read || !s.record_source ? "" : " warn")}, note));

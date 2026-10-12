@@ -39,7 +39,7 @@ function Convert-Value($value) {
 
 $results = [ordered]@{}
 foreach ($request in $requestList) {
-  $entry = [ordered]@{ columns = @(); rows = @(); error = '' }
+  $entry = [ordered]@{ columns = @(); rows = @(); total = $null; error = '' }
   try {
     $rs = $db.OpenRecordset([string]$request.source, 4)
     $columns = @()
@@ -54,6 +54,10 @@ foreach ($request in $requestList) {
       $count++
       $rs.MoveNext()
     }
+    # How many rows the screen holds in all, for its record count: a snapshot's
+    # RecordCount is exact once it has been moved to the end.
+    if ($rs.EOF -and $count -eq 0) { $entry.total = 0 }
+    else { if (-not $rs.EOF) { $rs.MoveLast() }; $entry.total = $rs.RecordCount }
     $rs.Close()
     $entry.rows = $list.ToArray()
   } catch {
