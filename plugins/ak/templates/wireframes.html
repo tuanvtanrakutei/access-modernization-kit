@@ -102,7 +102,9 @@
   .win .rsec.current { outline: 1px dotted #555; outline-offset: -1px; }
   .win .nav { border-top: 1px solid #a0a0a0; padding: 2px 6px; font-size: 11px; background: #f0f0f0; display: flex; gap: 6px; align-items: center; }
   .win .nav b { font-weight: normal; border: 1px solid #a0a0a0; background: #fff; padding: 0 6px; }
-  .rc { position: absolute; overflow: hidden; white-space: nowrap; line-height: 1.25; padding: 1px 2px; }
+  .rc { position: absolute; overflow: hidden; white-space: nowrap; line-height: 1.25; padding: 1px 2px; cursor: pointer; }
+  .rc:hover { outline: 1px dashed var(--accent); }
+  .rc.sel, .rc:focus-visible { outline: 2px solid var(--accent); z-index: 5; }
   .rc.fx1 { border: 2px outset #f4f4f4; }
   .rc.fx2 { border: 2px inset #e0e0e0; }
   .rc.fx3 { border: 2px groove #e0e0e0; }
@@ -144,8 +146,11 @@
   .tobe .md { display: grid; grid-template-columns: minmax(180px, 1fr) 2fr; gap: 12px; }
   .tobe .md > div { overflow-x: auto; min-width: 0; }
   .tobe .made-up { color: #8a5a00; }
+  .tobe .note { margin: 0 0 4px; font-size: 11px; font-style: italic; color: #8c8b85; border-left: 2px dashed #d4d3cd; padding-left: 6px; }
   .about { color: var(--muted); font-size: 12px; margin: 10px 0; max-width: 900px; }
-  .tobe .stack { display: flex; flex-direction: column; gap: 6px; max-width: 420px; margin: 0 0 10px; }
+  .tobe .stack { display: flex; flex-direction: column; gap: 6px; max-width: 460px; padding: 0 11px; box-sizing: border-box; margin: 0 0 10px; }
+  .tobe .tbs .panel .stack { padding: 0; margin: 0; max-width: none; }
+  .tobe .rowbtn { font-size: 11px; padding: 1px 6px; border: 1px solid #e3b7b0; border-radius: 4px; color: #9a2a1a; background: #fff; cursor: pointer; }
   .tobe .stack .btn { text-align: center; }
   .tobe .text { margin: 0 0 8px; }
   .tobe .upload { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; border: 1px dashed #b9b8b2; border-radius: 8px; padding: 8px 10px; margin: 0 0 10px; }
@@ -282,7 +287,7 @@
   }
 
   function showControl(s, c, node) {
-    Array.prototype.forEach.call(main.querySelectorAll(".ctl.sel"), function (n) { n.classList.remove("sel"); });
+    Array.prototype.forEach.call(main.querySelectorAll(".ctl.sel, .rc.sel"), function (n) { n.classList.remove("sel"); });
     node.classList.add("sel");
     detail.textContent = "";
     detail.appendChild(el("h3", {}, c.name));
@@ -482,8 +487,10 @@
 
   function runtimeControl(s, c, row, madeUp, holder, depth) {
     var st = c.style || {};
-    var node = el("div", {"class": "rc", title: c.name + " — " + c.role});
+    var node = el("div", {"class": "rc", title: c.name + " — " + c.role, tabindex: "0"});
     node.style.left = c.left + "px"; node.style.top = c.top + "px";
+    // Click a control for its definition, in the side panel, as the definition layout does.
+    node.addEventListener("click", function (e) { e.stopPropagation(); showControl(s, c, node); });
     node.style.width = Math.max(c.width, 1) + "px"; node.style.height = Math.max(c.height, 1) + "px";
     var size = parseFloat(st.FontSize || "9");
     node.style.fontSize = Math.round(size * 96 / 72) + "px";
@@ -687,7 +694,7 @@
     var table = el("table");
     var head = el("tr");
     region.columns.forEach(function (c) { head.appendChild(el("th", {title: c.field + " — " + c.component + (c.editable ? ", editable" : "")}, c.label)); });
-    if (region.allow_delete) { head.appendChild(el("th", {}, "")); }
+    if (region.allow_delete) { head.appendChild(el("th", {}, "Actions")); }
     table.appendChild(head);
     (rows.length ? rows : [null]).forEach(function (r) {
       var tr = el("tr");
@@ -709,7 +716,8 @@
         } else { td.textContent = value; }
         tr.appendChild(td);
       });
-      if (region.allow_delete) { tr.appendChild(el("td", {title: "Delete row"}, "🗑")); }
+      // The legacy form lets an operator delete a record; the row says so in words.
+      if (region.allow_delete) { var del = el("td"); del.appendChild(el("span", {"class": "rowbtn", title: "Delete this row"}, "Delete")); tr.appendChild(del); }
       table.appendChild(tr);
     });
     wrap.appendChild(table);
@@ -800,7 +808,8 @@
           var viaSub = String(item.link_master || "").match(/^(.+?)\.form\.(.+)$/i);
           if (viaSub && firstMaster) { f = {field: item.link_child, value: firstMaster[viaSub[2]]}; }
           var cell = el("div");
-          cell.appendChild(el("h4", {}, (item.id ? item.id + " " : "") + item.form));
+          // Which legacy form fills this part: a note for the reviewer, not a heading on the screen.
+          cell.appendChild(el("p", {"class": "note"}, "Note: embedded list from " + (item.id ? item.id + " " : "") + item.form));
           cell.appendChild(toBeView(inner, f, true));
           grid.appendChild(cell);
           if (i === 0) { firstMaster = rowsOf(inner).rows[0] || null; }
@@ -853,8 +862,10 @@
 
   function viewSwitch(s) {
     var bar = el("div", {"class": "viewbar", role: "group", "aria-label": "View"});
-    [["runtime", "As-is runtime"], ["tobe", "To-be"], ["design", "Design"]].forEach(function (pair) {
-      var b = el("button", {type: "button", "aria-pressed": String(mode === pair[0])}, pair[1]);
+    [["runtime", "As-is"], ["tobe", "To-be"]].forEach(function (pair) {
+      // The definition layout is a toggle of the As-is view, not a view of its own.
+      var on = mode === pair[0] || (pair[0] === "runtime" && mode === "design");
+      var b = el("button", {type: "button", "aria-pressed": String(on)}, pair[1]);
       b.addEventListener("click", function () {
         mode = pair[0];
         try { localStorage.setItem("ak-wireframe-mode", mode); } catch (e) { /* ignore */ }
@@ -865,6 +876,19 @@
     return bar;
   }
 
+  function layoutToggle(s) {
+    var label = el("label", {"class": "toggle"});
+    var box = el("input", {type: "checkbox"});
+    box.checked = mode === "design";
+    box.addEventListener("change", function () {
+      mode = box.checked ? "design" : "runtime";
+      try { localStorage.setItem("ak-wireframe-mode", mode); } catch (e) { /* ignore */ }
+      draw(s);
+    });
+    label.appendChild(box);
+    label.appendChild(document.createTextNode(" Definition layout (hidden controls, every section)"));
+    return label;
+  }
   function drawRuntimeView(s) {
     main.textContent = "";
     var meta = el("div", {"class": "meta"});
@@ -874,12 +898,13 @@
     main.appendChild(meta);
     var bar = el("div", {"class": "toolbar"});
     bar.appendChild(viewSwitch(s));
+    bar.appendChild(layoutToggle(s));
     main.appendChild(bar);
     var data = s.data || {};
     var note = !s.record_source ? "An unbound form: it shows no record of its own, only its controls and any embedded lists, which are filled from their own rows." :
       data.read ? "Rows read from the application (" + data.rows.length + " shown" +
         (data.total != null && data.total > data.rows.length ? " of " + data.total : "") +
-        "). Hidden controls are not drawn, as an operator never sees them." +
+        "). Hidden controls are not drawn, as an operator never sees them. Click a control for its definition." +
         ((s.window || {}).maximized ? " The form maximizes itself on opening, so on the operator's screen the list shows more rows than this window." : "") :
       data.error ? "Its record source could not be read (" + data.error + "); values are made up from field names and drawn in brown." :
       "No rows were read from the application; values are made up from field names and drawn in brown. Run `$ak mockup-data`.";
@@ -915,6 +940,7 @@
     main.appendChild(legend);
     var bar = el("div", {"class": "toolbar"});
     bar.appendChild(viewSwitch(s));
+    bar.appendChild(layoutToggle(s));
     var label = el("label");
     var box = el("input", {type: "checkbox"});
     box.checked = document.body.classList.contains("operator");
