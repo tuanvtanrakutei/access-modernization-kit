@@ -50,6 +50,7 @@ import link_targets as link_contract  # noqa: E402
 import meanings as meanings_contract  # noqa: E402
 import screen_behaviour as behaviour_contract  # noqa: E402
 import sql_relationships as sql_contract  # noqa: E402
+import wireframe as wireframe_contract  # noqa: E402
 import workspace as workspace_contract  # noqa: E402
 
 # What a cell says when the evidence class that would fill it was not supplied. One
@@ -932,6 +933,28 @@ def definition_note(entry: dict | None) -> str:
     return f"{best.lines} line(s), balanced"
 
 
+def _view_cells(kind: str, text: str, controls: list[dict]) -> tuple[str, str]:
+    """The `View` and `Editable fields` cells of one form (A91)."""
+    if kind != "form":
+        return "report", "—"
+    if not text:
+        return "_not extracted_", "—"
+    mode = wireframe_contract.form_mode(text)
+    can = [verb for verb, ok in (("edit", mode["edits"]), ("add", mode["additions"]),
+                                 ("delete", mode["deletions"])) if ok]
+    view = f"{mode['view']}; " + (", ".join(can) if can else "read-only")
+    defs = wireframe_contract.definitions(text)
+    fields = [c for c in controls if c.get("type") in (109, 111)]
+    if not fields:
+        return view, "—"
+    editable = sum(
+        1 for c in fields
+        if wireframe_contract.control_role(
+            wireframe_contract.control(c), (defs.get(str(c.get("name") or "")) or {}).get("props") or {},
+            mode, {})[0] in ("input", "select"))
+    return view, f"{editable} of {len(fields)}"
+
+
 def screen_indices(output: Path) -> dict[str, str]:
     """`F-nnn` per object name, read from the phase register.
 
@@ -1110,15 +1133,28 @@ def screen_catalogue(app_id: str, bundle: Path, facts_dir: Path,
         "",
     ]
 
+    controls_by_object: dict[str, list[dict]] = {}
+    for record in rows_of(read_json(bundle / "ui" / "controls.json")):
+        controls_by_object[str(record.get("object") or "")] = record.get("controls") or []
+    out += [
+        "`View` is how the form presents its records and what it lets an operator change. "
+        "A form whose definition does not state a view is a **continuous** form: its Detail "
+        "section repeats once per record, so a design-view drawing of one row is a list on "
+        "screen. `Editable fields` counts the text and combo boxes an operator can type in "
+        "against all of them; the rest show a value and cannot be changed (locked, disabled, "
+        "calculated, or the form refuses edits).",
+        "",
+    ]
+
     for kind, items in (("form", forms), ("report", reports)):
         out += [
             f"## {kind.capitalize()}s ({len(items)})",
             "",
-            "| No. | Phase 2 | Object (production name) | Caption | "
+            "| No. | Phase 2 | Object (production name) | Caption | View | Editable fields | "
             "English (proposed) | Database | Record source | Bound fields | "
             "Event procedures | Embedded controls | Referenced by | Definition text | "
             "Business purpose |",
-            "|---:|---|---|---|---|---|---|---:|---:|---|---:|---|---|",
+            "|---:|---|---|---|---|---:|---|---|---|---:|---:|---|---:|---|---|",
         ]
         for number, item in enumerate(sorted(items, key=lambda i: (i.get("database_id", ""),
                                                                    i.get("name", ""))), 1):
@@ -1130,10 +1166,13 @@ def screen_catalogue(app_id: str, bundle: Path, facts_dir: Path,
             controls = fact.get("embedded_controls") or []
             title = behaviour_contract.caption(item.get("text") or "")
             index = (indices or {}).get(name, "")
+            view, editable = _view_cells(kind, str(item.get("text") or ""),
+                                         controls_by_object.get(name, []))
             out.append(
                 f"| {number} | {('**' + index + '**') if index else '—'} | "
                 f"`{escape(name)}` | "
                 f"{('`' + escape(title) + '`') if title else '—'} | "
+                f"{view} | {editable} | "
                 f"{naming.english(name)} | "
                 f"{escape(database)} | "
                 f"{('`' + escape(source) + '`') if source else '**none declared**'} | "

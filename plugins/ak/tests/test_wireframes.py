@@ -349,3 +349,82 @@ def test_no_bundle_means_no_page(tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     (root / "output").mkdir()
     assert run(monkeypatch, root) == 2
     assert not (root / "output" / "A99_Wireframes.html").exists()
+
+
+LIST_FORM = """Begin Form
+    AllowAdditions = NotDefault
+    AllowDeletions = NotDefault
+    RecordSource ="T"
+    Caption ="List"
+    Begin
+        Begin TextBox
+            Width =1701
+        End
+    End
+    Begin Section
+        Height =400
+        Begin
+            Begin TextBox
+                Left =100
+                Name ="txtCode"
+                ControlSource ="CODE"
+            End
+            Begin TextBox
+                Enabled = NotDefault
+                Locked = NotDefault
+                Name ="txtName"
+                ControlSource ="NAME"
+            End
+            Begin TextBox
+                Name ="txtTotal"
+                ControlSource ="=Sum([QTY])"
+            End
+            Begin CommandButton
+                Enabled = NotDefault
+                Name ="cmdErrors"
+                Caption ="Errors"
+            End
+        End
+    End
+End
+"""
+
+
+def test_a_form_that_states_no_view_is_a_continuous_list() -> None:
+    """A91. SaveAsText omits DefaultView at 1, so a design view shows one row of a list."""
+    mode = wireframe.form_mode(LIST_FORM)
+    assert mode["view"] == "continuous"
+    assert (mode["edits"], mode["additions"], mode["deletions"]) == (True, False, False)
+    assert wireframe.form_mode("Begin Form\n    DefaultView =0\nEnd\n")["view"] == "single"
+
+
+def test_each_control_is_given_the_role_an_operator_meets() -> None:
+    mode = wireframe.form_mode(LIST_FORM)
+    defs = wireframe.definitions(LIST_FORM)
+
+    def role(name: str, kind: int) -> str:
+        c = {"name": name, "type": kind}
+        return wireframe.control_role(c, defs[name]["props"], mode, {})[0]
+
+    assert role("txtCode", 109) == "input"
+    assert role("txtName", 109) == "display"
+    assert role("txtTotal", 109) == "computed"
+    assert role("cmdErrors", 104) == "button (disabled)"
+    read_only = dict(mode, edits=False)
+    assert wireframe.control_role({"name": "txtCode", "type": 109},
+                                  defs["txtCode"]["props"], read_only, {})[0] == "display"
+
+
+def test_a_list_form_marks_its_detail_controls_as_repeating() -> None:
+    controls = [{"name": "txtCode", "type": 109, "section": 0, "visible": True}]
+    model = wireframe.screen({"name": "List", "text": LIST_FORM}, controls, "", None)
+    assert model["mode"]["view"] == "continuous"
+    assert model["controls"][0]["repeats"] is True
+    assert model["controls"][0]["role"] == "input"
+
+
+def test_a_backslash_escaped_by_the_export_reads_single() -> None:
+    """A91. SaveAsText writes a backslash as two; the caption printed both."""
+    doubled = chr(92) * 2
+    text = "Begin Form\n    Caption =\"C:" + doubled + "data" + doubled + "\"\nEnd\n"
+    assert wireframe.layout(text)["caption"] == "C:" + chr(92) + "data" + chr(92)

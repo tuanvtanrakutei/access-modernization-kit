@@ -12,6 +12,48 @@ that it should now work.
 
 ## Open
 
+### A91 - a wireframe drew the design view: one row of a list, and a locked field looked like an input
+
+**Found 2026-10-12, reviewing the wireframes of an application before its Phase 4.** The drawing matched the
+design-view capture, and the design view is not what an operator sees. Three defaults SaveAsText omits made it
+wrong: `DefaultView` is omitted at 1, Continuous Forms, so a list was drawn as one row (most forms on that
+application, confirmed by reading each form's property from Access); a control's `Enabled`, `Locked` and the
+form's `AllowEdits` decide whether a text box is a field to type in or a value to read, and the drawing showed
+both alike; and a control at its default `Height` writes none, so most text boxes on a list were drawn as lines.
+
+Changed:
+
+- **`wireframe.form_mode`** reads the view and the edit, add and delete permissions with their real defaults.
+- **`wireframe.control_role`** names the role an operator meets: editable field, read-only value, calculated
+  value, button, disabled button, link, drop-down, embedded list or form (by the embedded form's own view), and
+  the rest by type, each with the definition fact that decides it.
+- **The wireframe page** draws by role, with a legend; repeats a list form's Detail section; states each form's
+  view and permissions; and shows a control's role and reason when clicked.
+- **The screen catalogue** carries `View` and `Editable fields` per form.
+- **`definition_controls`** fills an omitted `Width` or `Height` from the form's default block, then from
+  Access's default, and marks the record `size_defaulted`.
+
+**Part 2, the same day: a runtime mockup, not a drawing.** A drawing of the right controls is still a page of empty
+boxes. What the people who use a screen recognise is the screen as it runs, with its data. So:
+
+- **`$ak mockup-data`** (`collect_mockup_data.py`) reads the first rows of each form's record source and of each
+  table/query row source, from copies, with every link whose target file has the name of a supplied database
+  re-pointed at that copy. Written to `.ak/extracted/mockup-data.json` as DATA_STATE with each file's SHA-256.
+  It needs `access_snapshot_extract`, and the file holds customer data, so it never leaves the workspace.
+- **The wireframe page opens on a "Runtime mockup" view** beside the design view: an Access 2003 window with
+  its caption, record selectors and navigation bar; each section in its own colour (Access BGR and system
+  colours); each control in its own font, colour, alignment and 3D effect; a list form filled row by row with
+  a new-record row when it allows additions; a datasheet as a grid; a drop-down showing its display column;
+  a subform drawing the form it embeds, filtered by its link fields; formats applied, including custom date
+  formats with escaped literals; `=Now()` and `=Date()` evaluated. Hidden controls are not drawn. Where no
+  row could be read, values are made up from field names and drawn in brown, and the page says so.
+- **SaveAsText escapes a backslash as two**, and a caption holding a path printed both. Unescaped in one pass.
+- A form's own properties, the record source among them, are read with continuation lines joined.
+
+**Not yet known:** the Access default sizes are the documented 2003 values; a database created by a later version
+whose form default block is silent may differ by a few pixels. A report is not drawn. An expression other than
+`Now()`, `Date()` and page numbers is printed as written rather than evaluated, and conditional formatting is not read.
+
 ### A90 - the managed route sealed a bundle of names: no form text, no controls, and a capability nothing could produce
 
 **Found 2026-10-09, writing Phases 2 and 3 of a new application acquired from its `.mdb` alone.** The extractor

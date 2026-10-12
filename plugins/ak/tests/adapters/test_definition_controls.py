@@ -108,3 +108,14 @@ def test_the_managed_route_carries_definition_text_and_controls(tmp_path: Path) 
     assert (entry["database_id"], entry["object"], entry["kind"]) == ("APP", "Menu", "form")
     assert len(entry["controls"]) == 7
     assert "ui_definition_text" in contribution["provenance"]["capabilities"]
+
+
+def test_an_omitted_size_comes_from_the_form_default_then_from_access() -> None:
+    """A91. A text box at the default height wrote no Height and was drawn as a line."""
+    text = ("Begin Form\n    Begin\n        Begin TextBox\n            Width =2000\n        End\n"
+            "    End\n    Begin Section\n        Begin\n            Begin TextBox\n"
+            "                Name =\"txt\"\n            End\n        End\n    End\nEnd\n")
+    control = definition_controls.controls(text)[0]
+    assert control["width"] == 2000
+    assert control["height"] == 255
+    assert control["size_defaulted"] is True
