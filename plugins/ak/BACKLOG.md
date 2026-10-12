@@ -12,6 +12,31 @@ that it should now work.
 
 ## Open
 
+### A91 - a wireframe drew the design view: one row of a list, and a locked field looked like an input
+
+**Found 2026-10-12, reviewing the wireframes of an application before its Phase 4.** The drawing matched the
+design-view capture, and the design view is not what an operator sees. Three defaults SaveAsText omits made it
+wrong: `DefaultView` is omitted at 1, Continuous Forms, so a list was drawn as one row (most forms on that
+application, confirmed by reading each form's property from Access); a control's `Enabled`, `Locked` and the
+form's `AllowEdits` decide whether a text box is a field to type in or a value to read, and the drawing showed
+both alike; and a control at its default `Height` writes none, so most text boxes on a list were drawn as lines.
+
+Changed:
+
+- **`wireframe.form_mode`** reads the view and the edit, add and delete permissions with their real defaults.
+- **`wireframe.control_role`** names the role an operator meets: editable field, read-only value, calculated
+  value, button, disabled button, link, drop-down, embedded list or form (by the embedded form's own view), and
+  the rest by type, each with the definition fact that decides it.
+- **The wireframe page** draws by role, with a legend; repeats a list form's Detail section; states each form's
+  view and permissions; and shows a control's role and reason when clicked.
+- **The screen catalogue** carries `View` and `Editable fields` per form.
+- **`definition_controls`** fills an omitted `Width` or `Height` from the form's default block, then from
+  Access's default, and marks the record `size_defaulted`.
+
+**Not yet known:** the Access default sizes are the documented 2003 values; a database created by a later version
+whose form default block is silent may differ by a few pixels. A report is not drawn, so its sections' repetition
+is not shown.
+
 ### A90 - the managed route sealed a bundle of names: no form text, no controls, and a capability nothing could produce
 
 **Found 2026-10-09, writing Phases 2 and 3 of a new application acquired from its `.mdb` alone.** The extractor

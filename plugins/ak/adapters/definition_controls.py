@@ -33,6 +33,21 @@ SECTION_BLOCKS = {"FormHeader": 1, "PageHeader": 3, "Section": 0, "PageFooter": 
 # Blocks that contain other controls, so a control inside one has it as its parent.
 CONTAINERS = {"Page", "OptionGroup", "Tab"}
 
+# A91. Width and Height a control omits are at its default, and the default is not 0. The
+# definition's unnamed `Begin TextBox` (and so on) block holds the form's default for each
+# type; where that is silent too, Access's own default applies. Without this a text box at
+# the default height was drawn as a line, which is most text boxes on a list form.
+# Twips, Access 2003 at 96 DPI; marked `size_defaulted` on the record because they are
+# Access's documented defaults, not values read from this definition.
+BUILTIN_SIZE = {
+    "Label": (1701, 255), "TextBox": (1701, 255), "ComboBox": (1701, 255),
+    "ListBox": (1701, 1440), "CommandButton": (1701, 360), "CheckBox": (260, 240),
+    "OptionButton": (260, 240), "ToggleButton": (1701, 283), "OptionGroup": (1701, 1440),
+    "Rectangle": (1701, 1440), "Image": (1701, 1440), "Subform": (1701, 1440),
+    "Subreport": (1701, 1440), "Tab": (1701, 1440), "CustomControl": (1701, 1440),
+    "BoundObjectFrame": (1701, 1440), "UnboundObjectFrame": (1701, 1440),
+}
+
 BEGIN = re.compile(r"^(\s*)Begin(?:\s+(\w+))?\s*$")
 END = re.compile(r"^(\s*)End\s*$")
 PROPERTY = re.compile(r'^(\s*)(\w+)\s*=\s*(.*?)\s*$')
@@ -61,6 +76,7 @@ def controls(text: str) -> list[dict[str, Any]]:
     stack: list[dict[str, Any]] = []
     section: int | None = None
     order = 0
+    defaults: dict[str, dict[str, str]] = {}
     for line in head.splitlines():
         begin = BEGIN.match(line)
         if begin:
@@ -80,7 +96,10 @@ def controls(text: str) -> list[dict[str, Any]]:
                     section = None
                 name = done["props"].get("Name")
                 code = BLOCK_TYPES.get(done["block"])
+                if not name and code is not None:
+                    defaults.setdefault(done["block"], done["props"])
                 if name and code is not None:
+                    _apply_size_defaults(done["props"], done["block"], defaults)
                     parent = next((frame["props"].get("Name", "") for frame in reversed(stack)
                                    if frame["block"] in CONTAINERS and frame["props"].get("Name")), "")
                     found.append(_record(done["props"], code, done["section"], parent,
@@ -97,6 +116,19 @@ def controls(text: str) -> list[dict[str, Any]]:
             top["props"][top["last"]] += _unquote(line)
     found.sort(key=lambda c: c.pop("_order"))
     return found
+
+
+def _apply_size_defaults(props: dict[str, str], block: str,
+                         defaults: dict[str, dict[str, str]]) -> None:
+    builtin = BUILTIN_SIZE.get(block)
+    for index, key in enumerate(("Width", "Height")):
+        if props.get(key):
+            continue
+        if (defaults.get(block) or {}).get(key):
+            props[key] = defaults[block][key]
+        elif builtin:
+            props[key] = str(builtin[index])
+            props["_size_defaulted"] = "1"
 
 
 def _record(props: dict[str, str], code: int, section: int | None, parent: str,
@@ -118,6 +150,8 @@ def _record(props: dict[str, str], code: int, section: int | None, parent: str,
         "parent": parent,
         "_order": order,
     }
+    if props.get("_size_defaulted"):
+        record["size_defaulted"] = True
     if props.get("SourceObject"):
         record["source_object"] = props["SourceObject"]
     if props.get("RowSource"):

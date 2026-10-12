@@ -257,6 +257,126 @@ def decisions_for(queue: dict[str, Any] | None, name: str, ident: str) -> list[d
     return sorted(found, key=lambda d: str(d.get("id")))
 
 
+# A91. What a design-view drawing gets wrong. The definition places a control; it does not
+# say what an operator can do with it, and a rebuild that copies the drawing copies boxes.
+# Three properties decide it, and SaveAsText omits each one at its default:
+#   - `DefaultView` is omitted at 1, Continuous Forms. Most list screens write nothing, so
+#     a reader of the definition, or of a design-view capture, sees one row where the
+#     operator sees a list - on one application, most of its forms.
+#   - `AllowEdits`, `AllowAdditions` and `AllowDeletions` are written only when No.
+#   - A control's `Enabled` and `Locked` are written only when they differ from Yes / No.
+VIEW_MODES = {0: "single", 1: "continuous", 2: "datasheet", 3: "pivot table", 4: "pivot chart",
+              5: "split"}
+VIEW_LABELS = {
+    "single": "Single form: one record at a time",
+    "continuous": "Continuous form: the Detail section repeats once per record, as a list",
+    "datasheet": "Datasheet: a grid of the bound fields; the drawn layout is not what is shown",
+    "split": "Split form: a single record above a datasheet of the same records",
+}
+
+# The role an operator meets, named for the component a rebuild uses rather than for the
+# Access control type. `ROLE_LABELS` is printed in the page's legend.
+ROLE_LABELS = {
+    "button": "button", "button (disabled)": "button, greyed out: cannot be clicked",
+    "link": "hyperlink", "text": "static text (label)",
+    "input": "editable field", "display": "read-only field (shows a value, cannot be typed in)",
+    "computed": "calculated field (an expression, read-only)",
+    "select": "drop-down (choose a value)", "listbox": "list box (choose from a visible list)",
+    "checkbox": "check box", "radio": "option button", "radio group": "option group (choose one)",
+    "toggle": "toggle button", "tabs": "tab strip", "tab page": "tab page",
+    "embedded list": "embedded list (a subform showing many records)",
+    "embedded form": "embedded form (a subform showing one record)",
+    "image": "image", "decoration": "line or box (layout only)", "object": "OLE object frame",
+    "custom": "ActiveX control (behaviour not readable from the definition)",
+    "page break": "page break (printing only)",
+}
+
+
+def _no(props: dict[str, str], key: str) -> bool:
+    """A Yes-by-default property the definition turned off."""
+    return str(props.get(key, "")).strip() in ("NotDefault", "0", "False")
+
+
+def _yes(props: dict[str, str], key: str) -> bool:
+    """A No-by-default property the definition turned on."""
+    return str(props.get(key, "")).strip() in ("NotDefault", "-1", "True")
+
+
+def form_mode(text: str) -> dict[str, Any]:
+    """How the form presents its records, and what it lets an operator change.
+
+    Read one level inside `Begin Form`, like `layout`. A property the text omits is at its
+    Access default, which is the point of this function: the defaults are not the values a
+    reader assumes (see the block above).
+    """
+    props: dict[str, str] = {}
+    form_indent: int | None = None
+    for line in CODE_BEHIND.split(text or "", 1)[0].splitlines():
+        begin = BEGIN.match(line)
+        if begin:
+            if begin.group(2) in ("Form", "Report") and form_indent is None:
+                form_indent = len(begin.group(1))
+            continue
+        # A nested block's own properties sit deeper than the form's, so the indent alone
+        # keeps a label's Caption from being read as the form's.
+        prop = PROPERTY.match(line)
+        if prop and form_indent is not None and len(prop.group(1)) == form_indent + 4:
+            props.setdefault(prop.group(2), _unquote(prop.group(3)))
+    try:
+        view = VIEW_MODES.get(int(props.get("DefaultView", "1")), "single")
+    except ValueError:
+        view = "single"
+    return {
+        "view": view,
+        "view_label": VIEW_LABELS.get(view, view),
+        "edits": not _no(props, "AllowEdits"),
+        "additions": not _no(props, "AllowAdditions"),
+        "deletions": not _no(props, "AllowDeletions"),
+        "data_entry": _yes(props, "DataEntry"),
+        "popup": _yes(props, "PopUp"),
+        "modal": _yes(props, "Modal"),
+    }
+
+
+def control_role(c: dict[str, Any], props: dict[str, str], mode: dict[str, Any],
+                 views: dict[str, str]) -> tuple[str, str]:
+    """The role an operator meets, and the definition fact that decides it."""
+    kind = c["type"]
+    link = props.get("HyperlinkAddress") or props.get("HyperlinkSubAddress")
+    if kind == 104:
+        if link:
+            return "link", "HyperlinkAddress is set"
+        if _no(props, "Enabled"):
+            return "button (disabled)", "Enabled = No"
+        return "button", "command button"
+    if kind == 100:
+        return ("link", "HyperlinkAddress is set") if link else ("text", "label")
+    if kind in (109, 111):
+        source = str(props.get("ControlSource", ""))
+        if source.startswith("="):
+            return "computed", f"ControlSource is the expression {source}"
+        if _no(props, "Enabled") or _yes(props, "Locked"):
+            return "display", "Enabled = No" if _no(props, "Enabled") else "Locked = Yes"
+        if not mode["edits"] and not mode["data_entry"]:
+            return "display", "the form's AllowEdits = No"
+        if _yes(props, "IsHyperlink"):
+            return "link", "IsHyperlink = Yes"
+        return ("select", "combo box") if kind == 111 else ("input", "text box, editable")
+    if kind == 112:
+        target = str(props.get("SourceObject", ""))
+        name = target.split(".", 1)[1] if "." in target else target
+        view = views.get(name, "")
+        if view in ("continuous", "datasheet", "split"):
+            return "embedded list", f"subform {name} is a {view} form"
+        if view:
+            return "embedded form", f"subform {name} is a {view} form"
+        return "embedded list", f"subform {name or '(none)'}; its view is not in the bundle"
+    simple = {110: "listbox", 106: "checkbox", 105: "radio", 107: "radio group", 122: "toggle",
+              123: "tabs", 124: "tab page", 103: "image", 101: "decoration", 102: "decoration",
+              108: "object", 114: "object", 119: "custom", 118: "page break"}
+    return simple.get(kind, "custom"), CONTROL_TYPES.get(kind, f"type {kind}")
+
+
 def _enrich(drawn: list[dict[str, Any]], defs: dict[str, dict[str, Any]],
             set_by: dict[str, list[str]]) -> list[dict[str, Any]]:
     """Tag each control with its tab page, give each tab control its pages, and each list
@@ -294,11 +414,14 @@ def _enrich(drawn: list[dict[str, Any]], defs: dict[str, dict[str, Any]],
 
 
 def screen(item: dict[str, Any], controls: Iterable[dict[str, Any]], ident: str,
-           queue: dict[str, Any] | None, title: str = "") -> dict[str, Any]:
+           queue: dict[str, Any] | None, title: str = "",
+           views: dict[str, str] | None = None) -> dict[str, Any]:
     """One form: its geometry, its controls in drawing order, and what is open about it."""
     text = str(item.get("text") or "")
     shape = layout(text)
-    drawn = sorted(_enrich([control(c) for c in controls], definitions(text), assigned_in_code(text)),
+    mode = form_mode(text)
+    defs = definitions(text)
+    drawn = sorted(_enrich([control(c) for c in controls], defs, assigned_in_code(text)),
                    key=lambda c: (SECTION_ORDER.index(c["section"]) if c["section"] in SECTION_ORDER
                                   else len(SECTION_ORDER), c["top"], c["left"], c["name"]))
     sections = []
@@ -315,6 +438,12 @@ def screen(item: dict[str, Any], controls: Iterable[dict[str, Any]], ident: str,
             "print_only": code in PRINT_ONLY,
             "overflow": declared >= 0 and reach > declared,
         })
+    repeating = mode["view"] in ("continuous", "datasheet", "split")
+    for c in drawn:
+        c["role"], c["role_reason"] = control_role(
+            c, (defs.get(c["name"]) or {}).get("props") or {}, mode, views or {})
+        c["repeats"] = repeating and c["section"] == 0
+        c["source"] = str(((defs.get(c["name"]) or {}).get("props") or {}).get("ControlSource", ""))
     width = max([shape["width"]] + [c["left"] + c["width"] for c in drawn])
     name = str(item.get("name") or "")
     return {
@@ -327,6 +456,9 @@ def screen(item: dict[str, Any], controls: Iterable[dict[str, Any]], ident: str,
         "sections": sections,
         "controls": drawn,
         "hidden": sum(1 for c in drawn if not c["visible"]),
+        "mode": mode,
+        "roles": {role: sum(1 for c in drawn if c["role"] == role)
+                  for role in sorted({c["role"] for c in drawn})},
         "decisions": decisions_for(queue, name, ident),
     }
 
@@ -334,7 +466,12 @@ def screen(item: dict[str, Any], controls: Iterable[dict[str, Any]], ident: str,
 def build(forms: Iterable[dict[str, Any]], controls_by_object: dict[str, list[dict[str, Any]]],
           f_index: dict[str, str], queue: dict[str, Any] | None) -> list[dict[str, Any]]:
     """Every form, sorted by its `F-` and then its name, so a reader holding either finds it."""
+    forms = [item for item in forms if str(item.get("kind") or "form") == "form"]
+    # A subform's role depends on the view of the form it embeds, so every form's view is
+    # read before any screen is built.
+    views = {str(item.get("name") or ""): form_mode(str(item.get("text") or ""))["view"]
+             for item in forms}
     screens = [screen(item, controls_by_object.get(str(item.get("name") or ""), []),
-                      f_index.get(str(item.get("name") or ""), ""), queue)
-               for item in forms if str(item.get("kind") or "form") == "form"]
+                      f_index.get(str(item.get("name") or ""), ""), queue, views=views)
+               for item in forms]
     return sorted(screens, key=lambda s: (s["id"] == "", s["id"], s["name"]))
