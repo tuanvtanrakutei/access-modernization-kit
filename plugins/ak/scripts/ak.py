@@ -279,6 +279,14 @@ def parse_args() -> argparse.Namespace:
     design.add_argument("--database", help="One Access file, relative to the app root.")
     design.add_argument("--authorize", action="append", default=[])
 
+    mockup = commands.add_parser(
+        "mockup-data",
+        help="Read the first rows each form shows, from copies, for the wireframes' runtime mockup.",
+    )
+    mockup.add_argument("--app-root", required=True)
+    mockup.add_argument("--authorize", action="append", default=[])
+    mockup.add_argument("--rows", type=int, default=20)
+
     migrate = commands.add_parser(
         "migrate-workspace",
         help="Move a workspace laid out before 2.10.0 into input/, output/ and .ak/.",
@@ -821,6 +829,12 @@ def main() -> int:
         for granted in args.authorize:
             design_args += ["--authorize", granted]
         return run("capture_design_view.py", *design_args)
+
+    if args.command == "mockup-data":
+        mockup_args = ["--app-root", args.app_root, "--rows", str(args.rows)]
+        for granted in args.authorize:
+            mockup_args += ["--authorize", granted]
+        return run("collect_mockup_data.py", *mockup_args)
 
     if args.command == "migrate-workspace":
         migrate_args = ["--workspace", args.workspace]

@@ -33,9 +33,26 @@ Changed:
 - **`definition_controls`** fills an omitted `Width` or `Height` from the form's default block, then from
   Access's default, and marks the record `size_defaulted`.
 
+**Part 2, the same day: a runtime mockup, not a drawing.** A drawing of the right controls is still a page of empty
+boxes. What the people who use a screen recognise is the screen as it runs, with its data. So:
+
+- **`$ak mockup-data`** (`collect_mockup_data.py`) reads the first rows of each form's record source and of each
+  table/query row source, from copies, with every link whose target file has the name of a supplied database
+  re-pointed at that copy. Written to `.ak/extracted/mockup-data.json` as DATA_STATE with each file's SHA-256.
+  It needs `access_snapshot_extract`, and the file holds customer data, so it never leaves the workspace.
+- **The wireframe page opens on a "Runtime mockup" view** beside the design view: an Access 2003 window with
+  its caption, record selectors and navigation bar; each section in its own colour (Access BGR and system
+  colours); each control in its own font, colour, alignment and 3D effect; a list form filled row by row with
+  a new-record row when it allows additions; a datasheet as a grid; a drop-down showing its display column;
+  a subform drawing the form it embeds, filtered by its link fields; formats applied, including custom date
+  formats with escaped literals; `=Now()` and `=Date()` evaluated. Hidden controls are not drawn. Where no
+  row could be read, values are made up from field names and drawn in brown, and the page says so.
+- **SaveAsText escapes a backslash as two**, and a caption holding a path printed both. Unescaped in one pass.
+- A form's own properties, the record source among them, are read with continuation lines joined.
+
 **Not yet known:** the Access default sizes are the documented 2003 values; a database created by a later version
-whose form default block is silent may differ by a few pixels. A report is not drawn, so its sections' repetition
-is not shown.
+whose form default block is silent may differ by a few pixels. A report is not drawn. An expression other than
+`Now()`, `Date()` and page numbers is printed as written rather than evaluated, and conditional formatting is not read.
 
 ### A90 - the managed route sealed a bundle of names: no form text, no controls, and a capability nothing could produce
 

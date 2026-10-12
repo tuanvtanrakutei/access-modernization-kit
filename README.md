@@ -163,6 +163,7 @@ Order for one app: `init` → `assess` → `acquire` → `derive` → `documents
 | `$ak errata --app-root <PATH>` | Render every correction to a published claim. |
 | `$ak catalogues --app-root <PATH>` | Every table, column, form, report and query, generated from the bundle. |
 | `$ak wireframes --app-root <PATH>` | Draw every legacy form on one HTML page. |
+| `$ak mockup-data --app-root <PATH> --authorize access_snapshot_extract` | Read each form's first rows from copies, so the wireframes draw a runtime mockup with real data. |
 | `$ak design-view --app-root <PATH> --authorize access_snapshot_extract` | Capture every form and report in design view when nobody can screenshot the running app. |
 | `$ak glossary` / `$ak bilingual` | Propose an English name for every production name; print it beside the original. |
 | `$ak meanings --app-root <PATH>` | Tables and columns still needing a business meaning. |

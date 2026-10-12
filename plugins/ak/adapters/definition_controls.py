@@ -58,7 +58,8 @@ CODE_BEHIND = re.compile(r"^\s*CodeBehindForm\s*$", re.M)
 def _unquote(value: str) -> str:
     value = value.strip()
     if len(value) >= 2 and value[0] == value[-1] == '"':
-        return value[1:-1].replace('\\"', '"').replace('""', '"')
+        # SaveAsText escapes a quote as \" and a backslash as \\ (A91).
+        return re.sub(r'\\(.)', r'\1', value[1:-1]).replace('""', '"')
     return value
 
 

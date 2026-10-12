@@ -85,6 +85,43 @@
   .legend span b { color: var(--ink); font-weight: 600; }
   .mode { border-left: 3px solid var(--accent); background: var(--accent-soft); padding: 4px 8px; margin: 0 0 8px; border-radius: 0 4px 4px 0; }
   .ctl.hidden { border: 1px dashed var(--hidden); opacity: .7; }
+  /* Runtime mockup: the form as an Access 2003 window draws it, filled with rows. Colours are
+     the definition's own; system colours are the Windows defaults. Always light, as Access is. */
+  .viewbar { display: inline-flex; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; }
+  .viewbar button { border: 0; padding: 4px 10px; background: var(--panel); color: var(--ink); cursor: pointer; font: inherit; }
+  .viewbar button[aria-pressed="true"] { background: var(--accent-soft); font-weight: 600; }
+  .win { display: inline-block; background: #f0f0f0; border: 1px solid #7a7a7a; color: #000; color-scheme: light;
+         font-family: "MS PGothic", "ＭＳ Ｐゴシック", "Meiryo", sans-serif; font-size: 12px;
+         box-shadow: 0 2px 8px rgba(0,0,0,.25); }
+  .win .title { background: linear-gradient(#0a5fc4, #0848a0); color: #fff; padding: 3px 8px; font-weight: 600; display: flex; justify-content: space-between; }
+  .win .body { display: flex; }
+  .win .selectors { width: 14px; background: #f0f0f0; border-right: 1px solid #a0a0a0; }
+  .win .selectors div { border-bottom: 1px solid #c8c8c8; font-size: 9px; text-align: center; color: #333; }
+  .win .rows { position: relative; }
+  .win .rsec { position: relative; overflow: hidden; }
+  .win .rsec.detail { border-bottom: 1px solid #d0d0d0; }
+  .win .rsec.current { outline: 1px dotted #555; outline-offset: -1px; }
+  .win .nav { border-top: 1px solid #a0a0a0; padding: 2px 6px; font-size: 11px; background: #f0f0f0; display: flex; gap: 6px; align-items: center; }
+  .win .nav b { font-weight: normal; border: 1px solid #a0a0a0; background: #fff; padding: 0 6px; }
+  .rc { position: absolute; overflow: hidden; white-space: nowrap; line-height: 1.25; padding: 1px 2px; }
+  .rc.fx1 { border: 2px outset #f4f4f4; }
+  .rc.fx2 { border: 2px inset #e0e0e0; }
+  .rc.fx3 { border: 2px groove #e0e0e0; }
+  .rc.btn { border: 2px outset #f4f4f4; background: #f0f0f0; text-align: center; display: flex; align-items: center; justify-content: center; }
+  .rc.btn.off { color: #a0a0a0; }
+  .rc.combo::after { content: "▼"; position: absolute; right: 0; top: 0; bottom: 0; width: 14px; font-size: 8px;
+                     background: #f0f0f0; border-left: 1px solid #a0a0a0; display: flex; align-items: center; justify-content: center; }
+  .rc.sub { border: 1px solid #7a7a7a; background: #fff; overflow: auto; padding: 0; }
+  .rc.made-up { color: #8a5a00 !important; }
+  .rtabs { position: absolute; display: flex; gap: 0; z-index: 3; }
+  .rtabs button { font: inherit; font-size: 11px; padding: 1px 10px; border: 1px solid #919b9c; border-bottom: 0;
+                  background: #e8e8e8; color: #000; cursor: pointer; border-radius: 3px 3px 0 0; }
+  .rtabs button[aria-selected="true"] { background: #fff; position: relative; top: 1px; }
+  table.ds { border-collapse: collapse; background: #fff; font-size: 12px; }
+  table.ds th { background: #f0f0f0; border: 1px solid #a0a0a0; font-weight: normal; padding: 1px 6px; }
+  table.ds td { border: 1px solid #d0d0d0; padding: 1px 6px; white-space: nowrap; }
+  .databar { margin: 0 0 8px; font-size: 12px; }
+  .databar.warn { color: var(--warn); }
   body.operator .ctl.hidden, body.operator .tabs button.hidden { display: none; }
   aside { border-left: 1px solid var(--line); background: var(--panel); padding: 12px 16px; overflow-y: auto; max-height: calc(100vh - 64px); }
   aside h3 { font-size: 14px; margin: 0 0 8px; }
@@ -287,7 +324,318 @@
     return true;
   }
 
+  // ---- Runtime mockup ---------------------------------------------------------------
+  var mode = "runtime";
+  try { mode = localStorage.getItem("ak-wireframe-mode") || "runtime"; } catch (e) { /* storage may be blocked */ }
+  var SYS = {2: "#99b4d1", 5: "#ffffff", 8: "#000000", 13: "#0078d7", 14: "#ffffff", 15: "#f0f0f0",
+             16: "#a0a0a0", 17: "#6d6d6d", 18: "#000000", 20: "#ffffff", 22: "#e3e3e3", 24: "#ffffe1"};
+  function color(v, fallback) {
+    if (v === undefined || v === null || v === "") { return fallback; }
+    var n = parseInt(v, 10);
+    if (isNaN(n)) { return fallback; }
+    if (n < 0) { return SYS[n + 2147483648] || fallback; }
+    var r = n & 255, g = (n >> 8) & 255, b = (n >> 16) & 255;
+    return "rgb(" + r + "," + g + "," + b + ")";
+  }
+  function pad(n) { return (n < 10 ? "0" : "") + n; }
+  function asDate(v) {
+    if (typeof v !== "string" || !/^\d{4}-\d\d-\d\dT/.test(v)) { return null; }
+    var d = new Date(v);
+    return isNaN(d.getTime()) ? null : d;
+  }
+  function formatValue(v, st) {
+    if (v === null || v === undefined) { return ""; }
+    var fmt = (st && st.Format) || "";
+    var d = asDate(v);
+    if (d) {
+      var ymd = d.getFullYear() + "/" + pad(d.getMonth() + 1) + "/" + pad(d.getDate());
+      var hms = pad(d.getHours()) + ":" + pad(d.getMinutes()) + ":" + pad(d.getSeconds());
+      if (/long date/i.test(fmt)) { return d.getFullYear() + "年" + (d.getMonth() + 1) + "月" + d.getDate() + "日"; }
+      if (/short date/i.test(fmt)) { return ymd; }
+      if (/time/i.test(fmt)) { return hms; }
+      if (/[ymdhns]/i.test(fmt) && !/general/i.test(fmt)) { return customDate(d, fmt); }
+      return (d.getHours() || d.getMinutes() || d.getSeconds()) ? ymd + " " + hms : ymd;
+    }
+    if (typeof v === "number") {
+      var dec = parseInt((st && st.DecimalPlaces) || "", 10);
+      if (/currency/i.test(fmt)) { return "¥" + v.toLocaleString("ja-JP"); }
+      if (/percent/i.test(fmt)) { return (v * 100).toFixed(isNaN(dec) ? 2 : dec) + "%"; }
+      if (/standard|#,/i.test(fmt)) { return v.toLocaleString("ja-JP", {maximumFractionDigits: isNaN(dec) ? 2 : dec}); }
+      if (/fixed/i.test(fmt)) { return v.toFixed(isNaN(dec) ? 2 : dec); }
+      return String(v);
+    }
+    if (typeof v === "boolean") { return v ? "Yes" : "No"; }
+    return String(v);
+  }
+  // An Access custom date format: a backslash makes the next character literal, a quoted
+  // run is literal, and the tokens are the VBA ones (m is month, n is minute).
+  function customDate(d, fmt) {
+    var out = "", i = 0;
+    var tokens = [["yyyy", function () { return d.getFullYear(); }], ["yy", function () { return pad(d.getFullYear() % 100); }],
+      ["mm", function () { return pad(d.getMonth() + 1); }], ["m", function () { return d.getMonth() + 1; }],
+      ["dd", function () { return pad(d.getDate()); }], ["d", function () { return d.getDate(); }],
+      ["hh", function () { return pad(d.getHours()); }], ["h", function () { return d.getHours(); }],
+      ["nn", function () { return pad(d.getMinutes()); }], ["n", function () { return d.getMinutes(); }],
+      ["ss", function () { return pad(d.getSeconds()); }], ["s", function () { return d.getSeconds(); }]];
+    while (i < fmt.length) {
+      var ch = fmt.charAt(i);
+      if (ch === "\\") { out += fmt.charAt(i + 1); i += 2; continue; }
+      if (ch === '"') { var end = fmt.indexOf('"', i + 1); if (end < 0) { end = fmt.length; } out += fmt.slice(i + 1, end); i = end + 1; continue; }
+      var hit = null;
+      for (var k = 0; k < tokens.length; k++) {
+        if (fmt.substr(i, tokens[k][0].length).toLowerCase() === tokens[k][0]) { hit = tokens[k]; break; }
+      }
+      if (hit) { out += hit[1](); i += hit[0].length; } else { out += ch; i++; }
+    }
+    return out;
+  }
+  function evalExpression(expr, st) {
+    var now = new Date(), iso = now.toISOString().slice(0, 19);
+    if (/^=\s*Now\(\)\s*$/i.test(expr)) { return formatValue(iso, st); }
+    if (/^=\s*Date\(\)\s*$/i.test(expr)) { return formatValue(iso.slice(0, 10) + "T00:00:00", st); }
+    if (/\[Page\]/i.test(expr)) { return "1 / 1"; }
+    if (/Format\(\s*Date\(\)/i.test(expr)) { return formatValue(iso, {Format: "Long Date"}); }
+    return expr;
+  }
+  // Values for a screen with no rows read from the application: made up from each bound
+  // field's name, and drawn in a warning colour so nobody mistakes them for data.
+  function madeUpRows(s) {
+    var rows = [];
+    for (var i = 0; i < 3; i++) {
+      var row = {};
+      s.controls.forEach(function (c) {
+        if (!c.source || c.source.charAt(0) === "=") { return; }
+        var f = c.source;
+        row[f] = /日|date/i.test(f) ? "2026-01-0" + (i + 1) + "T00:00:00" :
+                 /数|量|qty|count|amount|区分|flag/i.test(f) ? i + 1 :
+                 /コード|code|cd/i.test(f) ? String(100001 + i) : f + " " + (i + 1);
+      });
+      rows.push(row);
+    }
+    return rows;
+  }
+  function rowsOf(s) {
+    if (s.data && s.data.read) { return {rows: s.data.rows, madeUp: false}; }
+    return {rows: madeUpRows(s), madeUp: true};
+  }
+  function displayOf(s, c, value) {
+    // A combo whose first column is hidden shows its second: look the value up in the rows
+    // its row source returned.
+    var st = c.style || {};
+    var widths = String(st.ColumnWidths || "").split(";");
+    var rs = (s.row_sources || {})[c.name];
+    if (rs && rs.length && widths.length > 1 && /^0/.test(widths[0])) {
+      var keys = Object.keys(rs[0]);
+      var hit = rs.filter(function (r) { return String(r[keys[0]]) === String(value); })[0];
+      if (hit && keys[1]) { return hit[keys[1]]; }
+    }
+    return value;
+  }
+  function screenByName(name) { return screens.filter(function (x) { return x.name === name; })[0]; }
+
+  function runtimeControl(s, c, row, madeUp, holder, depth) {
+    var st = c.style || {};
+    var node = el("div", {"class": "rc", title: c.name + " — " + c.role});
+    node.style.left = c.left + "px"; node.style.top = c.top + "px";
+    node.style.width = Math.max(c.width, 1) + "px"; node.style.height = Math.max(c.height, 1) + "px";
+    var size = parseFloat(st.FontSize || "9");
+    node.style.fontSize = Math.round(size * 96 / 72) + "px";
+    if (st.FontName) { node.style.fontFamily = '"' + st.FontName + '", "MS PGothic", "Meiryo", sans-serif'; }
+    if (parseInt(st.FontWeight || "400", 10) >= 600) { node.style.fontWeight = "bold"; }
+    if (st.FontItalic === "NotDefault") { node.style.fontStyle = "italic"; }
+    if (st.FontUnderline === "NotDefault") { node.style.textDecoration = "underline"; }
+    node.style.color = color(st.ForeColor, "#000");
+    var align = {"1": "left", "2": "center", "3": "right"}[String(st.TextAlign || "")];
+    var t = c.type;
+    var transparent = st.BackStyle === "0" || (t === 100 && st.BackStyle !== "1");
+    if (t === 104 || t === 122) {
+      node.className += " btn" + (c.role === "button (disabled)" ? " off" : "");
+      node.textContent = c.caption;
+      // A disabled button is drawn greyed whatever its own colour, as Access draws it.
+      node.style.color = c.role === "button (disabled)" ? "#a0a0a0" : color(st.ForeColor, "#000");
+      return node;
+    }
+    if (t === 123) {
+      node.style.border = "1px solid #919b9c";
+      node.style.background = "#fcfcfe";
+      return node;
+    }
+    if (!transparent && t !== 102) { node.style.background = color(st.BackColor, t === 109 || t === 111 || t === 110 ? "#fff" : "transparent"); }
+    var effect = st.SpecialEffect !== undefined ? String(st.SpecialEffect) : (t === 109 || t === 111 || t === 110 ? "2" : "0");
+    if (effect !== "0" && st.BorderStyle !== "0" && t !== 100) { node.className += " fx" + (effect === "1" ? "1" : effect === "3" ? "3" : "2"); }
+    else if (st.BorderStyle && st.BorderStyle !== "0") { node.style.border = "1px solid " + color(st.BorderColor, "#000"); }
+    if (t === 100) { node.textContent = c.caption; node.style.textAlign = align || "left"; return node; }
+    if (t === 102) { node.style.border = "0"; node.style.borderTop = "1px solid " + color(st.BorderColor, "#000"); node.style.height = "0"; return node; }
+    if (t === 101) { node.style.background = transparent ? "transparent" : node.style.background; node.style.border = node.style.border || "1px solid #000"; return node; }
+    if (t === 109 || t === 111 || t === 110) {
+      var raw = c.source && c.source.charAt(0) === "=" ? evalExpression(c.source, st) :
+                c.source ? (row ? row[c.source] : "") : "";
+      var shown = c.source && c.source.charAt(0) === "=" ? raw : formatValue(displayOf(s, c, raw), st);
+      node.textContent = shown;
+      var numeric = typeof raw === "number";
+      node.style.textAlign = align || (numeric ? "right" : "left");
+      if (t === 111) { node.className += " combo"; node.style.paddingRight = "16px"; }
+      if (madeUp && c.source && c.source.charAt(0) !== "=") { node.className += " made-up"; }
+      return node;
+    }
+    if (t === 106) { node.textContent = row && row[c.source] ? "☑" : "☐"; return node; }
+    if (t === 112) {
+      node.className += " sub";
+      var target = String(st.SourceObject || "").replace(/^(Form|Report)\./, "");
+      var inner = screenByName(target);
+      if (inner && depth < 2) {
+        var filter = null;
+        if (st.LinkChildFields && st.LinkMasterFields) {
+          var masterRef = String(st.LinkMasterFields);
+          var master = null;
+          var viaSub = masterRef.match(/^(.+?)\.form\.(.+)$/i);
+          if (viaSub) {
+            var other = s.controls.filter(function (o) { return o.name === viaSub[1]; })[0];
+            var otherScreen = other && screenByName(String((other.style || {}).SourceObject || "").replace(/^(Form|Report)\./, ""));
+            var firstRow = otherScreen && rowsOf(otherScreen).rows[0];
+            master = firstRow ? firstRow[viaSub[2]] : null;
+          } else if (row) { master = row[masterRef]; }
+          if (master !== null && master !== undefined) { filter = {field: st.LinkChildFields, value: master}; }
+        }
+        node.appendChild(runtimeWindow(inner, false, filter, depth + 1));
+      } else {
+        node.textContent = target || c.name;
+      }
+      return node;
+    }
+    node.textContent = c.caption || "";
+    return node;
+  }
+
+  function runtimeSection(s, sec, row, madeUp, width, current, depth) {
+    var div = el("div", {"class": "rsec" + (sec.code === 0 ? " detail" : "") + (current ? " current" : "")});
+    div.style.width = width + "px";
+    div.style.height = Math.max(sec.height, 1) + "px";
+    div.style.background = color(((s.section_style || {})[sec.code] || {}).BackColor, "#f0f0f0");
+    s.controls.forEach(function (c) {
+      if (c.section !== sec.code || !c.visible || c.type === 124 || !onPage(s, c)) { return; }
+      div.appendChild(runtimeControl(s, c, row, madeUp, div, depth));
+      if (c.pages && c.pages.length && depth === 0) {
+        var strip = el("div", {"class": "rtabs", role: "tablist"});
+        strip.style.left = c.left + "px"; strip.style.top = (c.top - 18) + "px";
+        c.pages.forEach(function (p) {
+          if (!p.visible) { return; }
+          var b = el("button", {type: "button", role: "tab", "aria-selected": String(selected[c.name] === p.name)}, p.caption);
+          b.addEventListener("click", function () { selected[c.name] = p.name; draw(s); });
+          strip.appendChild(b);
+        });
+        div.appendChild(strip);
+      }
+    });
+    return div;
+  }
+
+  function runtimeWindow(s, chrome, filter, depth) {
+    var win = el("div", {"class": "win"});
+    var m = s.mode || {}, f = s.form || {};
+    if (chrome) {
+      var title = el("div", {"class": "title"});
+      title.appendChild(el("span", {}, s.caption || s.name));
+      title.appendChild(el("span", {}, "_ □ ×"));
+      win.appendChild(title);
+    }
+    var data = rowsOf(s);
+    var rows = data.rows;
+    if (filter) { rows = rows.filter(function (r) { return String(r[filter.field]) === String(filter.value); }); }
+    var width = Math.max(s.width, 40);
+    if (m.view === "datasheet") {
+      var table = el("table", {"class": "ds"});
+      var bound = s.controls.filter(function (c) { return c.source && c.source.charAt(0) !== "="; });
+      var head = el("tr");
+      bound.forEach(function (c) { head.appendChild(el("th", {}, c.source)); });
+      table.appendChild(head);
+      rows.forEach(function (r) {
+        var tr = el("tr");
+        bound.forEach(function (c) { tr.appendChild(el("td", {"class": data.madeUp ? "made-up" : ""}, formatValue(r[c.source], c.style))); });
+        table.appendChild(tr);
+      });
+      win.appendChild(table);
+      return win;
+    }
+    var body = el("div", {"class": "body"});
+    var showSelectors = f.RecordSelectors !== "NotDefault";
+    var selectors = el("div", {"class": "selectors"});
+    var column = el("div", {"class": "rows"});
+    var repeating = m.view === "continuous" || m.view === "split";
+    s.sections.forEach(function (sec) {
+      if (sec.print_only) { return; }
+      if (sec.code === 0) {
+        var shown = repeating ? rows : rows.slice(0, 1);
+        if (!shown.length && !repeating) { shown = [null]; }
+        shown.forEach(function (r, i) {
+          column.appendChild(runtimeSection(s, sec, r, data.madeUp, width, repeating && i === 0, depth));
+          var mark = el("div", {}, i === 0 ? "▶" : "");
+          mark.style.height = Math.max(sec.height, 1) + "px";
+          selectors.appendChild(mark);
+        });
+        if (repeating && m.additions) {
+          column.appendChild(runtimeSection(s, sec, null, false, width, false, depth));
+          var star = el("div", {}, "*"); star.style.height = Math.max(sec.height, 1) + "px";
+          selectors.appendChild(star);
+        }
+      } else {
+        column.appendChild(runtimeSection(s, sec, rows[0] || null, data.madeUp, width, false, depth));
+        var gap = el("div"); gap.style.height = Math.max(sec.height, 1) + "px"; gap.style.borderBottom = "0";
+        selectors.appendChild(gap);
+      }
+    });
+    if (showSelectors) { body.appendChild(selectors); }
+    body.appendChild(column);
+    win.appendChild(body);
+    if (f.NavigationButtons !== "NotDefault") {
+      var nav = el("div", {"class": "nav"});
+      nav.appendChild(document.createTextNode("レコード: |◀ ◀"));
+      nav.appendChild(el("b", {}, rows.length ? "1" : ""));
+      nav.appendChild(document.createTextNode("▶ ▶| ▶* / " + rows.length));
+      win.appendChild(nav);
+    }
+    return win;
+  }
+
   function draw(s) {
+    if (mode === "runtime") { drawRuntimeView(s); return; }
+    drawDesign(s);
+  }
+
+  function viewSwitch(s) {
+    var bar = el("div", {"class": "viewbar", role: "group", "aria-label": "View"});
+    [["runtime", "Runtime mockup"], ["design", "Design"]].forEach(function (pair) {
+      var b = el("button", {type: "button", "aria-pressed": String(mode === pair[0])}, pair[1]);
+      b.addEventListener("click", function () {
+        mode = pair[0];
+        try { localStorage.setItem("ak-wireframe-mode", mode); } catch (e) { /* ignore */ }
+        draw(s);
+      });
+      bar.appendChild(b);
+    });
+    return bar;
+  }
+
+  function drawRuntimeView(s) {
+    main.textContent = "";
+    var meta = el("div", {"class": "meta"});
+    meta.appendChild(el("h2", {}, (s.id ? s.id + " " : "") + s.name));
+    var m = s.mode || {};
+    if (m.view_label) { meta.appendChild(el("p", {"class": "mode"}, m.view_label + ".")); }
+    main.appendChild(meta);
+    var bar = el("div", {"class": "toolbar"});
+    bar.appendChild(viewSwitch(s));
+    main.appendChild(bar);
+    var data = s.data || {};
+    var note = !s.record_source ? "An unbound form: it shows no record of its own, only its controls and any embedded lists, which are filled from their own rows." :
+      data.read ? "Rows read from the application (" + data.rows.length + " shown). Hidden controls are not drawn, as an operator never sees them." :
+      data.error ? "Its record source could not be read (" + data.error + "); values are made up from field names and drawn in brown." :
+      "No rows were read from the application; values are made up from field names and drawn in brown. Run `$ak mockup-data`.";
+    main.appendChild(el("p", {"class": "databar" + (data.read || !s.record_source ? "" : " warn")}, note));
+    main.appendChild(runtimeWindow(s, true, null, 0));
+  }
+
+  function drawDesign(s) {
     main.textContent = "";
     var meta = el("div", {"class": "meta"});
     meta.appendChild(el("h2", {}, (s.id ? s.id + " " : "") + s.name));
@@ -314,6 +662,7 @@
     });
     main.appendChild(legend);
     var bar = el("div", {"class": "toolbar"});
+    bar.appendChild(viewSwitch(s));
     var label = el("label");
     var box = el("input", {type: "checkbox"});
     box.checked = document.body.classList.contains("operator");

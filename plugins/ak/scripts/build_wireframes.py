@@ -71,7 +71,12 @@ def main() -> int:
                 if str(r.get("kind") or "form") == "form"}
     queue_files = dr._find(output, "*_DecisionQueue.json") if output.is_dir() else []
     queue = dr.read_register(queue_files[0]) if len(queue_files) == 1 else None
-    screens = wireframe.build(forms, controls, catalogues.screen_indices(output), queue)
+    mockup_file = space.root / ".ak" / "extracted" / "mockup-data.json"
+    mockup = catalogues.read_json(mockup_file) if mockup_file.is_file() else None
+    screens = wireframe.build(forms, controls, catalogues.screen_indices(output), queue, mockup)
+    if mockup is None:
+        print("  no mockup data; run `$ak mockup-data` to fill the runtime view with the "
+              "application's own rows (values are made up from field types until then)")
 
     drawn = sum(len(s["controls"]) for s in screens)
     hidden = sum(s["hidden"] for s in screens)

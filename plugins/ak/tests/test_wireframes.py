@@ -421,3 +421,10 @@ def test_a_list_form_marks_its_detail_controls_as_repeating() -> None:
     assert model["mode"]["view"] == "continuous"
     assert model["controls"][0]["repeats"] is True
     assert model["controls"][0]["role"] == "input"
+
+
+def test_a_backslash_escaped_by_the_export_reads_single() -> None:
+    """A91. SaveAsText writes a backslash as two; the caption printed both."""
+    doubled = chr(92) * 2
+    text = "Begin Form\n    Caption =\"C:" + doubled + "data" + doubled + "\"\nEnd\n"
+    assert wireframe.layout(text)["caption"] == "C:" + chr(92) + "data" + chr(92)
