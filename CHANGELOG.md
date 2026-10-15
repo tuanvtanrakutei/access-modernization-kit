@@ -1,5 +1,35 @@
 # Changelog
 
+## [2.17.0] - 2026-10-15
+
+One pull request (#115). **Bootstrap seeds a project's screen registry from a workspace built
+phase by phase, and does not finish while its checks fail.**
+
+### Changed
+
+- **Registry seeding reads a workspace without `run-state.json`** (A94). Before, the seeder
+  stopped with exit 2 on such a workspace.
+  - It reads the `F-` identifiers, the reference graph, subform controls, the Phase 2 entry
+    points and the `out of scope` rows of `input/target-intent/`.
+  - Forms reached from an entry point become Active Screens, with the reports they print and
+    the subforms they embed. Forms nothing opens become Future Scope. Decided exclusions are
+    listed, not written.
+  - The gate is `$ak conformance` on the Phase 2 document.
+  - A module is filled when one PROJECT_CONFIG scope names the screen or its `F-` id.
+- **`scan_phase2_inventory.py --write-registry`** writes the accepted proposal into
+  `Screens_Registry.md`, and refuses a registry someone has edited.
+- **`validate-docs` checks the Validation Checklist items a file read can settle**
+  (`checklist-*`): module app directories, evidence directories, `AK_RUN_DIR`, registry rows.
+  It reads `A99 (Known_Issues.md #n)` as another subsystem's issue.
+- **`bootstrap-project` Step 5** brings validate-docs and the checklist to clean. It fixes what
+  bootstrap owns, sets up commands that cannot start, and names what only the user can clear.
+
+### Fixed
+
+- `PHASE_OUTPUT_GUIDE.md` names the catalogues `{APP_ID}_ScreenCatalogue.md` and
+  `{APP_ID}_LogicCatalogue.md`. Validate-docs had reported their prefix-less spelling as
+  dangling.
+
 ## [2.16.0] - 2026-10-12
 
 One pull request (#113). **The runtime mockup is measured, not judged by eye.** The kit now runs
