@@ -1,0 +1,4 @@
+interface:
+  display_name: "Dev Stack"
+  short_description: "Bring the project's Docker stack up with a local database, check it, or stop it"
+  default_prompt: "Bring this project's Docker stack up (backend, frontend, local database, migrations) and report each service's URL and whether it answered."

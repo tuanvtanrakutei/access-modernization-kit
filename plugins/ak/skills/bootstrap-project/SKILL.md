@@ -70,36 +70,25 @@ directory:
 | `Final_Acceptance_README.md` | `{{DOCS_DIR}}/Final_Acceptance/README.md` |
 | `Bug_Reports_README.md` | `{{DOCS_DIR}}/Bug_Reports/README.md` |
 
-And copy, unchanged, from `${CLAUDE_PLUGIN_ROOT}/modernize/docs/` into the same directory:
+**Do not copy the pipeline manuals** (`MASTER_WORKFLOW.md`, `TRACEBACK_GATES.md`,
+`LEGACY_EVIDENCE.md`, `BACKEND_CODING.md`, `BACKEND_TESTING.md`, `FRONTEND_CODING.md`,
+`FRONTEND_TESTING.md`, `CONVENTIONS.md`, `PHASE_OUTPUT_GUIDE.md`). They ship with the plugin in
+`${CLAUDE_PLUGIN_ROOT}/modernize/docs/` and every skill reads them there; their `{{...}}` keys
+resolve from `PROJECT_CONFIG.md` when they are read. Earlier versions copied all nine into each
+project so that an upgrade could not change the manual a half-finished screen was planned
+against. A developer opening the project then saw nine kit files beside the project's own and
+could not tell which were the project's to edit. The pin is now the `KIT_VERSION` row: write the
+installed plugin's version (`${CLAUDE_PLUGIN_ROOT}/.claude-plugin/plugin.json`) into it, and
+pre-flight compares the two before every screen.
 
-| Document | Becomes |
-|---|---|
-| `MASTER_WORKFLOW.md` | `{{DOCS_DIR}}/MASTER_WORKFLOW.md` |
-| `TRACEBACK_GATES.md` | `{{DOCS_DIR}}/TRACEBACK_GATES.md` |
-| `LEGACY_EVIDENCE.md` | `{{DOCS_DIR}}/LEGACY_EVIDENCE.md` |
-| `BACKEND_CODING.md` | `{{DOCS_DIR}}/BACKEND_CODING.md` |
-| `BACKEND_TESTING.md` | `{{DOCS_DIR}}/BACKEND_TESTING.md` |
-| `FRONTEND_CODING.md` | `{{DOCS_DIR}}/FRONTEND_CODING.md` |
-| `FRONTEND_TESTING.md` | `{{DOCS_DIR}}/FRONTEND_TESTING.md` |
-| `CONVENTIONS.md` | `{{DOCS_DIR}}/CONVENTIONS.md` |
-| `PHASE_OUTPUT_GUIDE.md` | `{{DOCS_DIR}}/PHASE_OUTPUT_GUIDE.md` |
-
-These are not optional extras. `PROJECT_CONFIG.md` §11 states the document map uses fixed
-names *because the pipeline documents reference each other directly*, and
-`MASTER_WORKFLOW.md` cites its siblings by bare filename twelve times. Copying the
-templates without them produces a project whose own `README.md` and `CLAUDE.md` pointer
-both name `MASTER_WORKFLOW.md` and whose `MASTER_WORKFLOW.md` is not there — which is what
-one project got. A project holds its own copies so that a plugin upgrade cannot silently change
-the manual a half-finished screen was planned against.
-
-Copy them **unsubstituted**, like every other template here. They carry `{{...}}` keys that
-resolve from `PROJECT_CONFIG.md`, and at this point only five of its rows are filled. Step 2b
-resolves them once the rest of the config is accepted; a key nobody filled stays as `{{KEY}}`,
-and Step 5's `validate-docs` run lists it.
+A project that has to change a manual keeps its own copy in `{{DOCS_DIR}}` under the same name;
+the skills read a project copy before the plugin's. A project bootstrapped before this change
+holds copies it never edited: compare each with the plugin's, and with the user's ok delete
+the ones that are unchanged.
 
 Create the seven per-screen folders named above if they do not exist. Write the five values
-from Step 1 (`DOCS_DIR`, `AK_RUN_DIR`, `PROJECT_NAME`, `SUBSYSTEM_CODE`, `LEGACY_VARIANT`)
-directly into their own rows of `PROJECT_CONFIG.md`. The rest are proposed in Step 2b, never
+from Step 1 (`DOCS_DIR`, `AK_RUN_DIR`, `PROJECT_NAME`, `SUBSYSTEM_CODE`, `LEGACY_VARIANT`),
+and `KIT_VERSION`, directly into their own rows of `PROJECT_CONFIG.md`. The rest are proposed in Step 2b, never
 written silently: this is the file whose whole job is to never contain a guess.
 
 ## Step 2b — Propose the rest of `PROJECT_CONFIG.md` from the repository
@@ -114,6 +103,7 @@ every row it answers, citing the file and line each came from:
 | `FRONTEND_ROOT`, `PACKAGE_MANAGER`, `FE_LINT_CMD`, `FE_UNIT_TEST_CMD`, `FE_E2E_TEST_CMD`, `FE_*_LIB`, `I18N_LIB` | `package.json` scripts and dependencies, the lock file present, `playwright.config.*`, `vite.config.*` |
 | `SOURCE_ENCODING`, `EVIDENCE_*_DIR` | the five-phase workspace's `manifest.yaml` and `input/` folders |
 | Modules table (§3) | the Django apps under `BACKEND_ROOT` |
+| `COMPOSE_FILE`, `BACKEND_SERVICE`, `FRONTEND_SERVICE`, `HEALTH_PATH` (§12) | `dev_stack.py plan` (below), and the root `urls.py` for the health path; `LINT_CMD` and `TEST_CMD` are then the backend's own scripts run in `BACKEND_SERVICE` (`docker compose -f <compose> exec -T <service> ./scripts/test.sh`) |
 
 Show the proposal as one table — row, proposed value, source — then, separately, the rows
 nothing on disk answers (policy rows such as `MIGRATIONS_POLICY`, `REFERENCE_DB_POLICY`,
@@ -258,15 +248,15 @@ be written, resolved from Step 1's five values:
 
 This subsystem is being modernized from a legacy {{LEGACY_VARIANT}} Access application via the
 `ak` modernize pipeline. Entry point for all design/planning docs: `{{DOCS_DIR}}/README.md` —
-read it before `{{DOCS_DIR}}/MASTER_WORKFLOW.md`, which is the operational manual, not the
-introduction.
+read it before `MASTER_WORKFLOW.md`, the operational manual, which ships with the `ak` plugin
+(`/ak:modernize-screen` reads it).
 
 The fixed scope and architecture boundary for this subsystem are in
 `{{DOCS_DIR}}/ARCHITECTURE.md` — non-negotiable, read before any cross-subsystem-adjacent
 change.
 
 When asked to implement, refresh, test, or review a screen: look it up in
-`{{DOCS_DIR}}/Screens_Registry.md` first, then follow `{{DOCS_DIR}}/MASTER_WORKFLOW.md`'s
+`{{DOCS_DIR}}/Screens_Registry.md` first, then follow `MASTER_WORKFLOW.md`'s
 Pre-Flight Check. Do not skip pre-flight even for a small change.
 <!-- modernize-plugin:end -->
 ```
@@ -293,6 +283,41 @@ project's real instance does — "whenever CLAUDE.md is changed, update this AGE
 the same turn"); writing the identical block to both honors that rule rather than requiring
 the user to notice and repeat it.
 
+## Step 4b — Bring the stack up
+
+A project whose documents are in place and whose code has never run has not been set up.
+The first project bootstrapped without this step had no database it could reach, and its
+test suite, written for the Linux container, failed on the Windows host before a test body
+ran; nothing could be checked until a database was assembled by hand.
+
+```bash
+python "${CLAUDE_PLUGIN_ROOT}/modernize/scripts/dev_stack.py" plan --repo <target>
+```
+
+It names the compose file, the backend and frontend services, their ports and the external
+networks. Propose `COMPOSE_FILE`, `BACKEND_SERVICE`, `FRONTEND_SERVICE` and `HEALTH_PATH` from it
+(Step 2b's table), and `DEV_DB`: `local-container` unless the user says the developer's machine
+reaches the database named in the backend's `.env`. One accept, then:
+
+```bash
+python "${CLAUDE_PLUGIN_ROOT}/modernize/scripts/dev_stack.py" up --repo <target> --compose {{COMPOSE_FILE}} --health-path {{HEALTH_PATH}}
+```
+
+With `local-container` it writes `docker-compose.override.yml` beside the compose file: a
+PostgreSQL service with its own volume, and the backend's database settings pointed at it. It
+refuses (exit `2`) when git would track that file - it holds the local password - so propose the
+`.gitignore` line first if it is missing. It then creates the external networks, builds and
+starts, makes and applies migrations, and waits for `HEALTH_PATH` and the frontend's page.
+
+| Exit | Action |
+|---|---|
+| `0` | The stack is up; Step 5 runs the commands in it |
+| `1` | A build, migration or check failed: show the output. A failure in the project's own code is reported, not fixed by bootstrap |
+| `2` | Docker is not reachable, or the override is not ignored: name the one thing the user does, and re-run |
+
+The project's compose file and scripts are not edited. `dev_stack.py down` stops the stack and
+keeps the database volume.
+
 ## Step 5 — Report
 
 State plainly, in one place:
@@ -318,15 +343,17 @@ State plainly, in one place:
     create the Django app (`__init__.py`, `apps.py`, an empty `urls.py`, `migrations/__init__.py`),
     add it to `INSTALLED_APPS` and mount it under `API_PREFIX` at its §3 prefix, which is the
     shape every later stage writes into.
-  - Run `LINT_CMD`, `TEST_CMD`, `FE_LINT_CMD` and `FE_E2E_TEST_CMD` once each when filled.
-    A command that cannot start - its tool is not installed, its dependencies are not
-    installed, its container is down - is set up the way the project's README says, into
-    ignored locations (a virtual environment, `node_modules`), with the user's ok; what only
-    the user can do (start Docker Desktop, provide a database password) is named as the
-    blocker. A command that runs and fails on the project's own code is reported with its
+  - Run `LINT_CMD`, `TEST_CMD`, `FE_LINT_CMD` and `FE_E2E_TEST_CMD` once each when filled,
+    in the stack Step 4b brought up. A command that cannot start because its container is
+    down is Step 4b's to fix. Do not install dependencies on the host into a folder a compose
+    service mounts: a host `node_modules` in a mounted `frontend/` made the container's
+    `pnpm install` fail with `EACCES`, and a host virtual environment is ignored by the
+    container anyway. What only the user can do (start Docker Desktop, provide a password) is
+    named as the blocker. A command that runs and fails on the project's own code is reported with its
     output, not fixed by bootstrap.
   - Run `validate_docs.py` again. Report every item as passed, fixed, or blocked with what
-    unblocks it, and the report's path.
+    unblocks it, and the report's path. The report is a run's output, not a project document:
+    propose `validate-docs-report.md` for `.gitignore`.
 - The one next action, as a line to paste: the rows still unfilled if any, otherwise
   `/ak:modernize-screen <first screen by priority>`.
 - Whether the docs directory would be sent to a Docker build. If the repository has a

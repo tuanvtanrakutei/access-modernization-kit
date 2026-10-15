@@ -9,6 +9,12 @@ Run **Stage 5** for the screen named in the request, following `Code_Review/READ
 `TRACEBACK_GATES.md` governs how a gate finding is classified and whether it may be upgraded
 or downgraded here.
 
+The pipeline manuals named here by bare filename (`MASTER_WORKFLOW.md`, `TRACEBACK_GATES.md`,
+`LEGACY_EVIDENCE.md`, the coding and testing rule documents, `CONVENTIONS.md`) ship with this plugin in
+`${CLAUDE_PLUGIN_ROOT}/modernize/docs/`. Read a manual from the project's docs directory only when the
+project keeps its own copy there under the same name; otherwise read the plugin's. Their `{{...}}` keys
+resolve from `PROJECT_CONFIG.md`.
+
 ## Read everything upstream first, in one batch
 
 If no screen was named in the request, stop before reading anything and

@@ -3,7 +3,7 @@
 > **Template.** Concrete patterns for this project's API client and data-fetching layers.
 > Read before defining a new API function, hook, or query key.
 >
-> Principles live in `{{DOCS_DIR}}/{{FRONTEND_RULES_DOC}}` sections 3 and 4 (API client
+> Principles live in `{{FRONTEND_RULES_DOC}}` (the `ak` plugin's manual, or the project's own copy under `{{DOCS_DIR}}`) sections 3 and 4 (API client
 > layer, data fetching). This file records what *this* codebase actually does. Where the
 > two differ on a project-specific detail, this file wins — `{{FRONTEND_RULES_DOC}}` states
 > that division of authority itself, so it is not repeated here.

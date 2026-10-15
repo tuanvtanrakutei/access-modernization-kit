@@ -3,7 +3,7 @@
 > **Template.** Concrete patterns for building a screen in this project. Read before
 > building a new screen.
 >
-> Principles live in `{{DOCS_DIR}}/{{FRONTEND_RULES_DOC}}` sections 6, 7, 9, and 10 (forms,
+> Principles live in `{{FRONTEND_RULES_DOC}}` (the `ak` plugin's manual, or the project's own copy under `{{DOCS_DIR}}`) sections 6, 7, 9, and 10 (forms,
 > legacy UI parity, tables, mandatory states) — section 7 in particular explains *why*
 > several rules below exist, if this project modernizes a legacy UI. This file records what
 > *this* codebase actually does; on a project-specific detail it wins.

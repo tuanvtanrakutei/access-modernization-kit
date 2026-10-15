@@ -5,7 +5,13 @@ description: "Run the end-to-end legacy Access modernization pipeline for one sc
 
 # Modernize One Screen
 
-You are running the modernization pipeline for one or more screens of a legacy Microsoft Access application. The authoritative orchestration document is `MASTER_WORKFLOW.md` in the project's documentation directory.
+You are running the modernization pipeline for one or more screens of a legacy Microsoft Access application. The authoritative orchestration document is `MASTER_WORKFLOW.md`.
+
+The pipeline manuals named here by bare filename (`MASTER_WORKFLOW.md`, `TRACEBACK_GATES.md`,
+`LEGACY_EVIDENCE.md`, the coding and testing rule documents, `CONVENTIONS.md`) ship with this plugin in
+`${CLAUDE_PLUGIN_ROOT}/modernize/docs/`. Read a manual from the project's docs directory only when the
+project keeps its own copy there under the same name; otherwise read the plugin's. Their `{{...}}` keys
+resolve from `PROJECT_CONFIG.md`.
 
 ## Step 1 — Read The Project Configuration First
 

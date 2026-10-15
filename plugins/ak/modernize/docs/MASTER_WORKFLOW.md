@@ -125,6 +125,7 @@ Two real states worth naming. `be_mode: Backfill, fe_mode: Greenfield` — backe
 Run once per screen, before Stage 1. These reads are independent — batch them into a single tool-call message.
 
 1. **Read `PROJECT_CONFIG.md`** and resolve every placeholder used below. If any required value is an unfilled `{{...}}`, stop and ask the user to complete it.
+   - **Compare `{{KIT_VERSION}}` with the installed plugin** (`version` in `${CLAUDE_PLUGIN_ROOT}/.claude-plugin/plugin.json`). This manual and its siblings are read from the installed plugin, not from a copy in the project, so a plugin update changes them for every screen at once. Equal → say so in the pre-flight line. Different → name both versions and the `CHANGELOG.md` entries between them that touch `modernize/` or the screen skills; a screen whose plan already exists keeps that plan, and Stage 1 of a new screen follows the installed manual. Offer to set `KIT_VERSION` to the installed version; never change it unasked.
 2. **Look up the screen in `Screens_Registry.md`.** Resolve `screen_key`, `module`, url segment, `status_be`, `status_fe`.
    - Row exists under active screens → use as-is.
    - Row exists under future scope → promote it to active, statuses stay `not_started`.
@@ -138,6 +139,7 @@ Run once per screen, before Stage 1. These reads are independent — batch them 
    - `phase6`, in a run-state written before Phase 6 was retired → ignore it, whatever it says. No document is produced for it any more.
    - Otherwise `PUBLISHED` → proceed. If the enriched artifacts (`Evidence.json`, `TraceabilityMatrix.csv`, `<bundle_id>/phase-readiness.json`, `<bundle_id>/coverage.json`) are present, prefer them per `LEGACY_EVIDENCE.md` §6.1; if only `phase_gates` is present, that alone satisfies this step.
    - State in the pre-flight announcement which tier was used — `phase_gates` only, or enriched. A screen that silently used the weaker signal must not read the same as one that used the stronger.
+   - No `run-state.json`, and `{{AK_RUN_DIR}}` is a workspace built phase by phase (`manifest.yaml` beside `output/`) → that workspace's gate is `$ak conformance --outputs {{AK_RUN_DIR}}/output`: a phase document with a failed check is the `REJECTED` above, one that passes is `PUBLISHED`, and a phase with no document is `NOT_REQUESTED`. Say `conformance` as the tier in the pre-flight line.
 
    If `{{AK_RUN_DIR}}` is `n/a`, Stage 0 was manual export: verify per `LEGACY_EVIDENCE.md` for `{{LEGACY_VARIANT}}` — at minimum the sufficiency rule in §7. Stage 1 is computed from the extraction's `*_Identifiers.json` and `*_TraceabilityMatrix.csv`, which a manual export does not have: **stop** and say so. `screen_scope.py` exits `2` for the same reason when either file is absent from a directory that is not `n/a`.
 6. **Verify the table mapping** at `{{TABLE_MAP_DOC}}` covers the tables and fields this screen needs. If not, stop and ask for it to be extended.
@@ -147,6 +149,9 @@ Run once per screen, before Stage 1. These reads are independent — batch them 
    - Exit `0` → **proceed**, and say in the pre-flight line how many items proceed on a default and how many block a workflow this screen is a step of. Plan on those defaults and write each into the gap matrix as an `open` row that cites the item id (`Screen_plans_README.md` §6).
    - The report's last line counts the open items that name no screen at all, a risk's disposition among them. Those are not shown to any screen from here; do not read an empty list as "nothing is open".
    - No queue present → say so in the pre-flight line. A screen planned without it must not read the same as one planned with it, which is the rule step 5 already applies to the evidence tier.
+9. **The stack is up.** Run `python "${CLAUDE_PLUGIN_ROOT}/modernize/scripts/dev_stack.py" status --repo . --compose {{COMPOSE_FILE}} --health-path {{HEALTH_PATH}}`. Every closing gate below runs `{{LINT_CMD}}` and `{{TEST_CMD}}` in `{{BACKEND_SERVICE}}`, and Stage 4's browser checks need `{{FRONTEND_SERVICE}}` serving.
+   - Exit `1` → run the same command with `up`; with `{{DEV_DB}}` = `local-container` that also starts the local database and applies the migrations. Proceed when it exits `0`.
+   - Exit `2` → **stop**: docker is not reachable, or the override it would write is not ignored by git. Name the one thing the user has to do.
 
 ### Concurrent Activity Soft-Lock
 

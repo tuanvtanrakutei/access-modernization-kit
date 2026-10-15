@@ -8,8 +8,14 @@ description: "Run Stages 1 and 2 only for one screen - the computed scope and th
 Run **Stages 1 and 2 only** for the screen named in the request. Produce documents; write
 no code.
 
-Do not restate the method here. `MASTER_WORKFLOW.md` in the project's docs directory is the
+Do not restate the method here. `MASTER_WORKFLOW.md` is the
 authority for what each stage does and what closes it.
+
+The pipeline manuals named here by bare filename (`MASTER_WORKFLOW.md`, `TRACEBACK_GATES.md`,
+`LEGACY_EVIDENCE.md`, the coding and testing rule documents, `CONVENTIONS.md`) ship with this plugin in
+`${CLAUDE_PLUGIN_ROOT}/modernize/docs/`. Read a manual from the project's docs directory only when the
+project keeps its own copy there under the same name; otherwise read the plugin's. Their `{{...}}` keys
+resolve from `PROJECT_CONFIG.md`.
 
 ## Before starting
 

@@ -87,18 +87,25 @@ fe_mode: Greenfield` — a normal state, not an error.
 
 ### Top-level (cross-cutting)
 
-| File | Audience | Role |
-|---|---|---|
-| `README.md` (this file) | Everyone | Entry point and quick start |
-| `MASTER_WORKFLOW.md` | Agent / tech lead | Operational manual — 6 stages, modes, parallelism, cleanup |
-| `TRACEBACK_GATES.md` | Agent / reviewer | Full gate spec — severity ladder, classification, anchor format |
-| `LEGACY_EVIDENCE.md` | Agent | Evidence taxonomy for `{{LEGACY_VARIANT}}`, Stage 0 handoff contract |
-| `PROJECT_CONFIG.md` | Everyone | Every project-specific value the pipeline resolves |
-| `ARCHITECTURE.md` | Everyone | Fixed architecture and scope boundary — non-negotiable |
-| `Screens_Registry.md` | Everyone | Screen ↔ key ↔ module ↔ priority ↔ status |
-| `Known_Issues.md` | Everyone | Cross-screen bugs, decisions, Q&A log |
-| `Known_Issues_Archive.md` | Everyone | Closed rows aged out of the active log |
-| `{{TABLE_MAP_DOC}}` | Developer | DB schema, table and field names |
+Two kinds of file. **This folder holds the project's own state**: its configuration, its
+registry, its issue log and every per-screen artifact - the files a team shares and edits.
+**The pipeline manuals ship with the `ak` plugin** (`modernize/docs/` in the plugin) at the
+version `KIT_VERSION` names, and are not copied here; the skills read them from the plugin. A
+manual this project has to change is kept here under the same name, and is read instead.
+
+| File | Where | Audience | Role |
+|---|---|---|---|
+| `README.md` (this file) | here | Everyone | Entry point and quick start |
+| `PROJECT_CONFIG.md` | here | Everyone | Every project-specific value the pipeline resolves |
+| `MASTER_WORKFLOW.md` | plugin | Agent / tech lead | Operational manual — 6 stages, modes, parallelism, cleanup |
+| `TRACEBACK_GATES.md` | plugin | Agent / reviewer | Full gate spec — severity ladder, classification, anchor format |
+| `LEGACY_EVIDENCE.md` | plugin | Agent | Evidence taxonomy for `{{LEGACY_VARIANT}}`, Stage 0 handoff contract |
+| `BACKEND_CODING.md`, `BACKEND_TESTING.md`, `FRONTEND_CODING.md`, `FRONTEND_TESTING.md`, `CONVENTIONS.md`, `PHASE_OUTPUT_GUIDE.md` | plugin | Agent | Coding and testing rules, conventions, where the extraction's outputs are |
+| `ARCHITECTURE.md` | here | Everyone | Fixed architecture and scope boundary — non-negotiable |
+| `Screens_Registry.md` | here | Everyone | Screen ↔ key ↔ module ↔ priority ↔ status |
+| `Known_Issues.md` | here | Everyone | Cross-screen bugs, decisions, Q&A log |
+| `Known_Issues_Archive.md` | here | Everyone | Closed rows aged out of the active log |
+| `{{TABLE_MAP_DOC}}` | here | Developer | DB schema, table and field names |
 
 ### Per-screen folders (stage-by-stage artifacts)
 

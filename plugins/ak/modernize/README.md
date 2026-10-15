@@ -67,6 +67,7 @@ but has not yet been re-verified against a real Codex cache.
 | `test-screen` | `/ak:test-screen` | "Write and run tests for screen {screen}" |
 | `review-screen` | `/ak:review-screen` | "Review screen {screen} against its artifacts" |
 | `screen-status` | `/ak:screen-status` | "Where does screen {screen} stand" |
+| `dev-stack` | `/ak:dev-stack` | "Start the dev stack", "is the backend up" |
 
 Example: `/ak:plan-screen OrderEntry` runs Stages 1–2 for the `OrderEntry` screen. What each
 stops on, and what it refuses without: [Single stage](#single-stage) below — not repeated
@@ -239,7 +240,8 @@ plugins/ak/
 │   ├── code-screen/                ← Stages 3a–3b only, against an already-frozen plan
 │   ├── test-screen/                ← Stages 4a–4b only, against an already-coded screen
 │   ├── review-screen/              ← Stage 5 only, a verdict against whatever upstream exists
-│   └── screen-status/              ← read-only, writes nothing
+│   ├── screen-status/              ← read-only, writes nothing
+│   └── dev-stack/                  ← the project's Docker stack, with a local database
 ├── hooks/                          ← a sensor, never an actor (Codex support declared, unconfirmed)
 │   ├── hooks.json
 │   └── scope_sensor.py             ← warns on parent-owned files and over-long lines

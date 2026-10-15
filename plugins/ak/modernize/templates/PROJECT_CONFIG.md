@@ -13,6 +13,7 @@ Copy this file to your project's documentation root. Keep it under version contr
 | `PROJECT_NAME` | `{{PROJECT_NAME}}` | Human-readable, e.g. "Legacy Replacement — Order Receiving" |
 | `SUBSYSTEM_CODE` | `{{SUBSYSTEM_CODE}}` | Short code used in paths and identifiers, e.g. `A99` |
 | `DOCS_DIR` | `{{DOCS_DIR}}` | Where per-screen artifacts live: `docs`, or `<project>_docs` only if the repository already has a `docs/` of its own. Keep it out of any Docker build context (`.dockerignore`) |
+| `KIT_VERSION` | `{{KIT_VERSION}}` | The `ak` plugin version this project's screens are planned against. The pipeline manuals are read from the installed plugin, so pre-flight compares this with the installed version and says what changed |
 | `SCREEN_NAME_LANG` | `{{SCREEN_NAME_LANG}}` | Language of screen names used as filenames, e.g. `ja`, `en` |
 
 ## 2. Legacy Source
@@ -35,7 +36,7 @@ Copy this file to your project's documentation root. Keep it under version contr
 | `EVIDENCE_OUTPUT_DIR` | `{{EVIDENCE_OUTPUT_DIR}}` | Legacy report output samples (PDF, Excel, text) |
 | `EVIDENCE_INTERVIEW_DIR` | `{{EVIDENCE_INTERVIEW_DIR}}` | Recorded answers from named people, dated - the only class besides a document that can carry a claim about meaning, usage or intent. `n/a` if none have been recorded, which is the honest value on a project that has only exports |
 | `EVIDENCE_DOCUMENT_DIR` | `{{EVIDENCE_DOCUMENT_DIR}}` | Business documents supplied for this application - operation manuals, data dictionaries, screen lists. `n/a` if none |
-| `AK_RUN_DIR` | `{{AK_RUN_DIR}}` | Root of a five-phase analysis run (contains `run-state.json`, and `Evidence.json` / `TraceabilityMatrix.csv` if the enriched tier was produced), or `n/a` if Stage 0 was manual export per `LEGACY_EVIDENCE.md` §6 |
+| `AK_RUN_DIR` | `{{AK_RUN_DIR}}` | Root of a five-phase analysis run (contains `run-state.json`, or is a workspace with `manifest.yaml` and `output/`, and `Evidence.json` / `TraceabilityMatrix.csv` if the enriched tier was produced), or `n/a` if Stage 0 was manual export per `LEGACY_EVIDENCE.md` §6 |
 
 ## 3. Target Backend
 
@@ -46,8 +47,8 @@ Fixed stack: Django + Django REST Framework + PostgreSQL.
 | `BACKEND_ROOT` | `{{BACKEND_ROOT}}` | e.g. `backend/order_receiving` |
 | `API_PREFIX` | `{{API_PREFIX}}` | e.g. `/api/v1/a99/` — every endpoint mounts under this |
 | `TABLE_MAP_DOC` | `{{TABLE_MAP_DOC}}` | Legacy-to-new table/field mapping document |
-| `LINT_CMD` | `{{LINT_CMD}}` | Exact command, e.g. `./scripts/lint.sh` from `backend/` |
-| `TEST_CMD` | `{{TEST_CMD}}` | Exact command, e.g. `./scripts/test.sh <module_path>` |
+| `LINT_CMD` | `{{LINT_CMD}}` | Exact command, run where the backend runs, e.g. `docker compose -f <compose> exec -T <backend service> ./scripts/lint.sh` (section 12) |
+| `TEST_CMD` | `{{TEST_CMD}}` | Exact command, e.g. `docker compose -f <compose> exec -T <backend service> ./scripts/test.sh <module_path>`. A suite written for the Linux container is run in it: on a Windows host pytest can fail before a test body runs |
 | `MIGRATIONS_POLICY` | `{{MIGRATIONS_POLICY}}` | `owned` (this project creates migrations) or `external` (models and migrations belong to another module — do not create) |
 
 ### Modules
@@ -83,7 +84,7 @@ One row per Django app that owns screens. The pipeline uses `module` for paralle
 | `FE_FORM_LIB` | `{{FE_FORM_LIB}}` | e.g. `react-hook-form + Zod` |
 | `FE_STYLE_LIB` | `{{FE_STYLE_LIB}}` | e.g. `Tailwind CSS` |
 | `PACKAGE_MANAGER` | `{{PACKAGE_MANAGER}}` | e.g. `pnpm`, `npm`, `yarn`. `FRONTEND_CODING.md` §15.2 tells the agent to run every frontend command through this one, so a project that leaves it unanswered gets whichever manager the agent happens to reach for — and a second lock file |
-| `FE_LINT_CMD` | `{{FE_LINT_CMD}}` | e.g. `npm run lint` |
+| `FE_LINT_CMD` | `{{FE_LINT_CMD}}` | Run where the frontend runs, e.g. `docker compose -f <compose> exec -T <frontend service> npm run lint` (section 12) |
 | `FE_UNIT_TEST_CMD` | `{{FE_UNIT_TEST_CMD}}` | e.g. `npm run test`, or `n/a` |
 | `FE_E2E_TEST_CMD` | `{{FE_E2E_TEST_CMD}}` | e.g. `npx playwright test` |
 | `I18N_LIB` | `{{I18N_LIB}}` | e.g. `i18next`, or `n/a` if single-language |
@@ -142,7 +143,7 @@ Fill only if this subsystem coexists with others sharing a database or model lay
 
 ## 10. Rule Document Names
 
-The pipeline references these four documents by placeholder so a project may name them however it likes. Give each a filename; the file is expected to sit under `DOCS_DIR`.
+The pipeline references these four documents by placeholder so a project may name them however it likes. The three rule documents default to the manuals the `ak` plugin ships in `modernize/docs/`; a file of the same name under `DOCS_DIR` is the project's own version and is read instead. `ARCHITECTURE_DOC` is always the project's, under `DOCS_DIR`.
 
 | Key | Value | Default if you have no preference |
 |---|---|---|
@@ -153,20 +154,32 @@ The pipeline references these four documents by placeholder so a project may nam
 
 ## 11. Document Map
 
-Fixed names — these are not configurable, because the pipeline documents reference each other directly.
+Fixed names — these are not configurable, because the pipeline documents reference each other directly. A manual marked *plugin* ships with the installed `ak` plugin; a file of the same name under `DOCS_DIR` overrides it.
 
 | Purpose | Path |
 |---|---|
-| Pipeline orchestrator | `{{DOCS_DIR}}/MASTER_WORKFLOW.md` |
-| Coverage gate specification | `{{DOCS_DIR}}/TRACEBACK_GATES.md` |
-| Legacy evidence taxonomy | `{{DOCS_DIR}}/LEGACY_EVIDENCE.md` |
+| Pipeline orchestrator | `MASTER_WORKFLOW.md` (plugin) |
+| Coverage gate specification | `TRACEBACK_GATES.md` (plugin) |
+| Legacy evidence taxonomy | `LEGACY_EVIDENCE.md` (plugin) |
 | Screen registry | `{{DOCS_DIR}}/Screens_Registry.md` |
 | Cross-screen issue log | `{{DOCS_DIR}}/Known_Issues.md` |
-| Backend coding rules | `{{DOCS_DIR}}/{{BACKEND_RULES_DOC}}` |
-| Frontend coding rules | `{{DOCS_DIR}}/{{FRONTEND_RULES_DOC}}` |
-| Code style conventions | `{{DOCS_DIR}}/{{CONVENTIONS_DOC}}` |
+| Backend coding rules | `{{BACKEND_RULES_DOC}}` (plugin, unless the project keeps its own) |
+| Frontend coding rules | `{{FRONTEND_RULES_DOC}}` (plugin, unless the project keeps its own) |
+| Code style conventions | `{{CONVENTIONS_DOC}}` (plugin, unless the project keeps its own) |
 | Architecture constraints | `{{DOCS_DIR}}/{{ARCHITECTURE_DOC}}` |
 | Per-screen artifacts | `{{DOCS_DIR}}/{Screen_plans,Coding_Records,Test_Instruction,Code_Review}/` |
+
+## 12. Development Stack
+
+The stack every stage builds against and every check runs in. `dev_stack.py` (bootstrap Step 4b, pre-flight step 9) reads these rows.
+
+| Key | Value | Notes |
+|---|---|---|
+| `COMPOSE_FILE` | `{{COMPOSE_FILE}}` | Compose file, relative to the repository root, e.g. `.docker/docker-compose.yml` |
+| `BACKEND_SERVICE` | `{{BACKEND_SERVICE}}` | Compose service running the backend; `LINT_CMD` and `TEST_CMD` execute in it |
+| `FRONTEND_SERVICE` | `{{FRONTEND_SERVICE}}` | Compose service serving the frontend, or `n/a` |
+| `DEV_DB` | `{{DEV_DB}}` | `local-container`: `dev_stack.py` writes a gitignored `docker-compose.override.yml` beside the compose file with a PostgreSQL service and points the backend at it. `external`: the backend's `.env` names a database the developer's machine can reach |
+| `HEALTH_PATH` | `{{HEALTH_PATH}}` | Backend path that answers once it is up, e.g. `health/` |
 
 ## Validation Checklist
 
@@ -174,7 +187,8 @@ Before the first pipeline run, confirm:
 
 - [ ] No `{{...}}` placeholder remains unfilled (or is explicitly `n/a` with a reason).
 - [ ] `LEGACY_VARIANT` matches the actual files you have.
-- [ ] `LINT_CMD` and `TEST_CMD` run successfully when executed by hand.
+- [ ] `dev_stack.py up` brings the stack up: images build, migrations apply, `HEALTH_PATH` and the frontend answer.
+- [ ] `LINT_CMD` and `TEST_CMD` run successfully in `BACKEND_SERVICE`.
 - [ ] `FE_E2E_TEST_CMD` runs (even if it reports "no tests found").
 - [ ] Every module listed in §3 exists as a directory under `BACKEND_ROOT`.
 - [ ] Evidence directories in §2 exist and contain at least one file.
