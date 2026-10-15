@@ -27,8 +27,11 @@ Detect each of the five values below before asking for any of them, and show the
 table — value, and the file or search it came from — with one `ok` / `edit field=value`.
 Ask only for a value nothing on disk answers. Where to look:
 
-- `AK_RUN_DIR`: a directory holding a `run-state.json` under the repository or a path the user
-  named. More than one found → list them and ask which; none → ask, as below.
+- `AK_RUN_DIR`: a directory holding a `run-state.json`, or a five-phase workspace (`manifest.yaml`
+  beside an `output/` holding `*_Phase2_ScreenAnalysis_*.md`) - under the repository, its parent,
+  or a path the user named. A workspace built phase by phase never writes `run-state.json`; it is
+  a run all the same, and Step 3 reads it. More than one found → list them and ask which; none →
+  ask, as below.
 - `SUBSYSTEM_CODE`, `PROJECT_NAME`, `LEGACY_VARIANT`: the five-phase workspace's `manifest.yaml`
   (its app id, name and source files) when `AK_RUN_DIR` was found; the legacy file's extension
   (`.adp`, `.mdb`, `.accdb`, a split pair) otherwise.
@@ -168,10 +171,27 @@ Branch on exit status:
 | Exit | Meaning | Action |
 |---|---|---|
 | `0` | Proposal written, every row fully filled | Continue to Propose below |
-| `1` | Phase 2 gate is not `PUBLISHED` yet | Stop this step, do not seed. Report which gate value blocked it. This is expected mid-run, not a bug — proceed with the rest of bootstrap, seed later by re-running this step alone |
-| `2` | Could not parse (missing `run-state.json`, missing or malformed Phase 2 document) | Stop this step, show the stderr message, ask the user whether to fall back to manual seeding for this run rather than treating it as a hard failure of the whole skill |
+| `1` | Phase 2 gate is not `PUBLISHED` yet (a run), or the Phase 2 document does not pass `$ak conformance` (a workspace) | Stop this step, do not seed. Report which gate value or failed check blocked it. This is expected mid-run, not a bug — proceed with the rest of bootstrap, seed later by re-running this step alone |
+| `2` | Could not parse (neither `run-state.json` nor a workspace, missing or malformed Phase 2 document, no `F-` identifiers in the register) | Stop this step, show the stderr message, ask the user whether to fall back to manual seeding for this run rather than treating it as a hard failure of the whole skill |
 
-**Propose — one table, one accept.** Read the JSON at `--out` and print every row:
+**A workspace is read from its registers, not from the Phase 2 prose.** Without
+`run-state.json` the script reads what the kit already wrote: the `F-` identifiers and their
+production names, the reference graph (`.ak/extracted/derived-extraction.json`: which form opens
+which form or report), the screen model's subform controls, the Phase 2 `Entry points` table and
+the `out of scope` rows of `input/target-intent/`. It sorts every object into three lists:
+
+| List in the JSON | What goes there | Where it is written |
+|---|---|---|
+| `rows` | Forms reached from an entry point; each carries the reports it `prints` and the subforms it `embeds` | Active Screens |
+| `future_scope` | Forms nothing in the legacy application opens, and reports no form opens | Future Scope |
+| `excluded` | Objects a recorded decision puts out of scope | nowhere - named in the Step 5 report |
+
+The gate is `$ak conformance` on the Phase 2 document: no failed check reads `CONFORMS`, the
+workspace's equivalent of `PUBLISHED`. A module is filled without a guess when exactly one §3
+row's scope names the screen's object or its `F-` id; otherwise the word-overlap guess applies.
+
+**Propose — one table, one accept.** Read the JSON at `--out` and print every row (and, from
+a workspace, the `future_scope` rows and the `excluded` objects with their `reason` under it):
 `priority`, `screen`, `screen_key`, `type`, `module`, `module_prefix`, `fe_route`. `type`
 is shown for context only — Phase 2 lists forms and reports alike, and whether a given
 legacy Report becomes its own screen in the new system is the one judgment call folded
@@ -196,12 +216,16 @@ There is no per-row edit step here. If one row's guess is wrong, editing the Mar
 table directly afterward is exactly as fast as a chat-based edit round trip, and does not
 add a third reply the human must learn.
 
-**Apply.** On `ok`, insert every row into the Active Screens table sorted by `priority`,
-`status_be` and `status_fe` both `not_started` for every row (this is a new project — no
-code exists yet, unlike Agent-Assisted Registration's on-demand case which must check for
-pre-existing code). Delete `bootstrap-registry-proposal.json` once applied — it is a
-working file, not a project artifact, and leaving it invites confusion with
-`Screens_Registry.md` itself as the source of truth.
+**Apply.** On `ok`, run the same command again with
+`--write-registry <target>/{{DOCS_DIR}}/Screens_Registry.md`. It writes the Active Screens and
+Future Scope tables in `priority` order, `status_be` and `status_fe` both `not_started` (this is a
+new project — no code exists yet, unlike Agent-Assisted Registration's on-demand case which must
+check for pre-existing code), and refuses with exit `2` when either table already holds a row
+that is not the template's placeholder: a registry someone has edited is not bootstrap's to
+replace. Writing by script rather than by hand is the point - a hand-typed registry is where a
+row went missing on the first project that seeded one. Delete
+`bootstrap-registry-proposal.json` once applied — it is a working file, not a project artifact,
+and leaving it invites confusion with `Screens_Registry.md` itself as the source of truth.
 
 ## Step 4 — Wire `CLAUDE.md` / `AGENTS.md`
 
@@ -274,18 +298,35 @@ the user to notice and repeat it.
 State plainly, in one place:
 
 - Which files were copied and where.
-- Whether registry seeding ran, and if so, how many rows were written, how many read
+- Whether registry seeding ran, and if so, how many rows were written to Active Screens and
+  to Future Scope, which objects were excluded and by which decision, how many read
   `module: UNASSIGNED`, and how many used the non-ASCII `screen_key` fallback (name them
   — do not just give a count).
 - Whether `CLAUDE.md`/`AGENTS.md` were created, appended to, updated, or left untouched
   (`cancel`), per file.
-- The `PROJECT_CONFIG.md` Validation Checklist, **run, not handed over**: run `LINT_CMD`,
-  `TEST_CMD` and `FE_E2E_TEST_CMD` once each when they are filled, check each §3 module
-  directory and each evidence directory exists, count the registry rows. Report every item
-  as passed, failed (with the output line), or not checkable yet (its row is unfilled). A
-  command that fails here is reported, not fixed.
-- The `validate-docs` result: run `validate_docs.py` as the `validate-docs` skill does (it
-  only reads) and give the finding counts by severity, with the report's path.
+- The `validate-docs` result and the `PROJECT_CONFIG.md` Validation Checklist, **brought to
+  clean, not handed over**. A project whose first report listed two dangling issue
+  references, two modules with no app and four commands nobody had run was "bootstrapped"
+  and could not start Stage 1. Bootstrap is finished when both are clean, or when every item
+  left is one only the user can clear:
+  - Run `validate_docs.py` as the `validate-docs` skill does (it reads only; it also checks
+    the readable checklist items: each §3 module has a directory, each evidence directory
+    exists and holds a file, the registry has a row). Then fix what bootstrap owns, each kind
+    with one accept: a key or reference in a document it copied; a code comment citing another
+    subsystem's issue without naming it - qualify it (`A98 Known_Issues.md #14`), the shape
+    the checker reads as provenance rather than a missing row; a §3 module with no directory -
+    create the Django app (`__init__.py`, `apps.py`, an empty `urls.py`, `migrations/__init__.py`),
+    add it to `INSTALLED_APPS` and mount it under `API_PREFIX` at its §3 prefix, which is the
+    shape every later stage writes into.
+  - Run `LINT_CMD`, `TEST_CMD`, `FE_LINT_CMD` and `FE_E2E_TEST_CMD` once each when filled.
+    A command that cannot start - its tool is not installed, its dependencies are not
+    installed, its container is down - is set up the way the project's README says, into
+    ignored locations (a virtual environment, `node_modules`), with the user's ok; what only
+    the user can do (start Docker Desktop, provide a database password) is named as the
+    blocker. A command that runs and fails on the project's own code is reported with its
+    output, not fixed by bootstrap.
+  - Run `validate_docs.py` again. Report every item as passed, fixed, or blocked with what
+    unblocks it, and the report's path.
 - The one next action, as a line to paste: the rows still unfilled if any, otherwise
   `/ak:modernize-screen <first screen by priority>`.
 - Whether the docs directory would be sent to a Docker build. If the repository has a

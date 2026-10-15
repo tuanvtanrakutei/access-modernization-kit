@@ -25,6 +25,9 @@ real project, not because it seemed plausible:
                           and a malformed or repeated rule_prefix mints rule ids
                           two screens share or nothing can read back
   missing-folder/readme   a per-screen artifact folder or its README is absent
+  checklist-*             a PROJECT_CONFIG module with no app directory, an evidence
+                          directory that is missing or empty, an empty registry: the
+                          Validation Checklist items a file read can settle
 
 Output is written as UTF-8 to a report file; the console summary stays ASCII so a
 cp932 console cannot turn a passing run into a UnicodeEncodeError.
@@ -59,7 +62,8 @@ ROW_TOKEN_RE = re.compile(r"^SCREEN_\d+(_[A-Z_]+)?$")
 # `A99 Known_Issues.md #41` - a row in another subsystem's log. A system family copies
 # code between subsystems, and the comment that explains why a helper exists is worth
 # more with its origin attached than with the origin stripped to keep a checker quiet.
-EXTERNAL_ISSUE_RE = re.compile(r"\b[A-Z]\d{2}(?:'s)?\s+Known_Issues\.md\s*#\d+")
+# `A99 (Known_Issues.md #41)` is the same qualification in parentheses.
+EXTERNAL_ISSUE_RE = re.compile(r"\b[A-Z]\d{2}(?:'s)?\s+\(?Known_Issues\.md\s*#\d+")
 # A bare lowercase single-word .md in prose is an illustration, not a reference:
 # "instead of splitting `legacy.md` and `new.md`" must not be read as two refs.
 PROSE_DOC_RE = re.compile(r"^[a-z][a-z0-9-]*\.md$")
@@ -390,6 +394,72 @@ def check_registry(f: Findings, docs_dir: str, registry_path: str) -> None:
                     prefixes[prefix] = line_no
 
 
+# ----------------------------------------------------------- checklist checks
+
+MODULE_TABLE_ROW = re.compile(r"^\|\s*`([A-Za-z_][A-Za-z0-9_]*)`\s*\|", re.M)
+EVIDENCE_KEYS = ("EVIDENCE_CODE_DIR", "EVIDENCE_UI_DIR", "EVIDENCE_OUTPUT_DIR",
+                 "EVIDENCE_INTERVIEW_DIR", "EVIDENCE_DOCUMENT_DIR")
+
+
+def config_value(config_text: str, key: str) -> str:
+    m = re.search(r"^\|\s*`%s`\s*\|([^|]*)\|" % re.escape(key), config_text, re.M)
+    return m.group(1).strip().strip("`").strip() if m else ""
+
+
+def _not_applicable(value: str) -> bool:
+    return not value or value.lower().startswith("n/a") or value.startswith("{{")
+
+
+def _resolve(value: str, base: str) -> str:
+    return value if os.path.isabs(value) else os.path.join(base, value)
+
+
+def check_checklist(f: Findings, docs_dir: str, config_path: str, registry_path: str,
+                    source_dir: str | None) -> None:
+    """The readable half of PROJECT_CONFIG's Validation Checklist.
+
+    The checklist used to be handed to the developer after bootstrap and read by nobody:
+    a project was bootstrapped with two modules that did not exist as Django apps and
+    stayed that way until the first screen's Stage 1 tripped over them. Running the lint
+    and test commands is the bootstrap's own step; these are the items a file read can
+    settle.
+    """
+    cfg = read(config_path)
+    where = rel(config_path, docs_dir)
+    base = source_dir or os.path.dirname(os.path.abspath(docs_dir))
+
+    backend_root = config_value(cfg, "BACKEND_ROOT")
+    block = cfg.split("### Modules", 1)[1].split("\n#", 1)[0] if "### Modules" in cfg else ""
+    modules = [m for m in MODULE_TABLE_ROW.findall(block) if m.lower() != "module"]
+    if not _not_applicable(backend_root):
+        for module in modules:
+            if not os.path.isdir(os.path.join(_resolve(backend_root, base), module)):
+                f.add("MEDIUM", "checklist-module-missing", where,
+                      "module `%s` in section 3 has no directory under %s; create the app before "
+                      "its first screen is planned" % (module, backend_root))
+
+    for key in EVIDENCE_KEYS + ("AK_RUN_DIR",):
+        value = config_value(cfg, key)
+        if _not_applicable(value):
+            continue
+        path = _resolve(value, base)
+        if not os.path.isdir(path):
+            f.add("HIGH" if key == "AK_RUN_DIR" else "MEDIUM", "checklist-evidence-missing", where,
+                  "%s points at %s, which does not exist" % (key, value))
+        elif key != "AK_RUN_DIR" and not any(files for _d, _s, files in os.walk(path)):
+            f.add("MEDIUM", "checklist-evidence-missing", where,
+                  "%s points at %s, which holds no file" % (key, value))
+
+    if os.path.isfile(registry_path):
+        text = read(registry_path)
+        active = text.split("## Active Screens", 1)[1].split("\n## ", 1)[0] if "## Active Screens" in text else ""
+        rows = [line for line in active.split("\n")
+                if re.match(r"^\|\s*\d+\s*\|\s*`?[^`|{\s]", line)]
+        if not rows:
+            f.add("MEDIUM", "checklist-registry-empty", rel(registry_path, docs_dir),
+                  "Active Screens holds no screen row; seed it with bootstrap Step 3 or add rows by hand")
+
+
 # -------------------------------------------------------------- layout checks
 
 
@@ -448,6 +518,9 @@ def main(argv: list[str]) -> int:
     else:
         f.add("HIGH", "missing-registry", "Screens_Registry.md",
               "the single source of truth for screen identity is absent")
+
+    if os.path.isfile(config_path):
+        check_checklist(f, docs, config_path, registry_path, args.source_dir or None)
 
     lines = ["# validate-docs report", "", "docs-dir: %s" % docs, ""]
     if not len(f):

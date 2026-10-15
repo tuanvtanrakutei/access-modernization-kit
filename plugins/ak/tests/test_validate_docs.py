@@ -210,3 +210,67 @@ def test_an_empty_rule_prefix_or_no_column_is_not_a_finding(tmp_path: Path) -> N
     findings = validate_docs.Findings()
     validate_docs.check_registry(findings, str(docs), str(path))
     assert findings.rows == []
+
+
+def test_a_citation_qualified_in_parentheses_is_not_dangling(tmp_path: Path) -> None:
+    docs = tmp_path / "docs"
+    source = tmp_path / "src"
+    docs.mkdir()
+    source.mkdir()
+    (docs / "Known_Issues.md").write_text("# log\n", encoding="utf-8")
+    (source / "auth.py").write_text("# Ported from A98 (Known_Issues.md #14).\n", encoding="utf-8")
+
+    findings = validate_docs.Findings()
+    validate_docs.check_issues(findings, str(docs), str(docs / "Known_Issues.md"), str(source))
+
+    assert [r for r in findings.rows if r[1] == "dangling-issue-ref"] == []
+
+
+def _checklist_project(tmp_path: Path, registry_row: str) -> tuple[Path, Path]:
+    repo = tmp_path / "repo"
+    docs = repo / "docs"
+    docs.mkdir(parents=True)
+    (repo / "backend" / "app" / "orders").mkdir(parents=True)
+    evidence = tmp_path / "workspace" / "input" / "screenshots"
+    evidence.mkdir(parents=True)
+    (docs / "PROJECT_CONFIG.md").write_text(
+        "| `BACKEND_ROOT` | `backend/app` | x |\n"
+        f"| `EVIDENCE_UI_DIR` | `{evidence.as_posix()}` | x |\n"
+        "| `EVIDENCE_OUTPUT_DIR` | `n/a` | none supplied |\n"
+        f"| `AK_RUN_DIR` | `{(tmp_path / 'workspace').as_posix()}` | x |\n"
+        "\n### Modules\n\n| module | url prefix | owns |\n|---|---|---|\n"
+        "| `orders` | `orders/` | the order screens |\n"
+        "| `master` | `master/` | the store master |\n\n### Shared Backend Components\n",
+        encoding="utf-8")
+    (docs / "Screens_Registry.md").write_text(
+        "## Active Screens\n\n| # | screen | screen_key | status_be | status_fe |\n|---|---|---|---|---|\n"
+        + registry_row + "\n\n## Future Scope\n", encoding="utf-8")
+    return repo, docs
+
+
+def test_the_checklist_reports_a_module_without_an_app_and_an_empty_evidence_folder(tmp_path: Path) -> None:
+    repo, docs = _checklist_project(tmp_path, "| 1 | `{{SCREEN_1}}` | `{{SCREEN_1_KEY}}` | `not_started` | `not_started` |")
+
+    findings = validate_docs.Findings()
+    validate_docs.check_checklist(findings, str(docs), str(docs / "PROJECT_CONFIG.md"),
+                                  str(docs / "Screens_Registry.md"), str(repo))
+
+    kinds = sorted((r[1], r[3].split(" ")[1] if r[1] == "checklist-module-missing" else r[3][:15])
+                   for r in findings.rows)
+    assert ("checklist-module-missing", "`master`") in kinds
+    assert not any("`orders`" in r[3] for r in findings.rows)
+    assert any(r[1] == "checklist-evidence-missing" and "EVIDENCE_UI_DIR" in r[3] for r in findings.rows)
+    assert any(r[1] == "checklist-registry-empty" for r in findings.rows)
+    assert not any("EVIDENCE_OUTPUT_DIR" in r[3] for r in findings.rows)
+
+
+def test_the_checklist_is_quiet_on_a_project_that_meets_it(tmp_path: Path) -> None:
+    repo, docs = _checklist_project(tmp_path, "| 1 | `受注照会` | `screen-F001` | `not_started` | `not_started` |")
+    (repo / "backend" / "app" / "master").mkdir()
+    (tmp_path / "workspace" / "input" / "screenshots" / "f.png").write_bytes(b"x")
+
+    findings = validate_docs.Findings()
+    validate_docs.check_checklist(findings, str(docs), str(docs / "PROJECT_CONFIG.md"),
+                                  str(docs / "Screens_Registry.md"), str(repo))
+
+    assert findings.rows == []
