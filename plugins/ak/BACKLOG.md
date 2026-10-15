@@ -12,6 +12,53 @@ that it should now work.
 
 ## Open
 
+### A94 - bootstrap could not seed a registry from a workspace, and its checklist was handed over unread
+
+**Found 2026-10-15, bootstrapping the first project whose five phases were written phase by
+phase.** Three gaps showed in one run:
+
+- The registry seeder required `run-state.json`, which only `$ak run` writes. A workspace built
+  verb by verb never has one, so Step 3 stopped with exit 2. The registry was then typed by hand
+  from the Phase 2 prose, which is the step bootstrap exists to automate.
+- `validate-docs` reported two citations of another subsystem's issue log as dangling. They were
+  qualified in parentheses, `A98 (Known_Issues.md #14)`, which the provenance pattern did not
+  read. It also reported `_ScreenCatalogue.md` and `_LogicCatalogue.md` in the kit's own
+  `PHASE_OUTPUT_GUIDE.md`, written without their `{APP_ID}` prefix.
+- The Validation Checklist was reported, not met. The project was declared bootstrapped with two
+  §3 modules that had no app and four commands nobody could run.
+
+Changed:
+
+- **`scan_phase2_inventory.py` reads a workspace** (`modernize/scripts/workspace_inventory.py`).
+  - Without `run-state.json`, a directory with `manifest.yaml` and `output/` is read from what the
+    kit already wrote there: the `F-` identifiers, the reference graph, the screen model's
+    subforms, the Phase 2 `Entry points` table and the `out of scope` rows of
+    `input/target-intent/`.
+  - Forms reached from an entry point become Active Screens, and each carries the reports it
+    prints and the subforms it embeds. Forms nothing opens become Future Scope. Objects a decision
+    excludes are listed, not written.
+  - The gate is `$ak conformance` on the Phase 2 document.
+  - A module is filled without a guess when exactly one §3 scope names the object or its `F-` id.
+    The id is matched as a whole token, so `F-001` is not found inside `WF-001`.
+- **`--write-registry`** writes the accepted proposal into `Screens_Registry.md`. It refuses a
+  registry someone has edited.
+- **`validate-docs` checks the readable half of the checklist** (`checklist-*`): each §3 module
+  has a directory under `BACKEND_ROOT`, each evidence directory and `AK_RUN_DIR` exists and holds
+  a file, and the registry has a row. It also reads `A99 (Known_Issues.md #n)` as provenance.
+- **`bootstrap-project` Step 5 brings both to clean.**
+  - Bootstrap fixes what it owns, each with one accept: the documents it copied, an unqualified
+    citation, a module without an app.
+  - It sets up commands that cannot start into ignored locations.
+  - It names what only the user can clear.
+
+**Note for the modernize half (2026-10-15).** Extraction (the five phases) is the part that has
+run on real applications end to end. The modernize pipeline (bootstrap, Stage 0 to Stage 5) has
+been run on one project, and much of it was rebuilt there by hand rather than through the kit.
+Expect to change it while the next project goes through it. Each gap found during a screen's
+modernization becomes an `A`-entry here and a release, the way the extraction gaps did. A project
+under way picks the change up with a plugin update. The docs it already copied keep the version
+its screens were planned against, until bootstrap is re-run for them.
+
 ### A92 - the modernize pipeline had no picture of the screen it was about to build
 
 **Found 2026-10-12, reviewing the legacy runtime mockup with the maintainer.** A mockup of the legacy screen is

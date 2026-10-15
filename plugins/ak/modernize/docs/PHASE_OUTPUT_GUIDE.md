@@ -35,10 +35,10 @@ long documents cold and guessing which one answers your question.
 | Whether independent QA found problems | `{APP_ID}_QA_Report.md` |
 | Which VBA event maps to which SQL/output, per workflow step | `{APP_ID}_TraceabilityMatrix.csv` |
 | Exactly which source file and line backs a specific claim | `{APP_ID}_Evidence.json` → `evidenceItem.source_path` / `source_location` |
-| Whether a phase is far enough along to build on | `run-state.json` → `phase_gates.phaseN`, must read `PUBLISHED` |
+| Whether a phase is far enough along to build on | `run-state.json` → `phase_gates.phaseN`, must read `PUBLISHED`; a workspace built phase by phase has no `run-state.json`, and there `$ak conformance` must report no failed check for that phase's document |
 
 If your question is not above, look in the catalogues (`{APP_ID}_DataCatalogue.md`,
-`_ScreenCatalogue.md`, `_LogicCatalogue.md`) for the enumeration, and in the phase that
+`{APP_ID}_ScreenCatalogue.md`, `{APP_ID}_LogicCatalogue.md`) for the enumeration, and in the phase that
 owns the subject for its meaning. There is no synthesis document: `ak` retired Phase 6
 (its backlog A78).
 
@@ -56,7 +56,7 @@ prefixed with the app ID and carries a language token:
 | Dependency / workflow trace | `{APP_ID}_TraceabilityMatrix.csv` |
 | Open questions | `{APP_ID}_QuestionList.md` |
 | Independent QA result | `{APP_ID}_QA_Report.md` |
-| Phase readiness | `run-state.json` (not app-prefixed — one per run, at `{{AK_RUN_DIR}}` root) |
+| Phase readiness | `run-state.json` (not app-prefixed — one per run, at `{{AK_RUN_DIR}}` root); a workspace built phase by phase has none, and `$ak conformance` on its `output/` answers instead |
 
 Do not search by a bare `startswith("phase2")` or similar — the phase number is a substring
 after the app ID, not the start of the filename. See `LEGACY_EVIDENCE.md` §6.2 for why this

@@ -69,6 +69,9 @@ import os
 import re
 import sys
 
+from workspace_inventory import inventory as workspace_inventory
+from workspace_inventory import is_workspace
+
 HEADING_RE = re.compile(r"^#{1,6}\s*1\.\s*Screen,\s*Form,?\s*and\s*Report\s*Inventory", re.IGNORECASE)
 NEXT_HEADING_RE = re.compile(r"^#{1,2}\s+\S")
 SEPARATOR_ROW_RE = re.compile(r"^\|?[\s:|-]+\|?$")
@@ -241,6 +244,22 @@ def read_config_value(cfg_text: str, key: str) -> str | None:
     return value
 
 
+def named_module(names: list[str], modules: list[tuple[str, str, str]]) -> tuple[str, str] | None:
+    """The one module whose declared scope names this screen - its object or its id.
+
+    A scope written as `店舗マスタ保守 (F-010)` is a decision, not a hint, and a Japanese
+    object name shares no ASCII token with any scope, so the overlap guess below can
+    never find it. Two modules naming the same screen is a conflict for a human.
+    """
+    # Bounded, so `F-001` is not found inside `WF-001`, a workflow the same scope names.
+    patterns = [re.compile(r"(?<![\w-])" + re.escape(n) + r"(?![\w])") for n in names if n]
+    hits = [(m, prefix) for m, prefix, scope in modules
+            if any(p.search(scope) for p in patterns)]
+    if len(hits) == 1:
+        return hits[0][0], hits[0][1] or UNASSIGNED
+    return None
+
+
 def guess_module(business_purpose: str, modules: list[tuple[str, str, str]]) -> tuple[str, str, bool]:
     purpose_tokens = set(re.findall(r"[A-Za-z0-9]+", business_purpose.lower()))
     if not purpose_tokens or not modules:
@@ -263,12 +282,24 @@ def build_proposal(
     modules: list[tuple[str, str, str]],
     fe_route_base: str | None,
 ):
-    proposal = []
-    for i, cells in enumerate(rows_raw, start=1):
+    records = []
+    for cells in rows_raw:
         record = {}
         for idx, canon in col_map.items():
             record[canon] = cells[idx] if idx < len(cells) else ""
-        object_name = record.get("object", "").strip()
+        records.append(record)
+    return records_to_proposal(records, case, modules, fe_route_base)
+
+
+def records_to_proposal(
+    records: list[dict],
+    case: str,
+    modules: list[tuple[str, str, str]],
+    fe_route_base: str | None,
+):
+    proposal = []
+    for i, record in enumerate(records, start=1):
+        object_name = record.get("object", "").strip().strip("`")
         if not object_name:
             continue  # blank padding row, not a real entry
         flags = []
@@ -277,11 +308,13 @@ def build_proposal(
         else:
             screen_key = fallback_screen_key(record.get("id", ""), i, case)
             flags.append("screen_key_auto_from_row_id_non_ascii_object_name")
-        module, module_prefix, guessed = guess_module(record.get("business_purpose", ""), modules)
-        if module == UNASSIGNED:
-            flags.append("module_unassigned_needs_human_input")
+        named = named_module([object_name, record.get("id", "").strip()], modules)
+        if named:
+            module, module_prefix = named
+            flags.append("module_named_by_config")
         else:
-            flags.append("module_guessed")
+            module, module_prefix, _ = guess_module(record.get("business_purpose", ""), modules)
+            flags.append("module_unassigned_needs_human_input" if module == UNASSIGNED else "module_guessed")
         url_segment = screen_key
         fe_route = f"{fe_route_base}/{screen_key}" if fe_route_base else f"/{screen_key}"
         if not fe_route_base:
@@ -302,6 +335,7 @@ def build_proposal(
                 "status_be": "not_started",
                 "status_fe": "not_started",
                 "flags": flags,
+                **{k: record[k] for k in ("id", "prints", "embeds", "reason") if k in record},
             }
         )
     return proposal
@@ -313,6 +347,9 @@ def main() -> int:
     parser.add_argument("--screen-key-case", default="snake_case", choices=["snake_case", "kebab-case"])
     parser.add_argument("--project-config", default=None, help="Path to the target project's PROJECT_CONFIG.md")
     parser.add_argument("--out", required=True, help="Where to write the JSON proposal (UTF-8)")
+    parser.add_argument("--write-registry", default=None, metavar="SCREENS_REGISTRY_MD",
+                        help="After the human's ok: write the proposal into this Screens_Registry.md, "
+                             "which must still hold only the template's placeholder rows")
     args = parser.parse_args()
 
     if args.ak_run_dir.strip().lower() == "n/a":
@@ -323,10 +360,22 @@ def main() -> int:
         print(f"error: --ak-run-dir not found: {args.ak_run_dir}", file=sys.stderr)
         return 2
 
+    modules: list[tuple[str, str, str]] = []
+    fe_route_base = None
+    if args.project_config and os.path.isfile(args.project_config):
+        with io_open(args.project_config) as f:
+            cfg_text = f.read()
+        modules = parse_module_table(cfg_text)
+        fe_route_base = read_config_value(cfg_text, "FE_ROUTE_BASE")
+
+    if not os.path.isfile(os.path.join(args.ak_run_dir, "run-state.json")) and is_workspace(args.ak_run_dir):
+        return from_workspace(args, modules, fe_route_base)
+
     try:
         gates = read_phase_gates(args.ak_run_dir)
     except FileNotFoundError:
-        print("error: run-state.json not found under --ak-run-dir", file=sys.stderr)
+        print("error: run-state.json not found under --ak-run-dir, and it is not a five-phase "
+              "workspace (manifest.yaml and output/)", file=sys.stderr)
         return 2
     except (json.JSONDecodeError, OSError) as exc:
         print(f"error: could not read run-state.json: {exc}", file=sys.stderr)
@@ -375,14 +424,6 @@ def main() -> int:
               file=sys.stderr)
         return 2
 
-    modules: list[tuple[str, str, str]] = []
-    fe_route_base = None
-    if args.project_config and os.path.isfile(args.project_config):
-        with io_open(args.project_config) as f:
-            cfg_text = f.read()
-        modules = parse_module_table(cfg_text)
-        fe_route_base = read_config_value(cfg_text, "FE_ROUTE_BASE")
-
     proposal = build_proposal(rows_raw, col_map, args.screen_key_case, modules, fe_route_base)
 
     result = {
@@ -401,6 +442,91 @@ def main() -> int:
         f"ok: {len(proposal)} candidate row(s) fully filled, {unassigned_count} with module=UNASSIGNED. "
         f"Wrote {args.out}"
     )
+    if args.write_registry:
+        return write_registry(args.write_registry, proposal, [])
+    return 0
+
+
+def from_workspace(args, modules, fe_route_base) -> int:
+    try:
+        found = workspace_inventory(args.ak_run_dir)
+    except FileNotFoundError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 2
+    if found["gate"] != "CONFORMS":
+        print(f"phase2 document does not conform ({found['gate']}: {found['gate_detail']}) "
+              "- nothing safe to seed from yet. Run `$ak conformance` in the workspace.")
+        return 1
+    active = records_to_proposal(found["active"], args.screen_key_case, modules, fe_route_base)
+    future = records_to_proposal(found["future"], args.screen_key_case, modules, fe_route_base)
+    result = {
+        "status": "ok",
+        "phase2_gate": found["gate"],
+        "source": "workspace",
+        "source_file": found["phase2_document"],
+        "sources": found["sources"],
+        "entry_points": found["entry_points"],
+        "row_count": len(active),
+        "rows": active,
+        "future_scope": future,
+        "excluded": found["excluded"],
+    }
+    with open(args.out, "w", encoding="utf-8", newline="\n") as f:
+        json.dump(result, f, ensure_ascii=False, indent=2)
+    unassigned = sum(1 for r in active + future if r["module"] == UNASSIGNED)
+    print(f"ok: {len(active)} active row(s), {len(future)} future-scope, {len(found['excluded'])} "
+          f"excluded, {unassigned} with module=UNASSIGNED. Wrote {args.out}")
+    if args.write_registry:
+        return write_registry(args.write_registry, active, future)
+    return 0
+
+
+def _table_bounds(lines: list[str], heading: str) -> tuple[int, int, list[str]] | None:
+    """Header index, end index (exclusive) and column names of the table under a heading."""
+    start = next((i for i, line in enumerate(lines) if line.strip().lower() == heading.lower()), None)
+    if start is None:
+        return None
+    head = next((i for i in range(start + 1, len(lines)) if lines[i].strip().startswith("|")), None)
+    if head is None:
+        return None
+    end = head
+    while end < len(lines) and lines[end].strip().startswith("|"):
+        end += 1
+    columns = [c.strip().split(" (")[0] for c in lines[head].strip().strip("|").split("|")]
+    return head, end, columns
+
+
+def _is_placeholder_row(line: str) -> bool:
+    cells = [c.strip().strip("`") for c in line.strip().strip("|").split("|")]
+    return all(not c or c.startswith("{{") or c in {"not_started", "1", "2"} for c in cells)
+
+
+def write_registry(path: str, active: list[dict], future: list[dict]) -> int:
+    """Fill the Active Screens and Future Scope tables of a freshly copied registry."""
+    with io_open(path) as f:
+        lines = f.read().split("\n")
+    for heading, rows in (("## Active Screens", active), ("## Future Scope", future)):
+        bounds = _table_bounds(lines, heading)
+        if bounds is None:
+            print(f"error: no table under {heading!r} in {path}", file=sys.stderr)
+            return 2
+        head, end, columns = bounds
+        body = lines[head + 2:end]
+        if any(not _is_placeholder_row(line) for line in body):
+            print(f"error: {heading!r} in {path} already holds rows - refusing to overwrite a registry "
+                  "someone has edited", file=sys.stderr)
+            return 2
+        out = []
+        for n, row in enumerate(rows, start=1):
+            cells = []
+            for col in columns:
+                value = n if col == "#" else row.get(col, "")
+                cells.append(str(value) if col == "#" or not value else f"`{value}`")
+            out.append("| " + " | ".join(cells) + " |")
+        lines[head + 2:end] = out
+    with open(path, "w", encoding="utf-8", newline="\n") as f:
+        f.write("\n".join(lines))
+    print(f"wrote {len(active)} active and {len(future)} future-scope row(s) into {path}")
     return 0
 
 
