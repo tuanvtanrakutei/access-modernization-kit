@@ -37,6 +37,58 @@ import link_targets  # noqa: E402
 import workspace as workspace_contract  # noqa: E402
 
 
+def _spreadsheet_layout(path: Path, sheet_names: tuple[str, ...]) -> bool:
+    """Whether an Excel 97 workbook contains the named sheets with A:I headers.
+
+    This is deliberately a structural fallback for runtime paths.  It does not
+    claim that a saved Access import specification exists, and it is only used when
+    code declared a ``TransferSpreadsheet`` range such as ``DataName!A:I``.
+    """
+    if not sheet_names or path.suffix.casefold() not in {".xls", ".xlsx"}:
+        return False
+    try:
+        import xlrd  # type: ignore[import-not-found]
+        book = xlrd.open_workbook(str(path), on_demand=True)
+        available = set(book.sheet_names())
+        if not set(sheet_names).issubset(available):
+            return False
+        for name in sheet_names:
+            sheet = book.sheet_by_name(name)
+            if sheet.nrows < 1 or sheet.ncols < 9:
+                return False
+            header = [str(value).strip() for value in sheet.row_values(0)[:9]]
+            if not any(header):
+                return False
+        return True
+    except (ImportError, OSError, ValueError, TypeError):
+        return False
+
+
+def structural_samples(
+    feeds: list[feeds_contract.Feed], on_disk: dict[str, list[Path]],
+    samples_root: Path,
+) -> dict[tuple[str, str, str, str], list[Path]]:
+    """Match runtime spreadsheet imports by their declared workbook shape."""
+    groups: dict[tuple[str, str, str, str], list[feeds_contract.Feed]] = {}
+    for feed in feeds:
+        if (feed.origin == "code" and not feed.spec_name and feed.layout_expression
+                and feed.layout_names and feed.direction == "inbound"):
+            key = (feed.database_id, feed.declared_in, feed.path_expression,
+                   feed.layout_expression)
+            groups.setdefault(key, []).append(feed)
+    matched: dict[tuple[str, str, str, str], list[Path]] = {}
+    all_paths = [path for paths in on_disk.values() for path in paths]
+    for key, group in groups.items():
+        names = tuple(dict.fromkeys(name for feed in group for name in feed.layout_names))
+        candidates = [path for path in all_paths if _spreadsheet_layout(path, names)]
+        if candidates:
+            # A runtime path (for example `OrderDataPath & FileName`) reads a
+            # batch. Multiple workbooks with the same structural signature are
+            # therefore multiple valid samples, not an ambiguous choice.
+            matched[key] = candidates
+    return matched
+
+
 def read_json(path: Path) -> Any:
     """A bundle file, or None. `utf-8-sig` because the VBA exporter writes a BOM."""
     if not path.is_file():
@@ -135,6 +187,8 @@ def main() -> int:
     findings: list[tuple[str, str, str]] = []
     read: list[tuple[feeds_contract.Specification, feeds_contract.Sample]] = []
     claimed: set[str] = set()
+    structural = structural_samples(declared, on_disk, samples_root)
+    structural_reported: set[tuple[str, str, str, str]] = set()
 
     for feed in sorted(declared, key=lambda item: (item.database_id, item.declared_in,
                                                    item.table)):
@@ -144,6 +198,19 @@ def main() -> int:
             # only by table and file, they print as three identical lines and no reader
             # can tell which one a finding is about.
             where = f"{feed.declared_in} -> {where}"
+        structural_key = (feed.database_id, feed.declared_in, feed.path_expression,
+                          feed.layout_expression)
+        if structural_key in structural:
+            paths = structural[structural_key]
+            for path in paths:
+                claimed.add(path.name.casefold())
+            if structural_key not in structural_reported:
+                names = ", ".join(path.relative_to(samples_root).as_posix()
+                                   for path in paths)
+                lines.append(f"  {where} | structural samples ({len(paths)}): {names} | "
+                             f"sheets {', '.join(feed.layout_names)} | range {feed.layout_expression}")
+                structural_reported.add(structural_key)
+            continue
         if feed.origin == "code" and not feed.spec_name:
             findings.append(("NO SPEC", where, f"{feed.operation} names no import "
                              "specification; its layout is declared nowhere"))
