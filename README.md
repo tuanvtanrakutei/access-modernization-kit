@@ -1,4 +1,4 @@
-# Access Modernization Kit (AK)
+# Access Modernization Kit (AMK)
 
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
 [![Release](https://img.shields.io/github/v/release/tuanvtanrakutei/amk?color=green&label=release)](https://github.com/tuanvtanrakutei/amk/releases/latest)
