@@ -295,6 +295,8 @@ def test_a_protected_path_is_refused(space: Workspace) -> None:
      "input/exports/FRONTEND-2026-09-04"),
     ("input/access/業務支援（windows11専用）.mdb",
      "input/access/業務支援（windows11専用）.mdb"),
+    ("input/access/受発注(食材)ac2003(appがx86).mdb",
+     "input/access/受発注(食材)ac2003(appがx86).mdb"),
     ("| Supersedes | `.ak/bundles/2026-09-10-50cfe32e`, before the removal |",
      ".ak/bundles/2026-09-10-50cfe32e"),
     ("The text was read out of .ak/staging/FRONTEND/fresh-01.",

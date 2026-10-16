@@ -121,7 +121,7 @@ TOP_SEGMENTS: tuple[str, ...] = (
 # a table, and a key carrying a trailing backtick matches nothing. Full-width brackets
 # are deliberately absent: they are inside real filenames here
 # (`<アプリ名>（windows11専用）.mdb`).
-_PATH_TOKEN = re.compile("[^\\s\"'`<>|*?,;)\\]}]+")
+_PATH_TOKEN = re.compile("[^\\s\"'`<>|*?,;\\]}]+")
 
 # Access leaves these beside a database it opened. Never cited, never input.
 DROPPINGS: tuple[str, ...] = ("*.ldb", "*.laccdb", "~*.mdb", "~*.accdb", "*.tmp")
@@ -140,7 +140,13 @@ def paths_in(text: str) -> set[str]:
                 continue
             if at and (token[at - 1].isalnum() or token[at - 1] in "-_."):
                 continue  # part of a longer name, e.g. `no-input/foo`
-            found.add(token[at:].rstrip("/."))
+            candidate = token[at:]
+            # A Markdown link contributes its closing `)` to the token. Keep
+            # balanced parentheses in real filenames, but remove an unmatched
+            # closing delimiter from the path portion.
+            while candidate.endswith(")") and candidate.count(")") > candidate.count("("):
+                candidate = candidate[:-1]
+            found.add(candidate.rstrip("/."))
             break
     return found
 
