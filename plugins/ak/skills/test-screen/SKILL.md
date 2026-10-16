@@ -9,6 +9,12 @@ Run **Stages 4a and 4b** for the screen named in the request, then close the sta
 evidence and **gate G4**. `MASTER_WORKFLOW.md` is the authority; `{{TEST_METHOD_DOC}}` and the
 frontend testing document define how to choose test cases; `TRACEBACK_GATES.md` specifies G4.
 
+The pipeline manuals named here by bare filename (`MASTER_WORKFLOW.md`, `TRACEBACK_GATES.md`,
+`LEGACY_EVIDENCE.md`, the coding and testing rule documents, `CONVENTIONS.md`) ship with this plugin in
+`${CLAUDE_PLUGIN_ROOT}/modernize/docs/`. Read a manual from the project's docs directory only when the
+project keeps its own copy there under the same name; otherwise read the plugin's. Their `{{...}}` keys
+resolve from `PROJECT_CONFIG.md`.
+
 ## Refuse to start unless the code exists
 
 0. If no screen was named in the request, stop before checking anything else and

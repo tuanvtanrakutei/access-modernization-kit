@@ -12,6 +12,85 @@ that it should now work.
 
 ## Open
 
+### A96 - a project's docs folder held nine kit manuals beside its own files, and a new developer had no way in
+
+**Found 2026-10-15, reviewing the first project bootstrapped by 2.17.0.** The developer asked three
+things:
+
+- Why `docs/` held kit files when the kit was an installed plugin. Bootstrap copied the nine
+  pipeline manuals into every project, to pin the manual a half-finished screen was planned
+  against. The developer could not tell those files from the project's own.
+- How a new developer would find the way from install to a merged screen. No such guide existed.
+  The project had also been set up with `docs/` gitignored, following an older project whose
+  docs folder held customer data. The registry, the issue log and the screen plans were then on
+  one machine only.
+- Whether the plugin had an install guide. It had one, but nothing in the project pointed to it.
+
+Changed:
+
+- **Bootstrap no longer copies the manuals.**
+  - The screen skills read them from `${CLAUDE_PLUGIN_ROOT}/modernize/docs/`, and their keys
+    resolve from `PROJECT_CONFIG.md` on read.
+  - A project that keeps its own copy under the same name in `DOCS_DIR` is read first.
+  - The pin is the new `KIT_VERSION` row. Pre-flight step 1 compares it with the installed plugin
+    and names the changelog entries between them. It never raises the row unasked.
+- `PROJECT_CONFIG.md` §10 and §11 and `DOCS_README.md` say which files are the project's and
+  which ship with the plugin. The pattern templates and the `CLAUDE.md` block point at the
+  manuals by name.
+- **`/ak:dev-stack`**: a skill around `dev_stack.py`, so a developer starts the stack without
+  knowing where the plugin cache keeps the script.
+- Bootstrap Step 5:
+  - It warns against installing host dependencies into a folder the stack mounts. A host
+    `node_modules` in `frontend/` made the container's `pnpm install` fail with `EACCES`.
+  - It proposes `validate-docs-report.md` for `.gitignore`.
+
+Not changed: whether `DOCS_DIR` is committed is the project's call. It should be committed unless
+the folder holds customer data, which a project that keeps its analysis workspace outside the
+repository does not.
+
+### A95 - bootstrap ended at documents: no stack ran, and the pipeline's pre-flight required run-state.json
+
+**Found 2026-10-15, right after A94, on the same project.** The test command could not run
+because of two problems:
+
+- The backend's `.env` named a database on a network the developer's machine could not reach.
+  The compose file had a backend and a frontend and no database.
+- On the Windows host the suite failed before any test body ran. pytest keeps the current
+  test's id in an environment variable, and a parametrised id with a long Japanese sample
+  exceeded Windows' 32767-character limit. The same suite passed in a Linux container
+  against a throwaway PostgreSQL: 146 passed.
+
+Interviewing the user settled the shape:
+
+- Bootstrap builds, runs, migrates and checks. It stops before importing master data, which
+  needs real data.
+- The development database is a local PostgreSQL container.
+- `LINT_CMD` and `TEST_CMD` run in the backend container.
+
+The same review found that the pipeline's pre-flight (step 5) read `run-state.json` and had no
+answer for a workspace built phase by phase. Stage 1 would have stopped on the first screen of
+the project A94 had just bootstrapped.
+
+Changed:
+
+- **`modernize/scripts/dev_stack.py`** (`plan`, `up`, `status`, `down`) reads the compose file
+  through `docker compose config --format json`, so it needs no YAML library.
+  - It tells the backend and frontend services apart by what they run, and creates the external
+    networks the compose file expects.
+  - It writes a gitignored `docker-compose.override.yml` with a local PostgreSQL service and the
+    backend's database settings pointed at it. Each override gets its own password. The script
+    refuses when git would track the file, and never overwrites one.
+  - It builds, starts, makes and applies migrations, and waits for the health path and the
+    frontend page. The project's compose file and scripts are not edited.
+- **PROJECT_CONFIG §12 Development Stack**: `COMPOSE_FILE`, `BACKEND_SERVICE`,
+  `FRONTEND_SERVICE`, `DEV_DB`, `HEALTH_PATH`. `LINT_CMD` and `TEST_CMD` are written to run in
+  the backend container.
+- **`bootstrap-project` Step 4b** proposes those rows from `dev_stack.py plan` and runs `up`.
+  Step 5 runs the commands in the stack.
+- **`MASTER_WORKFLOW.md` pre-flight**
+  - Step 5 takes a workspace's `$ak conformance` as its phase gate.
+  - New step 9 checks the stack with `dev_stack.py status` and brings it up when it is down.
+
 ### A94 - bootstrap could not seed a registry from a workspace, and its checklist was handed over unread
 
 **Found 2026-10-15, bootstrapping the first project whose five phases were written phase by

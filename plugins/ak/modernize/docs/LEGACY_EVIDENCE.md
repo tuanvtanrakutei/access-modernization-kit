@@ -207,7 +207,7 @@ tool-agnostic handoff produces them:
   the phases raised: who can answer, what it blocks, and what the pipeline proceeds on meanwhile.
   Pre-flight step 8 reads it per screen through `scripts/screen_decisions.py`. Absent when the
   project never ran `$ak decisions`; the pre-flight line says so.
-- **`run-state.json` → `phase_gates`** — per-phase `PENDING | READY | PUBLISHED | REJECTED`.
+- **`run-state.json` → `phase_gates`** — per-phase `PENDING | READY | PUBLISHED | REJECTED`. A workspace built phase by phase writes no `run-state.json`; there `$ak conformance` on its `output/` is the gate (`MASTER_WORKFLOW.md` pre-flight step 5).
   Pre-flight reads this before Stage 1 rather than judging evidence sufficiency by eye.
 
 **Precedence when both exist:** the enriched artifacts are the source Stage 1 reads; raw
