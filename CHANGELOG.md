@@ -1,5 +1,18 @@
 # Changelog
 
+## [2.17.1] - 2026-10-16
+
+**Runtime-named Excel samples are matched by workbook structure.** `$ak samples` now recognizes
+inbound `TransferSpreadsheet` samples whose path is assembled at runtime by checking the declared
+sheet names and A:I layout. Batch files with the same structural signature are all claimed, so
+valid runtime-fed samples no longer appear as `UNCLAIMED`.
+
+### Fixed
+
+- Preserve the runtime spreadsheet range and literal sheet assignments extracted from VBA.
+- Match `.xls` and `.xlsx` samples by declared workbook structure when no literal filename exists.
+- Add regression coverage for runtime sheet/range matching and multi-file batches.
+
 ## [2.17.0] - 2026-10-15
 
 One pull request (#115). **Bootstrap seeds a project's screen registry from a workspace built

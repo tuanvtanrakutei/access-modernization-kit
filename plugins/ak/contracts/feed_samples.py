@@ -214,6 +214,8 @@ class Feed:
     operation: str = ""
     direction: str = "inbound"
     declared_in: str = ""
+    layout_expression: str = ""
+    layout_names: tuple[str, ...] = ()
 
     @property
     def expects_header(self) -> bool:
@@ -506,6 +508,25 @@ def _constants(text: str) -> dict[str, str]:
     return {name: value for name, value in seen.items() if name not in twice}
 
 
+_ASSIGNMENT = re.compile(
+    r'(?im)^\s*(?:Let\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*=\s*"([^"]*)"'
+)
+
+
+def _literal_assignments(text: str) -> dict[str, tuple[str, ...]]:
+    """Literal values assigned to variables in one exported definition.
+
+    Runtime spreadsheet imports often use ``DataName & "!A:I"``.  The value is
+    assigned immediately before each call, so retaining these literals lets the
+    sample checker use the workbook's sheet names without hard-coding an application's
+    vocabulary in the kit.
+    """
+    values: dict[str, list[str]] = {}
+    for match in _ASSIGNMENT.finditer(text or ""):
+        values.setdefault(match.group(1), []).append(match.group(2))
+    return {name: tuple(dict.fromkeys(items)) for name, items in values.items()}
+
+
 def _resolve_path(expression: str, constants: dict[str, str]) -> tuple[str, bool]:
     """Substitute constants into a `&` chain. Returns the text and whether it is literal.
 
@@ -582,6 +603,7 @@ def code_feeds(records: Iterable[dict]) -> list[Feed]:
         # path, not an unknown. Five of one run's eleven sample findings were answerable
         # from the file they were reported against.
         constants = _constants(text)
+        assignments = _literal_assignments(text)
         for line in _vba_code_lines(text):
             for match in call_pattern.finditer(line):
                 arguments_text = line[match.end():].strip()
@@ -612,6 +634,13 @@ def code_feeds(records: Iterable[dict]) -> list[Feed]:
                         header = "YES"
                     elif header_value in {"false", "0"}:
                         header = "NO"
+                layout_expression = ""
+                layout_names: tuple[str, ...] = ()
+                if not is_text and len(arguments) > 5:
+                    layout_expression = _vba_literal(arguments[5]) or arguments[5]
+                    variable = re.match(r"([A-Za-z_]\w*)\s*&", layout_expression)
+                    if variable:
+                        layout_names = assignments.get(variable.group(1), ())
                 declared_format = (
                     "Delimited" if "delim" in folded else transfer_type
                 ) if is_text else "Spreadsheet"
@@ -628,6 +657,8 @@ def code_feeds(records: Iterable[dict]) -> list[Feed]:
                     operation=f"{match.group(1)} {transfer_type}".strip(),
                     direction=direction,
                     declared_in=declared_in,
+                    layout_expression=layout_expression,
+                    layout_names=layout_names,
                 ))
     return found
 

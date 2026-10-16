@@ -185,6 +185,37 @@ def test_a_runtime_spreadsheet_link_is_a_file_crossing_the_boundary() -> None:
     assert feed.operation == "TransferSpreadsheet acLink"
 
 
+def test_runtime_spreadsheet_keeps_sheet_layout_and_runtime_names() -> None:
+    feed, = feeds.code_feeds([{"database_id": "FE", "name": "受注取込", "text": '''
+        DataName = "食材データ"
+        DataName = "青果データ"
+        DoCmd.TransferSpreadsheet acImport, 8, DataName & "ＣＳＶ", path, True, DataName & "!A:I"
+    '''}])
+    assert feed.layout_expression == 'DataName & "!A:I"'
+    assert feed.layout_names == ("食材データ", "青果データ")
+
+
+def test_runtime_spreadsheet_can_match_a_sample_by_structure(tmp_path) -> None:
+    path = tmp_path / "arbitrary-order-name.xls"
+    path.write_bytes(b"placeholder")
+    feed = feeds.Feed(
+        table="DataName & \"ＣＳＶ\"", database_id="FE", spec_name="",
+        file_name="", operation="TransferSpreadsheet acImport",
+        origin="code", declared_in="受注取込", path_expression="path",
+        layout_expression='DataName & "!A:I"',
+        layout_names=("食材データ", "青果データ"),
+    )
+    original = checker._spreadsheet_layout
+    checker._spreadsheet_layout = lambda candidate, names: (
+        candidate == path and names == ("食材データ", "青果データ"))
+    try:
+        matched = checker.structural_samples(
+            [feed], {path.name.casefold(): [path]}, tmp_path)
+    finally:
+        checker._spreadsheet_layout = original
+    assert matched == {("FE", "受注取込", "path", 'DataName & "!A:I"'): [path]}
+
+
 def test_one_reader_serves_the_catalogue_and_the_sample_check(tmp_path) -> None:
     """A33, on the pair that A46 first gave a copy each.
 
