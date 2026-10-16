@@ -1,7 +1,7 @@
 # Access Modernization Kit (AK)
 
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
-[![Release](https://img.shields.io/github/v/release/tuanvtanrakutei/access-modernization-kit?color=green&label=release)](https://github.com/tuanvtanrakutei/access-modernization-kit/releases/latest)
+[![Release](https://img.shields.io/github/v/release/tuanvtanrakutei/amk?color=green&label=release)](https://github.com/tuanvtanrakutei/amk/releases/latest)
 
 An agent plugin that takes a legacy **Microsoft Access / VBA / SQL Server** application to a
 working **Django REST + React** implementation. The agent does the reading, extracting,
@@ -55,8 +55,8 @@ Yellow boxes are the only places a person is asked anything. Everything else is 
 
 | Agent | Run |
 | :--- | :--- |
-| Claude Code | `/plugin marketplace add tuanvtanrakutei/access-modernization-kit` then `/plugin install ak@access-modernization-kit` |
-| Codex CLI | `codex plugin marketplace add tuanvtanrakutei/access-modernization-kit --sparse .agents/plugins --sparse plugins/ak` then `codex plugin add ak@access-modernization-kit` |
+| Claude Code | `/plugin marketplace add tuanvtanrakutei/amk` then `/plugin install ak@amk` |
+| Codex CLI | `codex plugin marketplace add tuanvtanrakutei/amk --sparse .agents/plugins --sparse plugins/ak` then `codex plugin add ak@amk` |
 
 **2. Install the two Python packages** (the plugin install does not do this):
 
@@ -166,7 +166,7 @@ Order for one app: `init` → `assess` → `acquire` → `derive` → `documents
 | `$ak wireframes --app-root <PATH>` | Draw every legacy form on one HTML page. |
 | `$ak mockup-data --app-root <PATH> --authorize access_snapshot_extract` | Read each form's first rows from copies, so the wireframes draw a runtime mockup with real data. |
 | `$ak design-view --app-root <PATH> --authorize access_snapshot_extract` | Capture every form and report in design view when nobody can screenshot the running app. |
-| `$ak runtime-view --app-root <PATH> --authorize access_snapshot_extract` | Run every form of a copy as an operator sees it, capture it, and read its controls; `$ak wireframes --check-runtime` then measures the mockup against it. |
+| `$ak runtime-view --app-root <PATH> --authorize access_snapshot_extract` | Run every form of a copy as an operator sees it, capture it, and read its controls; `$ak wireframes --check-runtime` then m[...] |
 | `$ak glossary` / `$ak bilingual` | Propose an English name for every production name; print it beside the original. |
 | `$ak meanings --app-root <PATH>` | Tables and columns still needing a business meaning. |
 | `$ak interviews --app-root <PATH>` | Where the Q&A register and its pages disagree. |
